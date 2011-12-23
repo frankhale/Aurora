@@ -1,25 +1,12 @@
 ﻿//
 // Aurora - A tiny MVC web framework for .NET
 //
-// Updated On: 21 December 2011
+// Updated On: 22 December 2011
 //
 // Contact Info:
 //
 //  Frank Hale - <frankhale@gmail.com> 
 //               <http://about.me/frank.hale>
-//
-// -----------------
-// --- Changelog ---
-// -----------------
-//
-// 21 December 2011 - This is initial version of Aurora. Aurora was born from 
-//                    Autumn but lost the wrapped HttpContext and has a new 
-//                    simpler routing engine but retains almost all the 
-//                    functionality with the exception of per controller error
-//                    handlers. I'm still up in the air about adding that back.
-//                    Error handling is probably better done in the CustomError
-//                    class. I've left the documentation below for the error 
-//                    action just in case I add it back.
 //
 // ---------------
 // --- CAUTION ---
@@ -753,7 +740,7 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyProduct("Aurora")]
 [assembly: AssemblyCopyright("Copyright © 2011")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.99.9.*")]
+[assembly: AssemblyVersion("1.99.10.*")]
 #endregion
 
 //TODO: Look into using HttpRuntime.Cache instead of using HttpContext.Session and HttpContext.Application
@@ -794,10 +781,17 @@ namespace Aurora
     }
 
     [ConfigurationProperty("StaticContentCacheExpiry", DefaultValue = "15", IsRequired = false)]
-    public string StaticContentCacheExpiry
+    public int StaticContentCacheExpiry
     {
-      get { return this["Debug"] as string; }
+      get { return Convert.ToInt32(this["StaticContentCacheExpiry"]); }
     }
+
+    [ConfigurationProperty("AuthCookieExpiration", DefaultValue = "8", IsRequired = false)]
+    public int AuthCookieExpiry
+    {
+      get { return Convert.ToInt32(this["AuthCookieExpiration"]); }
+    }
+
 
     #region ACTIVE DIRECTORY CONFIGURATION
 #if ACTIVEDIRECTORY
@@ -834,9 +828,9 @@ namespace Aurora
   {
     public static WebConfig WebConfig = ConfigurationManager.GetSection("Aurora") as WebConfig;
     public static CustomErrorsSection CustomErrorsSection = ConfigurationManager.GetSection("system.web/customErrors") as CustomErrorsSection;
-
     public static string EncryptionKey = (MainConfig.WebConfig == null) ? null : WebConfig.EncryptionKey;
-
+    public static int AuthCookieExpiry = (MainConfig.WebConfig == null) ? 8 : WebConfig.AuthCookieExpiry;
+    public static int StaticContentCacheExpiry = (MainConfig.WebConfig == null) ? 15 : WebConfig.StaticContentCacheExpiry;
     // The UserName and Password used to search Active Directory should be encrypted in the Web.Config
 #if ACTIVEDIRECTORY
     public static string ADSearchUser = (MainConfig.WebConfig == null) ? null : (!string.IsNullOrEmpty(WebConfig.ADSearchUser)) ? Encryption.Decrypt(WebConfig.ADSearchUser, WebConfig.EncryptionKey) : null;
@@ -863,6 +857,7 @@ namespace Aurora
     public static string AntiForgeryTokenName = "AntiForgeryToken";
     public static string JsonAntiForgeryTokenName = "JsonAntiForgeryToken";
     public static string AntiForgeryTokenMissing = "An AntiForgery token is required on all forms";
+    public static string AntiForgeryTokenVerificationFailed = "AntiForgery token verification failed";
     public static string JsonAntiForgeryTokenMissing = "An AntiForgry token is required on all Json requests";
     public static string AuroraAuthCookieName = "AuroraAuthCookie";
     public static string AuroraAuthTypeName = "AuroraAuth";
@@ -1263,11 +1258,13 @@ namespace Aurora
   {
     public string ID { get; set; }
     public string AuthToken { get; set; }
+    public DateTime Expiration { get; set; }
   }
 
   public class User : IPrincipal
   {
     public string AuthenticationToken { get; internal set; }
+    public HttpCookie AuthenticationCookie { get; internal set; }
     public string SessionID { get; internal set; }
     public string IPAddress { get; internal set; }
     public DateTime LoginDate { get; internal set; }
@@ -1440,9 +1437,30 @@ namespace Aurora
 
       if (u != null) return u.AuthenticationToken;
 
+      string authToken = CreateAuthenticationToken();
+      DateTime expiration = DateTime.Now.Add(TimeSpan.FromHours(MainConfig.AuthCookieExpiry));
+
+      // Get the frame before this one so we can obtain the method who called us so we can get the attribute
+      // for the action
+      StackFrame sf = new StackFrame(1);
+      MethodInfo callingMethod = (MethodInfo)sf.GetMethod();
+
+      HttpGetAttribute get = (HttpGetAttribute)callingMethod.GetCustomAttributes(false).FirstOrDefault(x => x is HttpGetAttribute);
+      
+      HttpCookie auroraAuthCookie = new HttpCookie(MainConfig.AuroraAuthCookieName)
+      { 
+        Expires = expiration,
+        HttpOnly = (get != null) ? get.HttpsOnly : true,
+        //Domain = string.Format(".{0}", (ctx.Request.Url.Host == "localhost" ? "local" : ctx.Request.Url.Host)),
+        Value = Encryption.Encrypt(JsonConvert.SerializeObject(new AuthCookie() { AuthToken = authToken, ID = id, Expiration = expiration }), MainConfig.EncryptionKey)
+      };
+
+      ctx.Response.Cookies.Add(auroraAuthCookie);
+
       u = new User()
       {
-        AuthenticationToken = CreateAuthenticationToken(),
+        AuthenticationToken = authToken,
+        AuthenticationCookie = auroraAuthCookie,
         SessionID = ctx.Session.SessionID,
         IPAddress = ctx.IPAddress(),
         LoginDate = DateTime.Now,
@@ -1454,20 +1472,6 @@ namespace Aurora
 
       ctx.Session[MainConfig.CurrentUserSessionName] = u;
       ctx.User = u;
-
-      // Get the frame before this one so we can obtain the method who called us so we can get the attribute
-      // for the action
-      StackFrame sf = new StackFrame(1);
-      MethodInfo callingMethod = (MethodInfo)sf.GetMethod();
-
-      HttpGetAttribute get = (HttpGetAttribute)callingMethod.GetCustomAttributes(false).FirstOrDefault(x => x is HttpGetAttribute);
-
-      ctx.Response.Cookies.Add(new HttpCookie(MainConfig.AuroraAuthCookieName)
-      {
-        Expires = DateTime.Now.Add(TimeSpan.FromHours(8)),
-        HttpOnly = (get != null) ? get.HttpsOnly : true,
-        Value = Encryption.Encrypt(JsonConvert.SerializeObject(new AuthCookie() { AuthToken = u.AuthenticationToken, ID = id }), MainConfig.EncryptionKey)
-      });
 
       return u.AuthenticationToken;
     }
@@ -1530,14 +1534,15 @@ namespace Aurora
 
     internal static bool IsAuthenticated(HttpContextBase ctx, string authRoles)
     {
-      HttpCookie cookie = ctx.Request.Cookies[MainConfig.AuroraAuthCookieName];
-
-      if (cookie != null)
+      AuthCookie authCookie = GetAuthCookie(ctx);
+      
+      if (authCookie != null)
       {
-        AuthCookie authCookie = GetAuthCookie(ctx);
-
         User u = GetUsers(ctx).FirstOrDefault(x => x.SessionID == ctx.Session.SessionID && x.Identity.Name == authCookie.ID);
 
+        //TODO: The User class now has the AuthenticationToken. Let's do an additional check to see if it's not expired.
+        //      if it's not then we'll rely on it.
+        
         if (u != null)
         {
           if (!string.IsNullOrEmpty(authRoles))
@@ -2445,7 +2450,6 @@ namespace Aurora
   {
     IAuroraResult HandleRoute();
     void Refresh(HttpContextBase ctx);
-    List<RouteInfo> Routes { get; }
   }
 
   internal class RouteInfo
@@ -2568,7 +2572,7 @@ namespace Aurora
 
     private bool fromRedirectOnlyFlag = false;
 
-    public List<RouteInfo> Routes { get; private set; }
+    private List<RouteInfo> Routes { get; set; }
 
     public RouteManager(HttpContextBase ctx)
     {
@@ -2844,6 +2848,15 @@ namespace Aurora
 
       if (routeInfo != null && !routeInfo.IsFiltered)
       {
+        if (context.Request.Form[MainConfig.AntiForgeryTokenName] != null)
+        {
+          // if so, check that it's valid and if it's not return a Http 404
+          if (!AntiForgeryToken.VerifyToken(context))
+            throw new Exception(MainConfig.AntiForgeryTokenVerificationFailed);
+        }
+        else
+          throw new Exception(MainConfig.AntiForgeryTokenMissing);
+
         HttpPostAttribute post = Attribute.GetCustomAttribute(routeInfo.Action, typeof(HttpPostAttribute), false) as HttpPostAttribute;
 
         if (post.HttpsOnly && !context.Request.IsSecureConnection) return result;
@@ -2913,7 +2926,7 @@ namespace Aurora
   public sealed class AuroraEngine
   {
     private HttpContextBase context;
-    private RouteManager routeManager;
+    private IRouteManager routeManager;
 
     public AuroraEngine(HttpContextBase ctx)
     {
@@ -2921,7 +2934,7 @@ namespace Aurora
 
       if ((!MainConfig.Debug) && (context.Application[MainConfig.RouteManagerSessionName] != null))
       {
-        routeManager = (RouteManager)context.Application[MainConfig.RouteManagerSessionName];
+        routeManager = (IRouteManager)context.Application[MainConfig.RouteManagerSessionName];
         routeManager.Refresh(ctx);
       }
       else
@@ -3497,9 +3510,7 @@ namespace Aurora
 
     public void Render()
     {
-      int minutesBeforeExpiration = 0;
-
-      Int32.TryParse(MainConfig.WebConfig.StaticContentCacheExpiry, out minutesBeforeExpiration);
+      int minutesBeforeExpiration = MainConfig.StaticContentCacheExpiry;
 
       if (!(minutesBeforeExpiration > 0))
         minutesBeforeExpiration = 15;
