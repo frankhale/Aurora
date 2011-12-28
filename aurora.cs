@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - A tiny MVC web framework for .NET
 //
-// Updated On: 22 December 2011
+// Updated On: 27 December 2011
 //
 // Contact Info:
 //
@@ -39,7 +39,7 @@
 //    can secure them with the Secure named parameter. Actions without a 
 //    designation will not be invoked from a URL.
 //  - Actions can have aliases. Aliases can also be added dynamically at 
-//    runtime.
+//    runtime along with default parameters.
 //  - Built in OpenID authentication which is as easy as calling two methods. 
 //    One to initiate the login with the provider and then one to finalize 
 //    the authentication.
@@ -262,6 +262,29 @@
 //
 // You can do other things in there for instance if your instance needs to be 
 // cached then you can reuse instances between action invocations.
+//
+// -----------------------------------
+// --- Action Parameter Transforms ---
+// -----------------------------------
+// 
+// Action parameter transforms makes it easy to transform a request parameter 
+// into a more complex type. For instance you could transform an ID into a User 
+// object. The way this is done is by declaring your action to take the 
+// parameter you want and then using the attribute:
+// 
+//  [ActionParameterTransform("TransformClassName")]
+//
+// This tells the framework the class that will handle the transformation of the
+// incoming parameter to the designated one. 
+//
+// Parameters coming in from a request are simple types like string, int or bool
+//
+// Your transformation class must implement the IActionParamTransform interface.
+//
+// NOTE: In the future there will be a mechanism similar to this for dealing 
+//       with post form models. This will make it easier to deal with more 
+//       complex representations of form data that cannot be inferred in the 
+//       framework itself.
 //
 // --------------------
 // --- Error action --- /// NOTE: This is currently not implemented in Aurora
@@ -717,7 +740,6 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Web;
-using System.Web.Caching;
 using System.Web.Configuration;
 using System.Web.SessionState;
 using Newtonsoft.Json;
@@ -740,7 +762,7 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyProduct("Aurora")]
 [assembly: AssemblyCopyright("Copyright © 2011")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.99.10.*")]
+[assembly: AssemblyVersion("1.99.11.*")]
 #endregion
 
 //TODO: Look into using HttpRuntime.Cache instead of using HttpContext.Session and HttpContext.Application
@@ -1305,7 +1327,11 @@ namespace Aurora
       if (context.Application[MainConfig.SecurityManagerSessionName] != null)
         users = context.Application[MainConfig.SecurityManagerSessionName] as List<User>;
       else
+      {
+        context.Application.Lock();
         context.Application[MainConfig.SecurityManagerSessionName] = users = new List<User>();
+        context.Application.UnLock();
+      }
 
       return users;
     }
@@ -1446,9 +1472,9 @@ namespace Aurora
       MethodInfo callingMethod = (MethodInfo)sf.GetMethod();
 
       HttpGetAttribute get = (HttpGetAttribute)callingMethod.GetCustomAttributes(false).FirstOrDefault(x => x is HttpGetAttribute);
-      
+
       HttpCookie auroraAuthCookie = new HttpCookie(MainConfig.AuroraAuthCookieName)
-      { 
+      {
         Expires = expiration,
         HttpOnly = (get != null) ? get.HttpsOnly : true,
         //Domain = string.Format(".{0}", (ctx.Request.Url.Host == "localhost" ? "local" : ctx.Request.Url.Host)),
@@ -1535,14 +1561,14 @@ namespace Aurora
     internal static bool IsAuthenticated(HttpContextBase ctx, string authRoles)
     {
       AuthCookie authCookie = GetAuthCookie(ctx);
-      
+
       if (authCookie != null)
       {
         User u = GetUsers(ctx).FirstOrDefault(x => x.SessionID == ctx.Session.SessionID && x.Identity.Name == authCookie.ID);
 
         //TODO: The User class now has the AuthenticationToken. Let's do an additional check to see if it's not expired.
         //      if it's not then we'll rely on it.
-        
+
         if (u != null)
         {
           if (!string.IsNullOrEmpty(authRoles))
@@ -1576,7 +1602,9 @@ namespace Aurora
                  from type in assembly.GetTypes().Where(x => x.BaseType == t)
                  select type).ToList();
 
+        context.Application.Lock();
         context.Application[sessionName] = types;
+        context.Application.UnLock();
       }
 
       return types;
@@ -1731,11 +1759,29 @@ namespace Aurora
           }
         }
 
+        context.Application.Lock();
         context.Application[MainConfig.RoutesSessionName] = routes;
+        context.Application.UnLock();
         #endregion
       }
 
       return routes;
+    }
+
+    public static Type GetActionTransformClassType(ActionParamTransform apt)
+    {
+      //localhost:55022/EditUser/c00ad79916234a3d
+
+      Type actionTransformClassType = (from assembly in AppDomain.CurrentDomain.GetAssemblies().Where(x => x.GetName().Name != "DotNetOpenAuth")
+                                       from type in assembly.GetTypes().Where(x =>  x.GetInterface(typeof(IActionParamTransform<,>).Name) != null && x.Name == apt.TransformName)
+                                       select type).FirstOrDefault();
+
+      if (actionTransformClassType != null) return actionTransformClassType;
+            
+
+      //TODO: Let's throw an exception if we can't determine the transform class type
+
+      return null;
     }
 
     public static void RemoveRouteInfo(HttpContextBase context, string alias)
@@ -2290,7 +2336,7 @@ namespace Aurora
   #endregion
 
   #region STRING CONVERSION
-  internal static class StringConversion
+  internal static class StringTypeConversion
   {
     public static object[] ToObjectArray(string[] parms)
     {
@@ -2311,6 +2357,14 @@ namespace Aurora
           else if (parms[i].IsDouble())
           {
             _parms[i] = Convert.ToDouble(parms[i]);
+          }
+          else if (parms[i].ToLower() == "true" ||
+                  parms[i].ToLower() == "false" ||
+                  parms[i].ToLower() == "on")
+          {
+            if (parms[i].ToLower() == "on") parms[i] = "true";
+
+            _parms[i] = Convert.ToBoolean(parms[i]);
           }
           else
             _parms[i] = parms[i];
@@ -2441,6 +2495,24 @@ namespace Aurora
       }
 
       return null;
+    }
+  }
+  #endregion
+
+  #region ACTION PARAM TRANSFORM
+  public interface IActionParamTransform<T, V>
+  {
+    T Transform(V value);
+  }
+
+  [AttributeUsage(AttributeTargets.Parameter)]
+  public class ActionParamTransform : Attribute
+  {
+    internal string TransformName { get; set; }
+
+    public ActionParamTransform(string transformName)
+    {
+      TransformName = transformName;
     }
   }
   #endregion
@@ -2609,7 +2681,7 @@ namespace Aurora
         urlStringParams = path.Replace(alias, string.Empty).Split('/').Where(x => !string.IsNullOrEmpty(x)).ToArray();
 
         if (urlStringParams != null)
-          urlObjectParams = StringConversion.ToObjectArray(urlStringParams);
+          urlObjectParams = StringTypeConversion.ToObjectArray(urlStringParams);
 
         postedFormModel = Model.DetermineModelFromPostedForm(context);
 
@@ -2651,17 +2723,18 @@ namespace Aurora
         int totalParamLength = boundParamLength + urlParamLength;
 
         if (routeInfo.Action.GetParameters().Count() < totalParamLength) continue;
-        
+
         if ((postedFormModel == null) && (context.Request.Form.Count > 0))
         {
           string[] formValues = new string[routeInfo.Form.AllKeys.Length];
 
           for (int i = 0; i < routeInfo.Form.AllKeys.Length; i++)
           {
-            formValues[i] = routeInfo.Form.Get(i);
+            if (routeInfo.Form.AllKeys[i] != MainConfig.AntiForgeryTokenName)
+              formValues[i] = routeInfo.Form.Get(i);
           }
 
-          formParams = StringConversion.ToObjectArray(formValues);
+          formParams = StringTypeConversion.ToObjectArray(formValues);
 
           totalParamLength += formParams.Length;
         }
@@ -2680,7 +2753,7 @@ namespace Aurora
         if (postedFormModel == null)
         {
           if (context.Request.Form.Count > 0)
-            formParams.CopyTo(actionParameters, boundParamLength);
+            formParams.CopyTo(actionParameters, boundParamLength + urlParamLength);
 
           urlObjectParams.CopyTo(actionParameters, boundParamLength);
         }
@@ -2693,8 +2766,44 @@ namespace Aurora
           context.Request.Files.CopyTo(actionParameters, totalParamLength);
         #endregion
 
+        #region PERFORM ALL ACTION PARAM TRANSFORMS
+        for (int i = 0; i < routeInfo.Action.GetParameters().Count(); i++)
+        {
+          ParameterInfo pi = routeInfo.Action.GetParameters()[i];
+
+          ActionParamTransform apt = (ActionParamTransform)pi.GetCustomAttributes(typeof(ActionParamTransform), false).FirstOrDefault();
+
+          if (apt != null)
+          {
+            // The ActionParamTransform name corresponds to a class that implements the IActionParamTransform interface
+
+            // Look up class
+            Type actionParamTransformClassType = ApplicationInternals.GetActionTransformClassType(apt);
+
+            if (actionParamTransformClassType != null)
+            {
+              // Instantiate the class, the constructor will receive any bound action objects that the params method received.
+              object actionParamTransformClassInstance = Activator.CreateInstance(actionParamTransformClassType, routeInfo.Bindings.BoundInstances.ToArray());
+
+              // Call Transform method, take results and use that instead of the incoming param
+              MethodInfo transformMethod = actionParamTransformClassType.GetMethod("Transform");
+
+              if (transformMethod != null)
+              {
+                object transformedParam = transformMethod.Invoke(actionParamTransformClassInstance, new object[] { actionParameters[i] });
+
+                if (transformedParam != null)
+                {
+                  actionParameters[i] = transformedParam;
+                }
+              }
+            }
+          }
+        }
+        #endregion
+
         #region FIGURE OUT WHICH ACTION GOES WITH THIS ROUTE
-        Type[] types = actionParameters.Select(x => x.GetType()).ToArray();
+        Type[] types = actionParameters.Select(x => (x != null) ? x.GetType() : null).ToArray();
 
         var methodParams = routeInfo.Action.GetParameters().Select(x => x.ParameterType);
 
@@ -2710,7 +2819,7 @@ namespace Aurora
 
           if (!String.IsNullOrEmpty(routeInfo.FrontLoadedParams))
           {
-            object[] convertedFrontParams = StringConversion.ToObjectArray(routeInfo.FrontLoadedParams.Split('/'));
+            object[] convertedFrontParams = StringTypeConversion.ToObjectArray(routeInfo.FrontLoadedParams.Split('/'));
 
             routeInfo.UrlObjectParameters = convertedFrontParams.Concat(routeInfo.UrlObjectParameters).ToArray();
           }
@@ -2888,7 +2997,7 @@ namespace Aurora
         {
           foreach (object i in routeInfo.Bindings.BoundInstances)
           {
-            if (i.GetType().GetInterface("IBoundActionObject") != null)
+            if (i.GetType().GetInterface(typeof(IBoundActionObject).Name) != null)
             {
               MethodInfo boundActionObject = i.GetType().GetMethod("ExecuteBeforeAction");
 
@@ -2940,7 +3049,9 @@ namespace Aurora
       else
       {
         routeManager = new RouteManager(ctx);
+        context.Application.Lock();
         context.Application[MainConfig.RouteManagerSessionName] = routeManager;
+        context.Application.UnLock();
       }
 
       HttpCookie authCookie = context.Request.Cookies[MainConfig.AuroraAuthCookieName];
@@ -3814,7 +3925,9 @@ namespace Aurora
         LoadTemplates(viewRoot);
         LoadFragments(viewRoot);
 
+        context.Application.Lock();
         context.Application[MainConfig.TemplatesSessionName] = templateInfo;
+        context.Application.UnLock();
       }
     }
 
