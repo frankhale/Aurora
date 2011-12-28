@@ -1770,8 +1770,6 @@ namespace Aurora
 
     public static Type GetActionTransformClassType(ActionParamTransform apt)
     {
-      //localhost:55022/EditUser/c00ad79916234a3d
-
       Type actionTransformClassType = (from assembly in AppDomain.CurrentDomain.GetAssemblies().Where(x => x.GetName().Name != "DotNetOpenAuth")
                                        from type in assembly.GetTypes().Where(x =>  x.GetInterface(typeof(IActionParamTransform<,>).Name) != null && x.Name == apt.TransformName)
                                        select type).FirstOrDefault();
