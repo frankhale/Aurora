@@ -4,7 +4,7 @@ NOTE: See source code comments for usage.
 
 Frank Hale <frankhale@gmail.com>
 
-Date: 27 December 2011
+Date: 28 December 2011
 
 // --------------------
 // --- Feature List ---
@@ -28,6 +28,13 @@ Date: 27 December 2011
 //    authentication.
  
 Changelog:
+
+28 December 2011
+
+- Tweaked the way action parameter transforms were implemented
+- Added a class called Minify to minify CSS and Javascript
+- CSS and Javascript files now get minified before they are sent to the requester
+- Started working on the Bundle class which will be able to combine CSS and Javascript for less server requests
 
 27 December 2011
 

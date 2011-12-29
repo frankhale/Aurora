@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - A tiny MVC web framework for .NET
 //
-// Updated On: 27 December 2011
+// Updated On: 28 December 2011
 //
 // Contact Info:
 //
@@ -12,10 +12,11 @@
 // --- CAUTION ---
 // ---------------
 //
-// As with anything new the features listed may or may not work. Things are in
-// a constant state of flux and I frequently break stuff along the way. As time
-// marches on Aurora has gotten more stable and I am fully engaged in making
-// this as stable as possible. Bare with me, probably best to put a hard hat on.
+// As with anything new the features listed may or may not work at any given 
+// time. Things are in a constant state of flux and I frequently break stuff 
+// along the way. As time marches on Aurora has gotten more stable and I am 
+// fully engaged in making this as stable as possible. Bare with me, probably 
+// best to put a hard hat on.
 //
 // ------------
 // --- Why? ---
@@ -747,6 +748,7 @@ using HtmlAgilityPack;
 
 #if ACTIVEDIRECTORY
 using System.DirectoryServices;
+using System.IO.Compression;
 #endif
 
 #if OPENID
@@ -762,7 +764,7 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyProduct("Aurora")]
 [assembly: AssemblyCopyright("Copyright © 2011")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.99.11.*")]
+[assembly: AssemblyVersion("1.99.12.*")]
 #endregion
 
 //TODO: Look into using HttpRuntime.Cache instead of using HttpContext.Session and HttpContext.Application
@@ -1771,11 +1773,11 @@ namespace Aurora
     public static Type GetActionTransformClassType(ActionParamTransform apt)
     {
       Type actionTransformClassType = (from assembly in AppDomain.CurrentDomain.GetAssemblies().Where(x => x.GetName().Name != "DotNetOpenAuth")
-                                       from type in assembly.GetTypes().Where(x =>  x.GetInterface(typeof(IActionParamTransform<,>).Name) != null && x.Name == apt.TransformName)
+                                       from type in assembly.GetTypes().Where(x => x.GetInterface(typeof(IActionParamTransform<,>).Name) != null && x.Name == apt.TransformName)
                                        select type).FirstOrDefault();
 
       if (actionTransformClassType != null) return actionTransformClassType;
-            
+
 
       //TODO: Let's throw an exception if we can't determine the transform class type
 
@@ -2497,6 +2499,351 @@ namespace Aurora
   }
   #endregion
 
+  #region BUNDLE (NOT IMPLEMENTED YET)
+  // The Bundle class will take in files like Javascript or CSS and minify them.
+
+  //internal class BundleInfo
+  //{
+  //  public string FileExtension { get; set; }
+  //  public string FileName { get; set; }
+  //  public string FilePath { get; set; }
+  //}
+
+  //public class Bundle
+  //{
+  //  public Bundle()
+  //  {
+
+  //  }
+
+  //  public void AddDirectory(string dirPath, string fileExtension, string bundleName) { }
+  //  public void AddFile(string filePath, string bundleName) { }
+  //}
+  #endregion
+
+  #region JAVASCRIPT / CSS MINIFY
+  // JSMinify is based on a quick port of jsmin.c to C# that I made.
+  //
+  // jsmin.c was written by Douglas Crockford, original license and information
+  // below.
+  //
+  // Find the C source code for jsmin.c here:
+  //  https://github.com/douglascrockford/JSMin/blob/master/jsmin.c
+
+  /* jsmin.c
+     2011-09-30
+
+  Copyright (c) 2002 Douglas Crockford  (www.crockford.com)
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy of
+  this software and associated documentation files (the "Software"), to deal in
+  the Software without restriction, including without limitation the rights to
+  use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+  of the Software, and to permit persons to whom the Software is furnished to do
+  so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  The Software shall be used for Good, not Evil.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
+  */
+  public class Minify
+  {
+    private const int EOF = -1;
+
+    private bool pack;
+    private int theA;
+    private int theB;
+    private int theLookahead = EOF;
+
+    private StringBuilder result { get; set; }
+
+    public string Result
+    {
+      get
+      {
+        if (pack)
+          return Regex.Replace(result.ToString().Trim(), "(\n|\r)+", "", RegexOptions.None);
+
+        return result.ToString().Trim();
+      }
+    }
+
+    public Minify(string filePath, bool pack)
+    {
+      result = new StringBuilder();
+      
+      this.pack = pack;
+
+      Go(filePath);
+    }
+
+    private bool IsAlphanum(char c)
+    {
+      int charCode = (int)c;
+
+      return (charCode >= 'a' && charCode <= 'z' ||
+              charCode >= '0' && charCode <= '9' ||
+              charCode >= 'A' && charCode <= 'Z' ||
+              charCode == '_'                    ||
+              charCode == '$'                    ||
+              charCode == '\\'                   ||
+              charCode > 126);
+    }
+
+    private int Get()
+    {
+      int c = theLookahead;
+      theLookahead = EOF;
+      if (c == EOF)
+      {
+        c = Console.Read();
+      }
+      if (c >= ' ' || c == '\n' || c == EOF)
+      {
+        return c;
+      }
+      if (c == '\r')
+      {
+        return '\n';
+      }
+      return ' ';
+    }
+
+    private int Peek()
+    {
+      theLookahead = Get();
+      return theLookahead;
+    }
+
+    private int Next()
+    {
+      int c = Get();
+      if (c == '/')
+      {
+        switch (Peek())
+        {
+          case '/':
+            for (; ; )
+            {
+              c = Get();
+              if (c <= '\n')
+              {
+                return c;
+              }
+            }
+          case '*':
+            Get();
+            for (; ; )
+            {
+              switch (Get())
+              {
+                case '*':
+                  if (Peek() == '/')
+                  {
+                    Get();
+                    return ' ';
+                  }
+                  break;
+                case EOF:
+                  Console.Error.WriteLine("Error: JSMIN Unterminated comment.");
+                  Environment.Exit(1);
+                  break;
+              }
+            }
+          default:
+            return c;
+        }
+      }
+      return c;
+    }
+
+    private void Action(int d)
+    {
+      switch (d)
+      {
+        case 1:
+          result.Append((char)theA);
+          goto case 2;
+        case 2:
+          theA = theB;
+          if (theA == '\'' || theA == '"' || theA == '`')
+          {
+            for (; ; )
+            {
+              result.Append((char)theA);
+              theA = Get();
+              if (theA == theB)
+              {
+                break;
+              }
+              if (theA == '\\')
+              {
+                result.Append((char)theA);
+                theA = Get();
+              }
+              if (theA == EOF)
+              {
+                throw new Exception("Error: JSMinify unterminated string literal.");
+              }
+            }
+          }
+          goto case 3;
+        case 3:
+          theB = Next();
+          if (theB == '/' && (theA == '(' || theA == ',' || theA == '=' ||
+                              theA == ':' || theA == '[' || theA == '!' ||
+                              theA == '&' || theA == '|' || theA == '?' ||
+                              theA == '{' || theA == '}' || theA == ';' ||
+                              theA == '\n'))
+          {
+            result.Append((char)theA);
+            result.Append((char)theB);
+            for (; ; )
+            {
+              theA = Get();
+              if (theA == '[')
+              {
+                for (; ; )
+                {
+                  result.Append((char)theA);
+                  theA = Get();
+                  if (theA == ']')
+                  {
+                    break;
+                  }
+                  if (theA == '\\')
+                  {
+                    result.Append((char)theA);
+                    theA = Get();
+                  }
+                  if (theA == EOF)
+                  {
+                    throw new Exception("Error: JSMinify unterminated set in Regular Expression literal.");
+                  }
+                }
+              }
+              else if (theA == '/')
+              {
+                break;
+              }
+              else if (theA == '\\')
+              {
+                result.Append((char)theA);
+                theA = Get();
+              }
+              if (theA == EOF)
+              {
+                throw new Exception("Error: JSMinify unterminated Regular Expression literal.");
+              }
+              result.Append((char)theA);
+            }
+            theB = Next();
+          }
+          break;
+      }
+    }
+
+    private void Go(string filePath)
+    {
+      Console.SetIn(File.OpenText(filePath));
+
+      theA = '\n';
+      Action(3);
+      while (theA != EOF)
+      {
+        switch (theA)
+        {
+          case ' ':
+            if (IsAlphanum((char)theB))
+            {
+              Action(1);
+            }
+            else
+            {
+              Action(2);
+            }
+            break;
+          case '\n':
+            switch (theB)
+            {
+              case '{':
+              case '[':
+              case '(':
+              case '+':
+              case '-':
+                Action(1);
+                break;
+              case ' ':
+                Action(3);
+                break;
+              default:
+                if (IsAlphanum((char)theB))
+                {
+                  Action(1);
+                }
+                else
+                {
+                  Action(2);
+                }
+                break;
+            }
+            break;
+          default:
+            switch (theB)
+            {
+              case ' ':
+                if (IsAlphanum((char)theA))
+                {
+                  Action(1);
+                  break;
+                }
+                Action(3);
+                break;
+              case '\n':
+                switch (theA)
+                {
+                  case '}':
+                  case ']':
+                  case ')':
+                  case '+':
+                  case '-':
+                  case '"':
+                  case '\'':
+                  case '`':
+                    Action(1);
+                    break;
+                  default:
+                    if (IsAlphanum((char)theA))
+                    {
+                      Action(1);
+                    }
+                    else
+                    {
+                      Action(3);
+                    }
+                    break;
+                }
+                break;
+              default:
+                Action(1);
+                break;
+            }
+            break;
+        }
+      }
+    }
+  }
+  #endregion
+
   #region ACTION PARAM TRANSFORM
   public interface IActionParamTransform<T, V>
   {
@@ -2513,8 +2860,15 @@ namespace Aurora
       TransformName = transformName;
     }
   }
-  #endregion
 
+  internal class ActionParamTransformInfo
+  {
+    public Type TransformClassType { get; set; }
+    public MethodInfo TransformMethod { get; set; }
+    public int IndexIntoParamList { get; set; }
+  }
+  #endregion
+  
   #region ROUTE MANAGER
   internal interface IRouteManager
   {
@@ -2763,8 +3117,13 @@ namespace Aurora
         if (context.Request.Files.Count > 0)
           context.Request.Files.CopyTo(actionParameters, totalParamLength);
         #endregion
+        
+        Type[] actionParameterTypes = actionParameters.Select(x => (x != null) ? x.GetType() : null).ToArray();
+        Type[] methodParamTypes = routeInfo.Action.GetParameters().Select(x => x.ParameterType).ToArray();
 
-        #region PERFORM ALL ACTION PARAM TRANSFORMS
+        List<ActionParamTransformInfo> actionParamTransformInfos = null;
+
+        #region DETERMINE ALL ACTION PARAM TRANSFORMS
         for (int i = 0; i < routeInfo.Action.GetParameters().Count(); i++)
         {
           ParameterInfo pi = routeInfo.Action.GetParameters()[i];
@@ -2775,25 +3134,29 @@ namespace Aurora
           {
             // The ActionParamTransform name corresponds to a class that implements the IActionParamTransform interface
 
+            if (actionParamTransformInfos == null)
+              actionParamTransformInfos = new List<ActionParamTransformInfo>();
+
             // Look up class
             Type actionParamTransformClassType = ApplicationInternals.GetActionTransformClassType(apt);
 
             if (actionParamTransformClassType != null)
             {
-              // Instantiate the class, the constructor will receive any bound action objects that the params method received.
-              object actionParamTransformClassInstance = Activator.CreateInstance(actionParamTransformClassType, routeInfo.Bindings.BoundInstances.ToArray());
-
               // Call Transform method, take results and use that instead of the incoming param
               MethodInfo transformMethod = actionParamTransformClassType.GetMethod("Transform");
 
               if (transformMethod != null)
               {
-                object transformedParam = transformMethod.Invoke(actionParamTransformClassInstance, new object[] { actionParameters[i] });
+                Type transformedParamType = transformMethod.ReturnType;
 
-                if (transformedParam != null)
-                {
-                  actionParameters[i] = transformedParam;
-                }
+                actionParameterTypes[i] = transformedParamType;
+
+                actionParamTransformInfos.Add(new ActionParamTransformInfo()
+                  {
+                    TransformClassType = actionParamTransformClassType,
+                    TransformMethod = transformMethod,
+                    IndexIntoParamList = i
+                  });
               }
             }
           }
@@ -2801,16 +3164,28 @@ namespace Aurora
         #endregion
 
         #region FIGURE OUT WHICH ACTION GOES WITH THIS ROUTE
-        Type[] types = actionParameters.Select(x => (x != null) ? x.GetType() : null).ToArray();
+        var matches = methodParamTypes.Where(p => (actionParameterTypes.FirstOrDefault(t => (t.GetInterfaces().Where(x => x.Name == p.Name).FirstOrDefault() != null) || t == p)) != null);
 
-        var methodParams = routeInfo.Action.GetParameters().Select(x => x.ParameterType);
-
-        var matches = methodParams.Where(p => (types.FirstOrDefault(t => (t.GetInterfaces().Where(x => x.Name == p.Name).FirstOrDefault() != null) || t == p)) != null);
-
-        if (matches.Count() == methodParams.Count())
+        if (matches.Count() == methodParamTypes.Count())
         {
-          routeInfo.ActionParameters = actionParameters;
+          if (actionParamTransformInfos != null)
+          {
+            foreach (ActionParamTransformInfo apti in actionParamTransformInfos)
+            {
+              // Instantiate the class, the constructor will receive any bound action objects that the params method received.
+              object actionParamTransformClassInstance = Activator.CreateInstance(apti.TransformClassType, routeInfo.Bindings.BoundInstances.ToArray());
 
+              object transformedParam = apti.TransformMethod.Invoke(actionParamTransformClassInstance, new object[] { actionParameters[apti.IndexIntoParamList] });
+
+              if (transformedParam != null)
+              {
+                actionParameters[apti.IndexIntoParamList] = transformedParam;
+              }
+            }
+          }
+
+          routeInfo.ActionParameters = actionParameters;
+          
           routeInfo.Path = path;
           routeInfo.UrlStringParameters = urlStringParams;
           routeInfo.UrlObjectParameters = urlObjectParams;
@@ -3633,7 +4008,14 @@ namespace Aurora
       context.Response.Cache.VaryByParams.IgnoreParams = true;
 
       context.Response.ContentType = contentType;
-      context.Response.TransmitFile(filePath);
+
+      if (filePath.EndsWith(".css") || filePath.EndsWith(".js"))
+      {
+        //FIXME: This is temporary until the Bundle class is implemented.
+        context.Response.Write(new Minify(filePath, false).Result);        
+      }
+      else
+        context.Response.TransmitFile(filePath);
     }
   }
 
