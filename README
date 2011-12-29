@@ -19,7 +19,8 @@ Date: 28 December 2011
 //  - Actions can be segregated based on HttpGet, HttpPost attributes and you 
 //    can secure them with the Secure named parameter. Actions without a 
 //    designation will not be invoked from a URL.
-//  - Actions can have aliases. Aliases can also be added dynamically at runtime.
+//  - Actions can have aliases. Aliases can also be added dynamically at 
+//    runtime along with default parameters.
 //  - Built in OpenID authentication which is as easy as calling two methods. 
 //    One to initiate the login with the provider and then one to finalize 
 //    the authentication.
