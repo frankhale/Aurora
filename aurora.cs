@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - A tiny MVC web framework for .NET
 //
-// Updated On: 28 December 2011
+// Updated On: 29 December 2011
 //
 // Contact Info:
 //
@@ -36,9 +36,9 @@
 //  - URL parameters bind to action method parameters automatically
 //  - Posted forms binds to post models or action parameters automatically
 //  - Actions can have bound parameters that are bound at runtime
-//  - Actions can be segregated based on HttpGet, HttpPost attributes and you 
-//    can secure them with the Secure named parameter. Actions without a 
-//    designation will not be invoked from a URL.
+//  - Actions can be segregated based on HttpGet, HttpPost, HttpPut & HttpDelete 
+//    attributes and you can secure them with the Secure named parameter. 
+//    Actions without an attribute will not be invoked from a URL.
 //  - Actions can have aliases. Aliases can also be added dynamically at 
 //    runtime along with default parameters.
 //  - Built in OpenID authentication which is as easy as calling two methods. 
@@ -149,6 +149,11 @@
 // ---------------
 // --- Actions ---
 // --------------- 
+//
+// NOTE: Actions map like this: 
+//
+//  ViewResult ActionName(front_params, bound_parameters, url_parameters, 
+//                           form_parameters / (HTTP Put/Delete) payload, files)
 //
 // Actions are nothing more than public methods in your controller that are 
 // labeled with special attributes to tell the framework how to invoke them
@@ -764,7 +769,7 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyProduct("Aurora")]
 [assembly: AssemblyCopyright("Copyright © 2011")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.99.12.*")]
+[assembly: AssemblyVersion("1.99.14.*")]
 #endregion
 
 //TODO: Look into using HttpRuntime.Cache instead of using HttpContext.Session and HttpContext.Application
@@ -852,6 +857,7 @@ namespace Aurora
   {
     public static WebConfig WebConfig = ConfigurationManager.GetSection("Aurora") as WebConfig;
     public static CustomErrorsSection CustomErrorsSection = ConfigurationManager.GetSection("system.web/customErrors") as CustomErrorsSection;
+    public static string[] SupportedHttpVerbs = { "GET", "POST", "PUT", "DELETE" };
     public static string EncryptionKey = (MainConfig.WebConfig == null) ? null : WebConfig.EncryptionKey;
     public static int AuthCookieExpiry = (MainConfig.WebConfig == null) ? 8 : WebConfig.AuthCookieExpiry;
     public static int StaticContentCacheExpiry = (MainConfig.WebConfig == null) ? 15 : WebConfig.StaticContentCacheExpiry;
@@ -900,10 +906,9 @@ namespace Aurora
     public static string ADUserOrPWError = "The username or password used to read from Active Directory is null or empty, please check your web.config";
     public static string ADSearchRootIsNullOrEmpty = "The Active Directory search root is null or empty, please check your web.config";
     public static string ADSearchCriteriaIsNullOrEmptyError = "The LDAP query associated with this search type is null or empty, a valid query must be annotated to this search type via the MetaData attribute";
+    public static string HttpRequestTypeNotSupportedError = "The HTTP Request type [{0}] is not supported.";
     public static string Http404Error = "Http 404 - Page Not Found";
     public static string Http401Error = "Http 401 - Unauthorized";
-    public static string PostRequestError = "Cannot handle this POST request";
-    public static string GetRequestError = "Cannot handle this GET request";
     public static string CustomErrorNullExceptionError = "The customer error instance was null";
     public static string OnlyOneCustomErrorClassPerApplicationError = "Cannot have more than one custom error class per application";
     public static string OnlyOneErrorActionPerControllerError = "Cannot have more than one error action per controller";
@@ -1018,6 +1023,56 @@ namespace Aurora
     }
   }
 
+  [AttributeUsage(AttributeTargets.Method)]
+  public class HttpPutAttribute : RequestTypeAttribute
+  {
+    public bool RequireAntiForgeryToken = true;
+
+    public HttpPutAttribute() { }
+
+    public HttpPutAttribute(string routeAlias)
+    {
+      RouteAlias = routeAlias;
+    }
+
+    public HttpPutAttribute(ActionSecurity sec)
+      : this(string.Empty, sec)
+    {
+    }
+
+    public HttpPutAttribute(string routeAlias, ActionSecurity sec)
+    {
+      SecurityType = sec;
+      RouteAlias = routeAlias;
+    }
+  }
+
+  [AttributeUsage(AttributeTargets.Method)]
+  public class HttpDeleteAttribute : RequestTypeAttribute
+  {
+    public bool RequireAntiForgeryToken = true;
+
+    public HttpDeleteAttribute() { }
+
+    public HttpDeleteAttribute(string routeAlias)
+    {
+      RouteAlias = routeAlias;
+    }
+
+    public HttpDeleteAttribute(ActionSecurity sec)
+      : this(string.Empty, sec)
+    {
+    }
+
+    public HttpDeleteAttribute(string routeAlias, ActionSecurity sec)
+    {
+      SecurityType = sec;
+      RouteAlias = routeAlias;
+    }
+  }
+  #endregion
+
+  #region ERROR HANDLER
   [AttributeUsage(/*AttributeTargets.Method |*/ AttributeTargets.Class)]
   public class ErrorAttribute : Attribute
   {
@@ -1647,13 +1702,19 @@ namespace Aurora
         {
           foreach (Attribute a in mi.GetCustomAttributes(false))
           {
-            if ((a is HttpGetAttribute) || (a is HttpPostAttribute) || (a is FromRedirectOnlyAttribute))
+            if ((a is HttpGetAttribute) ||
+                (a is HttpPostAttribute) ||
+                (a is HttpPutAttribute) ||
+                (a is HttpDeleteAttribute) ||
+              (a is FromRedirectOnlyAttribute))
             {
               HttpGetAttribute get = (a as HttpGetAttribute);
               HttpPostAttribute post = (a as HttpPostAttribute);
+              HttpPutAttribute put = (a as HttpPutAttribute);
+              HttpDeleteAttribute delete = (a as HttpDeleteAttribute);
               FromRedirectOnlyAttribute fro = (a as FromRedirectOnlyAttribute);
 
-              if ((get != null) || (fro != null) || (post != null))
+              if ((get != null) || (fro != null) || (post != null) || (put != null) || (delete != null))
               {
                 routableActionNames.Add(mi.Name);
               }
@@ -1671,10 +1732,15 @@ namespace Aurora
     {
       List<RouteInfo> routes = null;
 
-      if (context.Session[MainConfig.RoutesSessionName] != null)
+      if (context.Application[MainConfig.RoutesSessionName] != null)
       {
         // If we have a route list already let's return that
-        routes = context.Session[MainConfig.RoutesSessionName] as List<RouteInfo>;
+        routes = context.Application[MainConfig.RoutesSessionName] as List<RouteInfo>;
+
+        foreach (Controller c in AllControllerInstances(context))
+        {
+          c.Refresh(context);
+        }
       }
       else
       {
@@ -1703,19 +1769,24 @@ namespace Aurora
           {
             foreach (Attribute a in mi.GetCustomAttributes(false))
             {
-              if ((a is HttpGetAttribute) || (a is HttpPostAttribute) || (a is FromRedirectOnlyAttribute))
+              if ((a is HttpGetAttribute) ||
+                  (a is HttpPostAttribute) ||
+                  (a is FromRedirectOnlyAttribute) ||
+                  (a is HttpPutAttribute) ||
+                  (a is HttpDeleteAttribute))
               {
                 alias.Length = 0;
 
                 HttpGetAttribute get = (a as HttpGetAttribute);
                 HttpPostAttribute post = (a as HttpPostAttribute);
+                HttpPutAttribute put = (a as HttpPutAttribute);
+                HttpDeleteAttribute delete = (a as HttpDeleteAttribute);
                 FromRedirectOnlyAttribute fro = (a as FromRedirectOnlyAttribute);
 
                 alias.Insert(0, (a as RequestTypeAttribute).RouteAlias);
 
                 RouteInfo routeInfo = new RouteInfo()
                 {
-                  RequestType = context.Request.RequestType,
                   Alias = (!String.IsNullOrEmpty(alias.ToString())) ? alias.ToString() : string.Format("/{0}/{1}", c.Name, mi.Name),
                   ControllerName = c.Name,
                   ControllerType = c,
@@ -1725,35 +1796,36 @@ namespace Aurora
                   Bindings = new ActionBinder(context).GetBindings(c.Name, mi.Name),
                   FromRedirectOnlyInfo = (fro != null) ? true : false,
                   Dynamic = (fro != null) ? true : false,
-                  Form = (context.Request.Form == null) ? new NameValueCollection() : new NameValueCollection(context.Request.Form),
-                  QueryString = (context.Request.QueryString == null) ? new NameValueCollection() : new NameValueCollection(context.Request.QueryString)
+                  //Form = (context.Request.Form == null) ? new NameValueCollection() : new NameValueCollection(context.Request.Form),
+                  //QueryString = (context.Request.QueryString == null) ? new NameValueCollection() : new NameValueCollection(context.Request.QueryString),
+                  IsFiltered = true
                 };
 
-                if (get != null || fro != null)
-                {
+                if (get != null || fro != null || post != null || put != null || delete != null)
+                  routeInfo.IsFiltered = false;
+
+                //if (put != null || delete != null)
+                //  routeInfo.Payload = new StreamReader(context.Request.InputStream).ReadToEnd();
+
+                if (get != null)
                   routeInfo.RequestType = "GET";
-                  routeInfo.IsFiltered = false;
-                }
                 else if (post != null)
-                {
                   routeInfo.RequestType = "POST";
-                  routeInfo.IsFiltered = false;
-                }
-                else
-                {
-                  routeInfo.IsFiltered = true;
-                }
+                else if (put != null)
+                  routeInfo.RequestType = "PUT";
+                else if (delete != null)
+                  routeInfo.RequestType = "DELETE";
 
-                if ((routeInfo.Form.Count > 0) && (routeInfo.Form.AllKeys.Contains(MainConfig.AntiForgeryTokenName)))
-                  routeInfo.Form.Remove(MainConfig.AntiForgeryTokenName);
+                //if ((routeInfo.Form.Count > 0) && (routeInfo.Form.AllKeys.Contains(MainConfig.AntiForgeryTokenName)))
+                //  routeInfo.Form.Remove(MainConfig.AntiForgeryTokenName);
 
-                if (routeInfo.RequestType == "POST")
-                {
-                  routeInfo.PostedFormModel = Model.DetermineModelFromPostedForm(context);
+                //if (routeInfo.RequestType == "POST")
+                //{
+                //  routeInfo.PostedFormModel = Model.DetermineModelFromPostedForm(context);
 
-                  if (routeInfo.PostedFormModel != null)
-                    routeInfo.PostedFormInfo = new PostedFormInfo(context, routeInfo.PostedFormModel);
-                }
+                //  if (routeInfo.PostedFormModel != null)
+                //    routeInfo.PostedFormInfo = new PostedFormInfo(context, routeInfo.PostedFormModel);
+                //}
 
                 routes.Add(routeInfo);
               }
@@ -1777,7 +1849,6 @@ namespace Aurora
                                        select type).FirstOrDefault();
 
       if (actionTransformClassType != null) return actionTransformClassType;
-
 
       //TODO: Let's throw an exception if we can't determine the transform class type
 
@@ -2143,10 +2214,17 @@ namespace Aurora
         Form.Remove(MainConfig.AntiForgeryTokenName);
     }
 
+    #region MISC
     public void ClearViewTags()
     {
       ViewTags = new Dictionary<string, string>();
     }
+
+    public string CreateAntiForgeryToken()
+    {
+      return AntiForgeryToken.Create(Context, AntiForgeryTokenType.Raw);
+    }
+    #endregion
 
     #region ADD / REMOVE ROUTE
     public void AddRoute(string alias, string action)
@@ -2580,7 +2658,7 @@ namespace Aurora
     public Minify(string filePath, bool pack)
     {
       result = new StringBuilder();
-      
+
       this.pack = pack;
 
       Go(filePath);
@@ -2593,9 +2671,9 @@ namespace Aurora
       return (charCode >= 'a' && charCode <= 'z' ||
               charCode >= '0' && charCode <= '9' ||
               charCode >= 'A' && charCode <= 'Z' ||
-              charCode == '_'                    ||
-              charCode == '$'                    ||
-              charCode == '\\'                   ||
+              charCode == '_' ||
+              charCode == '$' ||
+              charCode == '\\' ||
               charCode > 126);
     }
 
@@ -2868,7 +2946,7 @@ namespace Aurora
     public int IndexIntoParamList { get; set; }
   }
   #endregion
-  
+
   #region ROUTE MANAGER
   internal interface IRouteManager
   {
@@ -2883,9 +2961,6 @@ namespace Aurora
     public MethodInfo Action { get; set; }
     public BoundAction Bindings { get; set; }
 
-    public NameValueCollection QueryString { get; set; }
-    public NameValueCollection Form { get; set; }
-
     public string RequestType { get; set; }
     public string Alias { get; set; }
     public string ControllerName { get; set; }
@@ -2899,9 +2974,6 @@ namespace Aurora
     public object[] ActionParameters { get; set; }
 
     public bool IsFiltered { get; set; }
-
-    public PostedFormInfo PostedFormInfo { get; set; }
-    public Type PostedFormModel { get; set; }
 
     public bool Dynamic { get; set; }
 
@@ -2994,6 +3066,8 @@ namespace Aurora
     private PostedFormInfo postedFormInfo;
     private Type postedFormModel;
 
+    private NameValueCollection Form;
+
     private bool fromRedirectOnlyFlag = false;
 
     private List<RouteInfo> Routes { get; set; }
@@ -3008,6 +3082,11 @@ namespace Aurora
     public void Refresh(HttpContextBase ctx)
     {
       context = ctx;
+
+      Form = new NameValueCollection(context.Request.Form);
+      
+      if(Form[MainConfig.AntiForgeryTokenName]!=null)
+        Form.Remove(MainConfig.AntiForgeryTokenName);
 
       context.Request.ValidateInput();
       string rawURL = context.Request.RawUrl;
@@ -3026,7 +3105,7 @@ namespace Aurora
 
       Routes = ApplicationInternals.AllRouteInfos(context);
 
-      alias = Routes.Where(x => path.StartsWith(x.Alias)).Select(x => x.Alias).FirstOrDefault();
+      alias = Routes.OrderByDescending(y => y.Alias).Where(x => path.StartsWith(x.Alias)).Select(x => x.Alias).FirstOrDefault();
 
       if (!String.IsNullOrEmpty(alias))
       {
@@ -3038,33 +3117,27 @@ namespace Aurora
         postedFormModel = Model.DetermineModelFromPostedForm(context);
 
         if (postedFormModel != null)
+        {
           postedFormInfo = new PostedFormInfo(context, postedFormModel);
+
+          if (postedFormInfo.DataType != null)
+            ((Model)postedFormInfo.DataTypeInstance).Validate(context, (Model)postedFormInfo.DataTypeInstance);
+        }
       }
     }
 
     private RouteInfo FindRoute(string path)
     {
       //
-      // Actions map like this: ViewResult ActionName(front params, bound_parameters, url_parameters, form_parameters)
+      // Actions map like this: ViewResult ActionName(front_params, bound_parameters, url_parameters, form_parameters / (HTTP Put/Delete) payload, files)
       //
 
       if (!MainConfig.PathTokenRE.IsMatch(path)) return null;
 
       object[] actionParameters = null;
-      object[] formParams = null;
+      object[] formOrPutDeleteParams = null;
 
       int urlParamLength = (urlObjectParams != null) ? urlObjectParams.Length : 0;
-
-      if (context.Request.Form.Count > 0)
-      {
-        if (postedFormModel != null)
-        {
-          if (postedFormInfo.DataType != null)
-          {
-            ((Model)postedFormInfo.DataTypeInstance).Validate(context, (Model)postedFormInfo.DataTypeInstance);
-          }
-        }
-      }
 
       foreach (RouteInfo routeInfo in Routes.FindAll(x => x.Alias == alias && x.RequestType == context.Request.RequestType))
       {
@@ -3076,19 +3149,32 @@ namespace Aurora
 
         if (routeInfo.Action.GetParameters().Count() < totalParamLength) continue;
 
-        if ((postedFormModel == null) && (context.Request.Form.Count > 0))
+        if (context.Request.RequestType == "PUT" || context.Request.RequestType == "DELETE")
         {
-          string[] formValues = new string[routeInfo.Form.AllKeys.Length];
+          formOrPutDeleteParams = new object[1];
+          formOrPutDeleteParams[0] = new StreamReader(context.Request.InputStream).ReadToEnd();
 
-          for (int i = 0; i < routeInfo.Form.AllKeys.Length; i++)
+          //TODO: Need to settle on the payload type, probably support only JSON. We need to factor in the AntiForgeryToken validation
+          
+          //FIXME: This isn't finished yet.
+
+          totalParamLength += formOrPutDeleteParams.Length;
+        }
+        else if (context.Request.RequestType == "POST" && postedFormModel == null && context.Request.Form.Count > 0)
+        {
+          string[] formValues = new string[Form.AllKeys.Length];
+
+          for (int i = 0; i < Form.AllKeys.Length; i++)
           {
-            if (routeInfo.Form.AllKeys[i] != MainConfig.AntiForgeryTokenName)
-              formValues[i] = routeInfo.Form.Get(i);
+            if (context.Request.Form.AllKeys[i] != MainConfig.AntiForgeryTokenName)
+              formValues[i] = context.Request.Form.Get(i);
           }
 
-          formParams = StringTypeConversion.ToObjectArray(formValues);
-
-          totalParamLength += formParams.Length;
+          if (Form.Count > 0)
+          {
+            formOrPutDeleteParams = StringTypeConversion.ToObjectArray(formValues);
+            totalParamLength += formOrPutDeleteParams.Length;
+          }
         }
         else if (postedFormInfo != null && postedFormInfo.DataType != null)
         {
@@ -3104,8 +3190,8 @@ namespace Aurora
 
         if (postedFormModel == null)
         {
-          if (context.Request.Form.Count > 0)
-            formParams.CopyTo(actionParameters, boundParamLength + urlParamLength);
+          if (formOrPutDeleteParams != null && formOrPutDeleteParams.Count() > 0)
+            formOrPutDeleteParams.CopyTo(actionParameters, boundParamLength + urlParamLength);
 
           urlObjectParams.CopyTo(actionParameters, boundParamLength);
         }
@@ -3117,7 +3203,7 @@ namespace Aurora
         if (context.Request.Files.Count > 0)
           context.Request.Files.CopyTo(actionParameters, totalParamLength);
         #endregion
-        
+
         Type[] actionParameterTypes = actionParameters.Select(x => (x != null) ? x.GetType() : null).ToArray();
         Type[] methodParamTypes = routeInfo.Action.GetParameters().Select(x => x.ParameterType).ToArray();
 
@@ -3185,7 +3271,7 @@ namespace Aurora
           }
 
           routeInfo.ActionParameters = actionParameters;
-          
+
           routeInfo.Path = path;
           routeInfo.UrlStringParameters = urlStringParams;
           routeInfo.UrlObjectParameters = urlObjectParams;
@@ -3224,7 +3310,7 @@ namespace Aurora
           // Execute Controller_BeforeAction
           routeInfo.ControllerInstance.RaiseEvent(Controller.PreOrPostActionType.Before);
 
-          switch (context.Request.RequestType)
+          switch (routeInfo.RequestType)
           {
             case "GET":
               iar = ProcessGetRoute(routeInfo);
@@ -3232,6 +3318,14 @@ namespace Aurora
 
             case "POST":
               iar = ProcessPostRoute(routeInfo);
+              break;
+
+            case "PUT":
+              iar = ProcessPutRoute(routeInfo);
+              break;
+
+            case "DELETE":
+              iar = ProcessDeleteRoute(routeInfo);
               break;
           }
 
@@ -3360,6 +3454,47 @@ namespace Aurora
       return result;
     }
 
+    private IAuroraResult ProcessPutRoute(RouteInfo routeInfo)
+    {
+      IAuroraResult result = null;
+
+      if (routeInfo != null && !routeInfo.IsFiltered)
+      {
+        //if (context.Request.Form[MainConfig.AntiForgeryTokenName] != null)
+        //{
+        //  // if so, check that it's valid and if it's not return a Http 404
+        //  if (!AntiForgeryToken.VerifyToken(context))
+        //    throw new Exception(MainConfig.AntiForgeryTokenVerificationFailed);
+        //}
+        //else
+        //  throw new Exception(MainConfig.AntiForgeryTokenMissing);
+
+        HttpPutAttribute put = Attribute.GetCustomAttribute(routeInfo.Action, typeof(HttpPutAttribute), false) as HttpPutAttribute;
+
+        if (put.HttpsOnly && !context.Request.IsSecureConnection) return result;
+
+        if (put.SecurityType == ActionSecurity.Secure)
+        {
+          if (!SecurityManager.IsAuthenticated(context, put.Roles))
+          {
+            if (!string.IsNullOrEmpty(put.RedirectWithoutAuthorizationTo))
+              return new RedirectResult(context, put.RedirectWithoutAuthorizationTo);
+            else
+              throw new Exception(MainConfig.RedirectWithoutAuthorizationToError);
+          }
+        }
+
+        result = ExecuteAction(routeInfo);
+      }
+
+      return result;
+    }
+
+    private IAuroraResult ProcessDeleteRoute(RouteInfo routeInfo)
+    {
+      throw new NotImplementedException();
+    }
+
     private IAuroraResult ExecuteAction(RouteInfo routeInfo)
     {
       if (routeInfo != null)
@@ -3413,6 +3548,9 @@ namespace Aurora
     public AuroraEngine(HttpContextBase ctx)
     {
       context = ctx;
+
+      if (!MainConfig.SupportedHttpVerbs.Contains(context.Request.RequestType))
+        throw new Exception(string.Format(MainConfig.HttpRequestTypeNotSupportedError, context.Request.RequestType));
 
       if ((!MainConfig.Debug) && (context.Application[MainConfig.RouteManagerSessionName] != null))
       {
@@ -4012,7 +4150,7 @@ namespace Aurora
       if (filePath.EndsWith(".css") || filePath.EndsWith(".js"))
       {
         //FIXME: This is temporary until the Bundle class is implemented.
-        context.Response.Write(new Minify(filePath, false).Result);        
+        context.Response.Write(new Minify(filePath, false).Result);
       }
       else
         context.Response.TransmitFile(filePath);
@@ -4148,10 +4286,11 @@ namespace Aurora
   #endregion
 
   #region ANTIFORGERYTOKEN
-  internal enum AntiForgeryTokenType
+  public enum AntiForgeryTokenType
   {
     Form,
-    Json
+    Json,
+    Raw
   }
 
   internal class AntiForgeryToken
@@ -4196,6 +4335,10 @@ namespace Aurora
 
         case AntiForgeryTokenType.Json:
           renderToken = string.Format("AntiForgeryToken={0}", token);
+          break;
+
+        case AntiForgeryTokenType.Raw:
+          renderToken = token;
           break;
       }
 

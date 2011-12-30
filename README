@@ -30,12 +30,22 @@ Date: 28 December 2011
  
 Changelog:
 
+29 December 2011
+
+- Added HttpPut and HttpDelete attributes and most of the implementation code
+	to route them. Still have some work to do here before it's ready for use.
+- Did some work in the FindRoute method in the RouteManager, removed some
+	cruft from the RouteInfo class and tweaked the ApplicationInternals method
+	that creates the list of RouteInfo's. Routes are now correctly cached so
+	subsequent requests won't be creating the list of routes all over again.
+
 28 December 2011
 
 - Tweaked the way action parameter transforms were implemented
 - Added a class called Minify to minify CSS and Javascript
 - CSS and Javascript files now get minified before they are sent to the requester
-- Started working on the Bundle class which will be able to combine CSS and Javascript for less server requests
+- Started working on the Bundle class which will be able to combine CSS and
+	Javascript for less server requests
 
 27 December 2011
 
@@ -62,9 +72,10 @@ Changelog:
 
 24 November 2011 
 
-- Tweaked IAutumnContext Path so that it can be rewritten at runtime. This allows for the default request of 
-  default.aspx to be rewritten to go to the default action without the need to redirect when no action has been 
-  designated.
+- Tweaked IAutumnContext Path so that it can be rewritten at runtime. This
+	allows for the default request of default.aspx to be rewritten to go to the
+	default action without the need to redirect when no action has been
+	designated.
 
 23 November 2011 
 
@@ -73,35 +84,43 @@ Changelog:
 
 22 November 2011 
 
-- Fixed issues for the HTMLTable helper when dealing with column transforms which caused them to not be processed correctly.
+- Fixed issues for the HTMLTable helper when dealing with column transforms
+	which caused them to not be processed correctly.
 
 21 November 2011 
 
 - Documented fragments
-- Did some work on the Model class with regards to model discovery for posted forms and setting of the Error 
-  property when model validation fails.
-- Removered extraneous FIXME: comments throughout the code for work that was previously done but messages were still
-  left littering code.
+- Did some work on the Model class with regards to model discovery for posted
+	forms and setting of the Error property when model validation fails.
+- Removered extraneous FIXME: comments throughout the code for work that was
+	previously done but messages were still left littering code.
 - Documentation of the ActiveDirectory methods
-- Some minor work to the ActiveDirectory class to add some additional methods for global catalog searching.
+- Some minor work to the ActiveDirectory class to add some additional methods
+	for global catalog searching.
 
 20 November 2011
 
-- Actions that return a JsonView must have a valid antiforgery token passed in the query string. This is to prevent 
-  cross site ajax requests. A new directive has been added to the view engine called %%JsonAntiForgeryToken%%
-- Fix for more than one antiforgery token on page. Now each token will be unique.
+- Actions that return a JsonView must have a valid antiforgery token passed in
+	the query string. This is to prevent cross site ajax requests. A new directive
+	has been added to the view engine called %%JsonAntiForgeryToken%%
+- Fix for more than one antiforgery token on page. Now each token will be
+	unique.
 
 18 November 2011 
 
-- Tweaks to removing extraneous lines from compiled views. Added an extension method to remove HTML from strings. 
-  All posted forms elements that contain HTML will be stripped. This feature uses the HtmlAgilityPack.
-- Added support for posted form model validation but it's not fully tested yet. Posted form values that bind directly 
-  to actions don't have automatic validation yet.
+- Tweaks to removing extraneous lines from compiled views. Added an extension
+	method to remove HTML from strings.  All posted forms elements that contain
+	HTML will be stripped. This feature uses the HtmlAgilityPack.
+- Added support for posted form model validation but it's not fully tested yet.
+	Posted form values that bind directly to actions don't have automatic
+	validation yet.
 
 17 November 2011 
  
- - Refactored the documentation and implemented the HttpsOnly named parameter on the HttpGet and HttpPost attributes.
- - Fixed bug that prevented action invocation when multiple controllers were in an application.
+ - Refactored the documentation and implemented the HttpsOnly named parameter on
+	 the HttpGet and HttpPost attributes.
+ - Fixed bug that prevented action invocation when multiple controllers were in
+	 an application.
 
 15 November 2011
 
@@ -109,16 +128,20 @@ Changelog:
 
 14 November 2011
 
-- A couple small tweaks. I just said that because I'm too lazy to do a diff and I can't remember what I changed. =/
+- A couple small tweaks. I just said that because I'm too lazy to do a diff and
+	I can't remember what I changed. =/
 
 10 November 2011
 
-- A fix to SimpleViewManager if you pass in a null tag dictionary when calling RenderFragment.
-- A fix for the SecurityManager when segregating an action based on user specified roles.
+- A fix to SimpleViewManager if you pass in a null tag dictionary when calling
+	RenderFragment.
+- A fix for the SecurityManager when segregating an action based on user
+	specified roles.
 
 8 November 2011
 
-- Added a few more fields to the ActiveDirectoryUser class and made a small change to the HTMLTable helper.
+- Added a few more fields to the ActiveDirectoryUser class and made a small
+	change to the HTMLTable helper.
 
 4 November 2011
 
@@ -130,17 +153,30 @@ Changelog:
 
 2 November 2011
 
-- Added a FragmentResult, RenderFragment to string and necessary infrastructure to the SimpleViewEngine to support fragment views (think partials but not like the current partials that are building blocks for regular views, these are fragments of HTML combinded with dynamic data meant primarily for responding to AJAX requests, think JsonResult but without the JSON). The documentation is starting to lapse again in the comment header, it'll catch up to the recent features added eventually.
+- Added a FragmentResult, RenderFragment to string and necessary infrastructure
+	to the SimpleViewEngine to support fragment views (think partials but not like
+	the current partials that are building blocks for regular views, these are
+	fragments of HTML combinded with dynamic data meant primarily for responding
+	to AJAX requests, think JsonResult but without the JSON). The documentation is
+	starting to lapse again in the comment header, it'll catch up to the recent
+	features added eventually.
 
 1 November 2011
 
-- Added an attribute and infrastructure for describing and invoking an action that is for redirect only. This means that the action is not able to be navigated to unless it is from an action that redirected to it. Once the redirect occurs the action is no longer able to be navigated to until another redirect to it occurs.
+- Added an attribute and infrastructure for describing and invoking an action
+	that is for redirect only. This means that the action is not able to be
+	navigated to unless it is from an action that redirected to it. Once the
+	redirect occurs the action is no longer able to be navigated to until another
+	redirect to it occurs.
 
 31 October 2011
 
-- Regression in the get/post action determination logic dealing with bound parameters.
-- The initial round of XML documentation tags are almost complete. Will have to go back and revise and make awesome!
-- Moved some authentication cookie code to the Engine because I'm using my own User class instead of just a generic IPrincipal.
+- Regression in the get/post action determination logic dealing with bound
+	parameters.
+- The initial round of XML documentation tags are almost complete. Will have to
+	go back and revise and make awesome!
+- Moved some authentication cookie code to the Engine because I'm using my own
+	User class instead of just a generic IPrincipal.
 
 30 October 2011
 
@@ -149,8 +185,9 @@ Changelog:
 
 28 October 2011
 
-- There is still some foo going on in DetermineActionMethod, I think I resolved it but not totally sure. The method
-  still seems brittle. I'm going to have to take a good hard look at how it's doing business!
+- There is still some foo going on in DetermineActionMethod, I think I resolved
+	it but not totally sure. The method still seems brittle. I'm going to have to
+	take a good hard look at how it's doing business!
 
 27 October 2011
 
@@ -169,14 +206,17 @@ Changelog:
 
 24 October 2011
 
-- Refactored the Get and Post routing so that Post's act very similarly to Get's when parameters bound to them. Now you can
-  post to actions and have form values as action arguments instead of creating a post model. This is the first iteration so
-  there may be some regressions introduced.
-- Miscellaneous other tweaks and small changes and sprinkling of notes throughout the code.
+- Refactored the Get and Post routing so that Post's act very similarly to Get's
+	when parameters bound to them. Now you can post to actions and have form
+	values as action arguments instead of creating a post model. This is the first
+	iteration so there may be some regressions introduced.
+- Miscellaneous other tweaks and small changes and sprinkling of notes
+	throughout the code.
 
 18 October 2011
 
-- Added a class to do some basic Active Directory searching for user accounts. This is so you can look up accounts in AD for authentication purposes.
+- Added a class to do some basic Active Directory searching for user accounts.
+	This is so you can look up accounts in AD for authentication purposes.
 - Added some Web.Config options for the AD stuff
 - Did some other tweaking and house keeping
 - Added some more documentation
@@ -189,11 +229,13 @@ Changelog:
 15 October 2011
 
 - Set Context.User to null if there is no AutumnAuth cookie in the AutumnModule
-- Made a minor change to the source code documentation for the Web.Config example
+- Made a minor change to the source code documentation for the Web.Config
+	example
 
 14 October 2011
 
-- Bug fixes in the SimpleViewEngine pertaining to partial views mangling rendered views
+- Bug fixes in the SimpleViewEngine pertaining to partial views mangling
+	rendered views
 - Bug fixes made for parameters bound to actions
 - Added an HTML helper for select
 
@@ -201,7 +243,8 @@ Changelog:
 
 - Added support for DotNetOpenAuth to the SecurityManager
 - Lots of work on the HTML helper classes
-- Added a class which will take a flat class representing a data model and produce an HTML table from it.
+- Added a class which will take a flat class representing a data model and
+	produce an HTML table from it.
 
 5 October 2011
 
@@ -224,18 +267,19 @@ Changelog:
 
 20 September 2011
 
-- A custom error class can now be defined by subclassing CustomError and overriding the Error 
-  action, you can only have one and it will override any error action you've put in your Controller.
-  This custom error class will get called for controllers or static files that cause an error.
-- Implemented an html encoded tag syntax for the simple view engine. You simply enclose your tag like so:
-  {|mytag|}
+- A custom error class can now be defined by subclassing CustomError and
+	overriding the Error action, you can only have one and it will override any
+	error action you've put in your Controller.  This custom error class will get
+	called for controllers or static files that cause an error.
+- Implemented an html encoded tag syntax for the simple view engine. You simply
+	enclose your tag like so: {|mytag|}
 
 19 September 2011
 
 - Custom error action for controllers
 - Partials can now inject stuff into a master pages head tag
-- Secure named parameter on HttpGet and HttpPost is now implemented, tell the framework about
-  your logged in user via the SecurityManager
+- Secure named parameter on HttpGet and HttpPost is now implemented, tell the
+	framework about your logged in user via the SecurityManager
 - Web.config configuration section updates
 - Documentation updates
   
@@ -251,21 +295,21 @@ Changelog:
 
 13 September 2011 
 
-- Still making tweaks to the code, trying to become more stable. I added some events
-to the Controller class for before action and after action. One scenario for this is
-logging. 
+- Still making tweaks to the code, trying to become more stable. I added some
+	events to the Controller class for before action and after action. One
+	scenario for this is logging. 
 	
 License: GNU GPL version 3 <http://www.gnu.org/licenses/gpl-3.0.html>
 
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+// This program is free software: you can redistribute it and/or modify it under
+// the terms of the GNU General Public License as published by the Free Software
+// Foundation, either version 3 of the License, or (at your option) any later
+// version.
 //
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
+// This program is distributed in the hope that it will be useful, but WITHOUT
+// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+// FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+// details.
 //
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// You should have received a copy of the GNU General Public License along with
+// this program.  If not, see <http://www.gnu.org/licenses/>.
