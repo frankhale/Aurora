@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - A tiny MVC web framework for .NET
 //
-// Updated On: 29 December 2011
+// Updated On: 30 December 2011
 //
 // Contact Info:
 //
@@ -12,18 +12,14 @@
 // --- CAUTION ---
 // ---------------
 //
-// As with anything new the features listed may or may not work at any given 
-// time. Things are in a constant state of flux and I frequently break stuff 
-// along the way. As time marches on Aurora has gotten more stable and I am 
-// fully engaged in making this as stable as possible. Bare with me, probably 
-// best to put a hard hat on.
+// Aurora is in a constant state of flux so things may not work as expected. 
 //
 // ------------
 // --- Why? ---
 // ------------
 //
 // This was born out of curiosity and the desire to dive into web framework 
-// construction to gain a better understanding of the internals and to play
+// construction to gain a better understanding of their internals and to play
 // with the ideas of creating applications in new ways.
 //
 // --------------------
@@ -47,6 +43,7 @@
 //  - Built in Active Directory querying so you can authenticate your user 
 //    against an Active Directory user. Typically for use in client certificate
 //    authentication.
+//  - Bundling so Javascript and CSS can be combined and minified.
 //
 // ----------------
 // --- Building ---
@@ -71,6 +68,8 @@
 // System.Web.Abstractions
 // System.Xml.Linq
 // System.Xml.dll
+// Microsoft.VisualBasic - This is for the method in the Information class
+// called IsNumeric
 // Newtonsoft.Json.NET35 - http://json.codeplex.com/
 // HtmlAgilityPack - http://htmlagilitypack.codeplex.com/
 // 
@@ -176,7 +175,6 @@
 // HttpPost has the following named parameters: 
 //
 //  RouteAlias (string)
-//  RequireAntiForgeryToken (bool)
 //  Secure (bool)
 //  Roles (string containing roles deliminted by |)
 //  HttpsOnly (bool)
@@ -459,6 +457,36 @@
 //
 //   return View();
 // }
+//
+// ----------------------
+// --- Bundle Manager ---
+// ----------------------
+//
+// The bundle manager is responsible for taking Javascript or CSS and combining
+// and minifying it into a single bundle for transport to the client. You can 
+// create as many bundles as you need for whatever circumstances you have. 
+//
+// You can create your bundles in the Global.asax Application_Start method.
+//
+// Example:
+//
+//  HttpContextBase ctx = new HttpContextWrapper(HttpContext.Current);
+//
+//  BundleManager bm = new BundleManager(ctx);
+//
+//  string[] cssPaths = 
+//  {
+//    "/Resources/Styles/reset.css",
+//    "/Resources/Styles/style.css",
+//    "/Resources/Scripts/SimplejQueryDropdowns/css/style.css",
+//    "/Resources/Scripts/tablesorter/style.css"
+//  };
+// 
+//  bm.AddFiles(cssPaths, "all.css");
+//
+// Now you can add a link to your CSS in your view like this:
+// 
+//  <link href="/Resources/Styles/all.css" rel="stylesheet" type="text/css" />
 //
 // --------------
 // --- Models ---
@@ -769,7 +797,7 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyProduct("Aurora")]
 [assembly: AssemblyCopyright("Copyright © 2011")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.99.14.*")]
+[assembly: AssemblyVersion("1.99.15.*")]
 #endregion
 
 //TODO: Look into using HttpRuntime.Cache instead of using HttpContext.Session and HttpContext.Application
@@ -884,6 +912,7 @@ namespace Aurora
     public static string TemplatesSessionName = "__Templates";
     public static string CustomErrorSessionName = "__CustomError";
     public static string CurrentUserSessionName = "__CurrentUser";
+    public static string BundleManagerSessionName = "__BundleManager";
     public static string AntiForgeryTokenName = "AntiForgeryToken";
     public static string JsonAntiForgeryTokenName = "JsonAntiForgeryToken";
     public static string AntiForgeryTokenMissing = "An AntiForgery token is required on all forms";
@@ -907,6 +936,7 @@ namespace Aurora
     public static string ADSearchRootIsNullOrEmpty = "The Active Directory search root is null or empty, please check your web.config";
     public static string ADSearchCriteriaIsNullOrEmptyError = "The LDAP query associated with this search type is null or empty, a valid query must be annotated to this search type via the MetaData attribute";
     public static string HttpRequestTypeNotSupportedError = "The HTTP Request type [{0}] is not supported.";
+    public static string ActionParameterTransformClassUnknownError = "The action parameter transform class cannot be determined.";
     public static string Http404Error = "Http 404 - Page Not Found";
     public static string Http401Error = "Http 401 - Unauthorized";
     public static string CustomErrorNullExceptionError = "The customer error instance was null";
@@ -931,6 +961,7 @@ namespace Aurora
     NonSecure
   }
 
+  #region MISCELLANEOUS
   [AttributeUsage(AttributeTargets.All)]
   public class MetaDataAttribute : Attribute
   {
@@ -952,6 +983,7 @@ namespace Aurora
       Name = name;
     }
   }
+  #endregion
 
   #region HTTP REQUEST
   public abstract class RequestTypeAttribute : Attribute
@@ -976,9 +1008,7 @@ namespace Aurora
   public class HttpGetAttribute : RequestTypeAttribute
   {
     public HttpCacheability CacheabilityOption = HttpCacheability.Public;
-
     public bool Cache = false;
-
     public int Duration = 0;
 
     public HttpGetAttribute()
@@ -1002,8 +1032,6 @@ namespace Aurora
   [AttributeUsage(AttributeTargets.Method)]
   public class HttpPostAttribute : RequestTypeAttribute
   {
-    public bool RequireAntiForgeryToken = true;
-
     public HttpPostAttribute() { }
 
     public HttpPostAttribute(string routeAlias)
@@ -1026,8 +1054,6 @@ namespace Aurora
   [AttributeUsage(AttributeTargets.Method)]
   public class HttpPutAttribute : RequestTypeAttribute
   {
-    public bool RequireAntiForgeryToken = true;
-
     public HttpPutAttribute() { }
 
     public HttpPutAttribute(string routeAlias)
@@ -1050,8 +1076,6 @@ namespace Aurora
   [AttributeUsage(AttributeTargets.Method)]
   public class HttpDeleteAttribute : RequestTypeAttribute
   {
-    public bool RequireAntiForgeryToken = true;
-
     public HttpDeleteAttribute() { }
 
     public HttpDeleteAttribute(string routeAlias)
@@ -1623,8 +1647,7 @@ namespace Aurora
       {
         User u = GetUsers(ctx).FirstOrDefault(x => x.SessionID == ctx.Session.SessionID && x.Identity.Name == authCookie.ID);
 
-        //TODO: The User class now has the AuthenticationToken. Let's do an additional check to see if it's not expired.
-        //      if it's not then we'll rely on it.
+        if (u.AuthenticationCookie.Expires < DateTime.Now) return false;
 
         if (u != null)
         {
@@ -1731,61 +1754,51 @@ namespace Aurora
     public static List<RouteInfo> AllRouteInfos(HttpContextBase context)
     {
       List<RouteInfo> routes = null;
+      StringBuilder alias = new StringBuilder();
 
       if (context.Application[MainConfig.RoutesSessionName] != null)
-      {
-        // If we have a route list already let's return that
         routes = context.Application[MainConfig.RoutesSessionName] as List<RouteInfo>;
-
-        foreach (Controller c in AllControllerInstances(context))
-        {
-          c.Refresh(context);
-        }
-      }
       else
-      {
-        // Otherwise we'll build an initial route list based on the controllers and actions in the application
-        #region BUILD INITIAL ROUTE LIST
         routes = new List<RouteInfo>();
 
-        StringBuilder alias = new StringBuilder();
+      foreach (Type c in AllControllers(context))
+      {
+        Controller ctrl = AllControllerInstances(context).FirstOrDefault(x => x.GetType() == c);
 
-        foreach (Type c in AllControllers(context))
+        if (ctrl == null)
         {
-          #region NEW UP THE CONTROLLER
-          Controller ctrl = AllControllerInstances(context).FirstOrDefault(x => x.GetType() == c);
+          MethodInfo createInstance = c.BaseType.GetMethod("CreateInstance", BindingFlags.Static | BindingFlags.NonPublic).MakeGenericMethod(c);
+          ctrl = (Controller)createInstance.Invoke(createInstance, new object[] { context });
+          AllControllerInstances(context).Add(ctrl);
+        }
+        else
+          ctrl.Refresh(context);
 
-          if (ctrl == null)
+        foreach (MethodInfo mi in c.GetMethods())
+        {
+          foreach (Attribute a in mi.GetCustomAttributes(false))
           {
-            MethodInfo createInstance = c.BaseType.GetMethod("CreateInstance", BindingFlags.Static | BindingFlags.NonPublic).MakeGenericMethod(c);
-            ctrl = (Controller)createInstance.Invoke(createInstance, new object[] { context });
-            AllControllerInstances(context).Add(ctrl);
-          }
-          else
-            ctrl.Refresh(context);
-          #endregion
-
-          foreach (MethodInfo mi in c.GetMethods())
-          {
-            foreach (Attribute a in mi.GetCustomAttributes(false))
+            if ((a is HttpGetAttribute) ||
+                (a is HttpPostAttribute) ||
+                (a is FromRedirectOnlyAttribute) ||
+                (a is HttpPutAttribute) ||
+                (a is HttpDeleteAttribute))
             {
-              if ((a is HttpGetAttribute) ||
-                  (a is HttpPostAttribute) ||
-                  (a is FromRedirectOnlyAttribute) ||
-                  (a is HttpPutAttribute) ||
-                  (a is HttpDeleteAttribute))
-              {
-                alias.Length = 0;
+              alias.Length = 0;
+              alias.Insert(0, (a as RequestTypeAttribute).RouteAlias);
 
+              RouteInfo routeInfo = routes.FirstOrDefault(x => x.Alias == alias.ToString() && x.ControllerName == c.Name);
+
+              if (routeInfo == null)
+              {
+                #region CREATE NEW ROUTE
                 HttpGetAttribute get = (a as HttpGetAttribute);
                 HttpPostAttribute post = (a as HttpPostAttribute);
                 HttpPutAttribute put = (a as HttpPutAttribute);
                 HttpDeleteAttribute delete = (a as HttpDeleteAttribute);
                 FromRedirectOnlyAttribute fro = (a as FromRedirectOnlyAttribute);
 
-                alias.Insert(0, (a as RequestTypeAttribute).RouteAlias);
-
-                RouteInfo routeInfo = new RouteInfo()
+                routeInfo = new RouteInfo()
                 {
                   Alias = (!String.IsNullOrEmpty(alias.ToString())) ? alias.ToString() : string.Format("/{0}/{1}", c.Name, mi.Name),
                   ControllerName = c.Name,
@@ -1796,16 +1809,11 @@ namespace Aurora
                   Bindings = new ActionBinder(context).GetBindings(c.Name, mi.Name),
                   FromRedirectOnlyInfo = (fro != null) ? true : false,
                   Dynamic = (fro != null) ? true : false,
-                  //Form = (context.Request.Form == null) ? new NameValueCollection() : new NameValueCollection(context.Request.Form),
-                  //QueryString = (context.Request.QueryString == null) ? new NameValueCollection() : new NameValueCollection(context.Request.QueryString),
                   IsFiltered = true
                 };
 
                 if (get != null || fro != null || post != null || put != null || delete != null)
                   routeInfo.IsFiltered = false;
-
-                //if (put != null || delete != null)
-                //  routeInfo.Payload = new StreamReader(context.Request.InputStream).ReadToEnd();
 
                 if (get != null)
                   routeInfo.RequestType = "GET";
@@ -1816,28 +1824,22 @@ namespace Aurora
                 else if (delete != null)
                   routeInfo.RequestType = "DELETE";
 
-                //if ((routeInfo.Form.Count > 0) && (routeInfo.Form.AllKeys.Contains(MainConfig.AntiForgeryTokenName)))
-                //  routeInfo.Form.Remove(MainConfig.AntiForgeryTokenName);
-
-                //if (routeInfo.RequestType == "POST")
-                //{
-                //  routeInfo.PostedFormModel = Model.DetermineModelFromPostedForm(context);
-
-                //  if (routeInfo.PostedFormModel != null)
-                //    routeInfo.PostedFormInfo = new PostedFormInfo(context, routeInfo.PostedFormModel);
-                //}
-
                 routes.Add(routeInfo);
+                #endregion
+              }
+              else
+              {
+                routeInfo.ControllerInstance = ctrl;
               }
             }
           }
         }
 
-        context.Application.Lock();
-        context.Application[MainConfig.RoutesSessionName] = routes;
-        context.Application.UnLock();
-        #endregion
       }
+
+      context.Application.Lock();
+      context.Application[MainConfig.RoutesSessionName] = routes;
+      context.Application.UnLock();
 
       return routes;
     }
@@ -1850,9 +1852,7 @@ namespace Aurora
 
       if (actionTransformClassType != null) return actionTransformClassType;
 
-      //TODO: Let's throw an exception if we can't determine the transform class type
-
-      return null;
+      throw new Exception(MainConfig.ActionParameterTransformClassUnknownError);
     }
 
     public static void RemoveRouteInfo(HttpContextBase context, string alias)
@@ -2025,9 +2025,6 @@ namespace Aurora
 
       foreach (PropertyInfo pi in GetPropertiesWithExclusions<Model>(GetType()))
       {
-        //FIXME: This validation logic needs to be put into it's own class so I can also validate against parameter fields because
-        //       posted forms can be posted to a model or straight to parameters of an action.
-
         RequiredAttribute requiredAttribute = (RequiredAttribute)pi.GetCustomAttributes(false).FirstOrDefault(x => x is RequiredAttribute);
         RequiredLengthAttribute requiredLengthAttribute = (RequiredLengthAttribute)pi.GetCustomAttributes(false).FirstOrDefault(x => x is RequiredLengthAttribute);
         RegularExpressionAttribute regularExpressionAttribute = (RegularExpressionAttribute)pi.GetCustomAttributes(false).FirstOrDefault(x => x is RegularExpressionAttribute);
@@ -2091,14 +2088,22 @@ namespace Aurora
           }
         }
 
-        if (value.GetType() == typeof(Int32))
+        if (Microsoft.VisualBasic.Information.IsNumeric(value))
         {
-          //FIXME: Any numeric data type should be checked against this but all I'm checking now is integer (Int32)
+          //FIXME: Any numeric data type should be checked against this but all I'm checking now is integer (Int32 and Int64)
 
           if (rangeAttribute != null)
           {
-            if (((int)value).InRange(rangeAttribute.Min, rangeAttribute.Max))
-              isValid = true;
+            if (value.GetType() == typeof(Int32))
+            {
+              if (((int)value).InRange(rangeAttribute.Min, rangeAttribute.Max))
+                isValid = true;
+            }
+            else if (value.GetType() == typeof(Int64))
+            {
+              if (((long)value).InRange(rangeAttribute.Min, rangeAttribute.Max))
+                isValid = true;
+            }
             else
             {
               isValid = false;
@@ -2499,6 +2504,11 @@ namespace Aurora
       return value <= max && value >= min;
     }
 
+    public static bool InRange(this long value, int min, int max)
+    {
+      return value <= max && value >= min;
+    }
+
     public static string ToJSON<T>(this List<T> t) where T : Model
     {
       return JsonConvert.SerializeObject(t);
@@ -2574,29 +2584,115 @@ namespace Aurora
 
       return null;
     }
+
+    // This code was adapted to work with FileInfo but was originally from the following question on SO:
+    //
+    // http://stackoverflow.com/questions/929276/how-to-recursively-list-all-the-files-in-a-directory-in-c
+    public static IEnumerable<FileInfo> GetAllFiles(this DirectoryInfo di, string path)
+    {
+      Queue<string> queue = new Queue<string>();
+      queue.Enqueue(path);
+      while (queue.Count > 0)
+      {
+        path = queue.Dequeue();
+        try
+        {
+          foreach (string subDir in Directory.GetDirectories(path))
+          {
+            queue.Enqueue(subDir);
+          }
+        }
+        catch (Exception ex)
+        {
+          Console.Error.WriteLine(ex);
+        }
+
+        FileInfo[] fileInfos = null;
+        try
+        {
+          fileInfos = new DirectoryInfo(path).GetFiles();
+        }
+        catch
+        {
+          throw;
+        }
+        if (fileInfos != null)
+        {
+          for (int i = 0; i < fileInfos.Length; i++)
+          {
+            yield return fileInfos[i];
+          }
+        }
+      }
+    }
   }
   #endregion
 
-  #region BUNDLE (NOT IMPLEMENTED YET)
-  // The Bundle class will take in files like Javascript or CSS and minify them.
+  #region BUNDLE MANAGER
+  // The Bundle class will take in files like Javascript or CSS and combine and minify them.
+  public class BundleManager
+  {
+    private Dictionary<string, string> bundles;
+    private HttpContextBase context;
 
-  //internal class BundleInfo
-  //{
-  //  public string FileExtension { get; set; }
-  //  public string FileName { get; set; }
-  //  public string FilePath { get; set; }
-  //}
+    public BundleManager(HttpContextBase ctx)
+    {
+      context = ctx;
 
-  //public class Bundle
-  //{
-  //  public Bundle()
-  //  {
+      if (context.Application[MainConfig.BundleManagerSessionName] != null)
+        bundles = context.Application[MainConfig.BundleManagerSessionName] as Dictionary<string, string>;
+      else
+        context.Application[MainConfig.BundleManagerSessionName] = bundles = new Dictionary<string, string>();
+    }
 
-  //  }
+    public string this[string bundle]
+    {
+      get
+      {
+        return bundles[bundle];
+      }
+    }
 
-  //  public void AddDirectory(string dirPath, string fileExtension, string bundleName) { }
-  //  public void AddFile(string filePath, string bundleName) { }
-  //}
+    public void AddDirectory(string dirPath, string fileExtension, string bundleName)
+    {
+      DirectoryInfo di = null;
+
+      var files = di.GetAllFiles(context.Server.MapPath(dirPath)).Where(x => x.Extension == fileExtension);
+
+      ProcessFiles(files, bundleName);
+    }
+
+    public void AddFiles(string[] paths, string bundleName)
+    {
+      List<FileInfo> files = new List<FileInfo>();
+
+      foreach (string path in paths)
+      {
+        files.Add(new FileInfo(context.Server.MapPath(path)));
+      }
+
+      ProcessFiles(files, bundleName);
+    }
+
+    private void ProcessFiles(IEnumerable<FileInfo> files, string bundleName)
+    {
+      StringBuilder bundleResult = new StringBuilder();
+
+      foreach (FileInfo f in files)
+      {
+        using (StreamReader sr = new StreamReader(f.OpenRead()))
+        {
+          bundleResult.AppendLine(sr.ReadToEnd());
+          bundleResult.AppendLine();
+        }
+      }
+
+      if (!string.IsNullOrEmpty(bundleResult.ToString()))
+      {
+        bundles[bundleName] = new Minify(bundleResult.ToString(), false).Result;
+      }
+    }
+  }
   #endregion
 
   #region JAVASCRIPT / CSS MINIFY
@@ -2655,13 +2751,15 @@ namespace Aurora
       }
     }
 
-    public Minify(string filePath, bool pack)
+    public Minify(string text, bool pack)
     {
       result = new StringBuilder();
 
       this.pack = pack;
 
-      Go(filePath);
+      Console.SetIn(new StringReader(text));
+
+      Go();
     }
 
     private bool IsAlphanum(char c)
@@ -2674,6 +2772,7 @@ namespace Aurora
               charCode == '_' ||
               charCode == '$' ||
               charCode == '\\' ||
+              charCode == '#' ||
               charCode > 126);
     }
 
@@ -2830,10 +2929,8 @@ namespace Aurora
       }
     }
 
-    private void Go(string filePath)
+    private void Go()
     {
-      Console.SetIn(File.OpenText(filePath));
-
       theA = '\n';
       Action(3);
       while (theA != EOF)
@@ -3057,6 +3154,8 @@ namespace Aurora
   internal class RouteManager : IRouteManager
   {
     private HttpContextBase context;
+    private BundleManager bundleManager;
+
     private string path;
     private string alias;
 
@@ -3068,13 +3167,18 @@ namespace Aurora
 
     private NameValueCollection Form;
 
+    private string RawPayload;
+    private Dictionary<string, string> Payload;
+
     private bool fromRedirectOnlyFlag = false;
 
-    private List<RouteInfo> Routes { get; set; }
+    private List<RouteInfo> routes { get; set; }
 
     public RouteManager(HttpContextBase ctx)
     {
-      Routes = new List<RouteInfo>();
+      routes = new List<RouteInfo>();
+
+      bundleManager = new BundleManager(ctx);
 
       Refresh(ctx);
     }
@@ -3084,8 +3188,8 @@ namespace Aurora
       context = ctx;
 
       Form = new NameValueCollection(context.Request.Form);
-      
-      if(Form[MainConfig.AntiForgeryTokenName]!=null)
+
+      if (Form[MainConfig.AntiForgeryTokenName] != null)
         Form.Remove(MainConfig.AntiForgeryTokenName);
 
       context.Request.ValidateInput();
@@ -3103,9 +3207,9 @@ namespace Aurora
 
       context.RewritePath(path);
 
-      Routes = ApplicationInternals.AllRouteInfos(context);
+      routes = ApplicationInternals.AllRouteInfos(context);
 
-      alias = Routes.OrderByDescending(y => y.Alias).Where(x => path.StartsWith(x.Alias)).Select(x => x.Alias).FirstOrDefault();
+      alias = routes.OrderByDescending(y => y.Alias).Where(x => path.StartsWith(x.Alias)).Select(x => x.Alias).FirstOrDefault();
 
       if (!String.IsNullOrEmpty(alias))
       {
@@ -3124,6 +3228,17 @@ namespace Aurora
             ((Model)postedFormInfo.DataTypeInstance).Validate(context, (Model)postedFormInfo.DataTypeInstance);
         }
       }
+
+      if (context.Request.RequestType == "PUT" || context.Request.RequestType == "DELETE")
+      {
+        RawPayload = new StreamReader(context.Request.InputStream).ReadToEnd();
+
+        Payload = RawPayload.Split(',')
+                            .Select(x => x.Split('='))
+                            .ToDictionary(x => x[0], x => x[1]);
+      }
+      else
+        Payload = null;
     }
 
     private RouteInfo FindRoute(string path)
@@ -3139,7 +3254,7 @@ namespace Aurora
 
       int urlParamLength = (urlObjectParams != null) ? urlObjectParams.Length : 0;
 
-      foreach (RouteInfo routeInfo in Routes.FindAll(x => x.Alias == alias && x.RequestType == context.Request.RequestType))
+      foreach (RouteInfo routeInfo in routes.FindAll(x => x.Alias == alias && x.RequestType == context.Request.RequestType))
       {
         if (fromRedirectOnlyFlag && !routeInfo.FromRedirectOnlyInfo) continue;
 
@@ -3152,11 +3267,7 @@ namespace Aurora
         if (context.Request.RequestType == "PUT" || context.Request.RequestType == "DELETE")
         {
           formOrPutDeleteParams = new object[1];
-          formOrPutDeleteParams[0] = new StreamReader(context.Request.InputStream).ReadToEnd();
-
-          //TODO: Need to settle on the payload type, probably support only JSON. We need to factor in the AntiForgeryToken validation
-          
-          //FIXME: This isn't finished yet.
+          formOrPutDeleteParams[0] = Payload;
 
           totalParamLength += formOrPutDeleteParams.Length;
         }
@@ -3283,7 +3394,7 @@ namespace Aurora
             routeInfo.UrlObjectParameters = convertedFrontParams.Concat(routeInfo.UrlObjectParameters).ToArray();
           }
 
-          Routes.Add(routeInfo);
+          routes.Add(routeInfo);
 
           return routeInfo;
         }
@@ -3310,24 +3421,7 @@ namespace Aurora
           // Execute Controller_BeforeAction
           routeInfo.ControllerInstance.RaiseEvent(Controller.PreOrPostActionType.Before);
 
-          switch (routeInfo.RequestType)
-          {
-            case "GET":
-              iar = ProcessGetRoute(routeInfo);
-              break;
-
-            case "POST":
-              iar = ProcessPostRoute(routeInfo);
-              break;
-
-            case "PUT":
-              iar = ProcessPutRoute(routeInfo);
-              break;
-
-            case "DELETE":
-              iar = ProcessDeleteRoute(routeInfo);
-              break;
-          }
+          iar = ProcessDynamicRoute(routeInfo);
 
           // Execute Controller_AfterAction
           routeInfo.ControllerInstance.RaiseEvent(Controller.PreOrPostActionType.After);
@@ -3347,7 +3441,7 @@ namespace Aurora
         {
           string staticFilePath = context.Server.MapPath(path);
 
-          if (File.Exists(staticFilePath))
+          if (File.Exists(staticFilePath) || bundleManager[Path.GetFileName(path)] != null)
             return new PhysicalFileResult(context, staticFilePath);
         }
       }
@@ -3355,147 +3449,82 @@ namespace Aurora
       return iar;
     }
 
-    private IAuroraResult ProcessGetRoute(RouteInfo routeInfo)
+    private IAuroraResult ProcessDynamicRoute(RouteInfo routeInfo)
     {
       IAuroraResult result = null;
 
       if (routeInfo != null && !routeInfo.IsFiltered)
       {
+        RequestTypeAttribute reqAttrib = Attribute.GetCustomAttribute(routeInfo.Action, typeof(RequestTypeAttribute), false) as RequestTypeAttribute;
         HttpGetAttribute get = Attribute.GetCustomAttribute(routeInfo.Action, typeof(HttpGetAttribute), false) as HttpGetAttribute;
 
-        if (get != null)
+        #region ANTI FORGERY TOKEN VERIFICATION
+        if (context.Request.RequestType == "POST" || context.Request.RequestType == "PUT" || context.Request.RequestType == "DELETE")
         {
-          if (get.HttpsOnly && !context.Request.IsSecureConnection) return result;
+          string antiForgeryToken = (Payload == null) ? context.Request.Form[MainConfig.AntiForgeryTokenName] : Payload[MainConfig.AntiForgeryTokenName];
 
-          #region HTTP CACHING
-          if (get.Cache)
+          if (!string.IsNullOrEmpty(antiForgeryToken))
           {
-            TimeSpan expires = new TimeSpan(0, 0, get.Duration);
-
-            context.Response.Cache.SetCacheability(get.CacheabilityOption);
-            context.Response.Cache.SetExpires(DateTime.Now.Add(expires));
-            context.Response.Cache.SetMaxAge(expires);
-            context.Response.Cache.SetValidUntilExpires(true);
-            context.Response.Cache.VaryByParams.IgnoreParams = true;
+            if (!AntiForgeryToken.VerifyToken(context, antiForgeryToken))
+              throw new Exception(MainConfig.AntiForgeryTokenVerificationFailed);
           }
           else
-          {
-            context.Response.Cache.SetCacheability(HttpCacheability.NoCache);
-            context.Response.Cache.SetNoStore();
-            context.Response.Cache.SetExpires(DateTime.MinValue);
-          }
-          #endregion
+            throw new Exception(MainConfig.AntiForgeryTokenMissing);
+        }
+        #endregion
 
-          if (get.SecurityType == ActionSecurity.Secure)
+        #region HTTP CACHING FOR GET REQUEST
+        if (get != null && get.Cache)
+        {
+          TimeSpan expires = new TimeSpan(0, 0, get.Duration);
+
+          context.Response.Cache.SetCacheability(get.CacheabilityOption);
+          context.Response.Cache.SetExpires(DateTime.Now.Add(expires));
+          context.Response.Cache.SetMaxAge(expires);
+          context.Response.Cache.SetValidUntilExpires(true);
+          context.Response.Cache.VaryByParams.IgnoreParams = true;
+        }
+        else
+        {
+          context.Response.Cache.SetCacheability(HttpCacheability.NoCache);
+          context.Response.Cache.SetNoStore();
+          context.Response.Cache.SetExpires(DateTime.MinValue);
+        }
+        #endregion
+
+        #region SECURITY CHECKING
+        if (reqAttrib.HttpsOnly && !context.Request.IsSecureConnection) return result;
+
+        if (reqAttrib.SecurityType == ActionSecurity.Secure)
+        {
+          if (!SecurityManager.IsAuthenticated(context, reqAttrib.Roles))
           {
-            if (!SecurityManager.IsAuthenticated(context, get.Roles))
-            {
-              if (!string.IsNullOrEmpty(get.RedirectWithoutAuthorizationTo))
-                return new RedirectResult(context, get.RedirectWithoutAuthorizationTo);
-              else
-                throw new Exception(MainConfig.Http404Error);
-            }
+            if (!string.IsNullOrEmpty(reqAttrib.RedirectWithoutAuthorizationTo))
+              return new RedirectResult(context, reqAttrib.RedirectWithoutAuthorizationTo);
+            else
+              throw new Exception(MainConfig.RedirectWithoutAuthorizationToError);
           }
         }
+        #endregion
 
-        //TODO: All the places I'm returning an Http 404 can be fixed up to return a better error.
-        //      Need to add code to check the web.config custom errors section (specifically the mode).
-
-        if (routeInfo.Action.ReturnType == typeof(JsonResult))
+        #region AJAX GET REQUEST WITH JSON RESULT
+        if (get != null && routeInfo.Action.ReturnType == typeof(JsonResult))
         {
-          // make sure the query string has a antiforgery token
           if (context.Request.QueryString[MainConfig.AntiForgeryTokenName] != null)
           {
-            // if so, check that it's valid and if it's not return a Http 404
             if (!AntiForgeryToken.VerifyToken(context))
               throw new Exception(MainConfig.AntiForgeryTokenMissing);
           }
         }
+        #endregion
 
-        result = ExecuteAction(routeInfo);
+        result = InvokeAction(routeInfo);
       }
 
       return result;
     }
 
-    private IAuroraResult ProcessPostRoute(RouteInfo routeInfo)
-    {
-      IAuroraResult result = null;
-
-      if (routeInfo != null && !routeInfo.IsFiltered)
-      {
-        if (context.Request.Form[MainConfig.AntiForgeryTokenName] != null)
-        {
-          // if so, check that it's valid and if it's not return a Http 404
-          if (!AntiForgeryToken.VerifyToken(context))
-            throw new Exception(MainConfig.AntiForgeryTokenVerificationFailed);
-        }
-        else
-          throw new Exception(MainConfig.AntiForgeryTokenMissing);
-
-        HttpPostAttribute post = Attribute.GetCustomAttribute(routeInfo.Action, typeof(HttpPostAttribute), false) as HttpPostAttribute;
-
-        if (post.HttpsOnly && !context.Request.IsSecureConnection) return result;
-
-        if (post.SecurityType == ActionSecurity.Secure)
-        {
-          if (!SecurityManager.IsAuthenticated(context, post.Roles))
-          {
-            if (!string.IsNullOrEmpty(post.RedirectWithoutAuthorizationTo))
-              return new RedirectResult(context, post.RedirectWithoutAuthorizationTo);
-            else
-              throw new Exception(MainConfig.RedirectWithoutAuthorizationToError);
-          }
-        }
-
-        result = ExecuteAction(routeInfo);
-      }
-
-      return result;
-    }
-
-    private IAuroraResult ProcessPutRoute(RouteInfo routeInfo)
-    {
-      IAuroraResult result = null;
-
-      if (routeInfo != null && !routeInfo.IsFiltered)
-      {
-        //if (context.Request.Form[MainConfig.AntiForgeryTokenName] != null)
-        //{
-        //  // if so, check that it's valid and if it's not return a Http 404
-        //  if (!AntiForgeryToken.VerifyToken(context))
-        //    throw new Exception(MainConfig.AntiForgeryTokenVerificationFailed);
-        //}
-        //else
-        //  throw new Exception(MainConfig.AntiForgeryTokenMissing);
-
-        HttpPutAttribute put = Attribute.GetCustomAttribute(routeInfo.Action, typeof(HttpPutAttribute), false) as HttpPutAttribute;
-
-        if (put.HttpsOnly && !context.Request.IsSecureConnection) return result;
-
-        if (put.SecurityType == ActionSecurity.Secure)
-        {
-          if (!SecurityManager.IsAuthenticated(context, put.Roles))
-          {
-            if (!string.IsNullOrEmpty(put.RedirectWithoutAuthorizationTo))
-              return new RedirectResult(context, put.RedirectWithoutAuthorizationTo);
-            else
-              throw new Exception(MainConfig.RedirectWithoutAuthorizationToError);
-          }
-        }
-
-        result = ExecuteAction(routeInfo);
-      }
-
-      return result;
-    }
-
-    private IAuroraResult ProcessDeleteRoute(RouteInfo routeInfo)
-    {
-      throw new NotImplementedException();
-    }
-
-    private IAuroraResult ExecuteAction(RouteInfo routeInfo)
+    private IAuroraResult InvokeAction(RouteInfo routeInfo)
     {
       if (routeInfo != null)
       {
@@ -4077,6 +4106,28 @@ namespace Aurora
     void Render();
   }
 
+  internal static class ResponseHeader
+  {
+    public static void AddEncodingHeaders(HttpContextBase context)
+    {
+      string acceptsEncoding = context.Request.Headers["Accept-Encoding"];
+
+      if (!string.IsNullOrEmpty(acceptsEncoding))
+      {
+        if (acceptsEncoding.Contains("deflate"))
+        {
+          context.Response.Filter = new DeflateStream(context.Response.Filter, CompressionMode.Compress);
+          context.Response.AppendHeader("Content-Encoding", "deflate");
+        }
+        else if (acceptsEncoding.Contains("gzip"))
+        {
+          context.Response.Filter = new GZipStream(context.Response.Filter, CompressionMode.Compress);
+          context.Response.AppendHeader("Content-Encoding", "gzip");
+        }
+      }
+    }
+  }
+
   public class VirtualFileResult : IAuroraResult
   {
     private HttpContextBase context;
@@ -4139,18 +4190,34 @@ namespace Aurora
 
       TimeSpan expiry = new TimeSpan(0, minutesBeforeExpiration, 0);
 
+      context.Response.ContentType = contentType;
+
+      ResponseHeader.AddEncodingHeaders(context);
+
       context.Response.Cache.SetCacheability(HttpCacheability.Public);
       context.Response.Cache.SetExpires(DateTime.Now.Add(expiry));
       context.Response.Cache.SetMaxAge(expiry);
       context.Response.Cache.SetValidUntilExpires(true);
       context.Response.Cache.VaryByParams.IgnoreParams = true;
 
-      context.Response.ContentType = contentType;
-
       if (filePath.EndsWith(".css") || filePath.EndsWith(".js"))
       {
-        //FIXME: This is temporary until the Bundle class is implemented.
-        context.Response.Write(new Minify(filePath, false).Result);
+        string text = string.Empty;
+
+        try
+        {
+          text = File.ReadAllText(filePath);
+
+          context.Response.Write(new Minify(text, false).Result);
+        }
+        catch
+        {
+          BundleManager bm = new BundleManager(context);
+
+          text = bm[Path.GetFileName(filePath)];
+
+          context.Response.Write(text);
+        }
       }
       else
         context.Response.TransmitFile(filePath);
@@ -4175,6 +4242,9 @@ namespace Aurora
     public void Render()
     {
       context.Response.ContentType = "text/html";
+
+      ResponseHeader.AddEncodingHeaders(context);
+
       context.Response.Write(viewEngine[viewKeyName]);
     }
   }
@@ -4226,6 +4296,9 @@ namespace Aurora
         string json = JsonConvert.SerializeObject(data);
 
         context.Response.ContentType = "text/html";
+
+        ResponseHeader.AddEncodingHeaders(context);
+
         context.Response.Write(json);
       }
       catch
@@ -4362,6 +4435,11 @@ namespace Aurora
       }
     }
 
+    public static bool VerifyToken(HttpContextBase context, string token)
+    {
+      return GetTokens(context).Contains(token);
+    }
+
     public static bool VerifyToken(HttpContextBase context)
     {
       if (context.Request.Form.AllKeys.Contains(MainConfig.AntiForgeryTokenName))
@@ -4376,7 +4454,7 @@ namespace Aurora
   }
   #endregion
 
-  #region AURORA VIEW ENGINE
+  #region VIEW ENGINE
   public interface IViewEngine
   {
     void LoadView(string controllerName, string viewName, Dictionary<string, string> tags);

@@ -4,7 +4,7 @@ NOTE: See source code comments for usage.
 
 Frank Hale <frankhale@gmail.com>
 
-Date: 29 December 2011
+Date: 30 December 2011
 
 --------------------
 --- Feature List ---
@@ -27,8 +27,20 @@ Date: 29 December 2011
 - Built in Active Directory querying so you can authenticate your user against
   an Active Directory user. Typically for use in client certificate
   authentication.
+- Bundling so Javascript and CSS can be combined and minified.
  
 Changelog:
+
+30 December 2011
+
+- Worked on the RouteManager tweaking how routes are handled.
+- Reworked the ApplicationInternals method that creates the route list. Routes
+  really are working this time for subsequent requests from the route cache.
+- Worked on the BundleManager, it's now able to bundle up CSS and Javascript and
+  uses the Minify class to minify them.
+- ViewResults (except virtual file result) now either gzip or deflate the
+  response stream.
+- Made small change to the Range validation class for model validation.
 
 29 December 2011
 
