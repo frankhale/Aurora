@@ -764,6 +764,7 @@ using System.Collections.Specialized;
 using System.Configuration;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -781,7 +782,6 @@ using HtmlAgilityPack;
 
 #if ACTIVEDIRECTORY
 using System.DirectoryServices;
-using System.IO.Compression;
 #endif
 
 #if OPENID
