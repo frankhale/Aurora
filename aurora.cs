@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - A tiny MVC web framework for .NET
 //
-// Updated On: 30 December 2011
+// Updated On: 1 January 2012
 //
 // Contact Info:
 //
@@ -777,8 +777,8 @@ using System.Threading;
 using System.Web;
 using System.Web.Configuration;
 using System.Web.SessionState;
-using Newtonsoft.Json;
 using HtmlAgilityPack;
+using Newtonsoft.Json;
 
 #if ACTIVEDIRECTORY
 using System.DirectoryServices;
@@ -797,7 +797,7 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyProduct("Aurora")]
 [assembly: AssemblyCopyright("Copyright © 2011")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.99.15.*")]
+[assembly: AssemblyVersion("1.99.16.*")]
 #endregion
 
 //TODO: Look into using HttpRuntime.Cache instead of using HttpContext.Session and HttpContext.Application
@@ -1787,7 +1787,7 @@ namespace Aurora
               alias.Length = 0;
               alias.Insert(0, (a as RequestTypeAttribute).RouteAlias);
 
-              RouteInfo routeInfo = routes.FirstOrDefault(x => x.Alias == alias.ToString() && x.ControllerName == c.Name);
+              RouteInfo routeInfo = routes.FirstOrDefault(x => /*x.Alias == alias.ToString()*/ x.Action == mi && x.ControllerName == c.Name);
 
               if (routeInfo == null)
               {
@@ -3172,11 +3172,11 @@ namespace Aurora
 
     private bool fromRedirectOnlyFlag = false;
 
-    private List<RouteInfo> routes { get; set; }
+    private List<RouteInfo> allRoutes { get; set; }
 
     public RouteManager(HttpContextBase ctx)
     {
-      routes = new List<RouteInfo>();
+      allRoutes = new List<RouteInfo>();
 
       bundleManager = new BundleManager(ctx);
 
@@ -3197,7 +3197,9 @@ namespace Aurora
 
       string incomingPath = context.Request.Path;
 
-      if (string.Equals(incomingPath, "/default.aspx", StringComparison.InvariantCultureIgnoreCase) || incomingPath == "~/")
+      if (string.Equals(incomingPath, "/") ||
+          string.Equals(incomingPath, "/default.aspx", StringComparison.InvariantCultureIgnoreCase) ||
+          incomingPath == "~/")
         path = MainConfig.DefaultRoute;
       else
         path = (context.Request.Path.EndsWith("/")) ? context.Request.Path.Remove(context.Request.Path.Length - 1) : context.Request.Path;
@@ -3207,9 +3209,9 @@ namespace Aurora
 
       context.RewritePath(path);
 
-      routes = ApplicationInternals.AllRouteInfos(context);
+      allRoutes = ApplicationInternals.AllRouteInfos(context);
 
-      alias = routes.OrderByDescending(y => y.Alias).Where(x => path.StartsWith(x.Alias)).Select(x => x.Alias).FirstOrDefault();
+      alias = allRoutes.OrderByDescending(y => y.Alias).Where(x => path.StartsWith(x.Alias)).Select(x => x.Alias).FirstOrDefault();
 
       if (!String.IsNullOrEmpty(alias))
       {
@@ -3254,7 +3256,9 @@ namespace Aurora
 
       int urlParamLength = (urlObjectParams != null) ? urlObjectParams.Length : 0;
 
-      foreach (RouteInfo routeInfo in routes.FindAll(x => x.Alias == alias && x.RequestType == context.Request.RequestType))
+      List<RouteInfo> routes = allRoutes.FindAll(x => x.Alias == alias && x.RequestType == context.Request.RequestType).ToList();
+
+      foreach (RouteInfo routeInfo in routes)
       {
         if (fromRedirectOnlyFlag && !routeInfo.FromRedirectOnlyInfo) continue;
 
@@ -3394,7 +3398,7 @@ namespace Aurora
             routeInfo.UrlObjectParameters = convertedFrontParams.Concat(routeInfo.UrlObjectParameters).ToArray();
           }
 
-          routes.Add(routeInfo);
+          allRoutes.Add(routeInfo);
 
           return routeInfo;
         }
