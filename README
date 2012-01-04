@@ -8,10 +8,7 @@ Date: 3 January 2012
 
 --------------------
 --- Feature List ---
---------------------
-
-- Kicking the can further down the road making little adjustments here and
-  there.
+--------------------  
 
 - MVC based 
 - Simple tag based view engine with master pages and partial views as well as
@@ -33,6 +30,10 @@ Date: 3 January 2012
 - Bundling so Javascript and CSS can be combined and minified.
  
 Changelog:
+
+3 January 2012
+
+- Kicking the can further down the road making little adjustments here and there.
 
 1 January 2012
 
