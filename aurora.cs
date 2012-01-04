@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - A tiny MVC web framework for .NET
 //
-// Updated On: 1 January 2012
+// Updated On: 3 January 2012
 //
 // Contact Info:
 //
@@ -797,7 +797,7 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyProduct("Aurora")]
 [assembly: AssemblyCopyright("Copyright © 2011")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.99.16.*")]
+[assembly: AssemblyVersion("1.99.17.*")]
 #endregion
 
 //TODO: Look into using HttpRuntime.Cache instead of using HttpContext.Session and HttpContext.Application
@@ -849,6 +849,11 @@ namespace Aurora
       get { return Convert.ToInt32(this["AuthCookieExpiration"]); }
     }
 
+    [ConfigurationProperty("DisableStaticFileCaching", DefaultValue = false, IsRequired = false)]
+    public bool DisableStaticFileCaching
+    {
+      get { return Convert.ToBoolean(this["DisableStaticFileCaching"]); }
+    }
 
     #region ACTIVE DIRECTORY CONFIGURATION
 #if ACTIVEDIRECTORY
@@ -883,12 +888,19 @@ namespace Aurora
   #region MAIN CONFIG
   internal static class MainConfig
   {
+    //static MainConfig()
+    //{
+    // I need to create a web.config section for adding new mime types.
+    // I will then need to add code here to define the standard list of mime types and add the ones from the web.config section
+    //}
+
     public static WebConfig WebConfig = ConfigurationManager.GetSection("Aurora") as WebConfig;
     public static CustomErrorsSection CustomErrorsSection = ConfigurationManager.GetSection("system.web/customErrors") as CustomErrorsSection;
     public static string[] SupportedHttpVerbs = { "GET", "POST", "PUT", "DELETE" };
     public static string EncryptionKey = (MainConfig.WebConfig == null) ? null : WebConfig.EncryptionKey;
     public static int AuthCookieExpiry = (MainConfig.WebConfig == null) ? 8 : WebConfig.AuthCookieExpiry;
     public static int StaticContentCacheExpiry = (MainConfig.WebConfig == null) ? 15 : WebConfig.StaticContentCacheExpiry;
+    public static bool DisableStaticFileCaching = (MainConfig.WebConfig == null) ? false : WebConfig.DisableStaticFileCaching;
     // The UserName and Password used to search Active Directory should be encrypted in the Web.Config
 #if ACTIVEDIRECTORY
     public static string ADSearchUser = (MainConfig.WebConfig == null) ? null : (!string.IsNullOrEmpty(WebConfig.ADSearchUser)) ? Encryption.Decrypt(WebConfig.ADSearchUser, WebConfig.EncryptionKey) : null;
@@ -898,6 +910,17 @@ namespace Aurora
 #endif
     public static Regex PathTokenRE = new Regex(@"/(?<token>[a-zA-Z0-9]+)");
     public static Regex PathStaticFileRE = (WebConfig == null) ? new Regex(@"\.(js|png|jpg|gif|ico|css|txt|swf)$") : new Regex(WebConfig.StaticFileExtWhiteList);
+
+    public static Dictionary<string, string> MimeTypes = new Dictionary<string, string>()
+    {
+      { ".css", "text/css" },
+      { ".js",  "application/x-javascript" },
+      { ".jpg", "image/jpg" },
+      { ".gif", "image/gif" },
+      { ".ico", "image/x-icon" },
+      { ".txt", "text/plain" }
+    };
+
     public static bool Debug = (WebConfig == null) ? true : WebConfig.Debug;
     public static string ApplicationMountPoint = (WebConfig == null) ? string.Empty : WebConfig.ApplicationMountPoint;
     public static string FromRedirectOnlySessionFlag = "__FROFlag";
@@ -1176,6 +1199,7 @@ namespace Aurora
       HttpContext ctx = HttpContext.Current;
       Dictionary<string, string> uids = null;
 
+      //FIXME: Put the session name in MainConfig
       if (ctx.Session["__UniquedIDs"] != null)
       {
         uids = ctx.Session["__UniquedIDs"] as Dictionary<string, string>;
@@ -1647,10 +1671,10 @@ namespace Aurora
       {
         User u = GetUsers(ctx).FirstOrDefault(x => x.SessionID == ctx.Session.SessionID && x.Identity.Name == authCookie.ID);
 
-        if (u.AuthenticationCookie.Expires < DateTime.Now) return false;
-
         if (u != null)
         {
+          if (u.AuthenticationCookie.Expires < DateTime.Now) return false;
+
           if (!string.IsNullOrEmpty(authRoles))
           {
             List<string> minimumRoles = authRoles.Split('|').ToList();
@@ -2633,6 +2657,7 @@ namespace Aurora
   public class BundleManager
   {
     private Dictionary<string, string> bundles;
+
     private HttpContextBase context;
 
     public BundleManager(HttpContextBase ctx)
@@ -2651,6 +2676,11 @@ namespace Aurora
       {
         return bundles[bundle];
       }
+    }
+
+    public bool Contains(string key)
+    {
+      return bundles.ContainsKey(key);
     }
 
     public void AddDirectory(string dirPath, string fileExtension, string bundleName)
@@ -2682,6 +2712,7 @@ namespace Aurora
       {
         using (StreamReader sr = new StreamReader(f.OpenRead()))
         {
+          bundleResult.AppendLine();
           bundleResult.AppendLine(sr.ReadToEnd());
           bundleResult.AppendLine();
         }
@@ -2689,14 +2720,17 @@ namespace Aurora
 
       if (!string.IsNullOrEmpty(bundleResult.ToString()))
       {
-        bundles[bundleName] = new Minify(bundleResult.ToString(), false).Result;
+        bool css = bundleName.EndsWith(".css");
+
+        bundles[bundleName] = new Minify(bundleResult.ToString(), css, false).Result;
       }
     }
   }
   #endregion
 
   #region JAVASCRIPT / CSS MINIFY
-  // JSMinify is based on a quick port of jsmin.c to C# that I made.
+  // Minify is based on a quick port of jsmin.c to C#. I made a few changes so 
+  // that it would work with CSS files as well.
   //
   // jsmin.c was written by Douglas Crockford, original license and information
   // below.
@@ -2734,6 +2768,8 @@ namespace Aurora
     private const int EOF = -1;
 
     private bool pack;
+    private bool css;
+
     private int theA;
     private int theB;
     private int theLookahead = EOF;
@@ -2745,16 +2781,17 @@ namespace Aurora
       get
       {
         if (pack)
-          return Regex.Replace(result.ToString().Trim(), "(\n|\r)+", "", RegexOptions.None);
+          return Regex.Replace(result.ToString().Trim(), "(\n|\r)+", " ", RegexOptions.None);
 
         return result.ToString().Trim();
       }
     }
 
-    public Minify(string text, bool pack)
+    public Minify(string text, bool css, bool pack)
     {
       result = new StringBuilder();
 
+      this.css = css;
       this.pack = pack;
 
       Console.SetIn(new StringReader(text));
@@ -2765,6 +2802,9 @@ namespace Aurora
     private bool IsAlphanum(char c)
     {
       int charCode = (int)c;
+
+      if (css)
+        if (charCode == '.') return true;
 
       return (charCode >= 'a' && charCode <= 'z' ||
               charCode >= '0' && charCode <= '9' ||
@@ -2831,9 +2871,7 @@ namespace Aurora
                   }
                   break;
                 case EOF:
-                  Console.Error.WriteLine("Error: JSMIN Unterminated comment.");
-                  Environment.Exit(1);
-                  break;
+                  throw new Exception("Error: Minify Unterminated comment.");
               }
             }
           default:
@@ -2869,7 +2907,7 @@ namespace Aurora
               }
               if (theA == EOF)
               {
-                throw new Exception("Error: JSMinify unterminated string literal.");
+                throw new Exception("Error: Minify unterminated string literal.");
               }
             }
           }
@@ -2904,7 +2942,7 @@ namespace Aurora
                   }
                   if (theA == EOF)
                   {
-                    throw new Exception("Error: JSMinify unterminated set in Regular Expression literal.");
+                    throw new Exception("Error: Minify unterminated set in Regular Expression literal.");
                   }
                 }
               }
@@ -2919,7 +2957,7 @@ namespace Aurora
               }
               if (theA == EOF)
               {
-                throw new Exception("Error: JSMinify unterminated Regular Expression literal.");
+                throw new Exception("Error: Minify unterminated Regular Expression literal.");
               }
               result.Append((char)theA);
             }
@@ -3281,8 +3319,7 @@ namespace Aurora
 
           for (int i = 0; i < Form.AllKeys.Length; i++)
           {
-            if (context.Request.Form.AllKeys[i] != MainConfig.AntiForgeryTokenName)
-              formValues[i] = context.Request.Form.Get(i);
+              formValues[i] = Form.Get(i);
           }
 
           if (Form.Count > 0)
@@ -4172,17 +4209,14 @@ namespace Aurora
       filePath = file;
       contentType = string.Empty;
 
-      // This is really lame, there has to be a better way to do this!
-      if (file.EndsWith(".css"))
-        contentType = "text/css";
-      else if (file.EndsWith(".js"))
-        contentType = "application/x-javascript";
-      else if (file.EndsWith(".jpg"))
-        contentType = "image/jpg";
-      else if (file.EndsWith(".ico"))
-        contentType = "image/x-icon";
-      else if (file.EndsWith(".txt"))
-        contentType = "text/plain";
+      foreach (KeyValuePair<string, string> mimeType in MainConfig.MimeTypes)
+      {
+        if (file.EndsWith(mimeType.Key))
+        {
+          contentType = mimeType.Value;
+          break;
+        }
+      }
     }
 
     public void Render()
@@ -4198,11 +4232,14 @@ namespace Aurora
 
       ResponseHeader.AddEncodingHeaders(context);
 
-      context.Response.Cache.SetCacheability(HttpCacheability.Public);
-      context.Response.Cache.SetExpires(DateTime.Now.Add(expiry));
-      context.Response.Cache.SetMaxAge(expiry);
-      context.Response.Cache.SetValidUntilExpires(true);
-      context.Response.Cache.VaryByParams.IgnoreParams = true;
+      if (!MainConfig.DisableStaticFileCaching)
+      {
+        context.Response.Cache.SetCacheability(HttpCacheability.Public);
+        context.Response.Cache.SetExpires(DateTime.Now.Add(expiry));
+        context.Response.Cache.SetMaxAge(expiry);
+        context.Response.Cache.SetValidUntilExpires(true);
+        context.Response.Cache.VaryByParams.IgnoreParams = true;
+      }
 
       if (filePath.EndsWith(".css") || filePath.EndsWith(".js"))
       {
@@ -4212,14 +4249,15 @@ namespace Aurora
         {
           text = File.ReadAllText(filePath);
 
-          context.Response.Write(new Minify(text, false).Result);
+          bool css = filePath.EndsWith(".css");
+
+          context.Response.Write(new Minify(text, css, false).Result);
         }
         catch
         {
           BundleManager bm = new BundleManager(context);
 
           text = bm[Path.GetFileName(filePath)];
-
           context.Response.Write(text);
         }
       }
