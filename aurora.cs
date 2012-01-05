@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - A tiny MVC web framework for .NET
 //
-// Updated On: 3 January 2012
+// Updated On: 4 January 2012
 //
 // Contact Info:
 //
@@ -727,15 +727,18 @@
 // Last name, Display name and a digital certificate are some of the fields 
 // contained in this class.
 // 
-// ----------------------
-// --- Final Thoughts ---
-// ----------------------
+// -------------
+// --- Notes ---
+// -------------
 //
-// I don't claim to be an expert at web development or framework design. It's 
-// quite possible that I've totally missed the boat on a particular aspect of 
-// the framework and implemented it all wrong. if you find a bug or have a 
-// question or suggestion for implementing parts (or all) of this then please 
-// let me know.
+// Posting forms with checkboxes: 
+// 
+// when posting forms with checkboxes if the checkboxes aren't checked the 
+// checkbox will not post it's value. I recommend using jQuery to add a dynamic 
+// hidden input with the same name as your checkbox and a value of 'off' to make 
+// sure that the a posted value gets sent to the server. This is necessary if 
+// you have your posted form values bound to action parameters as the routing 
+// depends on the proper number of parameters being posted to map to an action.
 //
 // ---------------
 // --- LICENSE ---
@@ -797,16 +800,74 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyProduct("Aurora")]
 [assembly: AssemblyCopyright("Copyright © 2011")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.99.17.*")]
+[assembly: AssemblyVersion("1.99.18.*")]
 #endregion
-
-//TODO: Look into using HttpRuntime.Cache instead of using HttpContext.Session and HttpContext.Application
 
 namespace Aurora
 {
   #region WEB.CONFIG CONFIGURATION
+  internal class ContentTypeConfigurationElement : ConfigurationElement
+  {
+    [ConfigurationProperty("FileExtension", IsRequired = true)]
+    public string FileExtension
+    {
+      get
+      {
+        return this["FileExtension"] as string;
+      }
+    }
+
+    [ConfigurationProperty("ContentType", IsRequired = true)]
+    public string ContentType
+    {
+      get
+      {
+        return this["ContentType"] as string;
+      }
+    }
+  }
+
+  internal class ContentTypeConfigurationCollection : ConfigurationElementCollection
+  {
+    public ContentTypeConfigurationElement this[int index]
+    {
+      get
+      {
+        return base.BaseGet(index) as ContentTypeConfigurationElement;
+      }
+    
+      set
+      {
+        if (base.BaseGet(index) != null)
+        {
+          base.BaseRemoveAt(index);
+        }
+        this.BaseAdd(index, value);
+      }
+    }
+
+    protected override ConfigurationElement CreateNewElement()
+    {
+      return new ContentTypeConfigurationElement();
+    }
+
+    protected override object GetElementKey(ConfigurationElement element)
+    {
+      return ((ContentTypeConfigurationElement)element).FileExtension;
+    }
+  } 
+
   internal class WebConfig : ConfigurationSection
   {
+    [ConfigurationProperty("AllowedStaticFileContentTypes")]
+    public ContentTypeConfigurationCollection AllowedStaticFileContentTypes
+    {
+      get
+      {
+        return this["AllowedStaticFileContentTypes"] as ContentTypeConfigurationCollection;
+      }
+    }
+
     [ConfigurationProperty("EncryptionKey", DefaultValue = "", IsRequired = true)]
     public string EncryptionKey
     {
@@ -2467,9 +2528,12 @@ namespace Aurora
           }
           else if (parms[i].ToLower() == "true" ||
                   parms[i].ToLower() == "false" ||
-                  parms[i].ToLower() == "on")
+                  parms[i].ToLower() == "on" ||
+                  parms[i].ToLower() == "off" ||
+                  parms[i].ToLower() == "checked") 
           {
-            if (parms[i].ToLower() == "on") parms[i] = "true";
+            if (parms[i].ToLower() == "on" || parms[i].ToLower() == "checked") parms[i] = "true";
+            else if (parms[i].ToLower() == "off") parms[i] = "false";
 
             _parms[i] = Convert.ToBoolean(parms[i]);
           }
