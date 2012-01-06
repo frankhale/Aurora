@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - A tiny MVC web framework for .NET
 //
-// Updated On: 4 January 2012
+// Updated On: 5 January 2012
 //
 // Contact Info:
 //
@@ -13,14 +13,6 @@
 // ---------------
 //
 // Aurora is in a constant state of flux so things may not work as expected. 
-//
-// ------------
-// --- Why? ---
-// ------------
-//
-// This was born out of curiosity and the desire to dive into web framework 
-// construction to gain a better understanding of their internals and to play
-// with the ideas of creating applications in new ways.
 //
 // --------------------
 // --- Feature List ---
@@ -785,6 +777,7 @@ using Newtonsoft.Json;
 
 #if ACTIVEDIRECTORY
 using System.DirectoryServices;
+using System.Globalization;
 #endif
 
 #if OPENID
@@ -800,7 +793,7 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyProduct("Aurora")]
 [assembly: AssemblyCopyright("Copyright © 2011")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.99.18.*")]
+[assembly: AssemblyVersion("1.99.19.*")]
 #endregion
 
 namespace Aurora
@@ -835,7 +828,7 @@ namespace Aurora
       {
         return base.BaseGet(index) as ContentTypeConfigurationElement;
       }
-    
+
       set
       {
         if (base.BaseGet(index) != null)
@@ -855,7 +848,7 @@ namespace Aurora
     {
       return ((ContentTypeConfigurationElement)element).FileExtension;
     }
-  } 
+  }
 
   internal class WebConfig : ConfigurationSection
   {
@@ -949,11 +942,28 @@ namespace Aurora
   #region MAIN CONFIG
   internal static class MainConfig
   {
-    //static MainConfig()
-    //{
-    // I need to create a web.config section for adding new mime types.
-    // I will then need to add code here to define the standard list of mime types and add the ones from the web.config section
-    //}
+    static MainConfig()
+    {
+      MimeTypes = new Dictionary<string, string>()
+      {
+        { ".js",  "application/x-javascript" },  
+        { ".css", "text/css" },
+        { ".png", "image/png" },
+        { ".jpg", "image/jpg" },
+        { ".gif", "image/gif" },
+        { ".svg", "image/svg+xml" },
+        { ".ico", "image/x-icon" },
+        { ".txt", "text/plain" }
+      };
+
+      if (WebConfig != null)
+      {
+        foreach (ContentTypeConfigurationElement ct in WebConfig.AllowedStaticFileContentTypes)
+        {
+          MimeTypes.Add(ct.FileExtension, ct.ContentType);
+        }
+      }
+    }
 
     public static WebConfig WebConfig = ConfigurationManager.GetSection("Aurora") as WebConfig;
     public static CustomErrorsSection CustomErrorsSection = ConfigurationManager.GetSection("system.web/customErrors") as CustomErrorsSection;
@@ -962,6 +972,7 @@ namespace Aurora
     public static int AuthCookieExpiry = (MainConfig.WebConfig == null) ? 8 : WebConfig.AuthCookieExpiry;
     public static int StaticContentCacheExpiry = (MainConfig.WebConfig == null) ? 15 : WebConfig.StaticContentCacheExpiry;
     public static bool DisableStaticFileCaching = (MainConfig.WebConfig == null) ? false : WebConfig.DisableStaticFileCaching;
+    public static bool Debug = (WebConfig == null) ? true : WebConfig.Debug;
     // The UserName and Password used to search Active Directory should be encrypted in the Web.Config
 #if ACTIVEDIRECTORY
     public static string ADSearchUser = (MainConfig.WebConfig == null) ? null : (!string.IsNullOrEmpty(WebConfig.ADSearchUser)) ? Encryption.Decrypt(WebConfig.ADSearchUser, WebConfig.EncryptionKey) : null;
@@ -970,19 +981,8 @@ namespace Aurora
     public static string ADSearchRoot = (MainConfig.WebConfig == null) ? null : WebConfig.ADSearchRoot;
 #endif
     public static Regex PathTokenRE = new Regex(@"/(?<token>[a-zA-Z0-9]+)");
-    public static Regex PathStaticFileRE = (WebConfig == null) ? new Regex(@"\.(js|png|jpg|gif|ico|css|txt|swf)$") : new Regex(WebConfig.StaticFileExtWhiteList);
-
-    public static Dictionary<string, string> MimeTypes = new Dictionary<string, string>()
-    {
-      { ".css", "text/css" },
-      { ".js",  "application/x-javascript" },
-      { ".jpg", "image/jpg" },
-      { ".gif", "image/gif" },
-      { ".ico", "image/x-icon" },
-      { ".txt", "text/plain" }
-    };
-
-    public static bool Debug = (WebConfig == null) ? true : WebConfig.Debug;
+    public static Regex PathStaticFileRE = (WebConfig == null) ? new Regex(@"\.(js|css|png|jpg|gif|svg|ico|txt)$") : new Regex(WebConfig.StaticFileExtWhiteList);
+    public static Dictionary<string, string> MimeTypes;
     public static string ApplicationMountPoint = (WebConfig == null) ? string.Empty : WebConfig.ApplicationMountPoint;
     public static string FromRedirectOnlySessionFlag = "__FROFlag";
     public static string RouteManagerSessionName = "__RouteManager";
@@ -997,6 +997,7 @@ namespace Aurora
     public static string CustomErrorSessionName = "__CustomError";
     public static string CurrentUserSessionName = "__CurrentUser";
     public static string BundleManagerSessionName = "__BundleManager";
+    public static string BundleManagerInfoSessionName = "__BundleManagerInfo";
     public static string AntiForgeryTokenName = "AntiForgeryToken";
     public static string JsonAntiForgeryTokenName = "JsonAntiForgeryToken";
     public static string AntiForgeryTokenMissing = "An AntiForgery token is required on all forms";
@@ -1057,14 +1058,29 @@ namespace Aurora
     }
   }
 
+  public enum DescriptiveNameOperation
+  {
+    SplitCamelCase,
+    None
+  }
+
   [AttributeUsage(AttributeTargets.Property)]
   public class DescriptiveNameAttribute : Attribute
   {
     public string Name { get; private set; }
+    public DescriptiveNameOperation Op;
 
     public DescriptiveNameAttribute(string name)
     {
       Name = name;
+      Op = DescriptiveNameOperation.None;
+    }
+
+    public DescriptiveNameAttribute(DescriptiveNameOperation op)
+    {
+      Name = string.Empty; // Name comes from property name
+
+      Op = op; // We'll perform an operation on the property name like put spacing between camel case names, then title case the name.
     }
   }
   #endregion
@@ -1248,6 +1264,7 @@ namespace Aurora
   }
   #endregion
 
+  #region UNIQUE ID
   [AttributeUsage(AttributeTargets.Field)]
   public class UniqueIDAttribute : Attribute
   {
@@ -1288,6 +1305,7 @@ namespace Aurora
       return Guid.NewGuid().ToString().Replace("-", "").Substring(0, 16);
     }
   }
+  #endregion
   #endregion
 
   #region ACTIVE DIRECTORY
@@ -2530,7 +2548,7 @@ namespace Aurora
                   parms[i].ToLower() == "false" ||
                   parms[i].ToLower() == "on" ||
                   parms[i].ToLower() == "off" ||
-                  parms[i].ToLower() == "checked") 
+                  parms[i].ToLower() == "checked")
           {
             if (parms[i].ToLower() == "on" || parms[i].ToLower() == "checked") parms[i] = "true";
             else if (parms[i].ToLower() == "off") parms[i] = "false";
@@ -2717,10 +2735,18 @@ namespace Aurora
   #endregion
 
   #region BUNDLE MANAGER
+  internal class BundleInfo
+  {
+    public FileInfo FileInfo { get; set; }
+    public string BundleName { get; set; }
+  }
+
   // The Bundle class will take in files like Javascript or CSS and combine and minify them.
   public class BundleManager
   {
     private Dictionary<string, string> bundles;
+
+    private List<BundleInfo> bundleInfos;
 
     private HttpContextBase context;
 
@@ -2728,10 +2754,17 @@ namespace Aurora
     {
       context = ctx;
 
-      if (context.Application[MainConfig.BundleManagerSessionName] != null)
+      if (context.Application[MainConfig.BundleManagerSessionName] != null &&
+          context.Application[MainConfig.BundleManagerInfoSessionName] != null)
+      {
         bundles = context.Application[MainConfig.BundleManagerSessionName] as Dictionary<string, string>;
+        bundleInfos = context.Application[MainConfig.BundleManagerInfoSessionName] as List<BundleInfo>;
+      }
       else
+      {
         context.Application[MainConfig.BundleManagerSessionName] = bundles = new Dictionary<string, string>();
+        context.Application[MainConfig.BundleManagerInfoSessionName] = bundleInfos = new List<BundleInfo>();
+      }
     }
 
     public string this[string bundle]
@@ -2753,6 +2786,9 @@ namespace Aurora
 
       var files = di.GetAllFiles(context.Server.MapPath(dirPath)).Where(x => x.Extension == fileExtension);
 
+      foreach (FileInfo file in files)
+        bundleInfos.Add(new BundleInfo() { BundleName = bundleName, FileInfo = file });
+
       ProcessFiles(files, bundleName);
     }
 
@@ -2761,9 +2797,10 @@ namespace Aurora
       List<FileInfo> files = new List<FileInfo>();
 
       foreach (string path in paths)
-      {
         files.Add(new FileInfo(context.Server.MapPath(path)));
-      }
+
+      foreach (FileInfo file in files)
+        bundleInfos.Add(new BundleInfo() { BundleName = bundleName, FileInfo = file });
 
       ProcessFiles(files, bundleName);
     }
@@ -2788,6 +2825,14 @@ namespace Aurora
 
         bundles[bundleName] = new Minify(bundleResult.ToString(), css, false).Result;
       }
+    }
+
+    internal void RegenerateBundle(string bundleName)
+    {
+      var files = bundleInfos.Where(x => x.BundleName == bundleName).Select(x => x.FileInfo);
+
+      if (files != null)
+        ProcessFiles(files, bundleName);
     }
   }
   #endregion
@@ -3383,7 +3428,7 @@ namespace Aurora
 
           for (int i = 0; i < Form.AllKeys.Length; i++)
           {
-              formValues[i] = Form.Get(i);
+            formValues[i] = Form.Get(i);
           }
 
           if (Form.Count > 0)
@@ -3967,7 +4012,18 @@ namespace Aurora
 
           if (pn != null)
           {
-            PropertyNames.Add(pn.Name);
+            if (pn.Op == DescriptiveNameOperation.SplitCamelCase)
+            {
+              // REGEX comes from this StackOverflow question answer:
+              //
+              // http://stackoverflow.com/questions/155303/net-how-can-you-split-a-caps-delimited-string-into-an-array
+              string descriptiveName = Regex.Replace(p.Name, "([a-z](?=[A-Z])|[A-Z](?=[A-Z][a-z]))", "$1 ");
+
+              // Realistically the first letter is the only one that would possibly be lower case. I probably shouldn't call ToTitleCase on this!
+              PropertyNames.Add(CultureInfo.InvariantCulture.TextInfo.ToTitleCase(descriptiveName));
+            }
+            else
+              PropertyNames.Add(pn.Name);
 
             hasDescriptiveNames.Add(p.Name);
           }
@@ -4307,22 +4363,22 @@ namespace Aurora
 
       if (filePath.EndsWith(".css") || filePath.EndsWith(".js"))
       {
-        string text = string.Empty;
+        BundleManager bm = new BundleManager(context);
 
-        try
+        string fileName = Path.GetFileName(filePath);
+
+        if (bm.Contains(fileName))
         {
-          text = File.ReadAllText(filePath);
+          if (MainConfig.DisableStaticFileCaching)
+            bm.RegenerateBundle(fileName);
 
+          context.Response.Write(bm[fileName]);
+        }
+        else
+        {
           bool css = filePath.EndsWith(".css");
 
-          context.Response.Write(new Minify(text, css, false).Result);
-        }
-        catch
-        {
-          BundleManager bm = new BundleManager(context);
-
-          text = bm[Path.GetFileName(filePath)];
-          context.Response.Write(text);
+          context.Response.Write(new Minify(File.ReadAllText(filePath), css, false).Result);
         }
       }
       else
