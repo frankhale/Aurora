@@ -4,7 +4,7 @@ NOTE: See source code comments for usage.
 
 Frank Hale <frankhale@gmail.com>
 
-Date: 5 January 2012
+Date: 12 January 2012
 
 --------------------
 --- Feature List ---
@@ -30,6 +30,20 @@ Date: 5 January 2012
 - Bundling so Javascript and CSS can be combined and minified.
  
 Changelog:
+
+12 January 2012
+
+- Added a RouteManager option to the Web.Config section so it can be dynamically
+  declared.
+- Small tweaks to the GetLoggedOnUser in the SecurityManager class.
+- In the Minify class (which is based on JSMin) I made an update to incorporate
+  a change that was just pushed to JSMin on the 9th of January.
+- Added a RowTransform class and handling code to the HTMLTable helper. For now
+  this provides the ability to apply a CSS class to a table row based on a
+  condition for the current row in the model being processed when the table is
+  being generated.
+- A bunch of other minor changes.
+- Bumped version number to 1.99.20
 
 5 January 2012
 

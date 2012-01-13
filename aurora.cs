@@ -1,18 +1,12 @@
 ﻿//
-// Aurora - A tiny MVC web framework for .NET
+// Aurora - An MVC micro-framework for .NET
 //
-// Updated On: 5 January 2012
+// Updated On: 12 January 2012
 //
 // Contact Info:
 //
 //  Frank Hale - <frankhale@gmail.com> 
 //               <http://about.me/frank.hale>
-//
-// ---------------
-// --- CAUTION ---
-// ---------------
-//
-// Aurora is in a constant state of flux so things may not work as expected. 
 //
 // --------------------
 // --- Feature List ---
@@ -114,7 +108,8 @@
 //
 // NOTE: You may need to add an empty file called Default.aspx so that server 
 //       will find it on an empty request and then redirect to the default 
-//       route. 
+//       route. This seems to be the case with the Cassini web server that is
+//       used for testing web apps from Visual Studio.
 //
 // -------------------
 // --- Controllers ---
@@ -758,6 +753,7 @@ using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Configuration;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -777,7 +773,6 @@ using Newtonsoft.Json;
 
 #if ACTIVEDIRECTORY
 using System.DirectoryServices;
-using System.Globalization;
 #endif
 
 #if OPENID
@@ -788,12 +783,12 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 
 #region ASSEMBLY INFORMATION
 [assembly: AssemblyTitle("Aurora")]
-[assembly: AssemblyDescription("A tiny MVC framework for .NET")]
+[assembly: AssemblyDescription("An MVC micro-framework for .NET")]
 [assembly: AssemblyCompany("Frank Hale")]
 [assembly: AssemblyProduct("Aurora")]
-[assembly: AssemblyCopyright("Copyright © 2011")]
+[assembly: AssemblyCopyright("Copyright © 2012")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.99.19.*")]
+[assembly: AssemblyVersion("1.99.20.*")]
 #endregion
 
 namespace Aurora
@@ -909,6 +904,12 @@ namespace Aurora
       get { return Convert.ToBoolean(this["DisableStaticFileCaching"]); }
     }
 
+    [ConfigurationProperty("RouteManager", DefaultValue = "DefaultRouteManager", IsRequired = false)]
+    public string RouteManager
+    {
+      get { return this["RouteManager"] as string; }
+    }
+
     #region ACTIVE DIRECTORY CONFIGURATION
 #if ACTIVEDIRECTORY
     [ConfigurationProperty("ADSearchUser", DefaultValue = null, IsRequired = false)]
@@ -967,6 +968,8 @@ namespace Aurora
 
     public static WebConfig WebConfig = ConfigurationManager.GetSection("Aurora") as WebConfig;
     public static CustomErrorsSection CustomErrorsSection = ConfigurationManager.GetSection("system.web/customErrors") as CustomErrorsSection;
+    public static string RouteManager = (MainConfig.WebConfig == null) ? "DefaultRouteManager" : WebConfig.RouteManager;
+    public static string[] SupportedRouteManagers = { "DefaultRouteManager" };
     public static string[] SupportedHttpVerbs = { "GET", "POST", "PUT", "DELETE" };
     public static string EncryptionKey = (MainConfig.WebConfig == null) ? null : WebConfig.EncryptionKey;
     public static int AuthCookieExpiry = (MainConfig.WebConfig == null) ? 8 : WebConfig.AuthCookieExpiry;
@@ -998,6 +1001,7 @@ namespace Aurora
     public static string CurrentUserSessionName = "__CurrentUser";
     public static string BundleManagerSessionName = "__BundleManager";
     public static string BundleManagerInfoSessionName = "__BundleManagerInfo";
+    public static string UniquedIDSessionName = "__UniquedIDs";
     public static string AntiForgeryTokenName = "AntiForgeryToken";
     public static string JsonAntiForgeryTokenName = "JsonAntiForgeryToken";
     public static string AntiForgeryTokenMissing = "An AntiForgery token is required on all forms";
@@ -1029,6 +1033,7 @@ namespace Aurora
     public static string OnlyOneErrorActionPerControllerError = "Cannot have more than one error action per controller";
     public static string RedirectWithoutAuthorizationToError = "RedirectWithoutAuthorizationTo is either null or empty";
     public static string GenericErrorMessage = "An error occurred trying to process this request.";
+    public static string RouteManagerNotSupportedException = "Route manager not supported.";
     public static string DefaultRoute = (WebConfig == null) ? "/Home/Index" : WebConfig.DefaultRoute;
     public static string ViewRoot = Path.DirectorySeparatorChar + "Views";
     public static string CannotFindViewError = "Cannot find view {0}";
@@ -1046,11 +1051,24 @@ namespace Aurora
     NonSecure
   }
 
+  #region APP PARTITION
+  //[AttributeUsage(AttributeTargets.Class)]
+  //public class PartitionAttribute : Attribute
+  //{
+  //  internal string Name { get; private set; }
+  //
+  //  public PartitionAttribute(string name)
+  //  {
+  //    Name = name;
+  //  }
+  //}
+  #endregion
+
   #region MISCELLANEOUS
   [AttributeUsage(AttributeTargets.All)]
   public class MetaDataAttribute : Attribute
   {
-    public string MetaData { get; internal set; }
+    internal string MetaData { get; set; }
 
     public MetaDataAttribute(string metaData)
     {
@@ -1067,8 +1085,8 @@ namespace Aurora
   [AttributeUsage(AttributeTargets.Property)]
   public class DescriptiveNameAttribute : Attribute
   {
-    public string Name { get; private set; }
-    public DescriptiveNameOperation Op;
+    internal string Name { get; set; }
+    internal DescriptiveNameOperation Op;
 
     public DescriptiveNameAttribute(string name)
     {
@@ -1107,9 +1125,9 @@ namespace Aurora
   [AttributeUsage(AttributeTargets.Method)]
   public class HttpGetAttribute : RequestTypeAttribute
   {
-    public HttpCacheability CacheabilityOption = HttpCacheability.Public;
-    public bool Cache = false;
-    public int Duration = 0;
+    internal HttpCacheability CacheabilityOption = HttpCacheability.Public;
+    internal bool Cache = false;
+    internal int Duration = 0;
 
     public HttpGetAttribute()
     {
@@ -1268,7 +1286,7 @@ namespace Aurora
   [AttributeUsage(AttributeTargets.Field)]
   public class UniqueIDAttribute : Attribute
   {
-    public string ID { get; internal set; }
+    internal string ID { get; set; }
 
     public UniqueIDAttribute() { }
 
@@ -1278,15 +1296,13 @@ namespace Aurora
       Dictionary<string, string> uids = null;
 
       //FIXME: Put the session name in MainConfig
-      if (ctx.Session["__UniquedIDs"] != null)
+      if (ctx.Session[MainConfig.UniquedIDSessionName] != null)
       {
-        uids = ctx.Session["__UniquedIDs"] as Dictionary<string, string>;
+        uids = ctx.Session[MainConfig.UniquedIDSessionName] as Dictionary<string, string>;
       }
       else
       {
-        uids = new Dictionary<string, string>();
-
-        ctx.Session["__UniquedIDs"] = uids;
+        ctx.Session[MainConfig.UniquedIDSessionName] = uids = new Dictionary<string, string>();
       }
 
       if (!uids.ContainsKey(name))
@@ -1690,6 +1706,21 @@ namespace Aurora
     {
       if (ctx.Session[MainConfig.CurrentUserSessionName] != null)
         return ctx.Session[MainConfig.CurrentUserSessionName] as User;
+      else
+      {
+        AuthCookie cookie = GetAuthCookie(ctx);
+
+        if (cookie != null)
+        {
+          User u = GetUsers(ctx).FirstOrDefault(x => x.SessionID == ctx.Session.SessionID && x.Identity.Name == cookie.ID);
+
+          if (u != null)
+          {
+            ctx.Session[MainConfig.CurrentUserSessionName] = u;
+            return u;
+          }
+        }
+      }
 
       return null;
     }
@@ -1714,7 +1745,7 @@ namespace Aurora
 
         List<User> users = GetUsers(ctx);
 
-        User u = GetUsers(ctx).FirstOrDefault(x => x.AuthenticationToken == authCookie.AuthToken);
+        User u = users.FirstOrDefault(x => x.AuthenticationToken == authCookie.AuthToken);
 
         if (u != null)
         {
@@ -3078,6 +3109,13 @@ namespace Aurora
 
     private void Go()
     {
+      //TODO: I need to push this next 5 lines to my JSMin C# port. This was first seen in an update to JSMin on Jan 9th 2012.
+      //      Removes the byte order mark
+      if (Peek() == 0xEF) {
+        Get();
+        Get();
+        Get();
+      }
       theA = '\n';
       Action(3);
       while (theA != EOF)
@@ -3191,7 +3229,7 @@ namespace Aurora
   }
   #endregion
 
-  #region ROUTE MANAGER
+  #region DEFAULT ROUTE MANAGER
   internal interface IRouteManager
   {
     IAuroraResult HandleRoute();
@@ -3298,7 +3336,7 @@ namespace Aurora
     }
   }
 
-  internal class RouteManager : IRouteManager
+  internal class DefaultRouteManager : IRouteManager
   {
     private HttpContextBase context;
     private BundleManager bundleManager;
@@ -3321,7 +3359,7 @@ namespace Aurora
 
     private List<RouteInfo> allRoutes { get; set; }
 
-    public RouteManager(HttpContextBase ctx)
+    public DefaultRouteManager(HttpContextBase ctx)
     {
       allRoutes = new List<RouteInfo>();
 
@@ -3591,7 +3629,7 @@ namespace Aurora
         {
           string staticFilePath = context.Server.MapPath(path);
 
-          if (File.Exists(staticFilePath) || bundleManager[Path.GetFileName(path)] != null)
+          if (File.Exists(staticFilePath) || bundleManager.Contains(Path.GetFileName(path)))
             return new PhysicalFileResult(context, staticFilePath);
         }
       }
@@ -3738,7 +3776,19 @@ namespace Aurora
       }
       else
       {
-        routeManager = new RouteManager(ctx);
+        string assemblyName = Assembly.GetExecutingAssembly().GetName().Name;
+        string routeManagerName = MainConfig.RouteManager;
+
+        if (!MainConfig.SupportedRouteManagers.Contains(routeManagerName))
+          throw new Exception(MainConfig.RouteManagerNotSupportedException);
+
+        Type rm = Assembly.GetExecutingAssembly().GetTypes().FirstOrDefault(x => x.Name == MainConfig.RouteManager);
+
+        if (rm == null)
+          throw new Exception(MainConfig.RouteManagerNotSupportedException);
+
+        routeManager = (IRouteManager)Activator.CreateInstance(rm, new object[] { context });
+
         context.Application.Lock();
         context.Application[MainConfig.RouteManagerSessionName] = routeManager;
         context.Application.UnLock();
@@ -3766,23 +3816,23 @@ namespace Aurora
       {
         if (e is ThreadAbortException) throw;
 
-        //if (MainConfig.CustomErrorsSection.Mode != CustomErrorsMode.Off &&
-        //    MainConfig.CustomErrorsSection.Mode != CustomErrorsMode.RemoteOnly)
-        //{
-        // Check to see if there is a derived CustomError class otherwise look to see if there is a cusom error method on a controller
-        CustomError customError = ApplicationInternals.GetCustomError(context, e);
+        if (MainConfig.CustomErrorsSection.Mode != CustomErrorsMode.Off &&
+            MainConfig.CustomErrorsSection.Mode != CustomErrorsMode.RemoteOnly)
+        {
+          // Check to see if there is a derived CustomError class otherwise look to see if there is a cusom error method on a controller
+          CustomError customError = ApplicationInternals.GetCustomError(context, e);
 
-        if (customError == null)
-        {
-          RenderError(e);
+          if (customError == null)
+          {
+            RenderError(e);
+          }
+          else
+          {
+            // The custom error class is for all controllers and all static content that may produce an error.
+            customError.Error(e.Message, e).Render();
+            context.Server.ClearError();
+          }
         }
-        else
-        {
-          // The custom error class is for all controllers and all static content that may produce an error.
-          customError.Error(e.Message, e).Render();
-          context.Server.ClearError();
-        }
-        //}
       }
     }
 
@@ -3857,12 +3907,6 @@ namespace Aurora
   #endregion
 
   #region HTML HELPERS
-  internal enum ColumnTransformType
-  {
-    New,
-    Existing
-  }
-
   public enum HTMLInputType
   {
     [MetaData("<input type=\"button\" {0} />")]
@@ -3934,6 +3978,46 @@ namespace Aurora
     }
   }
 
+  #region HTMLTABLE HELPER
+  internal enum ColumnTransformType
+  {
+    New,
+    Existing
+  }
+
+  public enum RowOperation
+  {
+    AddClass
+    // There may be some other stuff we could do with a row... ?!?
+  }
+
+  public class RowTransform<T> where T : Model
+  {
+    private List<T> Models;
+    private Func<T, string> Func;
+    private RowOperation Op;
+
+    public RowTransform(List<T> models, RowOperation op, Func<T, string> func)
+    {
+      Models = models;
+      Func = func;
+      Op = op;
+    }
+
+    public string Result(int index)
+    {
+      return Func(Models[index]);
+    }
+
+    public IEnumerable<string> Results()
+    {
+      foreach (T t in Models)
+      {
+        yield return Func(t);
+      }
+    }
+  }
+
   public class ColumnTransform<T> where T : Model
   {
     private List<T> Models;
@@ -3977,20 +4061,27 @@ namespace Aurora
     private List<PropertyInfo> PropertyInfos;
     private List<string> IgnoreColumns;
     private List<ColumnTransform<T>> ColumnTransforms;
+    private List<RowTransform<T>> RowTransforms;
 
     public HTMLTable(List<T> models, List<string> ignoreColumns, List<ColumnTransform<T>> columnTransforms, params Func<string, string>[] attribs)
     {
-      Init(models, ignoreColumns, columnTransforms, attribs);
+      Init(models, ignoreColumns, columnTransforms, null, attribs);
+    }
+
+    public HTMLTable(List<T> models, List<string> ignoreColumns, List<ColumnTransform<T>> columnTransforms, List<RowTransform<T>> rowTransforms, params Func<string, string>[] attribs)
+    {
+      Init(models, ignoreColumns, columnTransforms, rowTransforms, attribs);
     }
 
     private void Init(List<T> models, List<string> ignoreColumns,
-        List<ColumnTransform<T>> columnTransforms, params Func<string, string>[] attribs)
+        List<ColumnTransform<T>> columnTransforms, List<RowTransform<T>> rowTransforms, params Func<string, string>[] attribs)
     {
       Models = models;
 
       IgnoreColumns = ignoreColumns;
       Attribs = attribs;
       ColumnTransforms = columnTransforms;
+      RowTransforms = rowTransforms;
 
       PropertyNames = ObtainPropertyNames();
     }
@@ -4061,16 +4152,26 @@ namespace Aurora
 
       html.AppendFormat("<table {0}>", (Attribs != null) ? GetParams(Attribs) : string.Empty);
 
-      html.Append("<thead><tr>");
+      html.Append("<thead>");
 
       foreach (string pn in PropertyNames)
         html.AppendFormat("<th>{0}</th>", pn);
 
-      html.Append("</tr></thead><tbody>");
+      html.Append("</thead><tbody>");
 
       for (int i = start; i < length; i++)
       {
-        html.Append("<tr>");
+        string rowClass = string.Empty;
+
+        if (RowTransforms != null)
+        {
+          foreach (RowTransform<T> rt in RowTransforms)
+          {
+            rowClass = rt.Result(i);
+          }
+        }
+
+        html.AppendFormat("<tr {0}>", rowClass);
 
         foreach (PropertyInfo pn in PropertyInfos)
         {
@@ -4117,6 +4218,7 @@ namespace Aurora
       return ToString(0, Models.Count());
     }
   }
+  #endregion
 
   public class HTMLAnchor : HTMLBase
   {
@@ -4405,9 +4507,18 @@ namespace Aurora
     {
       context.Response.ContentType = "text/html";
 
-      ResponseHeader.AddEncodingHeaders(context);
+      try
+      {
+        string view = viewEngine[viewKeyName];
 
-      context.Response.Write(viewEngine[viewKeyName]);
+        ResponseHeader.AddEncodingHeaders(context);
+
+        context.Response.Write(view);
+      }
+      catch
+      {
+        throw;
+      }
     }
   }
 
@@ -4489,6 +4600,8 @@ namespace Aurora
         message = exception.Message;
       else
         message = exception.InnerException.Message;
+
+      ResponseHeader.AddEncodingHeaders(context);
 
       context.Response.StatusCode = (int)System.Net.HttpStatusCode.NotFound;
       context.Response.StatusDescription = message;
@@ -4654,13 +4767,15 @@ namespace Aurora
 
   internal class AuroraViewEngine : IViewEngine
   {
+    //TODO: Need to make way towards a reformed path handling so I can make app partitioning work.
+
     private HttpContextBase context;
     private string viewRoot;
     private static Regex directiveTokenRE = new Regex(@"(\%\%(?<directive>[a-zA-Z0-9]+)=(?<value>[a-zA-Z0-9]+)\%\%)");
-    private Regex headBlockRE = new Regex(@"\[\[(?<block>[\s\w\p{P}\p{S}]+)\]\]");
-    private string tagFormatPattern = @"({{({{|\|){0}(\||}})}})";
-    private string tagPattern = @"{({|\|)([\w]+)(}|\|)}";
-    private string tagEncodingHint = "|";
+    private static Regex headBlockRE = new Regex(@"\[\[(?<block>[\s\w\p{P}\p{S}]+)\]\]");
+    private static string tagFormatPattern = @"({{({{|\|){0}(\||}})}})";
+    private static string tagPattern = @"{({|\|)([\w]+)(}|\|)}";
+    private static string tagEncodingHint = "|";
     private static string antiForgeryToken = string.Format("%%{0}%%", MainConfig.AntiForgeryTokenName);
     private static string jsonAntiForgeryToken = string.Format("%%{0}%%", MainConfig.JsonAntiForgeryTokenName);
     private static string viewDirective = "%%View%%";
