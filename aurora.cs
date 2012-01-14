@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC micro-framework for .NET
 //
-// Updated On: 12 January 2012
+// Updated On: 13 January 2012
 //
 // Contact Info:
 //
@@ -788,7 +788,7 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyProduct("Aurora")]
 [assembly: AssemblyCopyright("Copyright © 2012")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.99.20.*")]
+[assembly: AssemblyVersion("1.99.21.*")]
 #endregion
 
 namespace Aurora
@@ -1893,7 +1893,13 @@ namespace Aurora
       if (context.Application[MainConfig.RoutesSessionName] != null)
         routes = context.Application[MainConfig.RoutesSessionName] as List<RouteInfo>;
       else
+      {
         routes = new List<RouteInfo>();
+
+        context.Application.Lock();
+        context.Application[MainConfig.RoutesSessionName] = routes;
+        context.Application.UnLock();
+      }
 
       foreach (Type c in AllControllers(context))
       {
@@ -1908,23 +1914,26 @@ namespace Aurora
         else
           ctrl.Refresh(context);
 
-        foreach (MethodInfo mi in c.GetMethods())
+        if (routes.Count > 0)
         {
-          foreach (Attribute a in mi.GetCustomAttributes(false))
+          foreach (RouteInfo routeInfo in routes)
+            routeInfo.ControllerInstance = ctrl;
+        }
+        else
+        {
+          foreach (MethodInfo mi in c.GetMethods())
           {
-            if ((a is HttpGetAttribute) ||
-                (a is HttpPostAttribute) ||
-                (a is FromRedirectOnlyAttribute) ||
-                (a is HttpPutAttribute) ||
-                (a is HttpDeleteAttribute))
+            foreach (Attribute a in mi.GetCustomAttributes(false))
             {
-              alias.Length = 0;
-              alias.Insert(0, (a as RequestTypeAttribute).RouteAlias);
-
-              RouteInfo routeInfo = routes.FirstOrDefault(x => /*x.Alias == alias.ToString()*/ x.Action == mi && x.ControllerName == c.Name);
-
-              if (routeInfo == null)
+              if ((a is HttpGetAttribute) ||
+                  (a is HttpPostAttribute) ||
+                  (a is FromRedirectOnlyAttribute) ||
+                  (a is HttpPutAttribute) ||
+                  (a is HttpDeleteAttribute))
               {
+                alias.Length = 0;
+                alias.Insert(0, (a as RequestTypeAttribute).RouteAlias);
+
                 #region CREATE NEW ROUTE
                 HttpGetAttribute get = (a as HttpGetAttribute);
                 HttpPostAttribute post = (a as HttpPostAttribute);
@@ -1932,9 +1941,9 @@ namespace Aurora
                 HttpDeleteAttribute delete = (a as HttpDeleteAttribute);
                 FromRedirectOnlyAttribute fro = (a as FromRedirectOnlyAttribute);
 
-                routeInfo = new RouteInfo()
+                RouteInfo routeInfo = new RouteInfo()
                 {
-                  Alias = (!String.IsNullOrEmpty(alias.ToString())) ? alias.ToString() : string.Format("/{0}/{1}", c.Name, mi.Name),
+                  Alias = (!string.IsNullOrEmpty(alias.ToString())) ? alias.ToString() : string.Format("/{0}/{1}", c.Name, mi.Name),
                   ControllerName = c.Name,
                   ControllerType = c,
                   ControllerInstance = ctrl,
@@ -1961,19 +1970,11 @@ namespace Aurora
                 routes.Add(routeInfo);
                 #endregion
               }
-              else
-              {
-                routeInfo.ControllerInstance = ctrl;
-              }
             }
           }
         }
 
       }
-
-      context.Application.Lock();
-      context.Application[MainConfig.RoutesSessionName] = routes;
-      context.Application.UnLock();
 
       return routes;
     }
@@ -2178,7 +2179,7 @@ namespace Aurora
 
             if (value.GetType() == typeof(string))
             {
-              if (!String.IsNullOrEmpty((string)value))
+              if (!string.IsNullOrEmpty((string)value))
                 isValid = true;
             }
             else if (value != null)
@@ -2395,7 +2396,7 @@ namespace Aurora
 
     public void RedirectOnlyToAction(string controller, string action)
     {
-      Context.Session[MainConfig.FromRedirectOnlySessionFlag] = String.Format("/{0}/{1}", controller, action);
+      Context.Session[MainConfig.FromRedirectOnlySessionFlag] = string.Format("/{0}/{1}", controller, action);
 
       RedirectToAction(controller, action);
     }
@@ -2407,7 +2408,7 @@ namespace Aurora
 
     public void RedirectToAlias(string alias, params string[] parameters)
     {
-      Context.Response.Redirect(string.Format("{0}/{1}", alias, String.Join("/", parameters)));
+      Context.Response.Redirect(string.Format("{0}/{1}", alias, string.Join("/", parameters)));
     }
 
     public void RedirectToAction(string action)
@@ -2427,7 +2428,7 @@ namespace Aurora
 
     public void RedirectToAction(string controller, string action, params string[] parameters)
     {
-      Context.Response.Redirect(string.Format("/{0}/{1}/{2}", controller, action, String.Join("/", parameters)));
+      Context.Response.Redirect(string.Format("/{0}/{1}/{2}", controller, action, string.Join("/", parameters)));
     }
     #endregion
 
@@ -2772,13 +2773,11 @@ namespace Aurora
     public string BundleName { get; set; }
   }
 
-  // The Bundle class will take in files like Javascript or CSS and combine and minify them.
+  // The Bundle class takes Javascript or CSS files and combines and minifies them.
   public class BundleManager
   {
     private Dictionary<string, string> bundles;
-
     private List<BundleInfo> bundleInfos;
-
     private HttpContextBase context;
 
     public BundleManager(HttpContextBase ctx)
@@ -2793,8 +2792,10 @@ namespace Aurora
       }
       else
       {
+        context.Application.Lock();
         context.Application[MainConfig.BundleManagerSessionName] = bundles = new Dictionary<string, string>();
         context.Application[MainConfig.BundleManagerInfoSessionName] = bundleInfos = new List<BundleInfo>();
+        context.Application.UnLock();
       }
     }
 
@@ -3109,9 +3110,8 @@ namespace Aurora
 
     private void Go()
     {
-      //TODO: I need to push this next 5 lines to my JSMin C# port. This was first seen in an update to JSMin on Jan 9th 2012.
-      //      Removes the byte order mark
-      if (Peek() == 0xEF) {
+      if (Peek() == 0xEF)
+      {
         Get();
         Get();
         Get();
@@ -3357,12 +3357,8 @@ namespace Aurora
 
     private bool fromRedirectOnlyFlag = false;
 
-    private List<RouteInfo> allRoutes { get; set; }
-
     public DefaultRouteManager(HttpContextBase ctx)
     {
-      allRoutes = new List<RouteInfo>();
-
       bundleManager = new BundleManager(ctx);
 
       Refresh(ctx);
@@ -3394,11 +3390,9 @@ namespace Aurora
 
       context.RewritePath(path);
 
-      allRoutes = ApplicationInternals.AllRouteInfos(context);
+      alias = ApplicationInternals.AllRouteInfos(context).OrderByDescending(y => y.Alias).Where(x => path.StartsWith(x.Alias)).Select(x => x.Alias).FirstOrDefault();
 
-      alias = allRoutes.OrderByDescending(y => y.Alias).Where(x => path.StartsWith(x.Alias)).Select(x => x.Alias).FirstOrDefault();
-
-      if (!String.IsNullOrEmpty(alias))
+      if (!string.IsNullOrEmpty(alias))
       {
         urlStringParams = path.Replace(alias, string.Empty).Split('/').Where(x => !string.IsNullOrEmpty(x)).ToArray();
 
@@ -3441,7 +3435,7 @@ namespace Aurora
 
       int urlParamLength = (urlObjectParams != null) ? urlObjectParams.Length : 0;
 
-      List<RouteInfo> routes = allRoutes.FindAll(x => x.Alias == alias && x.RequestType == context.Request.RequestType).ToList();
+      List<RouteInfo> routes = ApplicationInternals.AllRouteInfos(context).Where(x => x.Alias == alias && x.RequestType == context.Request.RequestType).ToList();
 
       foreach (RouteInfo routeInfo in routes)
       {
@@ -3508,6 +3502,8 @@ namespace Aurora
 
         List<ActionParamTransformInfo> actionParamTransformInfos = null;
 
+        if (actionParameters.Count() < routeInfo.Action.GetParameters().Count()) throw new TargetParameterCountException();
+
         #region DETERMINE ALL ACTION PARAM TRANSFORMS
         for (int i = 0; i < routeInfo.Action.GetParameters().Count(); i++)
         {
@@ -3560,6 +3556,12 @@ namespace Aurora
               // Instantiate the class, the constructor will receive any bound action objects that the params method received.
               object actionParamTransformClassInstance = Activator.CreateInstance(apti.TransformClassType, routeInfo.Bindings.BoundInstances.ToArray());
 
+              Type transformMethodParameterType = apti.TransformMethod.GetParameters()[0].ParameterType;
+              Type incomingParameterType = actionParameters[apti.IndexIntoParamList].GetType();
+
+              if (transformMethodParameterType != incomingParameterType)
+                throw new ArgumentException();
+
               object transformedParam = apti.TransformMethod.Invoke(actionParamTransformClassInstance, new object[] { actionParameters[apti.IndexIntoParamList] });
 
               if (transformedParam != null)
@@ -3575,14 +3577,12 @@ namespace Aurora
           routeInfo.UrlStringParameters = urlStringParams;
           routeInfo.UrlObjectParameters = urlObjectParams;
 
-          if (!String.IsNullOrEmpty(routeInfo.FrontLoadedParams))
+          if (!string.IsNullOrEmpty(routeInfo.FrontLoadedParams))
           {
             object[] convertedFrontParams = StringTypeConversion.ToObjectArray(routeInfo.FrontLoadedParams.Split('/'));
 
             routeInfo.UrlObjectParameters = convertedFrontParams.Concat(routeInfo.UrlObjectParameters).ToArray();
           }
-
-          allRoutes.Add(routeInfo);
 
           return routeInfo;
         }
@@ -4729,7 +4729,7 @@ namespace Aurora
   }
   #endregion
 
-  #region VIEW ENGINE
+  #region AURORA VIEW ENGINE
   public interface IViewEngine
   {
     void LoadView(string controllerName, string viewName, Dictionary<string, string> tags);
@@ -4894,9 +4894,9 @@ namespace Aurora
         value.Length = 0;
         value.Insert(0, match.Groups["value"].Value);
 
-        string pageName = String.Join("/", new string[] { MainConfig.SharedFolderName, value.ToString() });
+        string pageName = string.Join("/", new string[] { MainConfig.SharedFolderName, value.ToString() });
 
-        if (!String.IsNullOrEmpty(pageName))
+        if (!string.IsNullOrEmpty(pageName))
         {
           string template = rawTemplates[pageName].ToString();
 

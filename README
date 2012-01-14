@@ -4,7 +4,7 @@ NOTE: See source code comments for usage.
 
 Frank Hale <frankhale@gmail.com>
 
-Date: 12 January 2012
+Date: 13 January 2012
 
 --------------------
 --- Feature List ---
@@ -30,6 +30,19 @@ Date: 12 January 2012
 - Bundling so Javascript and CSS can be combined and minified.
  
 Changelog:
+
+13 January 2012
+
+- Modified AllRouteInfos to make it more awesome.
+- Found a few instances where I was adding stuff to the Application store and 
+  I wasn't locking it.
+- Fixed a bug in FindRoute in the DefaultRouteManager class. I had an erroneous
+  routes.Add call that was duplicating routes in the route list.
+- Added some more error checking to FindRoute dealing with action parameter
+  transforms.
+- Changed calls to String.Format and similar static methods to string.Format,
+  etc...
+- Bumped version numer to 1.99.21
 
 12 January 2012
 
