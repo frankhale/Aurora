@@ -1,5 +1,5 @@
 ﻿//
-// Aurora - An MVC micro-framework for .NET
+// Aurora - An MVC micro-web-framework for .NET
 //
 // Updated On: 13 January 2012
 //
