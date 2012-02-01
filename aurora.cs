@@ -1,7 +1,7 @@
 ﻿//
-// Aurora - An MVC micro-web-framework for .NET
+// Aurora - An MVC micro web framework for .NET
 //
-// Updated On: 13 January 2012
+// Updated On: 31 January 2012
 //
 // Contact Info:
 //
@@ -783,12 +783,12 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 
 #region ASSEMBLY INFORMATION
 [assembly: AssemblyTitle("Aurora")]
-[assembly: AssemblyDescription("An MVC micro-framework for .NET")]
+[assembly: AssemblyDescription("An MVC micro web framework for .NET")]
 [assembly: AssemblyCompany("Frank Hale")]
 [assembly: AssemblyProduct("Aurora")]
 [assembly: AssemblyCopyright("Copyright © 2012")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.99.21.*")]
+[assembly: AssemblyVersion("1.99.24.*")]
 #endregion
 
 namespace Aurora
@@ -1812,9 +1812,33 @@ namespace Aurora
         types = context.Application[sessionName] as List<Type>;
       else
       {
-        types = (from assembly in AppDomain.CurrentDomain.GetAssemblies().Where(x => x.GetName().Name != "DotNetOpenAuth")
-                 from type in assembly.GetTypes().Where(x => x.BaseType == t)
-                 select type).ToList();
+        try
+        {
+          types = (from assembly in AppDomain.CurrentDomain.GetAssemblies().Where(x => x.GetName().Name != "DotNetOpenAuth")
+                   from type in assembly.GetTypes().Where(x => x.BaseType == t)
+                   select type).ToList();
+        }
+        catch (ReflectionTypeLoadException rtle)
+        {
+          string errorMessage = string.Empty;
+
+          if (rtle is ReflectionTypeLoadException)
+          {
+            StringBuilder errorBuilder = new StringBuilder();
+
+            foreach (var ex in (rtle as ReflectionTypeLoadException).LoaderExceptions)
+            {
+              errorBuilder.AppendFormat("{0}<br/>", ex.Message);
+            }
+
+            errorMessage = errorBuilder.ToString();
+          }
+
+          CustomError customError = GetCustomError(context);
+          
+          if(customError!=null)
+            customError.Error(errorMessage, rtle);
+        }
 
         context.Application.Lock();
         context.Application[sessionName] = types;
@@ -2015,16 +2039,19 @@ namespace Aurora
       });
     }
 
-    public static CustomError GetCustomError(HttpContextBase context, Exception e)
+    public static CustomError GetCustomError(HttpContextBase context)
     {
       List<Type> customErrors = GetTypeList(context, MainConfig.CustomErrorSessionName, typeof(CustomError));
 
-      if (customErrors.Count > 1)
-        throw new Exception(MainConfig.OnlyOneCustomErrorClassPerApplicationError);
+      if (customErrors != null)
+      {
+        if (customErrors.Count > 1)
+          throw new Exception(MainConfig.OnlyOneCustomErrorClassPerApplicationError);
 
-      if (customErrors.Count == 1)
-        return CustomError.CreateInstance(customErrors[0], context);
-
+        if (customErrors.Count == 1)
+          return CustomError.CreateInstance(customErrors[0], context);
+      }
+      
       return null;
     }
   }
@@ -2348,7 +2375,7 @@ namespace Aurora
       QueryString = (context.Request.QueryString == null) ? new NameValueCollection() : new NameValueCollection(context.Request.QueryString);
       Form = (context.Request.Form == null) ? new NameValueCollection() : new NameValueCollection(context.Request.Form);
 
-      viewEngine = new AuroraViewEngine(context, context.Server.MapPath(MainConfig.ViewRoot));
+      viewEngine = new AuroraViewEngine(context, context.Server.MapPath(MainConfig.ViewRoot), new AuroraViewEngineHelper(context));
 
       if (Form.AllKeys.Contains(MainConfig.AntiForgeryTokenName))
         Form.Remove(MainConfig.AntiForgeryTokenName);
@@ -3820,7 +3847,7 @@ namespace Aurora
             MainConfig.CustomErrorsSection.Mode != CustomErrorsMode.RemoteOnly)
         {
           // Check to see if there is a derived CustomError class otherwise look to see if there is a cusom error method on a controller
-          CustomError customError = ApplicationInternals.GetCustomError(context, e);
+          CustomError customError = ApplicationInternals.GetCustomError(context);
 
           if (customError == null)
           {
@@ -3901,7 +3928,7 @@ namespace Aurora
 
     internal ViewResult View(string controller, string name)
     {
-      return new ViewResult(Context, new AuroraViewEngine(Context, Context.Server.MapPath(MainConfig.ViewRoot)), controller, name, ViewTags);
+      return new ViewResult(Context, new AuroraViewEngine(Context, Context.Server.MapPath(MainConfig.ViewRoot), new AuroraViewEngineHelper(Context)), controller, name, ViewTags);
     }
   }
   #endregion
@@ -4633,7 +4660,7 @@ namespace Aurora
   }
   #endregion
 
-  #region ANTIFORGERYTOKEN
+  #region ANTIFORGERY TOKEN
   public enum AntiForgeryTokenType
   {
     Form,
@@ -4765,11 +4792,61 @@ namespace Aurora
     }
   }
 
+  // In order to keep the view engine loosely coupled I've defined this interface to allow for the bits that connect with the framework
+  // to be implemented outside of the view engine itself. 
+  internal interface IViewEngineHelper
+  {
+    ViewTemplateInfo TemplateInfo { get; set; }
+    string NewAntiForgeryToken(AntiForgeryTokenType type);
+  }
+
+  internal class AuroraViewEngineHelper : IViewEngineHelper
+  {
+    private HttpContextBase context;
+    private ViewTemplateInfo templateInfo;
+
+    public AuroraViewEngineHelper(HttpContextBase ctx)
+    {
+      context = ctx;
+
+      if ((context.Application[MainConfig.TemplatesSessionName] != null) && (!MainConfig.Debug))
+      {
+        templateInfo = context.Application[MainConfig.TemplatesSessionName] as ViewTemplateInfo;
+      }
+      else
+      {
+        templateInfo = new ViewTemplateInfo();
+      }
+    }
+
+    #region IViewEngineHelper Members
+    public ViewTemplateInfo TemplateInfo
+    {
+      get
+      {
+        return templateInfo;
+      }
+
+      set
+      {
+        templateInfo = value;
+
+        context.Application.Lock();
+        context.Application[MainConfig.TemplatesSessionName] = templateInfo;
+        context.Application.UnLock();
+      }
+    }
+
+    public string NewAntiForgeryToken(AntiForgeryTokenType type)
+    {
+      return AntiForgeryToken.Create(context, type);
+    }
+    #endregion
+  }
+
   internal class AuroraViewEngine : IViewEngine
   {
-    //TODO: Need to make way towards a reformed path handling so I can make app partitioning work.
-
-    private HttpContextBase context;
+    private IViewEngineHelper viewEngineHelper;
     private string viewRoot;
     private static Regex directiveTokenRE = new Regex(@"(\%\%(?<directive>[a-zA-Z0-9]+)=(?<value>[a-zA-Z0-9]+)\%\%)");
     private static Regex headBlockRE = new Regex(@"\[\[(?<block>[\s\w\p{P}\p{S}]+)\]\]");
@@ -4786,27 +4863,18 @@ namespace Aurora
 
     private ViewTemplateInfo templateInfo;
 
-    public AuroraViewEngine(HttpContextBase ctx, string vr)
+    public AuroraViewEngine(HttpContextBase ctx, string vr, IViewEngineHelper helper)
     {
-      context = ctx;
+      //context = ctx;
       viewRoot = vr;
+      viewEngineHelper = helper;
 
-      // Load all templates here and then cache them in the application store
-      if ((context.Application[MainConfig.TemplatesSessionName] != null) && (!MainConfig.Debug))
-      {
-        templateInfo = context.Application[MainConfig.TemplatesSessionName] as ViewTemplateInfo;
-      }
-      else
-      {
-        templateInfo = new ViewTemplateInfo();
+      templateInfo = viewEngineHelper.TemplateInfo;
 
-        LoadTemplates(viewRoot);
-        LoadFragments(viewRoot);
+      LoadTemplates(viewRoot);
+      LoadFragments(viewRoot);
 
-        context.Application.Lock();
-        context.Application[MainConfig.TemplatesSessionName] = templateInfo;
-        context.Application.UnLock();
-      }
+      viewEngineHelper.TemplateInfo = templateInfo;
     }
 
     private void LoadTemplates(string path)
@@ -4950,7 +5018,8 @@ namespace Aurora
 
       foreach (var t in tokens)
       {
-        view.Replace(token, AntiForgeryToken.Create(context, type), t.Start, t.End);
+        //view.Replace(token, AntiForgeryToken.Create(context, type), t.Start, t.End);
+        view.Replace(token, viewEngineHelper.NewAntiForgeryToken(type), t.Start, t.End);
       }
 
       return view;
@@ -4992,7 +5061,7 @@ namespace Aurora
               if (!m.Value.Contains(tagEncodingHint))
                 compiledView.Replace(m.Value, tag.Value);
               else
-                compiledView.Replace(m.Value, context.Server.HtmlEncode(tag.Value));
+                compiledView.Replace(m.Value, HttpUtility.HtmlEncode(tag.Value));
             }
           }
         }
@@ -5085,7 +5154,7 @@ namespace Aurora
 
       Exception ex = context.Server.GetLastError();
 
-      CustomError customError = ApplicationInternals.GetCustomError(new HttpContextWrapper(context), ex);
+      CustomError customError = ApplicationInternals.GetCustomError(new HttpContextWrapper(context));
 
       if (customError != null)
       {
