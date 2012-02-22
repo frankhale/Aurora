@@ -790,7 +790,7 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyProduct("Aurora")]
 [assembly: AssemblyCopyright("Copyright © 2012")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.99.25.*")]
+[assembly: AssemblyVersion("1.99.26.*")]
 #endregion
 
 namespace Aurora
