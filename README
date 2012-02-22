@@ -31,6 +31,10 @@ Date: 31 January 2012
  
 Changelog:
 
+21 February 2012
+
+- AddRoute which is used for dynamic routing didn't work, now it does.
+
 31 January 2012
 
 - Made the view engine lously coupled (got a bit sloppy over the months and
