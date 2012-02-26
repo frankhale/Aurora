@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC micro web framework for .NET
 //
-// Updated On: 21 February 2012
+// Updated On: 26 February 2012
 //
 // Contact Info:
 //
@@ -138,7 +138,7 @@
 //
 // NOTE: Actions map like this: 
 //
-//  ViewResult ActionName(front_params, bound_parameters, url_parameters, 
+//  ViewResult ActionName(bound_parameters, front_params, url_parameters, 
 //                           form_parameters / (HTTP Put/Delete) payload, files)
 //
 // Actions are nothing more than public methods in your controller that are 
@@ -790,7 +790,7 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyProduct("Aurora")]
 [assembly: AssemblyCopyright("Copyright © 2012")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.99.26.*")]
+[assembly: AssemblyVersion("1.99.28.*")]
 #endregion
 
 namespace Aurora
@@ -977,7 +977,7 @@ namespace Aurora
 		public static int AuthCookieExpiry = (MainConfig.WebConfig == null) ? 8 : WebConfig.AuthCookieExpiry;
 		public static int StaticContentCacheExpiry = (MainConfig.WebConfig == null) ? 15 : WebConfig.StaticContentCacheExpiry;
 		public static bool DisableStaticFileCaching = (MainConfig.WebConfig == null) ? false : WebConfig.DisableStaticFileCaching;
-		public static bool AuroraDebug = (WebConfig == null) ? true : WebConfig.Debug;
+		public static bool AuroraDebug = (WebConfig == null) ? false : WebConfig.Debug;
 		public static bool ASPNETDebug = (ConfigurationManager.GetSection("system.web/compilation") as CompilationSection).Debug;
 
 		// The UserName and Password used to search Active Directory should be encrypted in the Web.Config
@@ -1129,8 +1129,8 @@ namespace Aurora
 	[AttributeUsage(AttributeTargets.Method)]
 	public class HttpGetAttribute : RequestTypeAttribute
 	{
-		internal HttpCacheability CacheabilityOption = HttpCacheability.Public;
-		internal bool Cache = false;
+		internal HttpCacheability CacheabilityOption = HttpCacheability.NoCache;
+		public bool Cache = false;
 		internal int Duration = 0;
 
 		public HttpGetAttribute()
@@ -1148,6 +1148,9 @@ namespace Aurora
 		{
 			SecurityType = sec;
 			RouteAlias = routeAlias;
+
+			if (Cache)
+				CacheabilityOption = HttpCacheability.Public;
 		}
 	}
 
@@ -2877,10 +2880,16 @@ namespace Aurora
 			List<FileInfo> files = new List<FileInfo>();
 
 			foreach (string path in paths)
-				files.Add(new FileInfo(context.Server.MapPath(path)));
+			{
+				string fullPath = context.Server.MapPath(path);
+
+				if (File.Exists(fullPath))
+					files.Add(new FileInfo(context.Server.MapPath(path)));
+			}
 
 			foreach (FileInfo file in files)
 				bundleInfos.Add(new BundleInfo() { BundleName = bundleName, FileInfo = file });
+
 
 			ProcessFiles(files, bundleName);
 		}
@@ -3389,6 +3398,8 @@ namespace Aurora
 		private HttpContextBase context;
 		private BundleManager bundleManager;
 
+		private List<RouteInfo> routeInfos;
+
 		private string path;
 		private string alias;
 
@@ -3438,7 +3449,9 @@ namespace Aurora
 
 			context.RewritePath(path);
 
-			alias = ApplicationInternals.AllRouteInfos(context).OrderByDescending(y => y.Alias).Where(x => path.StartsWith(x.Alias)).Select(x => x.Alias).FirstOrDefault();
+			routeInfos = ApplicationInternals.AllRouteInfos(context);
+
+			alias = routeInfos.OrderByDescending(y => y.Alias).Where(x => path.StartsWith(x.Alias)).Select(x => x.Alias).FirstOrDefault();
 
 			if (!string.IsNullOrEmpty(alias))
 			{
@@ -3473,20 +3486,19 @@ namespace Aurora
 		private RouteInfo FindRoute(string path)
 		{
 			//
-			// Actions map like this: ViewResult ActionName(front_params, bound_parameters, url_parameters, form_parameters / (HTTP Put/Delete) payload, files)
+			// Actions map like this: ViewResult ActionName(bound_parameters, front_params, url_parameters, form_parameters / (HTTP Put/Delete) payload, files)
 			//
 
 			if (!MainConfig.PathTokenRE.IsMatch(path)) return null;
 
-			object[] frontParameters = null;
 			object[] actionParameters = null;
 			object[] formOrPutDeleteParams = null;
 
 			int urlParamLength = (urlObjectParams != null) ? urlObjectParams.Length : 0;
 
-			List<RouteInfo> routes = ApplicationInternals.AllRouteInfos(context).Where(x => x.Alias == alias && x.RequestType == context.Request.RequestType).ToList();
+			List<RouteInfo> routeSlice = routeInfos.Where(x => x.Alias == alias && x.RequestType == context.Request.RequestType).ToList();
 
-			foreach (RouteInfo routeInfo in routes)
+			foreach (RouteInfo routeInfo in routeSlice)
 			{
 				if (fromRedirectOnlyFlag && !routeInfo.FromRedirectOnlyInfo) continue;
 
@@ -4467,7 +4479,7 @@ namespace Aurora
 			context.Response.AddHeader("content-disposition", "attachment;filename=" + fileName);
 			context.Response.AddHeader("Content-Length", fileBytes.Length.ToString());
 			context.Response.BinaryWrite(fileBytes);
-			context.Response.Flush();
+			//context.Response.Flush();
 			context.Response.End();
 		}
 	}
@@ -4538,6 +4550,8 @@ namespace Aurora
 			}
 			else
 				context.Response.TransmitFile(filePath);
+
+			context.Response.End();
 		}
 	}
 
@@ -4558,6 +4572,7 @@ namespace Aurora
 
 		public void Render()
 		{
+			context.Response.Clear();
 			context.Response.ContentType = "text/html";
 
 			try
@@ -4567,6 +4582,7 @@ namespace Aurora
 				ResponseHeader.AddEncodingHeaders(context);
 
 				context.Response.Write(view);
+				context.Response.End();
 			}
 			catch
 			{
@@ -4626,6 +4642,7 @@ namespace Aurora
 				ResponseHeader.AddEncodingHeaders(context);
 
 				context.Response.Write(json);
+				context.Response.End();
 			}
 			catch
 			{
@@ -4700,10 +4717,18 @@ namespace Aurora
 		{
 			List<string> tokens = null;
 
-			if (context.Session[MainConfig.AntiForgeryTokenSessionName] != null)
-				tokens = context.Session[MainConfig.AntiForgeryTokenSessionName] as List<string>;
+			if (context.Application[MainConfig.AntiForgeryTokenSessionName] != null)
+			{
+				tokens = context.Application[MainConfig.AntiForgeryTokenSessionName] as List<string>;
+			}
 			else
+			{
 				tokens = new List<string>();
+
+				context.Application.Lock();
+				context.Application[MainConfig.AntiForgeryTokenSessionName] = tokens;
+				context.Application.UnLock();
+			}
 
 			return tokens;
 		}
@@ -4723,8 +4748,6 @@ namespace Aurora
 			List<string> tokens = GetTokens(context);
 			string token = CreateUniqueToken(tokens);
 			tokens.Add(token);
-
-			context.Session[MainConfig.AntiForgeryTokenSessionName] = tokens;
 
 			string renderToken = string.Empty;
 
@@ -4811,10 +4834,13 @@ namespace Aurora
 		public ViewTypeContainer Views { get; set; }
 		public ViewTypeContainer Fragments { get; set; }
 
+		public bool FromCache { get; set; }
+
 		public ViewTemplateInfo()
 		{
 			Views = new ViewTypeContainer();
 			Fragments = new ViewTypeContainer();
+			FromCache = false;
 		}
 	}
 
@@ -4835,9 +4861,10 @@ namespace Aurora
 		{
 			context = ctx;
 
-			if ((context.Application[MainConfig.TemplatesSessionName] != null) && (!MainConfig.AuroraDebug))
+			if (context.Application[MainConfig.TemplatesSessionName] != null)
 			{
 				templateInfo = context.Application[MainConfig.TemplatesSessionName] as ViewTemplateInfo;
+				templateInfo.FromCache = true;
 			}
 			else
 			{
@@ -4884,23 +4911,25 @@ namespace Aurora
 		private static string viewDirective = "%%View%%";
 		private static string headDirective = "%%Head%%";
 		private static string partialDirective = "%%Partial={0}%%";
-		private static string sharedFolderName = MainConfig.SharedFolderName;
-		private static string fragmentsFolderName = MainConfig.FragmentsFolderName;
+		//private static string sharedFolderName = MainConfig.SharedFolderName;
+		//private static string fragmentsFolderName = MainConfig.FragmentsFolderName;
 
 		private ViewTemplateInfo templateInfo;
 
 		public AuroraViewEngine(HttpContextBase ctx, string vr, IViewEngineHelper helper)
 		{
-			//context = ctx;
 			viewRoot = vr;
 			viewEngineHelper = helper;
 
 			templateInfo = viewEngineHelper.TemplateInfo;
 
-			LoadTemplates(viewRoot);
-			LoadFragments(viewRoot);
+			if (!templateInfo.FromCache)
+			{
+				LoadTemplates(viewRoot);
+				LoadFragments(viewRoot);
 
-			viewEngineHelper.TemplateInfo = templateInfo;
+				viewEngineHelper.TemplateInfo = templateInfo;
+			}
 		}
 
 		private void LoadTemplates(string path)
