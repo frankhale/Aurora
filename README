@@ -375,7 +375,11 @@ Changelog:
 - Still making tweaks to the code, trying to become more stable. I added some
   events to the Controller class for before action and after action. One
   scenario for this is logging. 
-	
+
+Feb/March 2011
+
+- Initial concept, went through at least 3 iterations before it was uploaded to Github.
+  
 License: GNU GPL version 3 <http://www.gnu.org/licenses/gpl-3.0.html>
 
 // This program is free software: you can redistribute it and/or modify it under
