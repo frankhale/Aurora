@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC micro web framework for .NET
 //
-// Updated On: 26 February 2012
+// Updated On: 27 February 2012
 //
 // Contact Info:
 //
@@ -790,7 +790,7 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyProduct("Aurora")]
 [assembly: AssemblyCopyright("Copyright © 2012")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.99.28.*")]
+[assembly: AssemblyVersion("1.99.29.*")]
 #endregion
 
 namespace Aurora
@@ -1129,7 +1129,7 @@ namespace Aurora
 	[AttributeUsage(AttributeTargets.Method)]
 	public class HttpGetAttribute : RequestTypeAttribute
 	{
-		internal HttpCacheability CacheabilityOption = HttpCacheability.NoCache;
+		internal HttpCacheability CacheabilityOption;
 		public bool Cache = false;
 		internal int Duration = 0;
 
@@ -1151,6 +1151,8 @@ namespace Aurora
 
 			if (Cache)
 				CacheabilityOption = HttpCacheability.Public;
+			else
+				CacheabilityOption = HttpCacheability.NoCache;
 		}
 	}
 
@@ -2633,8 +2635,10 @@ namespace Aurora
 									parms[i].ToLower() == "off" ||
 									parms[i].ToLower() == "checked")
 					{
-						if (parms[i].ToLower() == "on" || parms[i].ToLower() == "checked") parms[i] = "true";
-						else if (parms[i].ToLower() == "off") parms[i] = "false";
+						if (parms[i].ToLower() == "on" || parms[i].ToLower() == "checked") 
+							parms[i] = "true";
+						else if (parms[i].ToLower() == "off") 
+							parms[i] = "false";
 
 						_parms[i] = Convert.ToBoolean(parms[i]);
 					}
@@ -3518,11 +3522,14 @@ namespace Aurora
 				}
 				else if (context.Request.RequestType == "POST" && postedFormModel == null && context.Request.Form.Count > 0)
 				{
+					//if(Form[MainConfig.AntiForgeryTokenName]!=null)
+					//  Form.Remove(MainConfig.AntiForgeryTokenName);
+
 					string[] formValues = new string[Form.AllKeys.Length];
 
 					for (int i = 0; i < Form.AllKeys.Length; i++)
 					{
-						formValues[i] = Form.Get(i);
+							formValues[i] = Form.Get(i);
 					}
 
 					if (Form.Count > 0)
@@ -4380,11 +4387,15 @@ namespace Aurora
 	public class HTMLSelect : HTMLBase
 	{
 		private List<string> Options;
+		private string SelectedDefault;
+		private bool EmptyOption;
 
-		public HTMLSelect(List<string> options, params Func<string, string>[] attribs)
+		public HTMLSelect(List<string> options, string selectedDefault, bool emptyOption, params Func<string, string>[] attribs)
 		{
 			Options = options;
 			Attribs = attribs;
+			SelectedDefault = selectedDefault ?? string.Empty;
+			EmptyOption = emptyOption;
 		}
 
 		public override string ToString()
@@ -4393,13 +4404,19 @@ namespace Aurora
 
 			sb.AppendFormat("<select {0}>", CondenseAttribs());
 
-			sb.Append("<option selected=\"selected\"></option>");
+			if(EmptyOption)
+				sb.Append("<option selected=\"selected\"></option>");
 
 			int count = 0;
 
 			foreach (string o in Options)
 			{
-				sb.AppendFormat("<option name=\"opt{0}\">{1}</option>", count, o);
+				string selected = string.Empty;
+
+				if (!string.IsNullOrEmpty(SelectedDefault) && o == SelectedDefault)
+					selected = "selected=\"selected\"";
+
+				sb.AppendFormat("<option name=\"opt{0}\" {1}>{2}</option>", count, selected, o);
 				count++;
 			}
 
@@ -4479,7 +4496,6 @@ namespace Aurora
 			context.Response.AddHeader("content-disposition", "attachment;filename=" + fileName);
 			context.Response.AddHeader("Content-Length", fileBytes.Length.ToString());
 			context.Response.BinaryWrite(fileBytes);
-			//context.Response.Flush();
 			context.Response.End();
 		}
 	}
@@ -4921,8 +4937,18 @@ namespace Aurora
 			viewRoot = vr;
 			viewEngineHelper = helper;
 
-			templateInfo = viewEngineHelper.TemplateInfo;
+			templateInfo = null;
 
+			if (MainConfig.DisableStaticFileCaching)
+			{
+				templateInfo = new ViewTemplateInfo();
+				templateInfo.FromCache = false;
+			}
+			else
+			{
+				templateInfo = viewEngineHelper.TemplateInfo;
+			}
+			
 			if (!templateInfo.FromCache)
 			{
 				LoadTemplates(viewRoot);

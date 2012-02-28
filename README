@@ -4,7 +4,7 @@ NOTE: See source code comments for usage.
 
 Frank Hale <frankhale@gmail.com>
 
-Date: 26 February 2012
+Date: 27 February 2012
 
 --------------------
 --- Feature List ---
@@ -30,6 +30,10 @@ Date: 26 February 2012
 - Bundling so Javascript and CSS can be combined and minified.
  
 Changelog:
+
+27 February 2012
+
+- A couple of very minor tweaks.
 
 26 February 2012
 
