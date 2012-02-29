@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC micro web framework for .NET
 //
-// Updated On: 27 February 2012
+// Updated On: 28 February 2012
 //
 // Contact Info:
 //
@@ -790,7 +790,7 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyProduct("Aurora")]
 [assembly: AssemblyCopyright("Copyright © 2012")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.99.29.*")]
+[assembly: AssemblyVersion("1.99.30.*")]
 #endregion
 
 namespace Aurora
@@ -1945,7 +1945,12 @@ namespace Aurora
 					AllControllerInstances(context).Add(ctrl);
 
 					if (context.Application[MainConfig.RoutesSessionName] != null)
+					{
 						routes = context.Application[MainConfig.RoutesSessionName] as List<RouteInfo>;
+
+						foreach (RouteInfo routeInfo in routes)
+							routeInfo.ControllerInstance = ctrl;
+					}
 
 					#region CREATE ROUTES
 					foreach (MethodInfo mi in c.GetMethods())
@@ -2169,7 +2174,10 @@ namespace Aurora
 			if (ba == null)
 				bindings.Add(new BoundAction(controllerName, actionName, bindInstance));
 			else
-				ba.AddBinding(bindInstance);
+			{
+				if(!ba.BoundInstances.Contains(bindInstance))
+					ba.AddBinding(bindInstance);
+			}
 		}
 
 		public void Remove(string controllerName, string actionName, object bindInstance)
@@ -2400,6 +2408,7 @@ namespace Aurora
 
 			QueryString = (context.Request.QueryString == null) ? new NameValueCollection() : new NameValueCollection(context.Request.QueryString);
 			Form = (context.Request.Form == null) ? new NameValueCollection() : new NameValueCollection(context.Request.Form);
+			ClearViewTags();
 
 			viewEngine = new AuroraViewEngine(context, context.Server.MapPath(MainConfig.ViewRoot), new AuroraViewEngineHelper(context));
 
@@ -2635,9 +2644,9 @@ namespace Aurora
 									parms[i].ToLower() == "off" ||
 									parms[i].ToLower() == "checked")
 					{
-						if (parms[i].ToLower() == "on" || parms[i].ToLower() == "checked") 
+						if (parms[i].ToLower() == "on" || parms[i].ToLower() == "checked")
 							parms[i] = "true";
-						else if (parms[i].ToLower() == "off") 
+						else if (parms[i].ToLower() == "off")
 							parms[i] = "false";
 
 						_parms[i] = Convert.ToBoolean(parms[i]);
@@ -3442,8 +3451,7 @@ namespace Aurora
 			string incomingPath = context.Request.Path;
 
 			if (string.Equals(incomingPath, "/") ||
-					string.Equals(incomingPath, "/default.aspx", StringComparison.InvariantCultureIgnoreCase) ||
-					incomingPath == "~/")
+					string.Equals(incomingPath, "/default.aspx", StringComparison.InvariantCultureIgnoreCase) || incomingPath == "~/")
 				path = MainConfig.DefaultRoute;
 			else
 				path = (context.Request.Path.EndsWith("/")) ? context.Request.Path.Remove(context.Request.Path.Length - 1) : context.Request.Path;
@@ -3522,14 +3530,11 @@ namespace Aurora
 				}
 				else if (context.Request.RequestType == "POST" && postedFormModel == null && context.Request.Form.Count > 0)
 				{
-					//if(Form[MainConfig.AntiForgeryTokenName]!=null)
-					//  Form.Remove(MainConfig.AntiForgeryTokenName);
-
 					string[] formValues = new string[Form.AllKeys.Length];
 
 					for (int i = 0; i < Form.AllKeys.Length; i++)
 					{
-							formValues[i] = Form.Get(i);
+						formValues[i] = Form.Get(i);
 					}
 
 					if (Form.Count > 0)
@@ -3843,8 +3848,8 @@ namespace Aurora
 
 			if ((!MainConfig.AuroraDebug) && (context.Application[MainConfig.RouteManagerSessionName] != null))
 			{
-				routeManager = (IRouteManager)context.Application[MainConfig.RouteManagerSessionName];
-				routeManager.Refresh(ctx);
+			  routeManager = (IRouteManager)context.Application[MainConfig.RouteManagerSessionName];
+			  routeManager.Refresh(ctx);
 			}
 			else
 			{
@@ -3886,23 +3891,24 @@ namespace Aurora
 			}
 			catch (Exception e)
 			{
-				if (e is ThreadAbortException) throw;
-
-				if (MainConfig.CustomErrorsSection.Mode != CustomErrorsMode.Off &&
-						MainConfig.CustomErrorsSection.Mode != CustomErrorsMode.RemoteOnly)
+				if (!(e is ThreadAbortException))
 				{
-					// Check to see if there is a derived CustomError class otherwise look to see if there is a cusom error method on a controller
-					CustomError customError = ApplicationInternals.GetCustomError(context);
+					if (MainConfig.CustomErrorsSection.Mode != CustomErrorsMode.Off &&
+							MainConfig.CustomErrorsSection.Mode != CustomErrorsMode.RemoteOnly)
+					{
+						// Check to see if there is a derived CustomError class otherwise look to see if there is a cusom error method on a controller
+						CustomError customError = ApplicationInternals.GetCustomError(context);
 
-					if (customError == null)
-					{
-						RenderError(e);
-					}
-					else
-					{
-						// The custom error class is for all controllers and all static content that may produce an error.
-						customError.Error(e.Message, e).Render();
-						context.Server.ClearError();
+						if (customError == null)
+						{
+							RenderError(e);
+						}
+						else
+						{
+							// The custom error class is for all controllers and all static content that may produce an error.
+							customError.Error(e.Message, e).Render();
+							context.Server.ClearError();
+						}
 					}
 				}
 			}
@@ -4404,7 +4410,7 @@ namespace Aurora
 
 			sb.AppendFormat("<select {0}>", CondenseAttribs());
 
-			if(EmptyOption)
+			if (EmptyOption)
 				sb.Append("<option selected=\"selected\"></option>");
 
 			int count = 0;
@@ -4423,6 +4429,31 @@ namespace Aurora
 			sb.Append("</select>");
 
 			return sb.ToString();
+		}
+	}
+
+	public class HTMLCheckbox : HTMLBase
+	{
+		private string ID;
+		private string Name;
+		private string CssClass;
+		private string Check;
+		private string Enabled;
+
+		public HTMLCheckbox(string id, string name, string cssClass, bool enabled, bool check)
+		{
+			ID = id;
+			Name = name;
+			CssClass = cssClass;
+			Check = (check) ? "checked=\"checked\"" : string.Empty;
+			Enabled = (enabled) ? "disabled=\"disabled\"" : string.Empty;
+		}
+
+		public override string ToString()
+		{
+			
+
+			return string.Format("<input type=\"checkbox\" id=\"{0}\" name=\"{1}\" class=\"{2}\" {3} {4} />", ID, Name, CssClass, Check, Enabled);
 		}
 	}
 
@@ -4493,9 +4524,11 @@ namespace Aurora
 			context.Response.ClearContent();
 			context.Response.ClearHeaders();
 			context.Response.ContentType = fileContentType;
+			ResponseHeader.AddEncodingHeaders(context);
 			context.Response.AddHeader("content-disposition", "attachment;filename=" + fileName);
 			context.Response.AddHeader("Content-Length", fileBytes.Length.ToString());
 			context.Response.BinaryWrite(fileBytes);
+			context.Response.Flush();
 			context.Response.End();
 		}
 	}
@@ -4562,12 +4595,11 @@ namespace Aurora
 					bool css = filePath.EndsWith(".css");
 
 					context.Response.Write(new Minify(File.ReadAllText(filePath), css, false).Result);
+					
 				}
 			}
 			else
 				context.Response.TransmitFile(filePath);
-
-			context.Response.End();
 		}
 	}
 
@@ -4583,27 +4615,15 @@ namespace Aurora
 			viewEngine = ve;
 			viewKeyName = string.Format("{0}/{1}", controllerName, viewName);
 
+			context.Response.ContentType = "text/html";
+			ResponseHeader.AddEncodingHeaders(context);
+
 			ve.LoadView(controllerName, viewName, tags);
 		}
 
 		public void Render()
 		{
-			context.Response.Clear();
-			context.Response.ContentType = "text/html";
-
-			try
-			{
-				string view = viewEngine[viewKeyName];
-
-				ResponseHeader.AddEncodingHeaders(context);
-
-				context.Response.Write(view);
-				context.Response.End();
-			}
-			catch
-			{
-				throw;
-			}
+			context.Response.Write(viewEngine[viewKeyName]);
 		}
 	}
 
@@ -4624,15 +4644,8 @@ namespace Aurora
 
 		public void Render()
 		{
-			try
-			{
-				context.Response.ContentType = "text/html";
-				context.Response.Write(viewEngine[viewKeyName]);
-			}
-			catch
-			{
-				throw;
-			}
+			context.Response.ContentType = "text/html";
+			context.Response.Write(viewEngine[viewKeyName]);
 		}
 	}
 
@@ -4658,7 +4671,6 @@ namespace Aurora
 				ResponseHeader.AddEncodingHeaders(context);
 
 				context.Response.Write(json);
-				context.Response.End();
 			}
 			catch
 			{
@@ -4692,7 +4704,6 @@ namespace Aurora
 			context.Response.StatusCode = (int)System.Net.HttpStatusCode.NotFound;
 			context.Response.StatusDescription = message;
 			context.Response.Write(string.Format("{0} - {1}", message, context.Request.Path));
-			context.Response.End();
 		}
 	}
 
@@ -4927,8 +4938,6 @@ namespace Aurora
 		private static string viewDirective = "%%View%%";
 		private static string headDirective = "%%Head%%";
 		private static string partialDirective = "%%Partial={0}%%";
-		//private static string sharedFolderName = MainConfig.SharedFolderName;
-		//private static string fragmentsFolderName = MainConfig.FragmentsFolderName;
 
 		private ViewTemplateInfo templateInfo;
 
@@ -4948,7 +4957,7 @@ namespace Aurora
 			{
 				templateInfo = viewEngineHelper.TemplateInfo;
 			}
-			
+
 			if (!templateInfo.FromCache)
 			{
 				LoadTemplates(viewRoot);
@@ -5098,10 +5107,7 @@ namespace Aurora
 			var tokens = Regex.Matches(view.ToString(), token).Cast<Match>().Select(m => new { Start = m.Index, End = m.Length }).Reverse();
 
 			foreach (var t in tokens)
-			{
-				//view.Replace(token, AntiForgeryToken.Create(context, type), t.Start, t.End);
 				view.Replace(token, viewEngineHelper.NewAntiForgeryToken(type), t.Start, t.End);
-			}
 
 			return view;
 		}
@@ -5140,9 +5146,9 @@ namespace Aurora
 						foreach (Match m in nonEncodedMatches)
 						{
 							if (!m.Value.Contains(tagEncodingHint))
-								compiledView.Replace(m.Value, tag.Value);
+								compiledView.Replace(m.Value, tag.Value.Trim());
 							else
-								compiledView.Replace(m.Value, HttpUtility.HtmlEncode(tag.Value));
+								compiledView.Replace(m.Value, HttpUtility.HtmlEncode(tag.Value.Trim()));
 						}
 					}
 				}
