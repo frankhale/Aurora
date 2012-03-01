@@ -31,6 +31,10 @@ Date: 28 February 2012
  
 Changelog:
 
+29 February 2012
+
+- More tweaking to the route manager and the view results.
+
 28 February 2012
 
 - Added an HTML helper for a checkbox

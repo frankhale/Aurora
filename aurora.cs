@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC micro web framework for .NET
 //
-// Updated On: 28 February 2012
+// Updated On: 29 February 2012
 //
 // Contact Info:
 //
@@ -790,7 +790,7 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyProduct("Aurora")]
 [assembly: AssemblyCopyright("Copyright © 2012")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.99.30.*")]
+[assembly: AssemblyVersion("1.99.31.*")]
 #endregion
 
 namespace Aurora
@@ -3519,8 +3519,6 @@ namespace Aurora
 				int boundParamLength = (routeInfo.Bindings != null) ? routeInfo.Bindings.BoundInstances.Count() : 0;
 				int totalParamLength = boundParamLength + frontParamsLength + urlParamLength;
 
-				if (routeInfo.Action.GetParameters().Count() < totalParamLength) continue;
-
 				if (context.Request.RequestType == "PUT" || context.Request.RequestType == "DELETE")
 				{
 					formOrPutDeleteParams = new object[1];
@@ -3573,6 +3571,9 @@ namespace Aurora
 				if (context.Request.Files.Count > 0)
 					context.Request.Files.CopyTo(actionParameters, totalParamLength);
 				#endregion
+
+				if (totalParamLength < routeInfo.Action.GetParameters().Count())
+					continue;
 
 				Type[] actionParameterTypes = actionParameters.Select(x => (x != null) ? x.GetType() : null).ToArray();
 				Type[] methodParamTypes = routeInfo.Action.GetParameters().Select(x => x.ParameterType).ToArray();
@@ -4524,12 +4525,12 @@ namespace Aurora
 			context.Response.ClearContent();
 			context.Response.ClearHeaders();
 			context.Response.ContentType = fileContentType;
+
 			ResponseHeader.AddEncodingHeaders(context);
+
 			context.Response.AddHeader("content-disposition", "attachment;filename=" + fileName);
-			context.Response.AddHeader("Content-Length", fileBytes.Length.ToString());
+			//context.Response.AddHeader("Content-Length", fileBytes.Length.ToString());
 			context.Response.BinaryWrite(fileBytes);
-			context.Response.Flush();
-			context.Response.End();
 		}
 	}
 
@@ -4595,7 +4596,6 @@ namespace Aurora
 					bool css = filePath.EndsWith(".css");
 
 					context.Response.Write(new Minify(File.ReadAllText(filePath), css, false).Result);
-					
 				}
 			}
 			else
