@@ -4,7 +4,7 @@ NOTE: See source code comments for usage.
 
 Frank Hale <frankhale@gmail.com>
 
-Date: 28 February 2012
+Date: 1 March 2012
 
 --------------------
 --- Feature List ---
@@ -30,6 +30,19 @@ Date: 28 February 2012
 - Bundling so Javascript and CSS can be combined and minified.
  
 Changelog:
+
+1 March 2012
+
+- Commented out the Request.ValidateInput() in the route manager. Validation will be 
+  handled by the controller.
+- Added some code to the AuroraModule to set the PagesSection.ValidateRequest to false.
+- Added new SanitizeHTML attribute. This applies to strings on action methods as well as
+  strings in post models. This uses the HTMLAgilityPack to strip HTML tags from strings.
+- Little code moving in the route manager to eliminate redundant calls to obtain the list
+  of routes when requesting static files.
+- Commented out some code that wasn't being used in the route manager. I will remove this
+  at a later date.
+- Fixed the RemoveToken method in the AntiForgeryToken class
 
 29 February 2012
 
