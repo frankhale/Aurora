@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC micro web framework for .NET
 //
-// Updated On: 29 February 2012
+// Updated On: 1 March 2012
 //
 // Contact Info:
 //
@@ -790,7 +790,7 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyProduct("Aurora")]
 [assembly: AssemblyCopyright("Copyright © 2012")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.99.31.*")]
+[assembly: AssemblyVersion("1.99.32.*")]
 #endregion
 
 namespace Aurora
@@ -970,6 +970,7 @@ namespace Aurora
 
 		public static WebConfig WebConfig = ConfigurationManager.GetSection("Aurora") as WebConfig;
 		public static CustomErrorsSection CustomErrorsSection = ConfigurationManager.GetSection("system.web/customErrors") as CustomErrorsSection;
+		//public static PagesSection PageSection = System.Configuration.ConfigurationManager.GetSection("system.web/pages") as PagesSection;
 		public static string RouteManager = (MainConfig.WebConfig == null) ? "DefaultRouteManager" : WebConfig.RouteManager;
 		public static string[] SupportedRouteManagers = { "DefaultRouteManager" };
 		public static string[] SupportedHttpVerbs = { "GET", "POST", "PUT", "DELETE" };
@@ -1105,6 +1106,9 @@ namespace Aurora
 			Op = op; // We'll perform an operation on the property name like put spacing between camel case names, then title case the name.
 		}
 	}
+
+	[AttributeUsage(AttributeTargets.Parameter | AttributeTargets.Property)]
+	public class SanitizeHTML : Attribute { }
 	#endregion
 
 	#region HTTP REQUEST
@@ -1940,6 +1944,7 @@ namespace Aurora
 
 				if (ctrl == null)
 				{
+					#region INSTANTIATE CONTROLLER
 					MethodInfo createInstance = c.BaseType.GetMethod("CreateInstance", BindingFlags.Static | BindingFlags.NonPublic).MakeGenericMethod(c);
 					ctrl = (Controller)createInstance.Invoke(createInstance, new object[] { context });
 					AllControllerInstances(context).Add(ctrl);
@@ -1951,6 +1956,7 @@ namespace Aurora
 						foreach (RouteInfo routeInfo in routes)
 							routeInfo.ControllerInstance = ctrl;
 					}
+					#endregion
 
 					#region CREATE ROUTES
 					foreach (MethodInfo mi in c.GetMethods())
@@ -2175,7 +2181,7 @@ namespace Aurora
 				bindings.Add(new BoundAction(controllerName, actionName, bindInstance));
 			else
 			{
-				if(!ba.BoundInstances.Contains(bindInstance))
+				if (!ba.BoundInstances.Contains(bindInstance))
 					ba.AddBinding(bindInstance);
 			}
 		}
@@ -3320,15 +3326,12 @@ namespace Aurora
 		public string Path { get; set; }
 		public string FrontLoadedParams { get; set; }
 
-		public object[] UrlObjectParameters { get; set; }
-		public string[] UrlStringParameters { get; set; }
+		//public object[] UrlObjectParameters { get; set; }
+		//public string[] UrlStringParameters { get; set; }
 
 		public object[] ActionParameters { get; set; }
-
 		public bool IsFiltered { get; set; }
-
 		public bool Dynamic { get; set; }
-
 		public bool FromRedirectOnlyInfo { get; set; }
 	}
 
@@ -3365,7 +3368,12 @@ namespace Aurora
 					}
 					else if (p.PropertyType == typeof(string))
 					{
-						p.SetValue(DataTypeInstance, context.Request.Form[p.Name], null);
+						string value = context.Request.Form[p.Name];
+
+						if (p.GetCustomAttributes(false).Where(x => x is SanitizeHTML) != null)
+							value = context.Request.Form[p.Name].StripHTML();
+
+						p.SetValue(DataTypeInstance, value, null);
 					}
 					else if (p.PropertyType == typeof(bool))
 					{
@@ -3445,8 +3453,8 @@ namespace Aurora
 			if (Form[MainConfig.AntiForgeryTokenName] != null)
 				Form.Remove(MainConfig.AntiForgeryTokenName);
 
-			context.Request.ValidateInput();
-			string rawURL = context.Request.RawUrl;
+			//context.Request.ValidateInput();
+			//string rawURL = context.Request.RawUrl;
 
 			string incomingPath = context.Request.Path;
 
@@ -3460,39 +3468,6 @@ namespace Aurora
 				path = path.Replace(MainConfig.ApplicationMountPoint, string.Empty);
 
 			context.RewritePath(path);
-
-			routeInfos = ApplicationInternals.AllRouteInfos(context);
-
-			alias = routeInfos.OrderByDescending(y => y.Alias).Where(x => path.StartsWith(x.Alias)).Select(x => x.Alias).FirstOrDefault();
-
-			if (!string.IsNullOrEmpty(alias))
-			{
-				urlStringParams = path.Replace(alias, string.Empty).Split('/').Where(x => !string.IsNullOrEmpty(x)).ToArray();
-
-				if (urlStringParams != null)
-					urlObjectParams = StringTypeConversion.ToObjectArray(urlStringParams);
-
-				postedFormModel = Model.DetermineModelFromPostedForm(context);
-
-				if (postedFormModel != null)
-				{
-					postedFormInfo = new PostedFormInfo(context, postedFormModel);
-
-					if (postedFormInfo.DataType != null)
-						((Model)postedFormInfo.DataTypeInstance).Validate(context, (Model)postedFormInfo.DataTypeInstance);
-				}
-			}
-
-			if (context.Request.RequestType == "PUT" || context.Request.RequestType == "DELETE")
-			{
-				RawPayload = new StreamReader(context.Request.InputStream).ReadToEnd();
-
-				Payload = RawPayload.Split(',')
-														.Select(x => x.Split('='))
-														.ToDictionary(x => x[0], x => x[1]);
-			}
-			else
-				Payload = null;
 		}
 
 		private RouteInfo FindRoute(string path)
@@ -3500,6 +3475,8 @@ namespace Aurora
 			//
 			// Actions map like this: ViewResult ActionName(bound_parameters, front_params, url_parameters, form_parameters / (HTTP Put/Delete) payload, files)
 			//
+
+			//FIXME: From redirect only seems to be broke!!!! ARGH!!!
 
 			if (!MainConfig.PathTokenRE.IsMatch(path)) return null;
 
@@ -3627,6 +3604,21 @@ namespace Aurora
 
 				if (matches.Count() == methodParamTypes.Count())
 				{
+					#region DETERMINE IF ANY ACTION PARAMS HAVE [SanitizeHTML] ATTRIBUTES
+					ParameterInfo[] actionParms = routeInfo.Action.GetParameters();
+
+					for (int i = 0; i < actionParms.Length; i++)
+					{
+						if (actionParms[i].ParameterType == typeof(string))
+						{
+							if (actionParms[i].GetCustomAttributes(false).Where(x => x is SanitizeHTML) != null)
+							{
+								actionParameters[i] = actionParameters[i].ToString().StripHTML();
+							}
+						}
+					}
+					#endregion
+
 					if (actionParamTransformInfos != null)
 					{
 						foreach (ActionParamTransformInfo apti in actionParamTransformInfos)
@@ -3650,17 +3642,16 @@ namespace Aurora
 					}
 
 					routeInfo.ActionParameters = actionParameters;
-
 					routeInfo.Path = path;
-					routeInfo.UrlStringParameters = urlStringParams;
-					routeInfo.UrlObjectParameters = urlObjectParams;
+					//routeInfo.UrlStringParameters = urlStringParams;
+					//routeInfo.UrlObjectParameters = urlObjectParams;
 
-					if (!string.IsNullOrEmpty(routeInfo.FrontLoadedParams))
-					{
-						object[] convertedFrontParams = StringTypeConversion.ToObjectArray(routeInfo.FrontLoadedParams.Split('/'));
-
-						routeInfo.UrlObjectParameters = convertedFrontParams.Concat(routeInfo.UrlObjectParameters).ToArray();
-					}
+					//if (!string.IsNullOrEmpty(routeInfo.FrontLoadedParams))
+					//{
+					//  object[] convertedFrontParams = StringTypeConversion.ToObjectArray(routeInfo.FrontLoadedParams.Split('/'));
+					//
+					//  routeInfo.UrlObjectParameters = convertedFrontParams.Concat(routeInfo.UrlObjectParameters).ToArray();
+					//}
 
 					return routeInfo;
 				}
@@ -3680,6 +3671,39 @@ namespace Aurora
 			}
 			else
 			{
+				routeInfos = ApplicationInternals.AllRouteInfos(context);
+
+				alias = routeInfos.OrderByDescending(y => y.Alias).Where(x => path.StartsWith(x.Alias)).Select(x => x.Alias).FirstOrDefault();
+
+				if (!string.IsNullOrEmpty(alias))
+				{
+					urlStringParams = path.Replace(alias, string.Empty).Split('/').Where(x => !string.IsNullOrEmpty(x)).ToArray();
+
+					if (urlStringParams != null)
+						urlObjectParams = StringTypeConversion.ToObjectArray(urlStringParams);
+
+					postedFormModel = Model.DetermineModelFromPostedForm(context);
+
+					if (postedFormModel != null)
+					{
+						postedFormInfo = new PostedFormInfo(context, postedFormModel);
+
+						if (postedFormInfo.DataType != null)
+							((Model)postedFormInfo.DataTypeInstance).Validate(context, (Model)postedFormInfo.DataTypeInstance);
+					}
+				}
+
+				if (context.Request.RequestType == "PUT" || context.Request.RequestType == "DELETE")
+				{
+					RawPayload = new StreamReader(context.Request.InputStream).ReadToEnd();
+
+					Payload = RawPayload.Split(',')
+															.Select(x => x.Split('='))
+															.ToDictionary(x => x[0], x => x[1]);
+				}
+				else
+					Payload = null;
+
 				RouteInfo routeInfo = FindRoute(path);
 
 				if (routeInfo != null)
@@ -3849,8 +3873,8 @@ namespace Aurora
 
 			if ((!MainConfig.AuroraDebug) && (context.Application[MainConfig.RouteManagerSessionName] != null))
 			{
-			  routeManager = (IRouteManager)context.Application[MainConfig.RouteManagerSessionName];
-			  routeManager.Refresh(ctx);
+				routeManager = (IRouteManager)context.Application[MainConfig.RouteManagerSessionName];
+				routeManager.Refresh(ctx);
 			}
 			else
 			{
@@ -4452,7 +4476,7 @@ namespace Aurora
 
 		public override string ToString()
 		{
-			
+
 
 			return string.Format("<input type=\"checkbox\" id=\"{0}\" name=\"{1}\" class=\"{2}\" {3} {4} />", ID, Name, CssClass, Check, Enabled);
 		}
@@ -4808,7 +4832,9 @@ namespace Aurora
 				{
 					tokens.Remove(token);
 
-					context.Session[MainConfig.AntiForgeryTokenSessionName] = tokens;
+					context.Application.Lock();
+					context.Application[MainConfig.AntiForgeryTokenSessionName] = tokens;
+					context.Application.UnLock();
 				}
 			}
 		}
@@ -5232,6 +5258,9 @@ namespace Aurora
 
 		public void Init(HttpApplication app)
 		{
+			PagesSection pageSection = new PagesSection();
+			pageSection.ValidateRequest = false;
+
 			app.Error += new EventHandler(app_Error);
 		}
 
