@@ -948,16 +948,16 @@ namespace Aurora
 		static MainConfig()
 		{
 			MimeTypes = new Dictionary<string, string>()
-      {
-        { ".js",  "application/x-javascript" },  
-        { ".css", "text/css" },
-        { ".png", "image/png" },
-        { ".jpg", "image/jpg" },
-        { ".gif", "image/gif" },
-        { ".svg", "image/svg+xml" },
-        { ".ico", "image/x-icon" },
-        { ".txt", "text/plain" }
-      };
+			{
+				{ ".js",  "application/x-javascript" },  
+				{ ".css", "text/css" },
+				{ ".png", "image/png" },
+				{ ".jpg", "image/jpg" },
+				{ ".gif", "image/gif" },
+				{ ".svg", "image/svg+xml" },
+				{ ".ico", "image/x-icon" },
+				{ ".txt", "text/plain" }
+			};
 
 			if (WebConfig != null)
 			{
@@ -1523,12 +1523,12 @@ namespace Aurora
 	}
 
 #if OPENID
-  public class OpenAuthClaimsResponse
-  {
-    public string ClaimedIdentifier { get; internal set; }
-    public string FullName { get; internal set; }
-    public string Email { get; internal set; }
-  }
+	public class OpenAuthClaimsResponse
+	{
+		public string ClaimedIdentifier { get; internal set; }
+		public string FullName { get; internal set; }
+		public string Email { get; internal set; }
+	}
 #endif
 
 	public class SecurityManager
@@ -1555,109 +1555,109 @@ namespace Aurora
 		}
 
 #if OPENID
-    public static void LogonViaOpenAuth(HttpContextBase ctx, string identifier, Action<string> invalidLogon)
-    {
-      if (!Identifier.IsValid(identifier))
-      {
-        if (invalidLogon != null)
-          invalidLogon(MainConfig.OpenIDInvalidIdentifierError);
-      }
-      else
-      {
-        using (var openid = new OpenIdRelyingParty())
-        {
-          try
-          {
-            IAuthenticationRequest request = openid.CreateRequest(Identifier.Parse(identifier));
+		public static void LogonViaOpenAuth(HttpContextBase ctx, string identifier, Action<string> invalidLogon)
+		{
+			if (!Identifier.IsValid(identifier))
+			{
+				if (invalidLogon != null)
+					invalidLogon(MainConfig.OpenIDInvalidIdentifierError);
+			}
+			else
+			{
+				using (var openid = new OpenIdRelyingParty())
+				{
+					try
+					{
+						IAuthenticationRequest request = openid.CreateRequest(Identifier.Parse(identifier));
 
-            ctx.Session[MainConfig.OpenIdProviderUriSessionName] = request.Provider.Uri;
+						ctx.Session[MainConfig.OpenIdProviderUriSessionName] = request.Provider.Uri;
 
-            request.AddExtension(new ClaimsRequest
-            {
-              Email = DemandLevel.Require,
-              FullName = DemandLevel.Require,
-              Nickname = DemandLevel.Request
-            });
+						request.AddExtension(new ClaimsRequest
+						{
+							Email = DemandLevel.Require,
+							FullName = DemandLevel.Require,
+							Nickname = DemandLevel.Request
+						});
 
-            request.RedirectToProvider();
-          }
-          catch
-          {
-            throw;
-          }
-        }
-      }
-    }
+						request.RedirectToProvider();
+					}
+					catch
+					{
+						throw;
+					}
+				}
+			}
+		}
 
-    public static void FinalizeLogonViaOpenAuth(HttpContextBase ctx, Action<OpenAuthClaimsResponse> authenticated, Action<string> cancelled, Action<string> failed)
-    {
-      using (var openid = new OpenIdRelyingParty())
-      {
-        IAuthenticationResponse response = openid.GetResponse();
+		public static void FinalizeLogonViaOpenAuth(HttpContextBase ctx, Action<OpenAuthClaimsResponse> authenticated, Action<string> cancelled, Action<string> failed)
+		{
+			using (var openid = new OpenIdRelyingParty())
+			{
+				IAuthenticationResponse response = openid.GetResponse();
 
-        if (response != null)
-        {
-          if (ctx.Session[MainConfig.OpenIdProviderUriSessionName] != null)
-          {
-            Uri providerUri = ctx.Session[MainConfig.OpenIdProviderUriSessionName] as Uri;
+				if (response != null)
+				{
+					if (ctx.Session[MainConfig.OpenIdProviderUriSessionName] != null)
+					{
+						Uri providerUri = ctx.Session[MainConfig.OpenIdProviderUriSessionName] as Uri;
 
-            if (providerUri != response.Provider.Uri)
-              throw new Exception(MainConfig.OpenIdProviderUriMismatchError);
-          }
-          else
-            throw new Exception(MainConfig.OpenIdProviderUriMismatchError);
+						if (providerUri != response.Provider.Uri)
+							throw new Exception(MainConfig.OpenIdProviderUriMismatchError);
+					}
+					else
+						throw new Exception(MainConfig.OpenIdProviderUriMismatchError);
 
-          switch (response.Status)
-          {
-            case AuthenticationStatus.Authenticated:
+					switch (response.Status)
+					{
+						case AuthenticationStatus.Authenticated:
 
-              ClaimsResponse claimsResponse = response.GetExtension<ClaimsResponse>();
+							ClaimsResponse claimsResponse = response.GetExtension<ClaimsResponse>();
 
-              if (claimsResponse != null)
-              {
-                if (string.IsNullOrEmpty(claimsResponse.Email))
-                  throw new Exception(MainConfig.OpenIDProviderClaimsResponseError);
+							if (claimsResponse != null)
+							{
+								if (string.IsNullOrEmpty(claimsResponse.Email))
+									throw new Exception(MainConfig.OpenIDProviderClaimsResponseError);
 
-                OpenAuthClaimsResponse openAuthClaimsResponse = new OpenAuthClaimsResponse()
-                {
-                  Email = claimsResponse.Email,
-                  FullName = claimsResponse.FullName,
-                  ClaimedIdentifier = response.ClaimedIdentifier
-                };
+								OpenAuthClaimsResponse openAuthClaimsResponse = new OpenAuthClaimsResponse()
+								{
+									Email = claimsResponse.Email,
+									FullName = claimsResponse.FullName,
+									ClaimedIdentifier = response.ClaimedIdentifier
+								};
 
-                ctx.Session[MainConfig.OpenIdClaimsResponseSessionName] = openAuthClaimsResponse;
+								ctx.Session[MainConfig.OpenIdClaimsResponseSessionName] = openAuthClaimsResponse;
 
-                if (authenticated != null)
-                  authenticated(openAuthClaimsResponse);
-              }
-              break;
+								if (authenticated != null)
+									authenticated(openAuthClaimsResponse);
+							}
+							break;
 
-            case AuthenticationStatus.Canceled:
-              if (cancelled != null)
-                cancelled(MainConfig.OpenIDLoginCancelledByProviderError);
-              break;
+						case AuthenticationStatus.Canceled:
+							if (cancelled != null)
+								cancelled(MainConfig.OpenIDLoginCancelledByProviderError);
+							break;
 
-            case AuthenticationStatus.Failed:
-              if (failed != null)
-                failed(MainConfig.OpenIDLoginFailedError);
-              break;
-          }
-        }
-      }
-    }
+						case AuthenticationStatus.Failed:
+							if (failed != null)
+								failed(MainConfig.OpenIDLoginFailedError);
+							break;
+					}
+				}
+			}
+		}
 
-    /// <summary>
-    /// Gets an open auth claims response so we can identify who logged on.
-    /// </summary>
-    /// <param name="ctx"></param>
-    /// <returns></returns>
-    public static OpenAuthClaimsResponse GetOpenAuthClaimsResponse(HttpContextBase ctx)
-    {
-      if (ctx.Session[MainConfig.OpenIdClaimsResponseSessionName] != null)
-        return ctx.Session[MainConfig.OpenIdClaimsResponseSessionName] as OpenAuthClaimsResponse;
+		/// <summary>
+		/// Gets an open auth claims response so we can identify who logged on.
+		/// </summary>
+		/// <param name="ctx"></param>
+		/// <returns></returns>
+		public static OpenAuthClaimsResponse GetOpenAuthClaimsResponse(HttpContextBase ctx)
+		{
+			if (ctx.Session[MainConfig.OpenIdClaimsResponseSessionName] != null)
+				return ctx.Session[MainConfig.OpenIdClaimsResponseSessionName] as OpenAuthClaimsResponse;
 
-      return null;
-    }
+			return null;
+		}
 #endif
 
 		public static string Logon(HttpContextBase ctx, string id)
@@ -1996,14 +1996,21 @@ namespace Aurora
 								if (get != null || fro != null || post != null || put != null || delete != null)
 									routeInfo.IsFiltered = false;
 
-								if (get != null)
+								if (fro != null)
+								{
 									routeInfo.RequestType = "GET";
-								else if (post != null)
-									routeInfo.RequestType = "POST";
-								else if (put != null)
-									routeInfo.RequestType = "PUT";
-								else if (delete != null)
-									routeInfo.RequestType = "DELETE";
+								}
+								else
+								{
+									if (get != null)
+										routeInfo.RequestType = "GET";
+									else if (post != null)
+										routeInfo.RequestType = "POST";
+									else if (put != null)
+										routeInfo.RequestType = "PUT";
+									else if (delete != null)
+										routeInfo.RequestType = "DELETE";
+								}
 
 								routes.Add(routeInfo);
 								#endregion
@@ -3326,9 +3333,6 @@ namespace Aurora
 		public string Path { get; set; }
 		public string FrontLoadedParams { get; set; }
 
-		//public object[] UrlObjectParameters { get; set; }
-		//public string[] UrlStringParameters { get; set; }
-
 		public object[] ActionParameters { get; set; }
 		public bool IsFiltered { get; set; }
 		public bool Dynamic { get; set; }
@@ -3453,9 +3457,6 @@ namespace Aurora
 			if (Form[MainConfig.AntiForgeryTokenName] != null)
 				Form.Remove(MainConfig.AntiForgeryTokenName);
 
-			//context.Request.ValidateInput();
-			//string rawURL = context.Request.RawUrl;
-
 			string incomingPath = context.Request.Path;
 
 			if (string.Equals(incomingPath, "/") ||
@@ -3475,8 +3476,6 @@ namespace Aurora
 			//
 			// Actions map like this: ViewResult ActionName(bound_parameters, front_params, url_parameters, form_parameters / (HTTP Put/Delete) payload, files)
 			//
-
-			//FIXME: From redirect only seems to be broke!!!! ARGH!!!
 
 			if (!MainConfig.PathTokenRE.IsMatch(path)) return null;
 
@@ -3548,9 +3547,6 @@ namespace Aurora
 				if (context.Request.Files.Count > 0)
 					context.Request.Files.CopyTo(actionParameters, totalParamLength);
 				#endregion
-
-				if (totalParamLength < routeInfo.Action.GetParameters().Count())
-					continue;
 
 				Type[] actionParameterTypes = actionParameters.Select(x => (x != null) ? x.GetType() : null).ToArray();
 				Type[] methodParamTypes = routeInfo.Action.GetParameters().Select(x => x.ParameterType).ToArray();
@@ -3643,15 +3639,6 @@ namespace Aurora
 
 					routeInfo.ActionParameters = actionParameters;
 					routeInfo.Path = path;
-					//routeInfo.UrlStringParameters = urlStringParams;
-					//routeInfo.UrlObjectParameters = urlObjectParams;
-
-					//if (!string.IsNullOrEmpty(routeInfo.FrontLoadedParams))
-					//{
-					//  object[] convertedFrontParams = StringTypeConversion.ToObjectArray(routeInfo.FrontLoadedParams.Split('/'));
-					//
-					//  routeInfo.UrlObjectParameters = convertedFrontParams.Concat(routeInfo.UrlObjectParameters).ToArray();
-					//}
 
 					return routeInfo;
 				}
@@ -3836,7 +3823,7 @@ namespace Aurora
 
 				if (!routeInfo.IsFiltered)
 				{
-					if (routeInfo.Dynamic && context.Session[MainConfig.FromRedirectOnlySessionFlag] != null)
+					if (routeInfo.Dynamic && context.Session[MainConfig.FromRedirectOnlySessionFlag] == null)
 						return null;
 
 					object _result = routeInfo.Action.Invoke(routeInfo.ControllerInstance, routeInfo.ActionParameters);
