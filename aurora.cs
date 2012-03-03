@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC micro web framework for .NET
 //
-// Updated On: 1 March 2012
+// Updated On: 2 March 2012
 //
 // Contact Info:
 //
@@ -667,7 +667,6 @@
 // DefaultRoute="/Home/Index" 
 // Debug="true"
 // StaticFileExtWhiteList="\.(js|png|jpg|gif|ico|css|txt|swf)$"
-// ApplicationMountPoint="/Some/Path/Here"
 // EncryptionKey="Encryption Key"
 //
 // If you would like to perform basic Active Directory searching for user
@@ -790,7 +789,7 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyProduct("Aurora")]
 [assembly: AssemblyCopyright("Copyright © 2012")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.99.32.*")]
+[assembly: AssemblyVersion("1.99.33.*")]
 #endregion
 
 namespace Aurora
@@ -870,11 +869,11 @@ namespace Aurora
 			get { return this["StaticFileExtWhiteList"] as string; }
 		}
 
-		[ConfigurationProperty("ApplicationMountPoint", DefaultValue = "", IsRequired = false)]
-		public string ApplicationMountPoint
-		{
-			get { return this["ApplicationMountPoint"] as string; }
-		}
+		//[ConfigurationProperty("ApplicationMountPoint", DefaultValue = "", IsRequired = false)]
+		//public string ApplicationMountPoint
+		//{
+		//  get { return this["ApplicationMountPoint"] as string; }
+		//}
 
 		[ConfigurationProperty("DefaultRoute", DefaultValue = "/Home/Index", IsRequired = false)]
 		public string DefaultRoute
@@ -991,7 +990,7 @@ namespace Aurora
 		public static Regex PathTokenRE = new Regex(@"/(?<token>[a-zA-Z0-9]+)");
 		public static Regex PathStaticFileRE = (WebConfig == null) ? new Regex(@"\.(js|css|png|jpg|gif|svg|ico|txt)$") : new Regex(WebConfig.StaticFileExtWhiteList);
 		public static Dictionary<string, string> MimeTypes;
-		public static string ApplicationMountPoint = (WebConfig == null) ? string.Empty : WebConfig.ApplicationMountPoint;
+		//public static string ApplicationMountPoint = (WebConfig == null) ? string.Empty : WebConfig.ApplicationMountPoint;
 		public static string FromRedirectOnlySessionFlag = "__FROFlag";
 		public static string RouteManagerSessionName = "__RouteManager";
 		public static string RoutesSessionName = "__Routes";
@@ -1087,7 +1086,7 @@ namespace Aurora
 		None
 	}
 
-	[AttributeUsage(AttributeTargets.Property)]
+	[AttributeUsage(AttributeTargets.All)]
 	public class DescriptiveNameAttribute : Attribute
 	{
 		internal string Name { get; set; }
@@ -1228,13 +1227,13 @@ namespace Aurora
 	#endregion
 
 	#region ERROR HANDLER
-	[AttributeUsage(/*AttributeTargets.Method |*/ AttributeTargets.Class)]
-	public class ErrorAttribute : Attribute
-	{
-		public ErrorAttribute()
-		{
-		}
-	}
+	//[AttributeUsage(/*AttributeTargets.Method |*/ AttributeTargets.Class)]
+	//public class ErrorAttribute : Attribute
+	//{
+	//  public ErrorAttribute()
+	//  {
+	//  }
+	//}
 	#endregion
 
 	#region MODEL VALIDATION
@@ -2088,7 +2087,7 @@ namespace Aurora
 					throw new Exception(MainConfig.OnlyOneCustomErrorClassPerApplicationError);
 
 				if (customErrors.Count == 1)
-					return CustomError.CreateInstance(customErrors[0], context);
+					return CustomError.CreateInstance(customErrors[0], new AuroraViewEngine(context, context.Server.MapPath(MainConfig.ViewRoot), new AuroraViewEngineHelper(context)), context);
 			}
 
 			return null;
@@ -2786,6 +2785,16 @@ namespace Aurora
 			return null;
 		}
 
+		public static string GetDescriptiveName(this Enum e)
+		{
+			DescriptiveNameAttribute dna = (DescriptiveNameAttribute)e.GetType().GetField(e.ToString()).GetCustomAttributes(false).FirstOrDefault(x => x is DescriptiveNameAttribute);
+
+			if (dna != null)
+			  return dna.Name;
+
+			return null;
+		}
+
 		public static string GetUniqueID(this Enum e)
 		{
 			UniqueIDAttribute uid = (UniqueIDAttribute)e.GetType().GetField(e.ToString()).GetCustomAttributes(false).FirstOrDefault(x => x is UniqueIDAttribute);
@@ -3434,8 +3443,6 @@ namespace Aurora
 		private PostedFormInfo postedFormInfo;
 		private Type postedFormModel;
 
-		private NameValueCollection Form;
-
 		private string RawPayload;
 		private Dictionary<string, string> Payload;
 
@@ -3452,11 +3459,6 @@ namespace Aurora
 		{
 			context = ctx;
 
-			Form = new NameValueCollection(context.Request.Form);
-
-			if (Form[MainConfig.AntiForgeryTokenName] != null)
-				Form.Remove(MainConfig.AntiForgeryTokenName);
-
 			string incomingPath = context.Request.Path;
 
 			if (string.Equals(incomingPath, "/") ||
@@ -3465,8 +3467,8 @@ namespace Aurora
 			else
 				path = (context.Request.Path.EndsWith("/")) ? context.Request.Path.Remove(context.Request.Path.Length - 1) : context.Request.Path;
 
-			if (MainConfig.ApplicationMountPoint.Length > 0)
-				path = path.Replace(MainConfig.ApplicationMountPoint, string.Empty);
+			//if (MainConfig.ApplicationMountPoint.Length > 0)
+			//  path = path.Replace(MainConfig.ApplicationMountPoint, string.Empty);
 
 			context.RewritePath(path);
 		}
@@ -3481,6 +3483,11 @@ namespace Aurora
 
 			object[] actionParameters = null;
 			object[] formOrPutDeleteParams = null;
+
+			NameValueCollection Form = new NameValueCollection(context.Request.Form);
+
+			if (Form[MainConfig.AntiForgeryTokenName] != null)
+				Form.Remove(MainConfig.AntiForgeryTokenName);
 
 			int urlParamLength = (urlObjectParams != null) ? urlObjectParams.Length : 0;
 
@@ -3547,6 +3554,8 @@ namespace Aurora
 				if (context.Request.Files.Count > 0)
 					context.Request.Files.CopyTo(actionParameters, totalParamLength);
 				#endregion
+
+				if (totalParamLength < routeInfo.Action.GetParameters().Count()) continue;
 
 				Type[] actionParameterTypes = actionParameters.Select(x => (x != null) ? x.GetType() : null).ToArray();
 				Type[] methodParamTypes = routeInfo.Action.GetParameters().Select(x => x.ParameterType).ToArray();
@@ -3942,8 +3951,8 @@ namespace Aurora
 	public abstract class CustomError
 	{
 		public Exception Exception { get; private set; }
-
 		public HttpContextBase Context { get; private set; }
+		public IViewEngine viewEngine { get; private set; }
 
 		public readonly Dictionary<string, string> ViewTags;
 
@@ -3952,13 +3961,14 @@ namespace Aurora
 			ViewTags = new Dictionary<string, string>();
 		}
 
-		internal static CustomError CreateInstance(Type t, HttpContextBase context)
+		internal static CustomError CreateInstance(Type t, IViewEngine viewEngine, HttpContextBase context)
 		{
 			if (t.BaseType == typeof(CustomError))
 			{
 				CustomError ce = (CustomError)Activator.CreateInstance(t);
 
 				ce.Context = context;
+				ce.viewEngine = viewEngine;
 
 				return ce;
 			}
@@ -3966,22 +3976,21 @@ namespace Aurora
 			return null;
 		}
 
-		//public static void HandleError(HttpContextBase context, Exception e)
-		//{
-		//  CustomError customError = ApplicationInternals.GetCustomError(context, e);
-
-		//  if (customError != null)
-		//  {
-		//    customError.Exception = context.Server.GetLastError();
-		//    customError.Error(null, customError.Exception);
-		//  }
-
-		//  throw new NullReferenceException(MainConfig.CustomErrorNullExceptionError);
-		//}
-
 		public virtual ViewResult Error(string message, Exception e)
 		{
 			return View();
+		}
+
+		public string RenderFragment(string fragmentName, Dictionary<string, string> tags)
+		{
+			viewEngine.LoadView(fragmentName, tags);
+
+			return viewEngine[fragmentName];
+		}
+
+		public string RenderFragment(string fragmentName)
+		{
+			return RenderFragment(fragmentName, null);
 		}
 
 		public ViewResult View()
