@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC micro web framework for .NET
 //
-// Updated On: 2 March 2012
+// Updated On: 3 March 2012
 //
 // Contact Info:
 //
@@ -790,7 +790,7 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyProduct("Aurora")]
 [assembly: AssemblyCopyright("Copyright © 2012")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.99.33.*")]
+[assembly: AssemblyVersion("1.99.34.*")]
 #endregion
 
 namespace Aurora
@@ -2405,6 +2405,13 @@ namespace Aurora
 		public Controller()
 		{
 			ViewTags = new Dictionary<string, string>();
+
+			Controller_PreOrPostActionEvent += Controller_Controller_PreOrPostActionEvent;
+		}
+
+		private void Controller_Controller_PreOrPostActionEvent(object sender, ActionHandlerEventArgs e)
+		{
+			
 		}
 
 		protected virtual void Controller_OnInit() { }
@@ -2828,18 +2835,20 @@ namespace Aurora
 			return null;
 		}
 
-		// This code was adapted to work with FileInfo but was originally from the following question on SO:
+		// This code was adapted to work with FileInfo/DirectoryInfo but was originally from the following question on SO:
 		//
 		// http://stackoverflow.com/questions/929276/how-to-recursively-list-all-the-files-in-a-directory-in-c
-		public static IEnumerable<FileInfo> GetAllFiles(this DirectoryInfo di, string path)
+		public static IEnumerable<FileInfo> GetAllFiles(this DirectoryInfo di)
 		{
+			string path = di.FullName;
+
 			Queue<string> queue = new Queue<string>();
 			queue.Enqueue(path);
 			while (queue.Count > 0)
 			{
 				path = queue.Dequeue();
 				try
-				{
+				{ 
 					foreach (string subDir in Directory.GetDirectories(path))
 					{
 						queue.Enqueue(subDir);
@@ -2919,9 +2928,9 @@ namespace Aurora
 
 		public void AddDirectory(string dirPath, string fileExtension, string bundleName)
 		{
-			DirectoryInfo di = null;
+			DirectoryInfo di = new DirectoryInfo(context.Server.MapPath(dirPath));
 
-			var files = di.GetAllFiles(context.Server.MapPath(dirPath)).Where(x => x.Extension == fileExtension);
+			var files = di.GetAllFiles().Where(x => x.Extension == fileExtension);
 
 			foreach (FileInfo file in files)
 				bundleInfos.Add(new BundleInfo() { BundleName = bundleName, FileInfo = file });
@@ -5010,13 +5019,16 @@ namespace Aurora
 
 		private void LoadTemplates(string path)
 		{
-			foreach (FileInfo fi in GetFiles(path).Where(x => x.Directory.Name != MainConfig.FragmentsFolderName))
+			List<FileInfo> foo = new DirectoryInfo(path).GetAllFiles().Where(x => x.Directory.Name != MainConfig.FragmentsFolderName).ToList();
+
+			foreach (FileInfo fi in new DirectoryInfo(path).GetAllFiles().Where(x => x.Directory.Name != MainConfig.FragmentsFolderName))
 			{
 				using (StreamReader sr = new StreamReader(fi.OpenRead()))
 				{
 					string template = sr.ReadToEnd();
 					string viewKeyName = string.Format("{0}/{1}", fi.Directory.Name, fi.Name.Replace(fi.Extension, string.Empty));
 
+					//if(!templateInfo.Views.RawTemplates.ContainsKey(viewKeyName))
 					templateInfo.Views.RawTemplates.Add(viewKeyName, new StringBuilder(template));
 				}
 			}
@@ -5024,7 +5036,7 @@ namespace Aurora
 
 		private void LoadFragments(string path)
 		{
-			foreach (FileInfo fi in GetFiles(path).Where(x => x.Directory.Name == MainConfig.FragmentsFolderName))
+			foreach (FileInfo fi in new DirectoryInfo(path).GetAllFiles().Where(x => x.Directory.Name == MainConfig.FragmentsFolderName))
 			{
 				using (StreamReader sr = new StreamReader(fi.OpenRead()))
 				{
@@ -5032,47 +5044,6 @@ namespace Aurora
 					string fragmentKeyName = fi.Name.Replace(fi.Extension, string.Empty);
 
 					templateInfo.Fragments.RawTemplates.Add(fragmentKeyName, new StringBuilder(fragment));
-				}
-			}
-		}
-
-		// This code was adapted to work with FileInfo but was originally from the following question on SO:
-		//
-		// http://stackoverflow.com/questions/929276/how-to-recursively-list-all-the-files-in-a-directory-in-c
-		private static IEnumerable<FileInfo> GetFiles(string path)
-		{
-			Queue<string> queue = new Queue<string>();
-			queue.Enqueue(path);
-			while (queue.Count > 0)
-			{
-				path = queue.Dequeue();
-				try
-				{
-					foreach (string subDir in Directory.GetDirectories(path))
-					{
-						queue.Enqueue(subDir);
-					}
-				}
-				catch (Exception ex)
-				{
-					Console.Error.WriteLine(ex);
-				}
-
-				FileInfo[] fileInfos = null;
-				try
-				{
-					fileInfos = new DirectoryInfo(path).GetFiles();
-				}
-				catch
-				{
-					throw;
-				}
-				if (fileInfos != null)
-				{
-					for (int i = 0; i < fileInfos.Length; i++)
-					{
-						yield return fileInfos[i];
-					}
 				}
 			}
 		}
