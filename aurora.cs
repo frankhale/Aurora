@@ -759,6 +759,7 @@ using System.IO.Compression;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Security;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Security.Principal;
@@ -942,8 +943,10 @@ namespace Aurora
 	#endregion
 
 	#region MAIN CONFIG
+	// This is an internal class, this does not expose an indirect security risk because of link demands.
+	[System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2141:TransparentMethodsMustNotSatisfyLinkDemandsFxCopRule")]
 	internal static class MainConfig
-	{
+	{		
 		static MainConfig()
 		{
 			MimeTypes = new Dictionary<string, string>()
@@ -1366,6 +1369,10 @@ namespace Aurora
 	{
 		private static string GLOBAL_CATALOG = string.Format("GC://{0}", MainConfig.ADSearchDomain);
 
+		//NOTE: This is does not pose a security risk because of indirect exposing of methods with link demands. A user of this
+		//      class cannot call into Active Directory without specifying a username and password with access to the directory.
+
+		[System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2122:DoNotIndirectlyExposeMethodsWithLinkDemands")]
 		internal static ActiveDirectoryUser LookupUser(ActiveDirectorySearchType searchType, string data, bool global)
 		{
 			if (string.IsNullOrEmpty(MainConfig.ADSearchUser) || string.IsNullOrEmpty(MainConfig.ADSearchPW))
@@ -1433,6 +1440,7 @@ namespace Aurora
 			return LookupUser(ActiveDirectorySearchType.EMAIL, email, global);
 		}
 
+		[System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2122:DoNotIndirectlyExposeMethodsWithLinkDemands")]
 		private static ActiveDirectoryUser GetUser(DirectoryEntry de)
 		{
 			return new ActiveDirectoryUser()
@@ -1451,6 +1459,7 @@ namespace Aurora
 			};
 		}
 
+		[System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2122:DoNotIndirectlyExposeMethodsWithLinkDemands")]
 		private static List<string> GetProxyAddresses(DirectoryEntry user)
 		{
 			List<string> addresses = new List<string>();
@@ -2348,6 +2357,22 @@ namespace Aurora
 	#endregion
 
 	#region CONTROLLER
+	public enum ActionHandlerEventType
+	{
+		Pre,
+		Post
+	}
+
+	public class ActionHandlerEventArgs : EventArgs
+	{
+		public ActionHandlerEventType EventType { get; private set; }
+
+		public ActionHandlerEventArgs(ActionHandlerEventType t)
+		{
+			EventType = t;
+		}
+	}
+
 	public abstract class Controller
 	{
 		public HttpContextBase Context;
@@ -2366,7 +2391,7 @@ namespace Aurora
 		protected NameValueCollection Form { get; set; }
 		protected NameValueCollection QueryString { get; set; }
 
-		public delegate void Controller_PreOrPostActionHandler();
+		public delegate void Controller_PreOrPostActionDelegate(object sender, ActionHandlerEventArgs e);
 
 		// Used in RaiseEvent to determine which event to raise during route determination and execution
 		internal enum PreOrPostActionType
@@ -2375,19 +2400,13 @@ namespace Aurora
 			After
 		}
 
-		public event Controller_PreOrPostActionHandler Controller_BeforeAction;
-		public event Controller_PreOrPostActionHandler Controller_AfterAction;
+		public event Controller_PreOrPostActionDelegate Controller_PreOrPostActionEvent;
 
 		public Controller()
 		{
 			ViewTags = new Dictionary<string, string>();
-
-			Controller_AfterAction += new Controller_PreOrPostActionHandler(Controller_AfterActionHandler);
-			Controller_BeforeAction += new Controller_PreOrPostActionHandler(Controller_BeforeActionHandler);
 		}
 
-		protected virtual void Controller_BeforeActionHandler() { }
-		protected virtual void Controller_AfterActionHandler() { }
 		protected virtual void Controller_OnInit() { }
 
 		internal void RaiseEvent(PreOrPostActionType type)
@@ -2395,11 +2414,11 @@ namespace Aurora
 			switch (type)
 			{
 				case PreOrPostActionType.Before:
-					Controller_BeforeAction();
+					Controller_PreOrPostActionEvent(this, new ActionHandlerEventArgs(ActionHandlerEventType.Pre));
 					break;
 
 				case PreOrPostActionType.After:
-					Controller_AfterAction();
+					Controller_PreOrPostActionEvent(this, new ActionHandlerEventArgs(ActionHandlerEventType.Post));
 					break;
 			}
 		}

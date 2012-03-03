@@ -42,6 +42,17 @@ Changelog:
   fragments.
 - Added an extension method to retrieve DescriptiveName attributes from enums.
 - Did a little code cleanup in the route manager.
+- Used FxCop to identify issues and I've resolved them. I've added some suppresion
+  attributes to suppress warnings about indirectly exposing methods that have link
+	demands. These occurred on the internal MainConfig class pertaining to a method
+	that exposed a web.config section. This class is only used internally so in 
+	theory it should not pose a risk. There were a few other issues that were reported 
+	pertaining to Active Directory lookup methods. A user of this class cannot exploit
+	security because s/he would have to pass a username and password of a user that has
+	access to Active Directory in order to perform AD searches in order to succeed.
+- Fixed issue identified by FxCop with the Pre/Post action handler being declared
+  incorrectly. I was declaring these events in a non-standard way. I have refactored
+	that code to declare and call the event in the standard way.
 
 1 March 2012
 
