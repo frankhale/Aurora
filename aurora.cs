@@ -776,7 +776,7 @@ using Newtonsoft.Json;
 using System.DirectoryServices;
 #endif
 
-#if OPENID 
+#if OPENID
 using DotNetOpenAuth.OpenId;
 using DotNetOpenAuth.OpenId.Extensions.SimpleRegistration;
 using DotNetOpenAuth.OpenId.RelyingParty;
@@ -876,6 +876,12 @@ namespace Aurora
 		//  get { return this["ApplicationMountPoint"] as string; }
 		//}
 
+		[ConfigurationProperty("ValidateRequest", DefaultValue = true, IsRequired = false)]
+		public bool ValidateRequest
+		{
+			get { return Convert.ToBoolean(this["ValidateRequest"]); }
+		}
+
 		[ConfigurationProperty("DefaultRoute", DefaultValue = "/Home/Index", IsRequired = false)]
 		public string DefaultRoute
 		{
@@ -946,7 +952,7 @@ namespace Aurora
 	// This is an internal class, this does not expose an indirect security risk because of link demands.
 	[System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2141:TransparentMethodsMustNotSatisfyLinkDemandsFxCopRule")]
 	internal static class MainConfig
-	{		
+	{
 		static MainConfig()
 		{
 			MimeTypes = new Dictionary<string, string>()
@@ -973,6 +979,7 @@ namespace Aurora
 		public static WebConfig WebConfig = ConfigurationManager.GetSection("Aurora") as WebConfig;
 		public static CustomErrorsSection CustomErrorsSection = ConfigurationManager.GetSection("system.web/customErrors") as CustomErrorsSection;
 		//public static PagesSection PageSection = System.Configuration.ConfigurationManager.GetSection("system.web/pages") as PagesSection;
+		public static bool ValidateRequest = (MainConfig.WebConfig == null) ? true : WebConfig.ValidateRequest;
 		public static string RouteManager = (MainConfig.WebConfig == null) ? "DefaultRouteManager" : WebConfig.RouteManager;
 		public static string[] SupportedRouteManagers = { "DefaultRouteManager" };
 		public static string[] SupportedHttpVerbs = { "GET", "POST", "PUT", "DELETE" };
@@ -1823,6 +1830,13 @@ namespace Aurora
 	#endregion
 
 	#region APPLICATION INTERNALS
+	internal class ActionInfo
+	{
+		public Type ControllerType { get; set; }
+		public MethodInfo ActionMethod { get; set; }
+		public Attribute Attribute { get; set; }
+	}
+
 	internal static class ApplicationInternals
 	{
 		private static List<Type> GetTypeList(HttpContextBase context, string sessionName, Type t)
@@ -1894,11 +1908,9 @@ namespace Aurora
 			return GetTypeList(context, MainConfig.ModelsSessionName, typeof(Model));
 		}
 
-		public static List<string> AllRoutableActionNames(HttpContextBase context, string controllerName)
+		private static IEnumerable<ActionInfo> GetAllActionInfos(HttpContextBase context)
 		{
-			List<string> routableActionNames = new List<string>();
-
-			foreach (Type c in AllControllers(context).Where(x => x.Name == controllerName))
+			foreach (Type c in AllControllers(context))//.Where(x => x.Name == controllerName))
 			{
 				foreach (MethodInfo mi in c.GetMethods())
 				{
@@ -1908,7 +1920,7 @@ namespace Aurora
 								(a is HttpPostAttribute) ||
 								(a is HttpPutAttribute) ||
 								(a is HttpDeleteAttribute) ||
-							(a is FromRedirectOnlyAttribute))
+								(a is FromRedirectOnlyAttribute))
 						{
 							HttpGetAttribute get = (a as HttpGetAttribute);
 							HttpPostAttribute post = (a as HttpPostAttribute);
@@ -1918,11 +1930,21 @@ namespace Aurora
 
 							if ((get != null) || (fro != null) || (post != null) || (put != null) || (delete != null))
 							{
-								routableActionNames.Add(mi.Name);
+								yield return new ActionInfo() { ControllerType = c, ActionMethod = mi, Attribute = a };
 							}
 						}
 					}
 				}
+			}
+		}
+
+		public static List<string> AllRoutableActionNames(HttpContextBase context, string controllerName)
+		{
+			List<string> routableActionNames = new List<string>();
+
+			foreach (ActionInfo ai in GetAllActionInfos(context).Where(x => x.ControllerType.Name == controllerName))
+			{
+				routableActionNames.Add(ai.ActionMethod.Name);
 			}
 
 			if (routableActionNames.Count() > 0) return routableActionNames;
@@ -1966,66 +1988,54 @@ namespace Aurora
 					}
 					#endregion
 
-					#region CREATE ROUTES
-					foreach (MethodInfo mi in c.GetMethods())
+					foreach (ActionInfo ai in GetAllActionInfos(context).Where(x => x.ControllerType.Name == c.Name))
 					{
-						foreach (Attribute a in mi.GetCustomAttributes(false))
+						alias.Length = 0;
+						alias.Insert(0, (ai.Attribute as RequestTypeAttribute).RouteAlias);
+
+						#region CREATE NEW ROUTE
+						HttpGetAttribute get = (ai.Attribute as HttpGetAttribute);
+						HttpPostAttribute post = (ai.Attribute as HttpPostAttribute);
+						HttpPutAttribute put = (ai.Attribute as HttpPutAttribute);
+						HttpDeleteAttribute delete = (ai.Attribute as HttpDeleteAttribute);
+						FromRedirectOnlyAttribute fro = (ai.Attribute as FromRedirectOnlyAttribute);
+
+						RouteInfo routeInfo = new RouteInfo()
 						{
-							if ((a is HttpGetAttribute) ||
-									(a is HttpPostAttribute) ||
-									(a is FromRedirectOnlyAttribute) ||
-									(a is HttpPutAttribute) ||
-									(a is HttpDeleteAttribute))
-							{
-								alias.Length = 0;
-								alias.Insert(0, (a as RequestTypeAttribute).RouteAlias);
+							Alias = (!string.IsNullOrEmpty(alias.ToString())) ? alias.ToString() : string.Format("/{0}/{1}", c.Name, ai.ActionMethod.Name),
+							ControllerName = c.Name,
+							ControllerType = c,
+							ControllerInstance = ctrl,
+							Action = ai.ActionMethod,
+							ActionName = ai.ActionMethod.Name,
+							Bindings = new ActionBinder(context).GetBindings(c.Name, ai.ActionMethod.Name),
+							FromRedirectOnlyInfo = (fro != null) ? true : false,
+							Dynamic = (fro != null) ? true : false,
+							IsFiltered = true
+						};
 
-								#region CREATE NEW ROUTE
-								HttpGetAttribute get = (a as HttpGetAttribute);
-								HttpPostAttribute post = (a as HttpPostAttribute);
-								HttpPutAttribute put = (a as HttpPutAttribute);
-								HttpDeleteAttribute delete = (a as HttpDeleteAttribute);
-								FromRedirectOnlyAttribute fro = (a as FromRedirectOnlyAttribute);
+						if (get != null || fro != null || post != null || put != null || delete != null)
+							routeInfo.IsFiltered = false;
 
-								RouteInfo routeInfo = new RouteInfo()
-								{
-									Alias = (!string.IsNullOrEmpty(alias.ToString())) ? alias.ToString() : string.Format("/{0}/{1}", c.Name, mi.Name),
-									ControllerName = c.Name,
-									ControllerType = c,
-									ControllerInstance = ctrl,
-									Action = mi,
-									ActionName = mi.Name,
-									Bindings = new ActionBinder(context).GetBindings(c.Name, mi.Name),
-									FromRedirectOnlyInfo = (fro != null) ? true : false,
-									Dynamic = (fro != null) ? true : false,
-									IsFiltered = true
-								};
-
-								if (get != null || fro != null || post != null || put != null || delete != null)
-									routeInfo.IsFiltered = false;
-
-								if (fro != null)
-								{
-									routeInfo.RequestType = "GET";
-								}
-								else
-								{
-									if (get != null)
-										routeInfo.RequestType = "GET";
-									else if (post != null)
-										routeInfo.RequestType = "POST";
-									else if (put != null)
-										routeInfo.RequestType = "PUT";
-									else if (delete != null)
-										routeInfo.RequestType = "DELETE";
-								}
-
-								routes.Add(routeInfo);
-								#endregion
-							}
+						if (fro != null)
+						{
+							routeInfo.RequestType = "GET";
 						}
+						else
+						{
+							if (get != null)
+								routeInfo.RequestType = "GET";
+							else if (post != null)
+								routeInfo.RequestType = "POST";
+							else if (put != null)
+								routeInfo.RequestType = "PUT";
+							else if (delete != null)
+								routeInfo.RequestType = "DELETE";
+						}
+
+						routes.Add(routeInfo);
+						#endregion
 					}
-					#endregion
 				}
 				else
 				{
@@ -2411,7 +2421,7 @@ namespace Aurora
 
 		private void Controller_Controller_PreOrPostActionEvent(object sender, ActionHandlerEventArgs e)
 		{
-			
+
 		}
 
 		protected virtual void Controller_OnInit() { }
@@ -2816,7 +2826,7 @@ namespace Aurora
 			DescriptiveNameAttribute dna = (DescriptiveNameAttribute)e.GetType().GetField(e.ToString()).GetCustomAttributes(false).FirstOrDefault(x => x is DescriptiveNameAttribute);
 
 			if (dna != null)
-			  return dna.Name;
+				return dna.Name;
 
 			return null;
 		}
@@ -2848,7 +2858,7 @@ namespace Aurora
 			{
 				path = queue.Dequeue();
 				try
-				{ 
+				{
 					foreach (string subDir in Directory.GetDirectories(path))
 					{
 						queue.Enqueue(subDir);
@@ -3411,7 +3421,7 @@ namespace Aurora
 					{
 						string value = context.Request.Form[p.Name];
 
-						if (p.GetCustomAttributes(false).Where(x => x is SanitizeHTML) != null)
+						if (p.GetCustomAttributes(false).FirstOrDefault(x => x is SanitizeHTML) != null)
 							value = context.Request.Form[p.Name].StripHTML();
 
 						p.SetValue(DataTypeInstance, value, null);
@@ -3486,6 +3496,9 @@ namespace Aurora
 		public void Refresh(HttpContextBase ctx)
 		{
 			context = ctx;
+
+			if (MainConfig.ValidateRequest)
+				context.Request.ValidateInput();
 
 			string incomingPath = context.Request.Path;
 
@@ -3644,7 +3657,7 @@ namespace Aurora
 					{
 						if (actionParms[i].ParameterType == typeof(string))
 						{
-							if (actionParms[i].GetCustomAttributes(false).Where(x => x is SanitizeHTML) != null)
+							if (actionParms[i].GetCustomAttributes(false).FirstOrDefault(x => x is SanitizeHTML) != null)
 							{
 								actionParameters[i] = actionParameters[i].ToString().StripHTML();
 							}
@@ -3840,6 +3853,7 @@ namespace Aurora
 
 		private IAuroraResult InvokeAction(RouteInfo routeInfo)
 		{
+
 			if (routeInfo != null)
 			{
 				IAuroraResult result = null;
@@ -4882,7 +4896,7 @@ namespace Aurora
 	}
 	#endregion
 
-	#region AURORA VIEW ENGINE
+	#region VIEW ENGINE
 	public interface IViewEngine
 	{
 		void LoadView(string controllerName, string viewName, Dictionary<string, string> tags);
@@ -5028,7 +5042,6 @@ namespace Aurora
 					string template = sr.ReadToEnd();
 					string viewKeyName = string.Format("{0}/{1}", fi.Directory.Name, fi.Name.Replace(fi.Extension, string.Empty));
 
-					//if(!templateInfo.Views.RawTemplates.ContainsKey(viewKeyName))
 					templateInfo.Views.RawTemplates.Add(viewKeyName, new StringBuilder(template));
 				}
 			}
@@ -5245,7 +5258,7 @@ namespace Aurora
 		public void Init(HttpApplication app)
 		{
 			PagesSection pageSection = new PagesSection();
-			pageSection.ValidateRequest = false;
+			pageSection.ValidateRequest = MainConfig.ValidateRequest;
 
 			app.Error += new EventHandler(app_Error);
 		}

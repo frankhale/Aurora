@@ -34,6 +34,13 @@ Changelog:
 3 March 2012
 
 - Code cleanup
+- Added ValidateRequest to the Aurora web.config tag. Request validation is turned
+  on by default. What this means is that all HTML or potentially harmful characters
+	posted in strings will throw an exception. You can turn it off and then use 
+	[SanitizeHTML] attribute on action parameter strings and string properties in the
+	post models. At the moment this will simply use the HTML Agility Pack to strip
+	HTML. In the future the [SanitizeHTML] attribute will have more options to 
+	sanitize strings. It'll probably also get renamed to [Sanitize] at that point.
 
 2 March 2012
 
