@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC micro web framework for .NET
 //
-// Updated On: 3 March 2012
+// Updated On: 4 March 2012
 //
 // Contact Info:
 //
@@ -12,24 +12,27 @@
 // --- Feature List ---
 // --------------------
 //
-//  - MVC based
-//  - Simple tag based view engine with master pages and partial views as well
-//    as fragments
-//  - URL parameters bind to action method parameters automatically
-//  - Posted forms binds to post models or action parameters automatically
-//  - Actions can have bound parameters that are bound at runtime
-//  - Actions can be segregated based on HttpGet, HttpPost, HttpPut & HttpDelete 
-//    attributes and you can secure them with the Secure named parameter. 
-//    Actions without an attribute will not be invoked from a URL.
-//  - Actions can have aliases. Aliases can also be added dynamically at 
-//    runtime along with default parameters.
-//  - Built in OpenID authentication which is as easy as calling two methods. 
-//    One to initiate the login with the provider and then one to finalize 
-//    the authentication.
-//  - Built in Active Directory querying so you can authenticate your user 
-//    against an Active Directory user. Typically for use in client certificate
-//    authentication.
-//  - Bundling so Javascript and CSS can be combined and minified.
+// - MVC based 
+// - Simple tag based view engine with master pages and partial views as well as
+//   fragments 
+// - URL parameters bind to action method parameters automatically 
+// - Posted forms binds to post models or action parameters automatically 
+// - Actions can have bound parameters that are bound to actions at runtime
+// - Actions can be segregated based on HttpGet, HttpPost, HttpPut and 
+//   HttpDelete
+//   attributes and you can secure them with the Secure named parameter. Actions 
+//   without a designation will not be invoked from a URL.  
+// - Actions can have aliases. Aliases can also be added dynamically at runtime
+//   along with default parameters.
+// - Actions can be invoked on a special basis, they are designated with the
+//   [FromRedirectOnly] attribute.
+// - Built in OpenID authentication which is as easy as calling two methods. One 
+//	 to initiate the login with the provider and then one to finalize 
+//	 authentication.
+// - Built in Active Directory querying so you can authenticate your user 
+//	 against an Active Directory user. Typically for use in client certificate
+//   authentication.
+// - Bundling/Minifying of Javascript and CSS.
 //
 // ----------------
 // --- Building ---
@@ -790,7 +793,7 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyProduct("Aurora")]
 [assembly: AssemblyCopyright("Copyright © 2012")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.99.34.*")]
+[assembly: AssemblyVersion("1.99.35.*")]
 #endregion
 
 namespace Aurora
@@ -1117,7 +1120,28 @@ namespace Aurora
 	}
 
 	[AttributeUsage(AttributeTargets.Parameter | AttributeTargets.Property)]
-	public class SanitizeHTML : Attribute { }
+	public class SanitizeAttribute : Attribute
+	{
+		public bool StripHTML { get; set; }
+		public bool HTMLEncode { get; set; }
+
+		public SanitizeAttribute()
+		{
+			StripHTML = true;
+			HTMLEncode = true;
+		}
+
+		public string Sanitize(string value)
+		{
+			if (StripHTML)
+				value = value.StripHTML();
+
+			if (HTMLEncode)
+				value = HttpUtility.HtmlEncode(value);
+
+			return value;
+		}
+	}
 	#endregion
 
 	#region HTTP REQUEST
@@ -2416,10 +2440,10 @@ namespace Aurora
 		{
 			ViewTags = new Dictionary<string, string>();
 
-			Controller_PreOrPostActionEvent += Controller_Controller_PreOrPostActionEvent;
+			Controller_PreOrPostActionEvent += Controller_PreOrPostActionEventHandler;
 		}
 
-		private void Controller_Controller_PreOrPostActionEvent(object sender, ActionHandlerEventArgs e)
+		private void Controller_PreOrPostActionEventHandler(object sender, ActionHandlerEventArgs e)
 		{
 
 		}
@@ -3421,8 +3445,10 @@ namespace Aurora
 					{
 						string value = context.Request.Form[p.Name];
 
-						if (p.GetCustomAttributes(false).FirstOrDefault(x => x is SanitizeHTML) != null)
-							value = context.Request.Form[p.Name].StripHTML();
+						SanitizeAttribute sanitize = (SanitizeAttribute)p.GetCustomAttributes(false).FirstOrDefault(x => x is SanitizeAttribute);
+
+						if (sanitize != null)
+							sanitize.Sanitize(value);
 
 						p.SetValue(DataTypeInstance, value, null);
 					}
@@ -3650,17 +3676,17 @@ namespace Aurora
 
 				if (matches.Count() == methodParamTypes.Count())
 				{
-					#region DETERMINE IF ANY ACTION PARAMS HAVE [SanitizeHTML] ATTRIBUTES
+					#region DETERMINE IF ANY ACTION PARAMS HAVE [Sanitize] ATTRIBUTES
 					ParameterInfo[] actionParms = routeInfo.Action.GetParameters();
 
 					for (int i = 0; i < actionParms.Length; i++)
 					{
 						if (actionParms[i].ParameterType == typeof(string))
 						{
-							if (actionParms[i].GetCustomAttributes(false).FirstOrDefault(x => x is SanitizeHTML) != null)
-							{
-								actionParameters[i] = actionParameters[i].ToString().StripHTML();
-							}
+							SanitizeAttribute sanitize = (SanitizeAttribute)actionParms[i].GetCustomAttributes(false).FirstOrDefault(x => x is SanitizeAttribute);
+
+							if (sanitize != null)
+								sanitize.Sanitize(actionParameters[i].ToString());
 						}
 					}
 					#endregion
@@ -4093,6 +4119,7 @@ namespace Aurora
 	//TODO: All of the areas where I'm using these Func<> lambda params stuff to add name=value pairs to HTML tags need to have...
 	//      complimentary methods that also use a dictionary.
 
+	#region ABSTRACT BASE HELPER
 	public abstract class HTMLBase
 	{
 		protected Func<string, string>[] Attribs;
@@ -4118,6 +4145,7 @@ namespace Aurora
 			return sb.ToString().Trim();
 		}
 	}
+	#endregion
 
 	#region HTMLTABLE HELPER
 	internal enum ColumnTransformType
@@ -4246,6 +4274,8 @@ namespace Aurora
 					{
 						if (pn.Op == DescriptiveNameOperation.SplitCamelCase)
 						{
+							//FIXME: This operation needs to be placed inside the DescriptiveNameAttribute.
+							//
 							// REGEX comes from this StackOverflow question answer:
 							//
 							// http://stackoverflow.com/questions/155303/net-how-can-you-split-a-caps-delimited-string-into-an-array
@@ -4361,6 +4391,7 @@ namespace Aurora
 	}
 	#endregion
 
+	#region MISC HELPERS
 	public class HTMLAnchor : HTMLBase
 	{
 		private string Url;
@@ -4537,6 +4568,7 @@ namespace Aurora
 			return string.Format("<img src=\"{0}\" {1}/>", Src, CondenseAttribs());
 		}
 	}
+	#endregion
 	#endregion
 
 	#region VIEW RESULTS

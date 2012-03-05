@@ -4,7 +4,7 @@ NOTE: See source code comments for usage.
 
 Frank Hale <frankhale@gmail.com>
 
-Date: 3 March 2012
+Date: 4 March 2012
 
 --------------------
 --- Feature List ---
@@ -15,32 +15,39 @@ Date: 3 March 2012
   fragments 
 - URL parameters bind to action method parameters automatically 
 - Posted forms binds to post models or action parameters automatically 
-- Actions can have bound parameters that are bound at runtime
-- Actions can be segregated based on HttpGet, HttpPost attributes and you can
-  secure them with the Secure named parameter. Actions without a designation
-  will not be invoked from a URL.  
+- Actions can have bound parameters that are bound to actions at runtime
+- Actions can be segregated based on HttpGet, HttpPost, HttpPut and HttpDelete
+  attributes and you can secure them with the Secure named parameter. Actions 
+	without a designation will not be invoked from a URL.  
 - Actions can have aliases. Aliases can also be added dynamically at runtime
   along with default parameters.
+- Actions can be invoked on a special basis, they are designated with the
+  [FromRedirectOnly] attribute.
 - Built in OpenID authentication which is as easy as calling two methods. One to
-  initiate the login with the provider and then one to finalize the
-  authentication.
+  initiate the login with the provider and then one to finalize authentication.
 - Built in Active Directory querying so you can authenticate your user against
   an Active Directory user. Typically for use in client certificate
   authentication.
-- Bundling so Javascript and CSS can be combined and minified.
+- Bundling/Minifying of Javascript and CSS.
  
 Changelog:
+
+4 March 2012
+
+- Changed the [SanitizeHTML] attribute to [Sanitize] and it's gained the ability
+  to strip HTML or perform an HTML encode.
 
 3 March 2012
 
 - Code cleanup
-- Added ValidateRequest to the Aurora web.config tag. Request validation is turned
-  on by default. What this means is that all HTML or potentially harmful characters
-	posted in strings will throw an exception. You can turn it off and then use 
-	[SanitizeHTML] attribute on action parameter strings and string properties in the
-	post models. At the moment this will simply use the HTML Agility Pack to strip
-	HTML. In the future the [SanitizeHTML] attribute will have more options to 
-	sanitize strings. It'll probably also get renamed to [Sanitize] at that point.
+- Added ValidateRequest to the Aurora web.config tag. Request validation is 
+	turned on by default. What this means is that all HTML or potentially harmful 
+	characters posted in strings will throw an exception. You can turn it off and 
+	then use [SanitizeHTML] attribute on action parameter strings and string 
+	properties in the post models. At the moment this will simply use the HTML 
+	Agility Pack to strip HTML. In the future the [SanitizeHTML] attribute will 
+	have more options to sanitize strings. It'll probably also get renamed to 
+	[Sanitize] at that point.
 
 2 March 2012
 
@@ -53,17 +60,18 @@ Changelog:
   fragments.
 - Added an extension method to retrieve DescriptiveName attributes from enums.
 - Did a little code cleanup in the route manager.
-- Used FxCop to identify issues and I've resolved them. I've added some suppresion
-  attributes to suppress warnings about indirectly exposing methods that have link
-  demands. These occurred on the internal MainConfig class pertaining to a method
-  that exposed a web.config section. This class is only used internally so in 
-  theory it should not pose a risk. There were a few other issues that were reported 
-  pertaining to Active Directory lookup methods. A user of this class cannot exploit
-  security because s/he would have to pass a username and password of a user that has
-  access to Active Directory in order to perform AD searches in order to succeed.
-- Fixed issue identified by FxCop with the Pre/Post action handler being declared
-  incorrectly. I was declaring these events in a non-standard way. I have refactored
-  that code to declare and call the event in the standard way.
+- Used FxCop to identify issues and I've resolved them. I've added some 
+	suppresion attributes to suppress warnings about indirectly exposing methods 
+	that have link demands. These occurred on the internal MainConfig class 
+	pertaining to a method that exposed a web.config section. This class is only 
+	used internally so in theory it should not pose a risk. There were a few other 
+	issues that were reported pertaining to Active Directory lookup methods. A 
+	user of this class cannot exploit security because s/he would have to pass a 
+	username and password of a user that has access to Active Directory in order 
+	to perform AD searches in order to succeed.
+- Fixed issue identified by FxCop with the Pre/Post action handler being 
+	declared incorrectly. I was declaring these events in a non-standard way. I 
+	have refactored that code to declare and call the event in the standard way.
 
 1 March 2012
 
