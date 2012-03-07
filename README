@@ -10,7 +10,7 @@ Date: 7 March 2012
 --- Feature List ---
 --------------------  
 
-- MVC based 
+- MVC based
 - Simple tag based view engine with master pages and partial views as well as
   fragments 
 - URL parameters bind to action method parameters automatically 
