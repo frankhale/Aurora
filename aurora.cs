@@ -1,7 +1,7 @@
 ﻿//
-// Aurora - An MVC micro web framework for .NET
+// Aurora - An micro MVC web framework for .NET
 //
-// Updated On: 4 March 2012
+// Updated On: 7 March 2012
 //
 // Contact Info:
 //
@@ -793,7 +793,7 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyProduct("Aurora")]
 [assembly: AssemblyCopyright("Copyright © 2012")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.99.35.*")]
+[assembly: AssemblyVersion("1.99.36.*")]
 #endregion
 
 namespace Aurora
@@ -952,8 +952,8 @@ namespace Aurora
 	#endregion
 
 	#region MAIN CONFIG
-	// This is an internal class, this does not expose an indirect security risk because of link demands.
-	[System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2141:TransparentMethodsMustNotSatisfyLinkDemandsFxCopRule")]
+	[System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2141:TransparentMethodsMustNotSatisfyLinkDemandsFxCopRule",
+		Justification = "This is an internal class, this does not expose an indirect security risk because of link demands.")]
 	internal static class MainConfig
 	{
 		static MainConfig()
@@ -1152,12 +1152,20 @@ namespace Aurora
 		public string Roles = string.Empty;
 		public bool HttpsOnly = false;
 		public string RedirectWithoutAuthorizationTo = string.Empty;
+		public int Refresh = 0;
+		public readonly string RequestType;
+
+		public RequestTypeAttribute(string requestType)
+		{
+			RequestType = requestType;
+		}
 	}
 
 	[AttributeUsage(AttributeTargets.Method)]
 	public class FromRedirectOnlyAttribute : RequestTypeAttribute
 	{
 		public FromRedirectOnlyAttribute(string routeAlias)
+			: base("GET")
 		{
 			RouteAlias = routeAlias;
 		}
@@ -1171,10 +1179,12 @@ namespace Aurora
 		internal int Duration = 0;
 
 		public HttpGetAttribute()
+			: base("GET")
 		{
 		}
 
 		public HttpGetAttribute(string routeAlias)
+			: base("GET")
 		{
 			RouteAlias = routeAlias;
 		}
@@ -1182,6 +1192,7 @@ namespace Aurora
 		public HttpGetAttribute(ActionSecurity sec) : this(string.Empty, sec) { }
 
 		public HttpGetAttribute(string routeAlias, ActionSecurity sec)
+			: base("GET")
 		{
 			SecurityType = sec;
 			RouteAlias = routeAlias;
@@ -1196,9 +1207,10 @@ namespace Aurora
 	[AttributeUsage(AttributeTargets.Method)]
 	public class HttpPostAttribute : RequestTypeAttribute
 	{
-		public HttpPostAttribute() { }
+		public HttpPostAttribute() : base("POST") { }
 
 		public HttpPostAttribute(string routeAlias)
+			: base("POST")
 		{
 			RouteAlias = routeAlias;
 		}
@@ -1209,6 +1221,7 @@ namespace Aurora
 		}
 
 		public HttpPostAttribute(string routeAlias, ActionSecurity sec)
+			: base("POST")
 		{
 			SecurityType = sec;
 			RouteAlias = routeAlias;
@@ -1218,9 +1231,10 @@ namespace Aurora
 	[AttributeUsage(AttributeTargets.Method)]
 	public class HttpPutAttribute : RequestTypeAttribute
 	{
-		public HttpPutAttribute() { }
+		public HttpPutAttribute() : base("PUT") { }
 
 		public HttpPutAttribute(string routeAlias)
+			: base("PUT")
 		{
 			RouteAlias = routeAlias;
 		}
@@ -1231,6 +1245,7 @@ namespace Aurora
 		}
 
 		public HttpPutAttribute(string routeAlias, ActionSecurity sec)
+			: base("PUT")
 		{
 			SecurityType = sec;
 			RouteAlias = routeAlias;
@@ -1240,9 +1255,10 @@ namespace Aurora
 	[AttributeUsage(AttributeTargets.Method)]
 	public class HttpDeleteAttribute : RequestTypeAttribute
 	{
-		public HttpDeleteAttribute() { }
+		public HttpDeleteAttribute() : base("DELETE") { }
 
 		public HttpDeleteAttribute(string routeAlias)
+			: base("DELETE")
 		{
 			RouteAlias = routeAlias;
 		}
@@ -1253,6 +1269,7 @@ namespace Aurora
 		}
 
 		public HttpDeleteAttribute(string routeAlias, ActionSecurity sec)
+			: base("DELETE")
 		{
 			SecurityType = sec;
 			RouteAlias = routeAlias;
@@ -1400,10 +1417,8 @@ namespace Aurora
 	{
 		private static string GLOBAL_CATALOG = string.Format("GC://{0}", MainConfig.ADSearchDomain);
 
-		//NOTE: This is does not pose a security risk because of indirect exposing of methods with link demands. A user of this
-		//      class cannot call into Active Directory without specifying a username and password with access to the directory.
-
-		[System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2122:DoNotIndirectlyExposeMethodsWithLinkDemands")]
+		[System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2122:DoNotIndirectlyExposeMethodsWithLinkDemands",
+			Justification = "A user of this class cannot call into Active Directory without specifying a username and password with access to the directory.")]
 		internal static ActiveDirectoryUser LookupUser(ActiveDirectorySearchType searchType, string data, bool global)
 		{
 			if (string.IsNullOrEmpty(MainConfig.ADSearchUser) || string.IsNullOrEmpty(MainConfig.ADSearchPW))
@@ -1471,7 +1486,8 @@ namespace Aurora
 			return LookupUser(ActiveDirectorySearchType.EMAIL, email, global);
 		}
 
-		[System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2122:DoNotIndirectlyExposeMethodsWithLinkDemands")]
+		[System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2122:DoNotIndirectlyExposeMethodsWithLinkDemands",
+			Justification = "A user of this class cannot call into Active Directory without specifying a username and password with access to the directory.")]
 		private static ActiveDirectoryUser GetUser(DirectoryEntry de)
 		{
 			return new ActiveDirectoryUser()
@@ -1490,7 +1506,8 @@ namespace Aurora
 			};
 		}
 
-		[System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2122:DoNotIndirectlyExposeMethodsWithLinkDemands")]
+		[System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2122:DoNotIndirectlyExposeMethodsWithLinkDemands",
+			Justification = "A user of this class cannot call into Active Directory without specifying a username and password with access to the directory.")]
 		private static List<string> GetProxyAddresses(DirectoryEntry user)
 		{
 			List<string> addresses = new List<string>();
@@ -2012,61 +2029,43 @@ namespace Aurora
 					}
 					#endregion
 
-					foreach (ActionInfo ai in GetAllActionInfos(context).Where(x => x.ControllerType.Name == c.Name))
+					if (routes.Count == 0)
 					{
-						alias.Length = 0;
-						alias.Insert(0, (ai.Attribute as RequestTypeAttribute).RouteAlias);
-
-						#region CREATE NEW ROUTE
-						HttpGetAttribute get = (ai.Attribute as HttpGetAttribute);
-						HttpPostAttribute post = (ai.Attribute as HttpPostAttribute);
-						HttpPutAttribute put = (ai.Attribute as HttpPutAttribute);
-						HttpDeleteAttribute delete = (ai.Attribute as HttpDeleteAttribute);
-						FromRedirectOnlyAttribute fro = (ai.Attribute as FromRedirectOnlyAttribute);
-
-						RouteInfo routeInfo = new RouteInfo()
+						foreach (ActionInfo ai in GetAllActionInfos(context).Where(x => x.ControllerType.Name == c.Name))
 						{
-							Alias = (!string.IsNullOrEmpty(alias.ToString())) ? alias.ToString() : string.Format("/{0}/{1}", c.Name, ai.ActionMethod.Name),
-							ControllerName = c.Name,
-							ControllerType = c,
-							ControllerInstance = ctrl,
-							Action = ai.ActionMethod,
-							ActionName = ai.ActionMethod.Name,
-							Bindings = new ActionBinder(context).GetBindings(c.Name, ai.ActionMethod.Name),
-							FromRedirectOnlyInfo = (fro != null) ? true : false,
-							Dynamic = (fro != null) ? true : false,
-							IsFiltered = true
-						};
+							alias.Length = 0;
+							alias.Insert(0, (ai.Attribute as RequestTypeAttribute).RouteAlias);
 
-						if (get != null || fro != null || post != null || put != null || delete != null)
-							routeInfo.IsFiltered = false;
+							RequestTypeAttribute attr = (ai.Attribute as RequestTypeAttribute);
 
-						if (fro != null)
-						{
-							routeInfo.RequestType = "GET";
+							RouteInfo routeInfo = new RouteInfo()
+							{
+								Alias = (!string.IsNullOrEmpty(alias.ToString())) ? alias.ToString() : string.Format("/{0}/{1}", c.Name, ai.ActionMethod.Name),
+								ControllerName = c.Name,
+								ControllerType = c,
+								//ControllerInstance = ctrl,
+								Action = ai.ActionMethod,
+								ActionName = ai.ActionMethod.Name,
+								Bindings = new ActionBinder(context).GetBindings(c.Name, ai.ActionMethod.Name),
+								FromRedirectOnlyInfo = (attr as FromRedirectOnlyAttribute) != null ? true : false,
+								Dynamic = (attr as FromRedirectOnlyAttribute) != null ? true : false,
+								IsFiltered = false,
+								RequestType = attr.RequestType,
+								Attribute = attr
+							};
+
+							routes.Add(routeInfo);
 						}
-						else
-						{
-							if (get != null)
-								routeInfo.RequestType = "GET";
-							else if (post != null)
-								routeInfo.RequestType = "POST";
-							else if (put != null)
-								routeInfo.RequestType = "PUT";
-							else if (delete != null)
-								routeInfo.RequestType = "DELETE";
-						}
-
-						routes.Add(routeInfo);
-						#endregion
 					}
 				}
 				else
 				{
 					ctrl.Refresh(context);
+				}
 
-					foreach (RouteInfo routeInfo in routes)
-						routeInfo.ControllerInstance = ctrl;
+				foreach (RouteInfo routeInfo in routes)
+				{
+					routeInfo.ControllerInstance = ctrl;
 				}
 			}
 
@@ -2753,7 +2752,7 @@ namespace Aurora
 
 		public static string NewLinesToBr(this string s)
 		{
-			return s.Replace("\n", "<br />");
+			return s.Trim().Replace("\n", "<br />");
 		}
 
 		public static string StripHTML(this string s)
@@ -3408,6 +3407,8 @@ namespace Aurora
 		public bool IsFiltered { get; set; }
 		public bool Dynamic { get; set; }
 		public bool FromRedirectOnlyInfo { get; set; }
+
+		public RequestTypeAttribute Attribute { get; set; }
 	}
 
 	internal class PostedFormInfo
@@ -3493,6 +3494,7 @@ namespace Aurora
 
 	internal class DefaultRouteManager : IRouteManager
 	{
+		#region PRIVATE MEMBER VARIABLES
 		private HttpContextBase context;
 		private BundleManager bundleManager;
 
@@ -3511,6 +3513,7 @@ namespace Aurora
 		private Dictionary<string, string> Payload;
 
 		private bool fromRedirectOnlyFlag = false;
+		#endregion
 
 		public DefaultRouteManager(HttpContextBase ctx)
 		{
@@ -3537,7 +3540,10 @@ namespace Aurora
 			//if (MainConfig.ApplicationMountPoint.Length > 0)
 			//  path = path.Replace(MainConfig.ApplicationMountPoint, string.Empty);
 
-			context.RewritePath(path);
+			postedFormInfo = null;
+			postedFormModel = null;
+
+			//context.RewritePath(path);
 		}
 
 		private RouteInfo FindRoute(string path)
@@ -3576,24 +3582,27 @@ namespace Aurora
 
 					totalParamLength += formOrPutDeleteParams.Length;
 				}
-				else if (context.Request.RequestType == "POST" && postedFormModel == null && context.Request.Form.Count > 0)
+				else if (context.Request.RequestType == "POST")
 				{
-					string[] formValues = new string[Form.AllKeys.Length];
-
-					for (int i = 0; i < Form.AllKeys.Length; i++)
+					if (postedFormModel == null && context.Request.Form.Count > 0)
 					{
-						formValues[i] = Form.Get(i);
-					}
+						string[] formValues = new string[Form.AllKeys.Length];
 
-					if (Form.Count > 0)
-					{
-						formOrPutDeleteParams = StringTypeConversion.ToObjectArray(formValues);
-						totalParamLength += formOrPutDeleteParams.Length;
+						for (int i = 0; i < Form.AllKeys.Length; i++)
+						{
+							formValues[i] = Form.Get(i);
+						}
+
+						if (Form.Count > 0)
+						{
+							formOrPutDeleteParams = StringTypeConversion.ToObjectArray(formValues);
+							totalParamLength += formOrPutDeleteParams.Length;
+						}
 					}
-				}
-				else if (postedFormInfo != null && postedFormInfo.DataType != null)
-				{
-					totalParamLength++;
+					else if (postedFormInfo != null && postedFormInfo.DataType != null)
+					{
+						totalParamLength++;
+					}
 				}
 				#endregion
 
@@ -3702,7 +3711,14 @@ namespace Aurora
 							Type incomingParameterType = actionParameters[apti.IndexIntoParamList].GetType();
 
 							if (transformMethodParameterType != incomingParameterType)
-								throw new ArgumentException();
+							{
+								if (transformMethodParameterType == typeof(string) || incomingParameterType == typeof(Int64))
+								{
+									actionParameters[apti.IndexIntoParamList] = actionParameters[apti.IndexIntoParamList].ToString();
+								}
+								else
+									throw new ArgumentException();
+							}
 
 							object transformedParam = apti.TransformMethod.Invoke(actionParamTransformClassInstance, new object[] { actionParameters[apti.IndexIntoParamList] });
 
@@ -3740,19 +3756,22 @@ namespace Aurora
 
 				if (!string.IsNullOrEmpty(alias))
 				{
-					urlStringParams = path.Replace(alias, string.Empty).Split('/').Where(x => !string.IsNullOrEmpty(x)).ToArray();
+					urlStringParams = path.Replace(alias, string.Empty).Split('/').Where(x => !string.IsNullOrEmpty(x)).Select(x => HttpUtility.UrlEncode(x)).ToArray();
 
 					if (urlStringParams != null)
 						urlObjectParams = StringTypeConversion.ToObjectArray(urlStringParams);
 
-					postedFormModel = Model.DetermineModelFromPostedForm(context);
-
-					if (postedFormModel != null)
+					if (context.Request.RequestType == "POST")
 					{
-						postedFormInfo = new PostedFormInfo(context, postedFormModel);
+						postedFormModel = Model.DetermineModelFromPostedForm(context);
 
-						if (postedFormInfo.DataType != null)
-							((Model)postedFormInfo.DataTypeInstance).Validate(context, (Model)postedFormInfo.DataTypeInstance);
+						if (postedFormModel != null)
+						{
+							postedFormInfo = new PostedFormInfo(context, postedFormModel);
+
+							if (postedFormInfo.DataType != null)
+								((Model)postedFormInfo.DataTypeInstance).Validate(context, (Model)postedFormInfo.DataTypeInstance);
+						}
 					}
 				}
 
@@ -3879,7 +3898,6 @@ namespace Aurora
 
 		private IAuroraResult InvokeAction(RouteInfo routeInfo)
 		{
-
 			if (routeInfo != null)
 			{
 				IAuroraResult result = null;
@@ -3908,10 +3926,7 @@ namespace Aurora
 					if (context.Session[MainConfig.FromRedirectOnlySessionFlag] != null)
 						context.Session.Remove(MainConfig.FromRedirectOnlySessionFlag);
 
-					if (routeInfo.Action.ReturnType.GetInterfaces().Contains(typeof(IAuroraResult)))
-						result = (IAuroraResult)_result;
-					else
-						result = new VoidResult();
+					result = (routeInfo.Action.ReturnType.GetInterfaces().Contains(typeof(IAuroraResult))) ? (IAuroraResult)_result : new VoidResult();
 				}
 
 				return result;
@@ -3925,19 +3940,16 @@ namespace Aurora
 	#region ENGINE
 	public sealed class AuroraEngine
 	{
-		private HttpContextBase context;
-		private IRouteManager routeManager;
-
 		public AuroraEngine(HttpContextBase ctx)
 		{
-			context = ctx;
+			IRouteManager routeManager;
 
-			if (!MainConfig.SupportedHttpVerbs.Contains(context.Request.RequestType))
-				throw new Exception(string.Format(MainConfig.HttpRequestTypeNotSupportedError, context.Request.RequestType));
+			if (!MainConfig.SupportedHttpVerbs.Contains(ctx.Request.RequestType))
+				throw new Exception(string.Format(MainConfig.HttpRequestTypeNotSupportedError, ctx.Request.RequestType));
 
-			if ((!MainConfig.AuroraDebug) && (context.Application[MainConfig.RouteManagerSessionName] != null))
+			if ((!MainConfig.AuroraDebug) && (ctx.Application[MainConfig.RouteManagerSessionName] != null))
 			{
-				routeManager = (IRouteManager)context.Application[MainConfig.RouteManagerSessionName];
+				routeManager = (IRouteManager)ctx.Application[MainConfig.RouteManagerSessionName];
 				routeManager.Refresh(ctx);
 			}
 			else
@@ -3953,30 +3965,36 @@ namespace Aurora
 				if (rm == null)
 					throw new Exception(MainConfig.RouteManagerNotSupportedException);
 
-				routeManager = (IRouteManager)Activator.CreateInstance(rm, new object[] { context });
+				routeManager = (IRouteManager)Activator.CreateInstance(rm, new object[] { ctx });
 
-				context.Application.Lock();
-				context.Application[MainConfig.RouteManagerSessionName] = routeManager;
-				context.Application.UnLock();
+				ctx.Application.Lock();
+				ctx.Application[MainConfig.RouteManagerSessionName] = routeManager;
+				ctx.Application.UnLock();
 			}
 
-			HttpCookie authCookie = context.Request.Cookies[MainConfig.AuroraAuthCookieName];
+			HttpCookie authCookie = ctx.Request.Cookies[MainConfig.AuroraAuthCookieName];
 
 			if (authCookie != null)
 			{
-				if (context.Session[MainConfig.CurrentUserSessionName] != null)
+				if (ctx.Session[MainConfig.CurrentUserSessionName] != null)
 				{
-					context.User = context.Session[MainConfig.CurrentUserSessionName] as User;
+					ctx.User = ctx.Session[MainConfig.CurrentUserSessionName] as User;
 				}
 			}
 
+			IAuroraResult result = null;
+
 			try
 			{
-				IAuroraResult result = routeManager.HandleRoute();
+				result = routeManager.HandleRoute();
 
-				if (result == null) throw new Exception(MainConfig.Http404Error);
+				if (result == null)
+				{
+					ctx.Response.StatusCode = 404;
+					throw new Exception(MainConfig.Http404Error);
+				}
 
-				result.Render();
+  			result.Render();
 			}
 			catch (Exception e)
 			{
@@ -3986,31 +4004,21 @@ namespace Aurora
 							MainConfig.CustomErrorsSection.Mode != CustomErrorsMode.RemoteOnly)
 					{
 						// Check to see if there is a derived CustomError class otherwise look to see if there is a cusom error method on a controller
-						CustomError customError = ApplicationInternals.GetCustomError(context);
+						CustomError customError = ApplicationInternals.GetCustomError(ctx);
 
 						if (customError == null)
 						{
-							RenderError(e);
+							(new ErrorResult(ctx, e)).Render();
 						}
 						else
 						{
 							// The custom error class is for all controllers and all static content that may produce an error.
 							customError.Error(e.Message, e).Render();
-							context.Server.ClearError();
+							ctx.Server.ClearError();
 						}
 					}
 				}
 			}
-		}
-
-		private void RenderError(Exception e)
-		{
-			Render(new ErrorResult(context, e));
-		}
-
-		private void Render(IAuroraResult result)
-		{
-			result.Render();
 		}
 	}
 	#endregion
@@ -4710,6 +4718,7 @@ namespace Aurora
 			viewKeyName = string.Format("{0}/{1}", controllerName, viewName);
 
 			context.Response.ContentType = "text/html";
+
 			ResponseHeader.AddEncodingHeaders(context);
 
 			ve.LoadView(controllerName, viewName, tags);
