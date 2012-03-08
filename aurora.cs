@@ -1,5 +1,5 @@
 ﻿//
-// Aurora - An micro MVC web framework for .NET
+// Aurora - An MVC micro web framework for .NET
 //
 // Updated On: 7 March 2012
 //
@@ -760,6 +760,7 @@ using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Net;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Security;
@@ -793,7 +794,7 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyProduct("Aurora")]
 [assembly: AssemblyCopyright("Copyright © 2012")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.99.36.*")]
+[assembly: AssemblyVersion("1.99.37.*")]
 #endregion
 
 namespace Aurora
@@ -2028,34 +2029,31 @@ namespace Aurora
 							routeInfo.ControllerInstance = ctrl;
 					}
 					#endregion
-
-					if (routes.Count == 0)
+					
+					foreach (ActionInfo ai in GetAllActionInfos(context).Where(x => x.ControllerType.Name == c.Name))
 					{
-						foreach (ActionInfo ai in GetAllActionInfos(context).Where(x => x.ControllerType.Name == c.Name))
+						alias.Length = 0;
+						alias.Insert(0, (ai.Attribute as RequestTypeAttribute).RouteAlias);
+
+						RequestTypeAttribute attr = (ai.Attribute as RequestTypeAttribute);
+
+						RouteInfo routeInfo = new RouteInfo()
 						{
-							alias.Length = 0;
-							alias.Insert(0, (ai.Attribute as RequestTypeAttribute).RouteAlias);
+							Alias = (!string.IsNullOrEmpty(alias.ToString())) ? alias.ToString() : string.Format("/{0}/{1}", c.Name, ai.ActionMethod.Name),
+							ControllerName = c.Name,
+							ControllerType = c,
+							//ControllerInstance = ctrl,
+							Action = ai.ActionMethod,
+							ActionName = ai.ActionMethod.Name,
+							Bindings = new ActionBinder(context).GetBindings(c.Name, ai.ActionMethod.Name),
+							FromRedirectOnlyInfo = (attr as FromRedirectOnlyAttribute) != null ? true : false,
+							Dynamic = (attr as FromRedirectOnlyAttribute) != null ? true : false,
+							IsFiltered = false,
+							RequestType = attr.RequestType,
+							Attribute = attr
+						};
 
-							RequestTypeAttribute attr = (ai.Attribute as RequestTypeAttribute);
-
-							RouteInfo routeInfo = new RouteInfo()
-							{
-								Alias = (!string.IsNullOrEmpty(alias.ToString())) ? alias.ToString() : string.Format("/{0}/{1}", c.Name, ai.ActionMethod.Name),
-								ControllerName = c.Name,
-								ControllerType = c,
-								//ControllerInstance = ctrl,
-								Action = ai.ActionMethod,
-								ActionName = ai.ActionMethod.Name,
-								Bindings = new ActionBinder(context).GetBindings(c.Name, ai.ActionMethod.Name),
-								FromRedirectOnlyInfo = (attr as FromRedirectOnlyAttribute) != null ? true : false,
-								Dynamic = (attr as FromRedirectOnlyAttribute) != null ? true : false,
-								IsFiltered = false,
-								RequestType = attr.RequestType,
-								Attribute = attr
-							};
-
-							routes.Add(routeInfo);
-						}
+						routes.Add(routeInfo);
 					}
 				}
 				else
@@ -3543,7 +3541,7 @@ namespace Aurora
 			postedFormInfo = null;
 			postedFormModel = null;
 
-			//context.RewritePath(path);
+			context.RewritePath(path);
 		}
 
 		private RouteInfo FindRoute(string path)
@@ -3990,11 +3988,10 @@ namespace Aurora
 
 				if (result == null)
 				{
-					ctx.Response.StatusCode = 404;
 					throw new Exception(MainConfig.Http404Error);
 				}
 
-  			result.Render();
+				result.Render();
 			}
 			catch (Exception e)
 			{
@@ -4009,6 +4006,8 @@ namespace Aurora
 						if (customError == null)
 						{
 							(new ErrorResult(ctx, e)).Render();
+
+							ctx.Response.StatusCode = (int) HttpStatusCode.NotFound;
 						}
 						else
 						{
@@ -4667,6 +4666,8 @@ namespace Aurora
 
 			TimeSpan expiry = new TimeSpan(0, minutesBeforeExpiration, 0);
 
+			context.Response.ClearHeaders();
+			context.Response.ClearContent();
 			context.Response.ContentType = contentType;
 
 			ResponseHeader.AddEncodingHeaders(context);
@@ -4717,6 +4718,8 @@ namespace Aurora
 			viewEngine = ve;
 			viewKeyName = string.Format("{0}/{1}", controllerName, viewName);
 
+			context.Response.ClearHeaders();
+			context.Response.ClearContent();
 			context.Response.ContentType = "text/html";
 
 			ResponseHeader.AddEncodingHeaders(context);
@@ -4747,6 +4750,8 @@ namespace Aurora
 
 		public void Render()
 		{
+			context.Response.ClearHeaders();
+			context.Response.ClearContent();
 			context.Response.ContentType = "text/html";
 			context.Response.Write(viewEngine[viewKeyName]);
 		}
@@ -4769,6 +4774,8 @@ namespace Aurora
 			{
 				string json = JsonConvert.SerializeObject(data);
 
+				context.Response.ClearHeaders();
+				context.Response.ClearContent();
 				context.Response.ContentType = "text/html";
 
 				ResponseHeader.AddEncodingHeaders(context);
@@ -4802,9 +4809,11 @@ namespace Aurora
 			else
 				message = exception.InnerException.Message;
 
+			context.Response.ClearHeaders();
+			context.Response.ClearContent();
+
 			ResponseHeader.AddEncodingHeaders(context);
 
-			context.Response.StatusCode = (int)System.Net.HttpStatusCode.NotFound;
 			context.Response.StatusDescription = message;
 			context.Response.Write(string.Format("{0} - {1}", message, context.Request.Path));
 		}
