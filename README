@@ -4,7 +4,7 @@ NOTE: See source code comments for usage.
 
 Frank Hale <frankhale@gmail.com>
 
-Date: 7 March 2012
+Date: 8 March 2012
 
 --------------------
 --- Feature List ---
@@ -31,6 +31,12 @@ Date: 7 March 2012
 - Bundling/Minifying of Javascript and CSS.
  
 Changelog:
+
+8 March 2012
+
+- The pre and post action handler has access to a little more information about
+  the route that will/was be handled. The most important piece of this 
+	information is having access to the route bindings.
 
 7 March 2012
 

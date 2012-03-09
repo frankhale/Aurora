@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC micro web framework for .NET
 //
-// Updated On: 7 March 2012
+// Updated On: 8 March 2012
 //
 // Contact Info:
 //
@@ -794,7 +794,7 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyProduct("Aurora")]
 [assembly: AssemblyCopyright("Copyright © 2012")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.99.37.*")]
+[assembly: AssemblyVersion("1.99.38.*")]
 #endregion
 
 namespace Aurora
@@ -1703,11 +1703,6 @@ namespace Aurora
 			}
 		}
 
-		/// <summary>
-		/// Gets an open auth claims response so we can identify who logged on.
-		/// </summary>
-		/// <param name="ctx"></param>
-		/// <returns></returns>
 		public static OpenAuthClaimsResponse GetOpenAuthClaimsResponse(HttpContextBase ctx)
 		{
 			if (ctx.Session[MainConfig.OpenIdClaimsResponseSessionName] != null)
@@ -2037,6 +2032,8 @@ namespace Aurora
 
 						RequestTypeAttribute attr = (ai.Attribute as RequestTypeAttribute);
 
+						BoundAction boundAction = new ActionBinder(context).GetBindings(c.Name, ai.ActionMethod.Name);
+
 						RouteInfo routeInfo = new RouteInfo()
 						{
 							Alias = (!string.IsNullOrEmpty(alias.ToString())) ? alias.ToString() : string.Format("/{0}/{1}", c.Name, ai.ActionMethod.Name),
@@ -2045,7 +2042,8 @@ namespace Aurora
 							//ControllerInstance = ctrl,
 							Action = ai.ActionMethod,
 							ActionName = ai.ActionMethod.Name,
-							Bindings = new ActionBinder(context).GetBindings(c.Name, ai.ActionMethod.Name),
+							BoundActions = boundAction,
+							Bindings = boundAction.BoundInstances,
 							FromRedirectOnlyInfo = (attr as FromRedirectOnlyAttribute) != null ? true : false,
 							Dynamic = (attr as FromRedirectOnlyAttribute) != null ? true : false,
 							IsFiltered = false,
@@ -2108,7 +2106,7 @@ namespace Aurora
 				ControllerType = controller.GetType(),
 				FrontLoadedParams = frontParams,
 				RequestType = requestType,
-				Bindings = new ActionBinder(context).GetBindings(controller.GetType().Name, action.Name),
+				BoundActions = new ActionBinder(context).GetBindings(controller.GetType().Name, action.Name),
 				Dynamic = true
 			});
 
@@ -2397,10 +2395,12 @@ namespace Aurora
 	public class ActionHandlerEventArgs : EventArgs
 	{
 		public ActionHandlerEventType EventType { get; private set; }
+		public RouteInfo RouteInfo { get; internal set; }
 
-		public ActionHandlerEventArgs(ActionHandlerEventType t)
+		public ActionHandlerEventArgs(ActionHandlerEventType t, RouteInfo routeInfo)
 		{
 			EventType = t;
+			RouteInfo = routeInfo;
 		}
 	}
 
@@ -2447,16 +2447,16 @@ namespace Aurora
 
 		protected virtual void Controller_OnInit() { }
 
-		internal void RaiseEvent(PreOrPostActionType type)
+		internal void RaiseEvent(PreOrPostActionType type, RouteInfo routeInfo)
 		{
 			switch (type)
 			{
 				case PreOrPostActionType.Before:
-					Controller_PreOrPostActionEvent(this, new ActionHandlerEventArgs(ActionHandlerEventType.Pre));
+					Controller_PreOrPostActionEvent(this, new ActionHandlerEventArgs(ActionHandlerEventType.Pre, routeInfo));
 					break;
 
 				case PreOrPostActionType.After:
-					Controller_PreOrPostActionEvent(this, new ActionHandlerEventArgs(ActionHandlerEventType.Post));
+					Controller_PreOrPostActionEvent(this, new ActionHandlerEventArgs(ActionHandlerEventType.Post, routeInfo));
 					break;
 			}
 		}
@@ -3387,26 +3387,28 @@ namespace Aurora
 		void Refresh(HttpContextBase ctx);
 	}
 
-	internal class RouteInfo
+	public class RouteInfo
 	{
-		public Type ControllerType { get; set; }
-		public Controller ControllerInstance { get; set; }
-		public MethodInfo Action { get; set; }
-		public BoundAction Bindings { get; set; }
+		internal Type ControllerType { get; set; }
+		internal Controller ControllerInstance { get; set; }
+		internal MethodInfo Action { get; set; }
+		internal BoundAction BoundActions { get; set; }
+
+		public List<object> Bindings { get; set; }
 
 		public string RequestType { get; set; }
 		public string Alias { get; set; }
-		public string ControllerName { get; set; }
-		public string ActionName { get; set; }
+		internal string ControllerName { get; set; }
+		internal string ActionName { get; set; }
 		public string Path { get; set; }
-		public string FrontLoadedParams { get; set; }
+		internal string FrontLoadedParams { get; set; }
 
-		public object[] ActionParameters { get; set; }
-		public bool IsFiltered { get; set; }
-		public bool Dynamic { get; set; }
-		public bool FromRedirectOnlyInfo { get; set; }
+		internal object[] ActionParameters { get; set; }
+		internal bool IsFiltered { get; set; }
+		internal bool Dynamic { get; set; }
+		internal bool FromRedirectOnlyInfo { get; set; }
 
-		public RequestTypeAttribute Attribute { get; set; }
+		internal RequestTypeAttribute Attribute { get; set; }
 	}
 
 	internal class PostedFormInfo
@@ -3570,7 +3572,7 @@ namespace Aurora
 
 				#region DETERMINE THE PARAM LAYOUT
 				int frontParamsLength = string.IsNullOrEmpty(routeInfo.FrontLoadedParams) ? 0 : routeInfo.FrontLoadedParams.Split('/').Count();
-				int boundParamLength = (routeInfo.Bindings != null) ? routeInfo.Bindings.BoundInstances.Count() : 0;
+				int boundParamLength = (routeInfo.BoundActions != null) ? routeInfo.BoundActions.BoundInstances.Count() : 0;
 				int totalParamLength = boundParamLength + frontParamsLength + urlParamLength;
 
 				if (context.Request.RequestType == "PUT" || context.Request.RequestType == "DELETE")
@@ -3608,7 +3610,7 @@ namespace Aurora
 				actionParameters = new object[totalParamLength + context.Request.Files.Count];
 
 				if (boundParamLength > 0)
-					routeInfo.Bindings.BoundInstances.CopyTo(actionParameters, 0);
+					routeInfo.BoundActions.BoundInstances.CopyTo(actionParameters, 0);
 
 				if (frontParamsLength > 0)
 					routeInfo.FrontLoadedParams.Split('/').CopyTo(actionParameters, boundParamLength);
@@ -3703,7 +3705,7 @@ namespace Aurora
 						foreach (ActionParamTransformInfo apti in actionParamTransformInfos)
 						{
 							// Instantiate the class, the constructor will receive any bound action objects that the params method received.
-							object actionParamTransformClassInstance = Activator.CreateInstance(apti.TransformClassType, routeInfo.Bindings.BoundInstances.ToArray());
+							object actionParamTransformClassInstance = Activator.CreateInstance(apti.TransformClassType, routeInfo.BoundActions.BoundInstances.ToArray());
 
 							Type transformMethodParameterType = apti.TransformMethod.GetParameters()[0].ParameterType;
 							Type incomingParameterType = actionParameters[apti.IndexIntoParamList].GetType();
@@ -3789,12 +3791,12 @@ namespace Aurora
 				if (routeInfo != null)
 				{
 					// Execute Controller_BeforeAction
-					routeInfo.ControllerInstance.RaiseEvent(Controller.PreOrPostActionType.Before);
+					routeInfo.ControllerInstance.RaiseEvent(Controller.PreOrPostActionType.Before, routeInfo);
 
 					iar = ProcessDynamicRoute(routeInfo);
 
 					// Execute Controller_AfterAction
-					routeInfo.ControllerInstance.RaiseEvent(Controller.PreOrPostActionType.After);
+					routeInfo.ControllerInstance.RaiseEvent(Controller.PreOrPostActionType.After, routeInfo);
 				}
 			}
 
@@ -3900,9 +3902,9 @@ namespace Aurora
 			{
 				IAuroraResult result = null;
 
-				if (routeInfo.Bindings != null)
+				if (routeInfo.BoundActions != null)
 				{
-					foreach (object i in routeInfo.Bindings.BoundInstances)
+					foreach (object i in routeInfo.BoundActions.BoundInstances)
 					{
 						if (i.GetType().GetInterface(typeof(IBoundActionObject).Name) != null)
 						{
