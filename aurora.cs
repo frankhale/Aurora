@@ -140,11 +140,11 @@
 // NOTE: Action paramters map like this: 
 //
 //  ViewResult ActionName(filter_results (optional), 
-//											  bound_parameters, 
-//												front_params, 
-//												url_parameters, 
+//                        bound_parameters, 
+//                        front_params, 
+//                        url_parameters, 
 //                        form_parameters / (HTTP Put/Delete) payload, 
-//											  files)
+//                        files)
 //
 // Actions are nothing more than public methods in your controller that are 
 // labeled with special attributes to tell the framework how to invoke them
