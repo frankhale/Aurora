@@ -1,7 +1,7 @@
 ﻿//
-// Aurora - An MVC micro web framework for .NET
+// Aurora - An MVC web framework for .NET
 //
-// Updated On: 8 March 2012
+// Updated On: 10 March 2012
 //
 // Contact Info:
 //
@@ -19,9 +19,10 @@
 // - Posted forms binds to post models or action parameters automatically 
 // - Actions can have bound parameters that are bound to actions at runtime
 // - Actions can be segregated based on HttpGet, HttpPost, HttpPut and 
-//   HttpDelete
-//   attributes and you can secure them with the Secure named parameter. Actions 
-//   without a designation will not be invoked from a URL.  
+//   HttpDelete attributes and you can secure them with the Secure named 
+//   parameter. Actions without a designation will not be invoked from a URL.  
+// - Actions can have filters with optional filter results that bind to action
+//   parameters.
 // - Actions can have aliases. Aliases can also be added dynamically at runtime
 //   along with default parameters.
 // - Actions can be invoked on a special basis, they are designated with the
@@ -44,23 +45,21 @@
 // I didn't include a Visual Studio or SharpDevelop project because I wanted 
 // this to remain as cruft free as possible. For now you can just create a new 
 // project in the environment you desire (VS 2008 or higher, MonoDevelop,
-// SharpDevelop)
+// SharpDevelop) and add the references below.
 // 
 // Add the following references:
 //
-// System
-// System.Configuration
-// System.Core
-// System.Data
-// System.Data.DataSetExtensions
-// System.Web
-// System.Web.Abstractions
-// System.Xml.Linq
-// System.Xml.dll
-// Microsoft.VisualBasic - This is for the method in the Information class
-// called IsNumeric
-// Newtonsoft.Json.NET35 - http://json.codeplex.com/
-// HtmlAgilityPack - http://htmlagilitypack.codeplex.com/
+//	System
+//	System.Configuration
+//	System.Core
+//	System.Data
+//	System.Data.DataSetExtensions
+//	System.Web
+//	System.Web.Abstractions
+//	System.Xml.Linq
+//	System.Xml.dll
+//	Newtonsoft.Json.NET35 - http://json.codeplex.com/
+//	HtmlAgilityPack - http://htmlagilitypack.codeplex.com/
 // 
 // If you need Active Directory support add the following and add the build flag 
 // ACTIVEDIRECTORY:
@@ -125,10 +124,9 @@
 // Controllers can have event handlers to perform some logic before or after an
 // action.
 //
-// Simply add an event handler for any or both of the following:
+// Simply add an event handler for:
 //
-//  Controller_BeforeAction 
-//  Controller_AfterAction 
+//	Controller_PreOrPostActionEvent
 //
 // In addition to event handlers a controller can override the Controller_OnInit
 // method to perform some logic right after the controller has bee instantiated.
@@ -139,10 +137,14 @@
 // --- Actions ---
 // --------------- 
 //
-// NOTE: Actions map like this: 
+// NOTE: Action paramters map like this: 
 //
-//  ViewResult ActionName(bound_parameters, front_params, url_parameters, 
-//                           form_parameters / (HTTP Put/Delete) payload, files)
+//  ViewResult ActionName(filter_results (optional), 
+//											  bound_parameters, 
+//												front_params, 
+//												url_parameters, 
+//                        form_parameters / (HTTP Put/Delete) payload, 
+//											  files)
 //
 // Actions are nothing more than public methods in your controller that are 
 // labeled with special attributes to tell the framework how to invoke them
@@ -256,6 +258,50 @@
 //
 // You can do other things in there for instance if your instance needs to be 
 // cached then you can reuse instances between action invocations.
+//
+// -----------------------
+// --- ACTION FILTERS ----
+// -----------------------
+// 
+// Actions can have filters that perform some logic before the action is 
+// invoked. The filter is denoted by an attribute, this attribute is created
+// by subclassing ActionFilter. Action filters can optionally have results which
+// are bound at the beginning of the action parameter list.
+//
+// Action filter results are any class that implements the IActionFilterResult
+// interface. This interface defines no methods or properties so you are open
+// to define your implementation however you like.
+//
+// You can define a filter result like this:
+//
+//	public class FooFilterResult : IActionFilterResult
+//	{
+//		public string Foo { get; set; }
+//
+//		public FooFilterResult(string foo)
+//		{
+//			Foo = foo;
+//		}
+//	}
+//
+// Here is a simple action filter. 
+//
+//	public class Foo : ActionFilter
+//	{
+//		public override void OnFilter(RouteInfo routeInfo)
+//		{
+//			FilterResult = new FooFilterResult("Hello,World!");
+//		}
+//	}
+//
+// The action that uses this filter would be defined similar to this:
+//
+//  [Foo]
+//  [HttpGet]
+//  public ViewResult Index(FooFilterResult foo)
+//  {
+//    ...
+//  }
 //
 // -----------------------------------
 // --- Action Parameter Transforms ---
@@ -638,7 +684,11 @@
 //
 //   <Aurora DefaultRoute="/Index" Debug="true" 
 //       StaticFileExtWhiteList="\.(js|png|jpg|gif|ico|css|txt|swf)$" 
-//       EncryptionKey="YourEncryptionKeyHere" />
+//       EncryptionKey="YourEncryptionKeyHere">
+//		<AllowedStaticFileContentTypes>
+//			<add FileExtension=".foo" ContentType="text/foobar" />
+//		</AllowedStaticFileContentTypes>
+//   </Aurora>
 //
 //   <dotNetOpenAuth>
 //     <openid>
@@ -794,7 +844,7 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyProduct("Aurora")]
 [assembly: AssemblyCopyright("Copyright © 2012")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.99.38.*")]
+[assembly: AssemblyVersion("1.99.39.*")]
 #endregion
 
 namespace Aurora
@@ -1045,7 +1095,7 @@ namespace Aurora
 		public static string HttpRequestTypeNotSupportedError = "The HTTP Request type [{0}] is not supported.";
 		public static string ActionParameterTransformClassUnknownError = "The action parameter transform class cannot be determined.";
 		public static string Http404Error = "Http 404 - Page Not Found";
-		public static string Http401Error = "Http 401 - Unauthorized";
+		//public static string Http401Error = "Http 401 - Unauthorized";
 		public static string CustomErrorNullExceptionError = "The customer error instance was null";
 		public static string OnlyOneCustomErrorClassPerApplicationError = "Cannot have more than one custom error class per application";
 		public static string OnlyOneErrorActionPerControllerError = "Cannot have more than one error action per controller";
@@ -1062,11 +1112,51 @@ namespace Aurora
 	}
 	#endregion
 
+	#region ACTION FILTER ATTRIBUTE
+	public interface IActionFilterResult { }
+
+	[AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
+	public abstract class ActionFilter : Attribute
+	{
+		internal Controller Controller { get; set; }
+
+		public IActionFilterResult FilterResult { get; set; }
+
+		public abstract void OnFilter(RouteInfo routeInfo);
+
+		public void RedirectToAlias(string alias)
+		{
+			Controller.RedirectToAlias(alias);
+		}
+
+		public void RedirectOnlyToAlias(string alias)
+		{
+			Controller.RedirectOnlyToAlias(alias);
+		}
+
+		public void RedirectToAction(string controllerName, string actionName)
+		{
+			Controller.RedirectToAction(controllerName, actionName);
+		}
+
+		public void RedirectOnlyToAction(string controllerName, string actionName)
+		{
+			Controller.RedirectOnlyToAction(controllerName, actionName);
+		}
+	}
+	#endregion
+
 	#region ATTRIBUTES
 	public enum ActionSecurity
 	{
 		Secure,
 		NonSecure
+	}
+
+	public enum DescriptiveNameOperation
+	{
+		SplitCamelCase,
+		None
 	}
 
 	#region APP PARTITION
@@ -1092,12 +1182,6 @@ namespace Aurora
 		{
 			MetaData = metaData;
 		}
-	}
-
-	public enum DescriptiveNameOperation
-	{
-		SplitCamelCase,
-		None
 	}
 
 	[AttributeUsage(AttributeTargets.All)]
@@ -1922,7 +2006,14 @@ namespace Aurora
 
 		public static List<Type> AllControllers(HttpContextBase context)
 		{
-			return GetTypeList(context, MainConfig.ControllersSessionName, typeof(Controller));
+			if (context.Application[MainConfig.ControllersSessionName] != null)
+			{
+				return context.Application[MainConfig.ControllersSessionName] as List<Type>;
+			}
+			else
+			{
+				return GetTypeList(context, MainConfig.ControllersSessionName, typeof(Controller));
+			}
 		}
 
 		public static List<Controller> AllControllerInstances(HttpContextBase context)
@@ -2024,7 +2115,7 @@ namespace Aurora
 							routeInfo.ControllerInstance = ctrl;
 					}
 					#endregion
-					
+
 					foreach (ActionInfo ai in GetAllActionInfos(context).Where(x => x.ControllerType.Name == c.Name))
 					{
 						alias.Length = 0;
@@ -2037,19 +2128,20 @@ namespace Aurora
 						RouteInfo routeInfo = new RouteInfo()
 						{
 							Alias = (!string.IsNullOrEmpty(alias.ToString())) ? alias.ToString() : string.Format("/{0}/{1}", c.Name, ai.ActionMethod.Name),
+							Context = context,
 							ControllerName = c.Name,
 							ControllerType = c,
-							//ControllerInstance = ctrl,
 							Action = ai.ActionMethod,
 							ActionName = ai.ActionMethod.Name,
 							BoundActions = boundAction,
-							Bindings = boundAction.BoundInstances,
+							Bindings = (boundAction != null) ? boundAction.BoundInstances : null,
 							FromRedirectOnlyInfo = (attr as FromRedirectOnlyAttribute) != null ? true : false,
 							Dynamic = (attr as FromRedirectOnlyAttribute) != null ? true : false,
 							IsFiltered = false,
 							RequestType = attr.RequestType,
 							Attribute = attr
 						};
+
 
 						routes.Add(routeInfo);
 					}
@@ -2101,6 +2193,7 @@ namespace Aurora
 				Alias = alias,
 				Action = action,
 				ActionName = action.Name,
+				Context = context,
 				ControllerInstance = controller,
 				ControllerName = action.DeclaringType.Name,
 				ControllerType = controller.GetType(),
@@ -2125,7 +2218,7 @@ namespace Aurora
 					throw new Exception(MainConfig.OnlyOneCustomErrorClassPerApplicationError);
 
 				if (customErrors.Count == 1)
-					return CustomError.CreateInstance(customErrors[0], new AuroraViewEngine(context, context.Server.MapPath(MainConfig.ViewRoot), new AuroraViewEngineHelper(context)), context);
+					return CustomError.CreateInstance(customErrors[0], new ViewEngine(context, context.Server.MapPath(MainConfig.ViewRoot), new ViewEngineHelper(context)), context);
 			}
 
 			return null;
@@ -2329,24 +2422,19 @@ namespace Aurora
 					}
 				}
 
-				if (Microsoft.VisualBasic.Information.IsNumeric(value))
+				if (rangeAttribute != null)
 				{
-					// FIXED: using IsAssignableFrom, matching anything which can act like an int64, which includes all builtin numeric types
-
-					if (rangeAttribute != null)
+					if (value.GetType().IsAssignableFrom(typeof(Int64)))
 					{
-						if (value.GetType().IsAssignableFrom(typeof(Int64)))
+						if (((Int64)value).InRange(rangeAttribute.Min, rangeAttribute.Max))
 						{
-							if (((Int64)value).InRange(rangeAttribute.Min, rangeAttribute.Max))
-							{
-								isValid = true;
-							}
+							isValid = true;
 						}
-						else
-						{
-							isValid = false;
-							Error = string.Format(MainConfig.ModelValidationErrorRange, pi.Name);
-						}
+					}
+					else
+					{
+						isValid = false;
+						Error = string.Format(MainConfig.ModelValidationErrorRange, pi.Name);
 					}
 				}
 			}
@@ -2479,7 +2567,7 @@ namespace Aurora
 			Form = (context.Request.Form == null) ? new NameValueCollection() : new NameValueCollection(context.Request.Form);
 			ClearViewTags();
 
-			viewEngine = new AuroraViewEngine(context, context.Server.MapPath(MainConfig.ViewRoot), new AuroraViewEngineHelper(context));
+			viewEngine = new ViewEngine(context, context.Server.MapPath(MainConfig.ViewRoot), new ViewEngineHelper(context));
 
 			if (Form.AllKeys.Contains(MainConfig.AntiForgeryTokenName))
 				Form.Remove(MainConfig.AntiForgeryTokenName);
@@ -3383,31 +3471,30 @@ namespace Aurora
 	#region DEFAULT ROUTE MANAGER
 	internal interface IRouteManager
 	{
-		IAuroraResult HandleRoute();
+		IViewResult HandleRoute();
 		void Refresh(HttpContextBase ctx);
 	}
 
 	public class RouteInfo
 	{
+		public HttpContextBase Context { get; internal set; }
+		public List<object> Bindings { get; internal set; }
+		public string RequestType { get; internal set; }
+		public string Alias { get; internal set; }
+		public Dictionary<string, string> Payload { get; set; }
+
 		internal Type ControllerType { get; set; }
 		internal Controller ControllerInstance { get; set; }
 		internal MethodInfo Action { get; set; }
 		internal BoundAction BoundActions { get; set; }
-
-		public List<object> Bindings { get; set; }
-
-		public string RequestType { get; set; }
-		public string Alias { get; set; }
 		internal string ControllerName { get; set; }
 		internal string ActionName { get; set; }
-		public string Path { get; set; }
 		internal string FrontLoadedParams { get; set; }
-
 		internal object[] ActionParameters { get; set; }
 		internal bool IsFiltered { get; set; }
 		internal bool Dynamic { get; set; }
 		internal bool FromRedirectOnlyInfo { get; set; }
-
+		internal List<ActionParamTransformInfo> ActionParameterTransforms { get; set; }
 		internal RequestTypeAttribute Attribute { get; set; }
 	}
 
@@ -3504,13 +3591,6 @@ namespace Aurora
 		private string alias;
 
 		private string[] urlStringParams;
-		private object[] urlObjectParams;
-
-		private PostedFormInfo postedFormInfo;
-		private Type postedFormModel;
-
-		private string RawPayload;
-		private Dictionary<string, string> Payload;
 
 		private bool fromRedirectOnlyFlag = false;
 		#endregion
@@ -3540,10 +3620,217 @@ namespace Aurora
 			//if (MainConfig.ApplicationMountPoint.Length > 0)
 			//  path = path.Replace(MainConfig.ApplicationMountPoint, string.Empty);
 
-			postedFormInfo = null;
-			postedFormModel = null;
+			routeInfos = ApplicationInternals.AllRouteInfos(context);
+
+			alias = routeInfos.OrderByDescending(y => y.Alias).Where(x => path.StartsWith(x.Alias)).Select(x => x.Alias).FirstOrDefault();
 
 			context.RewritePath(path);
+		}
+
+		private object[] GetFrontParams(RouteInfo routeInfo)
+		{
+			return !string.IsNullOrEmpty(routeInfo.FrontLoadedParams) ? routeInfo.FrontLoadedParams.Split('/') : new object[] { };
+		}
+
+		private object[] GetBoundParams(RouteInfo routeInfo)
+		{
+			return (routeInfo.BoundActions != null) ? routeInfo.BoundActions.BoundInstances.ToArray() : new object[] { };
+		}
+
+		private object[] GetURLParams()
+		{
+			urlStringParams = path.Replace(alias, string.Empty).Split('/').Where(x => !string.IsNullOrEmpty(x)).Select(x => HttpUtility.UrlEncode(x)).ToArray();
+
+			if (urlStringParams != null)
+				return StringTypeConversion.ToObjectArray(urlStringParams);
+
+			return new object[] { };
+		}
+
+		private object[] GetFormParams()
+		{
+			if (context.Request.RequestType == "POST")
+			{
+				if (context.Request.Form.Count > 0)
+				{
+					PostedFormInfo postedFormInfo;
+					Type postedFormModel = Model.DetermineModelFromPostedForm(context);
+
+					if (postedFormModel != null)
+					{
+						postedFormInfo = new PostedFormInfo(context, postedFormModel);
+
+						if (postedFormInfo.DataType != null)
+						{
+							((Model)postedFormInfo.DataTypeInstance).Validate(context, (Model)postedFormInfo.DataTypeInstance);
+
+							return new object[] { postedFormInfo.DataTypeInstance };
+						}
+					}
+					else
+					{
+						NameValueCollection form = new NameValueCollection(context.Request.Form);
+
+						if (form[MainConfig.AntiForgeryTokenName] != null)
+							form.Remove(MainConfig.AntiForgeryTokenName);
+
+						string[] formValues = new string[form.AllKeys.Length];
+
+						for (int i = 0; i < form.AllKeys.Length; i++)
+						{
+							formValues[i] = form.Get(i);
+						}
+
+						return StringTypeConversion.ToObjectArray(formValues);
+					}
+				}
+			}
+
+			return new object[] { };
+		}
+
+		private object[] GetPutDeleteParams(RouteInfo routeInfo)
+		{
+			if (routeInfo.RequestType == "PUT" || routeInfo.RequestType == "DELETE")
+			{
+				string payload = new StreamReader(context.Request.InputStream).ReadToEnd();
+
+				if (!string.IsNullOrEmpty(payload))
+				{
+					routeInfo.Payload = payload.Split(',')
+																		 .Select(x => x.Split('='))
+																		 .ToDictionary(x => x[0], x => x[1]);
+				}
+			}
+
+			if (routeInfo.Payload != null && routeInfo.Payload.Count() > 0)
+				return new object[] { routeInfo.Payload };
+
+			return new object[] { };
+		}
+
+		private object[] GetFileParams()
+		{
+			if (context.Request.Files.Count > 0)
+			{
+				HttpPostedFileBase[] files = new HttpPostedFileBase[context.Request.Files.Count];
+				context.Request.Files.CopyTo(files, 0);
+
+				return files;
+			}
+
+			return new object[] { };
+		}
+
+		private object[] DetermineAndProcessSanitizeAttributes(RouteInfo routeInfo)
+		{
+			ParameterInfo[] actionParms = routeInfo.Action.GetParameters();
+
+			object[] processedParams = new object[routeInfo.ActionParameters.Length];
+
+			routeInfo.ActionParameters.CopyTo(processedParams, 0);
+
+			for (int i = 0; i < actionParms.Length; i++)
+			{
+				if (actionParms[i].ParameterType == typeof(string))
+				{
+					SanitizeAttribute sanitize = (SanitizeAttribute)actionParms[i].GetCustomAttributes(false).FirstOrDefault(x => x is SanitizeAttribute);
+
+					if (sanitize != null)
+						sanitize.Sanitize(processedParams[i].ToString());
+				}
+			}
+
+			return processedParams;
+		}
+
+		private List<ActionParamTransformInfo> DetermineActionParameterTransforms(RouteInfo routeInfo)
+		{
+			Type[] actionParameterTypes = routeInfo.ActionParameters.Select(x => (x != null) ? x.GetType() : null).ToArray();
+
+			List<ActionParamTransformInfo> actionParameterTransforms = new List<ActionParamTransformInfo>();
+
+			for (int i = 0; i < routeInfo.Action.GetParameters().Count(); i++)
+			{
+				ParameterInfo pi = routeInfo.Action.GetParameters()[i];
+
+				ActionParamTransform apt = (ActionParamTransform)pi.GetCustomAttributes(typeof(ActionParamTransform), false).FirstOrDefault();
+
+				if (apt != null)
+				{
+					// The ActionParamTransform name corresponds to a class that implements the IActionParamTransform interface
+
+					if (routeInfo.ActionParameterTransforms == null)
+						routeInfo.ActionParameterTransforms = new List<ActionParamTransformInfo>();
+
+					// Look up class
+					Type actionParamTransformClassType = ApplicationInternals.GetActionTransformClassType(apt);
+
+					if (actionParamTransformClassType != null)
+					{
+						// Call Transform method, take results and use that instead of the incoming param
+						MethodInfo transformMethod = actionParamTransformClassType.GetMethod("Transform");
+
+						if (transformMethod != null)
+						{
+							Type transformedParamType = transformMethod.ReturnType;
+
+							actionParameterTypes[i] = transformedParamType;
+
+							actionParameterTransforms.Add(new ActionParamTransformInfo()
+							{
+								TransformClassType = actionParamTransformClassType,
+								TransformMethod = transformMethod,
+								IndexIntoParamList = i
+							});
+						}
+					}
+				}
+			}
+
+			if (actionParameterTransforms.Count() > 0) return actionParameterTransforms;
+
+			return null;
+		}
+
+		private object[] ProcessActionParameterTransforms(RouteInfo routeInfo, List<ActionParamTransformInfo> actionParamTransformInfos)
+		{
+			if (actionParamTransformInfos != null)
+			{
+				object[] processedParams = new object[routeInfo.ActionParameters.Length];
+
+				routeInfo.ActionParameters.CopyTo(processedParams, 0);
+
+				foreach (ActionParamTransformInfo apti in actionParamTransformInfos)
+				{
+					// Instantiate the class, the constructor will receive any bound action objects that the params method received.
+					object actionParamTransformClassInstance = Activator.CreateInstance(apti.TransformClassType, routeInfo.BoundActions.BoundInstances.ToArray());
+
+					Type transformMethodParameterType = apti.TransformMethod.GetParameters()[0].ParameterType;
+					Type incomingParameterType = processedParams[apti.IndexIntoParamList].GetType();
+
+					if (transformMethodParameterType != incomingParameterType)
+					{
+						if (transformMethodParameterType == typeof(string) || incomingParameterType == typeof(Int64))
+						{
+							processedParams[apti.IndexIntoParamList] = processedParams[apti.IndexIntoParamList].ToString();
+						}
+						else
+							throw new ArgumentException();
+					}
+
+					object transformedParam = apti.TransformMethod.Invoke(actionParamTransformClassInstance, new object[] { processedParams[apti.IndexIntoParamList] });
+
+					if (transformedParam != null)
+					{
+						processedParams[apti.IndexIntoParamList] = transformedParam;
+					}
+				}
+
+				return processedParams;
+			}
+
+			return null;
 		}
 
 		private RouteInfo FindRoute(string path)
@@ -3554,195 +3841,62 @@ namespace Aurora
 
 			if (!MainConfig.PathTokenRE.IsMatch(path)) return null;
 
-			object[] actionParameters = null;
-			object[] formOrPutDeleteParams = null;
-
-			NameValueCollection Form = new NameValueCollection(context.Request.Form);
-
-			if (Form[MainConfig.AntiForgeryTokenName] != null)
-				Form.Remove(MainConfig.AntiForgeryTokenName);
-
-			int urlParamLength = (urlObjectParams != null) ? urlObjectParams.Length : 0;
+			object[] urlParams = GetURLParams();
+			object[] formParams = GetFormParams();
+			object[] fileParams = GetFileParams();
 
 			List<RouteInfo> routeSlice = routeInfos.Where(x => x.Alias == alias && x.RequestType == context.Request.RequestType).ToList();
 
 			foreach (RouteInfo routeInfo in routeSlice)
 			{
+				object[] boundParams = GetBoundParams(routeInfo);
+				object[] frontParams = GetFrontParams(routeInfo);
+				object[] putDeleteParams = GetPutDeleteParams(routeInfo);
+
+				List<object> actionParametersList = new List<object>();
+
+				actionParametersList.AddRange(boundParams);
+				actionParametersList.AddRange(frontParams);
+				actionParametersList.AddRange(urlParams);
+				actionParametersList.AddRange(formParams);
+				actionParametersList.AddRange(putDeleteParams);
+				actionParametersList.AddRange(fileParams);
+
+				object[] actionParameters = actionParametersList.ToArray();
+
 				if (fromRedirectOnlyFlag && !routeInfo.FromRedirectOnlyInfo) continue;
 
-				#region DETERMINE THE PARAM LAYOUT
-				int frontParamsLength = string.IsNullOrEmpty(routeInfo.FrontLoadedParams) ? 0 : routeInfo.FrontLoadedParams.Split('/').Count();
-				int boundParamLength = (routeInfo.BoundActions != null) ? routeInfo.BoundActions.BoundInstances.Count() : 0;
-				int totalParamLength = boundParamLength + frontParamsLength + urlParamLength;
-
-				if (context.Request.RequestType == "PUT" || context.Request.RequestType == "DELETE")
-				{
-					formOrPutDeleteParams = new object[1];
-					formOrPutDeleteParams[0] = Payload;
-
-					totalParamLength += formOrPutDeleteParams.Length;
-				}
-				else if (context.Request.RequestType == "POST")
-				{
-					if (postedFormModel == null && context.Request.Form.Count > 0)
-					{
-						string[] formValues = new string[Form.AllKeys.Length];
-
-						for (int i = 0; i < Form.AllKeys.Length; i++)
-						{
-							formValues[i] = Form.Get(i);
-						}
-
-						if (Form.Count > 0)
-						{
-							formOrPutDeleteParams = StringTypeConversion.ToObjectArray(formValues);
-							totalParamLength += formOrPutDeleteParams.Length;
-						}
-					}
-					else if (postedFormInfo != null && postedFormInfo.DataType != null)
-					{
-						totalParamLength++;
-					}
-				}
-				#endregion
-
-				#region SETS UP FINAL ARRAY OF PARAMS
-				actionParameters = new object[totalParamLength + context.Request.Files.Count];
-
-				if (boundParamLength > 0)
-					routeInfo.BoundActions.BoundInstances.CopyTo(actionParameters, 0);
-
-				if (frontParamsLength > 0)
-					routeInfo.FrontLoadedParams.Split('/').CopyTo(actionParameters, boundParamLength);
-
-				if (postedFormModel == null)
-				{
-					if (formOrPutDeleteParams != null && formOrPutDeleteParams.Count() > 0)
-						formOrPutDeleteParams.CopyTo(actionParameters, boundParamLength + urlParamLength);
-
-					urlObjectParams.CopyTo(actionParameters, boundParamLength);
-				}
-				else
-				{
-					new object[] { postedFormInfo.DataTypeInstance }.CopyTo(actionParameters, boundParamLength);
-				}
-
-				if (context.Request.Files.Count > 0)
-					context.Request.Files.CopyTo(actionParameters, totalParamLength);
-				#endregion
-
-				if (totalParamLength < routeInfo.Action.GetParameters().Count()) continue;
+				//if (actionParameters.Count() < routeInfo.Action.GetParameters().Count()) continue;
 
 				Type[] actionParameterTypes = actionParameters.Select(x => (x != null) ? x.GetType() : null).ToArray();
 				Type[] methodParamTypes = routeInfo.Action.GetParameters().Select(x => x.ParameterType).ToArray();
 
-				List<ActionParamTransformInfo> actionParamTransformInfos = null;
+				//if (actionParameters.Count() < routeInfo.Action.GetParameters().Count()) throw new TargetParameterCountException();
 
-				if (actionParameters.Count() < routeInfo.Action.GetParameters().Count()) throw new TargetParameterCountException();
+				var filteredMethodParams = methodParamTypes.Where(x => x.GetInterfaces().FirstOrDefault(i => i.UnderlyingSystemType == typeof(IActionFilterResult)) != null);
 
-				#region DETERMINE ALL ACTION PARAM TRANSFORMS
-				for (int i = 0; i < routeInfo.Action.GetParameters().Count(); i++)
-				{
-					ParameterInfo pi = routeInfo.Action.GetParameters()[i];
+				if (filteredMethodParams != null)
+					methodParamTypes = methodParamTypes.Except(filteredMethodParams).ToArray();
 
-					ActionParamTransform apt = (ActionParamTransform)pi.GetCustomAttributes(typeof(ActionParamTransform), false).FirstOrDefault();
+				var matches = methodParamTypes.Where(p =>
+						(actionParameterTypes.FirstOrDefault(t =>
+							(t.GetInterfaces().Where(x => x.Name == p.Name).FirstOrDefault() != null) || t == p)) != null);
 
-					if (apt != null)
-					{
-						// The ActionParamTransform name corresponds to a class that implements the IActionParamTransform interface
-
-						if (actionParamTransformInfos == null)
-							actionParamTransformInfos = new List<ActionParamTransformInfo>();
-
-						// Look up class
-						Type actionParamTransformClassType = ApplicationInternals.GetActionTransformClassType(apt);
-
-						if (actionParamTransformClassType != null)
-						{
-							// Call Transform method, take results and use that instead of the incoming param
-							MethodInfo transformMethod = actionParamTransformClassType.GetMethod("Transform");
-
-							if (transformMethod != null)
-							{
-								Type transformedParamType = transformMethod.ReturnType;
-
-								actionParameterTypes[i] = transformedParamType;
-
-								actionParamTransformInfos.Add(new ActionParamTransformInfo()
-									{
-										TransformClassType = actionParamTransformClassType,
-										TransformMethod = transformMethod,
-										IndexIntoParamList = i
-									});
-							}
-						}
-					}
-				}
-				#endregion
-
-				#region FIGURE OUT WHICH ACTION GOES WITH THIS ROUTE
-				var matches = methodParamTypes.Where(p => (actionParameterTypes.FirstOrDefault(t => (t.GetInterfaces().Where(x => x.Name == p.Name).FirstOrDefault() != null) || t == p)) != null);
-
+				// If we have an equal count between both sets of params we have a match.
 				if (matches.Count() == methodParamTypes.Count())
 				{
-					#region DETERMINE IF ANY ACTION PARAMS HAVE [Sanitize] ATTRIBUTES
-					ParameterInfo[] actionParms = routeInfo.Action.GetParameters();
-
-					for (int i = 0; i < actionParms.Length; i++)
-					{
-						if (actionParms[i].ParameterType == typeof(string))
-						{
-							SanitizeAttribute sanitize = (SanitizeAttribute)actionParms[i].GetCustomAttributes(false).FirstOrDefault(x => x is SanitizeAttribute);
-
-							if (sanitize != null)
-								sanitize.Sanitize(actionParameters[i].ToString());
-						}
-					}
-					#endregion
-
-					if (actionParamTransformInfos != null)
-					{
-						foreach (ActionParamTransformInfo apti in actionParamTransformInfos)
-						{
-							// Instantiate the class, the constructor will receive any bound action objects that the params method received.
-							object actionParamTransformClassInstance = Activator.CreateInstance(apti.TransformClassType, routeInfo.BoundActions.BoundInstances.ToArray());
-
-							Type transformMethodParameterType = apti.TransformMethod.GetParameters()[0].ParameterType;
-							Type incomingParameterType = actionParameters[apti.IndexIntoParamList].GetType();
-
-							if (transformMethodParameterType != incomingParameterType)
-							{
-								if (transformMethodParameterType == typeof(string) || incomingParameterType == typeof(Int64))
-								{
-									actionParameters[apti.IndexIntoParamList] = actionParameters[apti.IndexIntoParamList].ToString();
-								}
-								else
-									throw new ArgumentException();
-							}
-
-							object transformedParam = apti.TransformMethod.Invoke(actionParamTransformClassInstance, new object[] { actionParameters[apti.IndexIntoParamList] });
-
-							if (transformedParam != null)
-							{
-								actionParameters[apti.IndexIntoParamList] = transformedParam;
-							}
-						}
-					}
-
 					routeInfo.ActionParameters = actionParameters;
-					routeInfo.Path = path;
 
 					return routeInfo;
 				}
-				#endregion
 			}
 
 			return null;
 		}
 
-		public IAuroraResult HandleRoute()
+		public IViewResult HandleRoute()
 		{
-			IAuroraResult iar = null;
+			IViewResult iar = null;
 
 			if (MainConfig.PathStaticFileRE.IsMatch(path))
 			{
@@ -3750,42 +3904,6 @@ namespace Aurora
 			}
 			else
 			{
-				routeInfos = ApplicationInternals.AllRouteInfos(context);
-
-				alias = routeInfos.OrderByDescending(y => y.Alias).Where(x => path.StartsWith(x.Alias)).Select(x => x.Alias).FirstOrDefault();
-
-				if (!string.IsNullOrEmpty(alias))
-				{
-					urlStringParams = path.Replace(alias, string.Empty).Split('/').Where(x => !string.IsNullOrEmpty(x)).Select(x => HttpUtility.UrlEncode(x)).ToArray();
-
-					if (urlStringParams != null)
-						urlObjectParams = StringTypeConversion.ToObjectArray(urlStringParams);
-
-					if (context.Request.RequestType == "POST")
-					{
-						postedFormModel = Model.DetermineModelFromPostedForm(context);
-
-						if (postedFormModel != null)
-						{
-							postedFormInfo = new PostedFormInfo(context, postedFormModel);
-
-							if (postedFormInfo.DataType != null)
-								((Model)postedFormInfo.DataTypeInstance).Validate(context, (Model)postedFormInfo.DataTypeInstance);
-						}
-					}
-				}
-
-				if (context.Request.RequestType == "PUT" || context.Request.RequestType == "DELETE")
-				{
-					RawPayload = new StreamReader(context.Request.InputStream).ReadToEnd();
-
-					Payload = RawPayload.Split(',')
-															.Select(x => x.Split('='))
-															.ToDictionary(x => x[0], x => x[1]);
-				}
-				else
-					Payload = null;
-
 				RouteInfo routeInfo = FindRoute(path);
 
 				if (routeInfo != null)
@@ -3803,9 +3921,9 @@ namespace Aurora
 			return iar;
 		}
 
-		private IAuroraResult ExecuteStaticRoute()
+		private IViewResult ExecuteStaticRoute()
 		{
-			IAuroraResult iar = null;
+			IViewResult iar = null;
 
 			if (path.StartsWith("/" + MainConfig.PublicResourcesFolderName) || path.EndsWith(".ico"))
 			{
@@ -3821,19 +3939,28 @@ namespace Aurora
 			return iar;
 		}
 
-		private IAuroraResult ProcessDynamicRoute(RouteInfo routeInfo)
+		private IViewResult ProcessDynamicRoute(RouteInfo routeInfo)
 		{
-			IAuroraResult result = null;
+			IViewResult result = null;
 
 			if (routeInfo != null && !routeInfo.IsFiltered)
 			{
 				RequestTypeAttribute reqAttrib = Attribute.GetCustomAttribute(routeInfo.Action, typeof(RequestTypeAttribute), false) as RequestTypeAttribute;
 				HttpGetAttribute get = Attribute.GetCustomAttribute(routeInfo.Action, typeof(HttpGetAttribute), false) as HttpGetAttribute;
 
+				#region REFINE ACTION PARAMS
+				routeInfo.ActionParameters = DetermineAndProcessSanitizeAttributes(routeInfo);
+				routeInfo.ActionParameterTransforms = DetermineActionParameterTransforms(routeInfo);
+
+				if (routeInfo.ActionParameterTransforms != null && routeInfo.ActionParameterTransforms.Count > 0)
+					routeInfo.ActionParameters = ProcessActionParameterTransforms(routeInfo, routeInfo.ActionParameterTransforms);
+
+				#endregion
+
 				#region ANTI FORGERY TOKEN VERIFICATION
 				if (context.Request.RequestType == "POST" || context.Request.RequestType == "PUT" || context.Request.RequestType == "DELETE")
 				{
-					string antiForgeryToken = (Payload == null) ? context.Request.Form[MainConfig.AntiForgeryTokenName] : Payload[MainConfig.AntiForgeryTokenName];
+					string antiForgeryToken = (routeInfo.Payload == null) ? context.Request.Form[MainConfig.AntiForgeryTokenName] : routeInfo.Payload[MainConfig.AntiForgeryTokenName];
 
 					if (!string.IsNullOrEmpty(antiForgeryToken))
 					{
@@ -3896,11 +4023,11 @@ namespace Aurora
 			return result;
 		}
 
-		private IAuroraResult InvokeAction(RouteInfo routeInfo)
+		private IViewResult InvokeAction(RouteInfo routeInfo)
 		{
 			if (routeInfo != null)
 			{
-				IAuroraResult result = null;
+				IViewResult result = null;
 
 				if (routeInfo.BoundActions != null)
 				{
@@ -3921,12 +4048,40 @@ namespace Aurora
 					if (routeInfo.Dynamic && context.Session[MainConfig.FromRedirectOnlySessionFlag] == null)
 						return null;
 
+					#region CHECK TO SEE IF WE HAVE ACTION FILTERS AND MODIFY THE ACTION PARAMETERS ACCORDINGLY
+					List<ActionFilter> filters = routeInfo.Action.GetCustomAttributes(false).Where(x => x.GetType().BaseType == typeof(ActionFilter)).Cast<ActionFilter>().ToList();
+
+					if (filters.Count() > 0)
+					{
+						List<IActionFilterResult> filterResults = new List<IActionFilterResult>();
+
+						// Look for ActionFilter attributes then execute their OnFilter method
+						foreach (ActionFilter af in filters)
+						{
+							af.Controller = routeInfo.ControllerInstance;
+							af.OnFilter(routeInfo);
+
+							//TODO: Filters can have results, code needs to be written to add the results to the action parameters array
+							if (af.FilterResult != null)
+								filterResults.Add(af.FilterResult);
+						}
+
+						if (filterResults.Count() > 0)
+						{
+							var filteredMethodParams = routeInfo.Action.GetParameters().Where(x => x.GetType().GetInterfaces().FirstOrDefault(i => i.UnderlyingSystemType == typeof(IActionFilterResult)) != null);
+
+							if (filteredMethodParams != null)
+								routeInfo.ActionParameters = filterResults.ToArray().Concat(routeInfo.ActionParameters).ToArray();
+						}
+					}
+					#endregion
+
 					object _result = routeInfo.Action.Invoke(routeInfo.ControllerInstance, routeInfo.ActionParameters);
 
 					if (context.Session[MainConfig.FromRedirectOnlySessionFlag] != null)
 						context.Session.Remove(MainConfig.FromRedirectOnlySessionFlag);
 
-					result = (routeInfo.Action.ReturnType.GetInterfaces().Contains(typeof(IAuroraResult))) ? (IAuroraResult)_result : new VoidResult();
+					result = (routeInfo.Action.ReturnType.GetInterfaces().Contains(typeof(IViewResult))) ? (IViewResult)_result : new VoidResult();
 				}
 
 				return result;
@@ -3982,7 +4137,7 @@ namespace Aurora
 				}
 			}
 
-			IAuroraResult result = null;
+			IViewResult result = null;
 
 			try
 			{
@@ -4009,7 +4164,7 @@ namespace Aurora
 						{
 							(new ErrorResult(ctx, e)).Render();
 
-							ctx.Response.StatusCode = (int) HttpStatusCode.NotFound;
+							ctx.Response.StatusCode = (int)HttpStatusCode.NotFound;
 						}
 						else
 						{
@@ -4077,7 +4232,7 @@ namespace Aurora
 
 		internal ViewResult View(string controller, string name)
 		{
-			return new ViewResult(Context, new AuroraViewEngine(Context, Context.Server.MapPath(MainConfig.ViewRoot), new AuroraViewEngineHelper(Context)), controller, name, ViewTags);
+			return new ViewResult(Context, new ViewEngine(Context, Context.Server.MapPath(MainConfig.ViewRoot), new ViewEngineHelper(Context)), controller, name, ViewTags);
 		}
 	}
 	#endregion
@@ -4581,7 +4736,7 @@ namespace Aurora
 	#endregion
 
 	#region VIEW RESULTS
-	public interface IAuroraResult
+	public interface IViewResult
 	{
 		void Render();
 	}
@@ -4608,7 +4763,7 @@ namespace Aurora
 		}
 	}
 
-	public class VirtualFileResult : IAuroraResult
+	public class VirtualFileResult : IViewResult
 	{
 		private HttpContextBase context;
 		private string fileName;
@@ -4637,7 +4792,7 @@ namespace Aurora
 		}
 	}
 
-	public class PhysicalFileResult : IAuroraResult
+	public class PhysicalFileResult : IViewResult
 	{
 		private HttpContextBase context;
 		private string filePath;
@@ -4708,7 +4863,7 @@ namespace Aurora
 		}
 	}
 
-	public class ViewResult : IAuroraResult
+	public class ViewResult : IViewResult
 	{
 		private HttpContextBase context;
 		private IViewEngine viewEngine;
@@ -4735,7 +4890,7 @@ namespace Aurora
 		}
 	}
 
-	public class FragmentResult : IAuroraResult
+	public class FragmentResult : IViewResult
 	{
 		private HttpContextBase context;
 		private IViewEngine viewEngine;
@@ -4759,7 +4914,7 @@ namespace Aurora
 		}
 	}
 
-	public class JsonResult : IAuroraResult
+	public class JsonResult : IViewResult
 	{
 		private HttpContextBase context;
 		private object data;
@@ -4791,7 +4946,7 @@ namespace Aurora
 		}
 	}
 
-	public class ErrorResult : IAuroraResult
+	public class ErrorResult : IViewResult
 	{
 		private HttpContextBase context;
 		private Exception exception;
@@ -4821,12 +4976,12 @@ namespace Aurora
 		}
 	}
 
-	internal class VoidResult : IAuroraResult
+	internal class VoidResult : IViewResult
 	{
 		public void Render() { }
 	}
 
-	public class RedirectResult : IAuroraResult
+	public class RedirectResult : IViewResult
 	{
 		private HttpContextBase context;
 		private string location;
@@ -4995,12 +5150,12 @@ namespace Aurora
 		string NewAntiForgeryToken(AntiForgeryTokenType type);
 	}
 
-	internal class AuroraViewEngineHelper : IViewEngineHelper
+	internal class ViewEngineHelper : IViewEngineHelper
 	{
 		private HttpContextBase context;
 		private ViewTemplateInfo templateInfo;
 
-		public AuroraViewEngineHelper(HttpContextBase ctx)
+		public ViewEngineHelper(HttpContextBase ctx)
 		{
 			context = ctx;
 
@@ -5040,7 +5195,7 @@ namespace Aurora
 		#endregion
 	}
 
-	internal class AuroraViewEngine : IViewEngine
+	internal class ViewEngine : IViewEngine
 	{
 		private IViewEngineHelper viewEngineHelper;
 		private string viewRoot;
@@ -5057,7 +5212,7 @@ namespace Aurora
 
 		private ViewTemplateInfo templateInfo;
 
-		public AuroraViewEngine(HttpContextBase ctx, string vr, IViewEngineHelper helper)
+		public ViewEngine(HttpContextBase ctx, string vr, IViewEngineHelper helper)
 		{
 			viewRoot = vr;
 			viewEngineHelper = helper;

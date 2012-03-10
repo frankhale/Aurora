@@ -4,33 +4,41 @@ NOTE: See source code comments for usage.
 
 Frank Hale <frankhale@gmail.com>
 
-Date: 8 March 2012
+Date: 10 March 2012
 
 --------------------
 --- Feature List ---
 --------------------  
 
-- MVC based
+- MVC based 
 - Simple tag based view engine with master pages and partial views as well as
   fragments 
 - URL parameters bind to action method parameters automatically 
 - Posted forms binds to post models or action parameters automatically 
 - Actions can have bound parameters that are bound to actions at runtime
-- Actions can be segregated based on HttpGet, HttpPost, HttpPut and HttpDelete
-  attributes and you can secure them with the Secure named parameter. Actions 
-  without a designation will not be invoked from a URL.  
+- Actions can be segregated based on HttpGet, HttpPost, HttpPut and 
+  HttpDelete attributes and you can secure them with the Secure named 
+  parameter. Actions without a designation will not be invoked from a URL.  
+- Actions can have filters with optional filter results that bind to action
+  parameters.
 - Actions can have aliases. Aliases can also be added dynamically at runtime
   along with default parameters.
 - Actions can be invoked on a special basis, they are designated with the
   [FromRedirectOnly] attribute.
-- Built in OpenID authentication which is as easy as calling two methods. One to
-  initiate the login with the provider and then one to finalize authentication.
-- Built in Active Directory querying so you can authenticate your user against
-  an Active Directory user. Typically for use in client certificate
+- Built in OpenID authentication which is as easy as calling two methods. One 
+  to initiate the login with the provider and then one to finalize 
+  authentication.
+- Built in Active Directory querying so you can authenticate your user 
+  against an Active Directory user. Typically for use in client certificate
   authentication.
 - Bundling/Minifying of Javascript and CSS.
  
 Changelog:
+
+10 March 2012
+
+- FindRoute() in the route manager class got some much needed refactoring love.
+- Added action filters and logic to handle them in the route manager.
 
 8 March 2012
 
