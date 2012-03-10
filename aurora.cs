@@ -263,8 +263,8 @@
 // --- ACTION FILTERS ----
 // -----------------------
 // 
-// Actions can have filters that perform some logic before the action is 
-// invoked. The filter is denoted by an attribute, this attribute is created
+// Actions can have filters that perform some arbitrary logic before the action 
+// is invoked. The filter is denoted by an attribute, this attribute is created
 // by subclassing ActionFilter. Action filters can optionally have results which
 // are bound at the beginning of the action parameter list.
 //
@@ -272,27 +272,27 @@
 // interface. This interface defines no methods or properties so you are open
 // to define your implementation however you like.
 //
-// You can define a filter result like this:
+// You can define a filter result like this (NOTE: filter results are optional):
 //
-//	public class FooFilterResult : IActionFilterResult
-//	{
-//		public string Foo { get; set; }
+//  public class FooFilterResult : IActionFilterResult
+//  {
+//    public string Foo { get; set; }
 //
-//		public FooFilterResult(string foo)
-//		{
-//			Foo = foo;
-//		}
-//	}
+//    public FooFilterResult(string foo)
+//    {
+//      Foo = foo;
+//    }
+//  }
 //
 // Here is a simple action filter. 
 //
-//	public class Foo : ActionFilter
-//	{
-//		public override void OnFilter(RouteInfo routeInfo)
-//		{
-//			FilterResult = new FooFilterResult("Hello,World!");
-//		}
-//	}
+//  public class Foo : ActionFilter
+//  {
+//    public override void OnFilter(RouteInfo routeInfo)
+//    {
+//      FilterResult = new FooFilterResult("Hello,World!");
+//    }
+//  }
 //
 // The action that uses this filter would be defined similar to this:
 //
