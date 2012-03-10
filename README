@@ -39,6 +39,7 @@ Changelog:
 
 - FindRoute() in the route manager class got some much needed refactoring love.
 - Added action filters and logic to handle them in the route manager.
+- Added some documentation and code samples on action filters.
 
 8 March 2012
 
