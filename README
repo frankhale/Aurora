@@ -1,10 +1,10 @@
-Aurora - An MVC micro-web-framework for .NET 
+Aurora - An MVC web framework for .NET 
 
 NOTE: See source code comments for usage.
 
 Frank Hale <frankhale@gmail.com>
 
-Date: 10 March 2012
+Date: 11 March 2012
 
 --------------------
 --- Feature List ---
@@ -34,6 +34,13 @@ Date: 10 March 2012
 - Bundling/Minifying of Javascript and CSS.
  
 Changelog:
+
+11 March 2012
+
+- Added an overload to the ActionBinder so that you can add a single instance
+  of a bound parameter to all actions in a controller.
+- Some minor updates to the documentation in the code comments at the top of 
+  the source file.
 
 10 March 2012
 

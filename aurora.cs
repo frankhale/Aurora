@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 10 March 2012
+// Updated On: 11 March 2012
 //
 // Contact Info:
 //
@@ -682,7 +682,9 @@
 //       requirePermission="false" allowLocation="true"/>
 //   </configSections>
 //
-//   <Aurora DefaultRoute="/Index" Debug="true" 
+//   <Aurora 
+//       DefaultRoute="/Index" 
+//       Debug="true" 
 //       StaticFileExtWhiteList="\.(js|png|jpg|gif|ico|css|txt|swf)$" 
 //       EncryptionKey="YourEncryptionKeyHere">
 //		<AllowedStaticFileContentTypes>
@@ -721,6 +723,10 @@
 // Debug="true"
 // StaticFileExtWhiteList="\.(js|png|jpg|gif|ico|css|txt|swf)$"
 // EncryptionKey="Encryption Key"
+// ValidateRequest="true"
+// StaticContentCacheExpiry="15" <!-- 15 minutes -->
+// AuthCookieExpiration="8" <!-- 8 Hours -->
+// DisableStaticFileCaching="false"
 //
 // If you would like to perform basic Active Directory searching for user
 // authentication purposes you can use the built in Active Directory class which
@@ -844,7 +850,7 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyProduct("Aurora")]
 [assembly: AssemblyCopyright("Copyright © 2012")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.99.39.*")]
+[assembly: AssemblyVersion("1.99.40.*")]
 #endregion
 
 namespace Aurora
@@ -966,7 +972,7 @@ namespace Aurora
 			get { return Convert.ToBoolean(this["DisableStaticFileCaching"]); }
 		}
 
-		[ConfigurationProperty("RouteManager", DefaultValue = "DefaultRouteManager", IsRequired = false)]
+		[ConfigurationProperty("RouteManager", DefaultValue = "AuroraRouteManager", IsRequired = false)]
 		public string RouteManager
 		{
 			get { return this["RouteManager"] as string; }
@@ -2218,7 +2224,7 @@ namespace Aurora
 					throw new Exception(MainConfig.OnlyOneCustomErrorClassPerApplicationError);
 
 				if (customErrors.Count == 1)
-					return CustomError.CreateInstance(customErrors[0], new ViewEngine(context, context.Server.MapPath(MainConfig.ViewRoot), new ViewEngineHelper(context)), context);
+					return CustomError.CreateInstance(customErrors[0], new AuroraViewEngine(context, context.Server.MapPath(MainConfig.ViewRoot), new ViewEngineHelper(context)), context);
 			}
 
 			return null;
@@ -2280,6 +2286,12 @@ namespace Aurora
 				bindings = new List<BoundAction>();
 				context.Session[MainConfig.ActionBinderSessionName] = bindings;
 			}
+		}
+
+		public void AddForAllActions(string controllerName, object bindInstance)
+		{
+			foreach (string actionName in ApplicationInternals.AllRoutableActionNames(context, controllerName))
+				Add(controllerName, actionName, bindInstance);
 		}
 
 		public void AddForAllActions(string controllerName, object[] bindInstances)
@@ -2567,7 +2579,7 @@ namespace Aurora
 			Form = (context.Request.Form == null) ? new NameValueCollection() : new NameValueCollection(context.Request.Form);
 			ClearViewTags();
 
-			viewEngine = new ViewEngine(context, context.Server.MapPath(MainConfig.ViewRoot), new ViewEngineHelper(context));
+			viewEngine = new AuroraViewEngine(context, context.Server.MapPath(MainConfig.ViewRoot), new ViewEngineHelper(context));
 
 			if (Form.AllKeys.Contains(MainConfig.AntiForgeryTokenName))
 				Form.Remove(MainConfig.AntiForgeryTokenName);
@@ -3579,7 +3591,7 @@ namespace Aurora
 		}
 	}
 
-	internal class DefaultRouteManager : IRouteManager
+	internal class AuroraRouteManager : IRouteManager
 	{
 		#region PRIVATE MEMBER VARIABLES
 		private HttpContextBase context;
@@ -3595,7 +3607,7 @@ namespace Aurora
 		private bool fromRedirectOnlyFlag = false;
 		#endregion
 
-		public DefaultRouteManager(HttpContextBase ctx)
+		public AuroraRouteManager(HttpContextBase ctx)
 		{
 			bundleManager = new BundleManager(ctx);
 
@@ -4097,7 +4109,7 @@ namespace Aurora
 	{
 		public AuroraEngine(HttpContextBase ctx)
 		{
-			IRouteManager routeManager;
+			IRouteManager routeManager = null;
 
 			if (!MainConfig.SupportedHttpVerbs.Contains(ctx.Request.RequestType))
 				throw new Exception(string.Format(MainConfig.HttpRequestTypeNotSupportedError, ctx.Request.RequestType));
@@ -4232,7 +4244,7 @@ namespace Aurora
 
 		internal ViewResult View(string controller, string name)
 		{
-			return new ViewResult(Context, new ViewEngine(Context, Context.Server.MapPath(MainConfig.ViewRoot), new ViewEngineHelper(Context)), controller, name, ViewTags);
+			return new ViewResult(Context, new AuroraViewEngine(Context, Context.Server.MapPath(MainConfig.ViewRoot), new ViewEngineHelper(Context)), controller, name, ViewTags);
 		}
 	}
 	#endregion
@@ -4961,10 +4973,10 @@ namespace Aurora
 		{
 			string message = string.Empty;
 
-			if (exception.InnerException == null)
-				message = exception.Message;
-			else
+			if (exception.InnerException != null)
 				message = exception.InnerException.Message;
+			else
+				message = exception.Message;
 
 			context.Response.ClearHeaders();
 			context.Response.ClearContent();
@@ -5195,7 +5207,7 @@ namespace Aurora
 		#endregion
 	}
 
-	internal class ViewEngine : IViewEngine
+	internal class AuroraViewEngine : IViewEngine
 	{
 		private IViewEngineHelper viewEngineHelper;
 		private string viewRoot;
@@ -5212,7 +5224,7 @@ namespace Aurora
 
 		private ViewTemplateInfo templateInfo;
 
-		public ViewEngine(HttpContextBase ctx, string vr, IViewEngineHelper helper)
+		public AuroraViewEngine(HttpContextBase ctx, string vr, IViewEngineHelper helper)
 		{
 			viewRoot = vr;
 			viewEngineHelper = helper;
