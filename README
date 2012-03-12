@@ -4,7 +4,7 @@ NOTE: See source code comments for usage.
 
 Frank Hale <frankhale@gmail.com>
 
-Date: 11 March 2012
+Date: 12 March 2012
 
 --------------------
 --- Feature List ---
@@ -34,6 +34,16 @@ Date: 11 March 2012
 - Bundling/Minifying of Javascript and CSS.
  
 Changelog:
+
+12 March 2012
+
+- The Active Directory methods got some new overloads so you don't have to 
+  specify the AD search user and password in the web.config file.
+- The FragTags dictionary is now a dictionary of dictionaries and the necessary
+  infrastructure has been changed to support it.
+- Worked more on the FindRoute method in the route manager. 
+- Tweaks made to the ViewResult classes.
+- A little code cleanup.
 
 11 March 2012
 

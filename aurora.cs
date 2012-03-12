@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 11 March 2012
+// Updated On: 12 March 2012
 //
 // Contact Info:
 //
@@ -819,7 +819,6 @@ using System.Linq;
 using System.Net;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using System.Security;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Security.Principal;
@@ -845,18 +844,18 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 
 #region ASSEMBLY INFORMATION
 [assembly: AssemblyTitle("Aurora")]
-[assembly: AssemblyDescription("An MVC micro web framework for .NET")]
+[assembly: AssemblyDescription("An MVC web framework for .NET")]
 [assembly: AssemblyCompany("Frank Hale")]
 [assembly: AssemblyProduct("Aurora")]
-[assembly: AssemblyCopyright("Copyright © 2012")]
+[assembly: AssemblyCopyright("Copyright © 2011-2012")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.99.41.*")]
+[assembly: AssemblyVersion("1.99.42.*")]
 #endregion
 
 namespace Aurora
 {
 	#region WEB.CONFIG CONFIGURATION
-	internal class ContentTypeConfigurationElement : ConfigurationElement
+	public class ContentTypeConfigurationElement : ConfigurationElement
 	{
 		[ConfigurationProperty("FileExtension", IsRequired = true)]
 		public string FileExtension
@@ -877,7 +876,7 @@ namespace Aurora
 		}
 	}
 
-	internal class ContentTypeConfigurationCollection : ConfigurationElementCollection
+	public class ContentTypeConfigurationCollection : ConfigurationElementCollection
 	{
 		public ContentTypeConfigurationElement this[int index]
 		{
@@ -907,7 +906,7 @@ namespace Aurora
 		}
 	}
 
-	internal class WebConfig : ConfigurationSection
+	public class WebConfig : ConfigurationSection
 	{
 		[ConfigurationProperty("AllowedStaticFileContentTypes")]
 		public ContentTypeConfigurationCollection AllowedStaticFileContentTypes
@@ -984,24 +983,28 @@ namespace Aurora
 		public string ADSearchUser
 		{
 			get { return this["ADSearchUser"].ToString(); }
+			set { this["ADSearchUser"] = value; }
 		}
 
 		[ConfigurationProperty("ADSearchPW", DefaultValue = null, IsRequired = false)]
 		public string ADSearchPW
 		{
 			get { return this["ADSearchPW"].ToString(); }
+			set { this["ADSearchPW"] = value; }
 		}
 
 		[ConfigurationProperty("ADSearchDomain", DefaultValue = null, IsRequired = false)]
 		public string ADSearchDomain
 		{
 			get { return this["ADSearchDomain"].ToString(); }
+			set { this["ADSearchDomain"] = value; }
 		}
 
 		[ConfigurationProperty("ADSearchRoot", DefaultValue = null, IsRequired = false)]
 		public string ADSearchRoot
 		{
 			get { return this["ADSearchRoot"].ToString(); }
+			set { this["ADSearchRoot"] = value; }
 		}
 #endif
 		#endregion
@@ -1052,8 +1055,8 @@ namespace Aurora
 
 		// The UserName and Password used to search Active Directory should be encrypted in the Web.Config
 #if ACTIVEDIRECTORY
-		public static string ADSearchUser = (MainConfig.WebConfig == null) ? null : (!string.IsNullOrEmpty(WebConfig.ADSearchUser)) ? Encryption.Decrypt(WebConfig.ADSearchUser, WebConfig.EncryptionKey) : null;
-		public static string ADSearchPW = (MainConfig.WebConfig == null) ? null : (!string.IsNullOrEmpty(WebConfig.ADSearchPW)) ? Encryption.Decrypt(WebConfig.ADSearchPW, WebConfig.EncryptionKey) : null;
+		public static string ADSearchUser = (MainConfig.WebConfig == null) ? null : (!string.IsNullOrEmpty(WebConfig.ADSearchUser) && !string.IsNullOrEmpty(WebConfig.EncryptionKey)) ? Encryption.Decrypt(WebConfig.ADSearchUser, WebConfig.EncryptionKey) : null;
+		public static string ADSearchPW = (MainConfig.WebConfig == null) ? null : (!string.IsNullOrEmpty(WebConfig.ADSearchPW) && !string.IsNullOrEmpty(WebConfig.EncryptionKey)) ? Encryption.Decrypt(WebConfig.ADSearchPW, WebConfig.EncryptionKey) : null;
 		public static string ADSearchDomain = (MainConfig.WebConfig == null) ? null : WebConfig.ADSearchDomain;
 		public static string ADSearchRoot = (MainConfig.WebConfig == null) ? null : WebConfig.ADSearchRoot;
 #endif
@@ -1510,21 +1513,35 @@ namespace Aurora
 
 		[System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2122:DoNotIndirectlyExposeMethodsWithLinkDemands",
 			Justification = "A user of this class cannot call into Active Directory without specifying a username and password with access to the directory.")]
-		internal static ActiveDirectoryUser LookupUser(ActiveDirectorySearchType searchType, string data, bool global)
+		internal static ActiveDirectoryUser LookupUser(ActiveDirectorySearchType searchType, string data, bool global, string adSearchUser, string adSearchPW)
 		{
-			if (string.IsNullOrEmpty(MainConfig.ADSearchUser) || string.IsNullOrEmpty(MainConfig.ADSearchPW))
-				throw new Exception(MainConfig.ADUserOrPWError);
+			string searchUser = string.Empty;
+			string searchPW = string.Empty;
 
-			if (string.IsNullOrEmpty(searchType.GetMetaData()))
-				throw new Exception(MainConfig.ADSearchCriteriaIsNullOrEmptyError);
+			if (string.IsNullOrEmpty(adSearchUser) || string.IsNullOrEmpty(adSearchPW))
+			{
+				if (string.IsNullOrEmpty(MainConfig.ADSearchUser) || string.IsNullOrEmpty(MainConfig.ADSearchPW))
+					throw new Exception(MainConfig.ADUserOrPWError);
+
+				if (string.IsNullOrEmpty(searchType.GetMetaData()))
+					throw new Exception(MainConfig.ADSearchCriteriaIsNullOrEmptyError);
+
+				searchUser = MainConfig.ADSearchUser;
+				searchPW = MainConfig.ADSearchPW;
+			}
+			else
+			{
+				searchUser = adSearchUser;
+				searchPW = adSearchPW;
+			}
 
 			if (string.IsNullOrEmpty(data)) return null;
 
 			DirectoryEntry searchRoot = new DirectoryEntry()
 			{
 				AuthenticationType = AuthenticationTypes.Secure | AuthenticationTypes.Sealing | AuthenticationTypes.Signing,
-				Username = MainConfig.ADSearchUser,
-				Password = MainConfig.ADSearchPW,
+				Username = searchUser,
+				Password = searchPW,
 				Path = GetOU(global)
 			};
 
@@ -1549,32 +1566,62 @@ namespace Aurora
 
 		public static ActiveDirectoryUser LookupUserByUserName(string userName)
 		{
-			return LookupUser(ActiveDirectorySearchType.USERNAME, userName, false);
+			return LookupUser(ActiveDirectorySearchType.USERNAME, userName, false, null, null);
+		}
+
+		public static ActiveDirectoryUser LookupUserByUserName(string userName, string adSearchUser, string adSearchPW)
+		{
+			return LookupUser(ActiveDirectorySearchType.USERNAME, userName, false, adSearchUser, adSearchPW);
 		}
 
 		public static ActiveDirectoryUser LookupUserByUserName(string userName, bool global)
 		{
-			return LookupUser(ActiveDirectorySearchType.USERNAME, userName, global);
+			return LookupUser(ActiveDirectorySearchType.USERNAME, userName, global, null, null);
+		}
+
+		public static ActiveDirectoryUser LookupUserByUserName(string userName, bool global, string adSearchUser, string adSearchPW)
+		{
+			return LookupUser(ActiveDirectorySearchType.USERNAME, userName, global, adSearchUser, adSearchPW);
 		}
 
 		public static ActiveDirectoryUser LookupUserByUPN(string upn)
 		{
-			return LookupUser(ActiveDirectorySearchType.UPN, upn, false);
+			return LookupUser(ActiveDirectorySearchType.UPN, upn, false, null, null);
 		}
 
+		public static ActiveDirectoryUser LookupUserByUPN(string upn, string adSearchUser, string adSearchPW)
+		{
+			return LookupUser(ActiveDirectorySearchType.UPN, upn, false, adSearchUser, adSearchPW);
+		}
+		
 		public static ActiveDirectoryUser LookupUserByUPN(string upn, bool global)
 		{
-			return LookupUser(ActiveDirectorySearchType.UPN, upn, global);
+			return LookupUser(ActiveDirectorySearchType.UPN, upn, global, null, null);
 		}
 
+		public static ActiveDirectoryUser LookupUserByUPN(string upn, bool global, string adSearchUser, string adSearchPW)
+		{
+			return LookupUser(ActiveDirectorySearchType.UPN, upn, global, adSearchUser, adSearchPW);
+		}
+		
 		public static ActiveDirectoryUser LookupUserByEmailAddress(string email)
 		{
-			return LookupUser(ActiveDirectorySearchType.EMAIL, email, false);
+			return LookupUser(ActiveDirectorySearchType.EMAIL, email, false, null, null);
+		}
+
+		public static ActiveDirectoryUser LookupUserByEmailAddress(string email, string adSearchUser, string adSearchPW)
+		{
+			return LookupUser(ActiveDirectorySearchType.EMAIL, email, false, adSearchUser, adSearchPW);
 		}
 
 		public static ActiveDirectoryUser LookupUserByEmailAddress(string email, bool global)
 		{
-			return LookupUser(ActiveDirectorySearchType.EMAIL, email, global);
+			return LookupUser(ActiveDirectorySearchType.EMAIL, email, global, null, null);
+		}
+
+		public static ActiveDirectoryUser LookupUserByEmailAddress(string email, bool global, string adSearchUser, string adSearchPW)
+		{
+			return LookupUser(ActiveDirectorySearchType.EMAIL, email, global, adSearchUser, adSearchPW);
 		}
 
 		[System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2122:DoNotIndirectlyExposeMethodsWithLinkDemands",
@@ -2519,7 +2566,7 @@ namespace Aurora
 		private IViewEngine viewEngine;
 
 		protected Dictionary<string, string> ViewTags;
-		protected Dictionary<string, string> FragTags;
+		protected Dictionary<string, Dictionary<string, string>> FragTags;
 
 		protected NameValueCollection Form { get; set; }
 		protected NameValueCollection QueryString { get; set; }
@@ -2531,7 +2578,7 @@ namespace Aurora
 		public Controller()
 		{
 			ViewTags = new Dictionary<string, string>();
-			FragTags = new Dictionary<string, string>();
+			FragTags = new Dictionary<string, Dictionary<string, string>>();
 
 			Controller_PreOrPostActionEvent += Controller_PreOrPostActionEventHandler;
 		}
@@ -2573,7 +2620,7 @@ namespace Aurora
 		public void ClearViewTags()
 		{
 			ViewTags = new Dictionary<string, string>();
-			FragTags = new Dictionary<string, string>();
+			FragTags = new Dictionary<string, Dictionary<string, string>>();
 		}
 
 		public string CreateAntiForgeryToken()
@@ -2624,7 +2671,7 @@ namespace Aurora
 
 		public void RedirectToAlias(string alias, params string[] parameters)
 		{
-			Context.Response.Redirect(string.Format("{0}/{1}", alias, string.Join("/", parameters)));
+			Context.Response.Redirect(string.Format("/{0}/{1}", alias, string.Join("/", parameters)));
 		}
 
 		public void RedirectToAction(string action)
@@ -2651,26 +2698,37 @@ namespace Aurora
 		#region VIEW
 		public ViewResult View()
 		{
-			StackFrame sf = new StackFrame(1);
+			return View(false);
+		}
+
+		public ViewResult View(bool clearViewTags)
+		{
+			StackFrame sf = new StackFrame(2);
 			string viewName = sf.GetMethod().Name;
 			string className = sf.GetMethod().DeclaringType.Name;
 
-			return View(className, viewName);
+			return View(className, viewName, clearViewTags);
 		}
 
 		public ViewResult View(string name)
 		{
-			StackFrame sf = new StackFrame(1);
-			string className = sf.GetMethod().DeclaringType.Name;
-
-			return View(className, name);
+			return View(name, false);
 		}
 
-		public ViewResult View(string controllerName, string actionName)
+		public ViewResult View(string name, bool clearViewTags)
+		{
+			StackFrame sf = new StackFrame(2);
+			string className = sf.GetMethod().DeclaringType.Name;
+
+			return View(className, name, clearViewTags);
+		}
+
+		public ViewResult View(string controllerName, string actionName, bool clearViewTags)
 		{
 			ViewResult vr = new ViewResult(Context, viewEngine, controllerName, actionName, ViewTags);
 
-			ClearViewTags();
+			if (clearViewTags)
+				ClearViewTags();
 
 			return vr;
 		}
@@ -2687,17 +2745,30 @@ namespace Aurora
 
 		public FragmentResult Fragment(string fragmentName)
 		{
+			return Fragment(fragmentName, false);
+		}
+
+		public FragmentResult Fragment(string fragmentName, bool clearViewTags)
+		{
+			if (clearViewTags)
+				ClearViewTags();
+
 			return new FragmentResult(Context, viewEngine, fragmentName, ViewTags);
 		}
 
 		public string RenderFragment(string fragmentName)
 		{
-			return RenderFragment(fragmentName, null);
+			Dictionary<string, string> fragTags = null;
+
+			if (FragTags.ContainsKey(fragmentName))
+				fragTags = FragTags[fragmentName];
+
+			return RenderFragment(fragmentName, fragTags);
 		}
 
-		public string RenderFragment(string fragmentName, Dictionary<string, string> tags)
+		public string RenderFragment(string fragmentName, Dictionary<string,string> fragTags)
 		{
-			viewEngine.LoadView(fragmentName, tags);
+			viewEngine.LoadView(fragmentName, fragTags);
 
 			return viewEngine[fragmentName];
 		}
@@ -3585,7 +3656,6 @@ namespace Aurora
 		private List<RouteInfo> routeInfos;
 
 		private string path;
-		private string alias;
 
 		private string[] urlStringParams;
 
@@ -3619,8 +3689,6 @@ namespace Aurora
 
 			routeInfos = ApplicationInternals.AllRouteInfos(context);
 
-			alias = routeInfos.OrderByDescending(y => y.Alias).Where(x => path.StartsWith(x.Alias)).Select(x => x.Alias).FirstOrDefault();
-
 			context.RewritePath(path);
 		}
 
@@ -3634,7 +3702,7 @@ namespace Aurora
 			return (routeInfo.BoundActions != null) ? routeInfo.BoundActions.BoundInstances.ToArray() : new object[] { };
 		}
 
-		private object[] GetURLParams()
+		private object[] GetURLParams(string alias)
 		{
 			urlStringParams = path.Replace(alias, string.Empty).Split('/').Where(x => !string.IsNullOrEmpty(x)).Select(x => HttpUtility.UrlEncode(x)).ToArray();
 
@@ -3830,19 +3898,23 @@ namespace Aurora
 			return null;
 		}
 
-		private RouteInfo FindRoute(string path)
+		private RouteInfo FindRoute(string path, string alias)
 		{
 			//
-			// Actions map like this: ViewResult ActionName(bound_parameters, front_params, url_parameters, form_parameters / (HTTP Put/Delete) payload, files)
+			// Actions map like this: 
+			//
+			//	ActionName(action_filter_results, bound_parameters, front_params, url_parameters, form_parameters / (HTTP Put/Delete) payload, files)
 			//
 
 			if (!MainConfig.PathTokenRE.IsMatch(path)) return null;
 
-			object[] urlParams = GetURLParams();
+			List<RouteInfo> routeSlice = routeInfos.Where(x => x.Alias == alias && x.RequestType == context.Request.RequestType).ToList();
+
+			if (routeSlice.Count() == 0) return null;
+
+			object[] urlParams = GetURLParams(alias);
 			object[] formParams = GetFormParams();
 			object[] fileParams = GetFileParams();
-
-			List<RouteInfo> routeSlice = routeInfos.Where(x => x.Alias == alias && x.RequestType == context.Request.RequestType).ToList();
 
 			foreach (RouteInfo routeInfo in routeSlice)
 			{
@@ -3863,23 +3935,23 @@ namespace Aurora
 
 				if (fromRedirectOnlyFlag && !routeInfo.FromRedirectOnlyInfo) continue;
 
-				//if (actionParameters.Count() < routeInfo.Action.GetParameters().Count()) continue;
+				if (actionParameters.Count() < routeInfo.Action.GetParameters().Count()) continue;
 
 				Type[] actionParameterTypes = actionParameters.Select(x => (x != null) ? x.GetType() : null).ToArray();
 				Type[] methodParamTypes = routeInfo.Action.GetParameters().Select(x => x.ParameterType).ToArray();
 
-				//if (actionParameters.Count() < routeInfo.Action.GetParameters().Count()) throw new TargetParameterCountException();
-
 				var filteredMethodParams = methodParamTypes.Where(x => x.GetInterfaces().FirstOrDefault(i => i.UnderlyingSystemType == typeof(IActionFilterResult)) != null);
 
-				if (filteredMethodParams != null)
+				if (filteredMethodParams != null && filteredMethodParams.Count() > 0)
 					methodParamTypes = methodParamTypes.Except(filteredMethodParams).ToArray();
 
-				var matches = methodParamTypes.Where(p =>
-						(actionParameterTypes.FirstOrDefault(t =>
-							(t.GetInterfaces().Where(x => x.Name == p.Name).FirstOrDefault() != null) || t == p)) != null);
+				var matches = methodParamTypes.Where(mp =>
+					actionParameterTypes.Where(ap =>
+						mp.GetInterfaces()
+								.Where(x => x.UnderlyingSystemType ==
+									ap.GetInterfaces().Where(y => y.UnderlyingSystemType == x.UnderlyingSystemType)
+										.FirstOrDefault()).FirstOrDefault() != null || mp == ap) != null);
 
-				// If we have an equal count between both sets of params we have a match.
 				if (matches.Count() == methodParamTypes.Count())
 				{
 					routeInfo.ActionParameters = actionParameters;
@@ -3901,7 +3973,9 @@ namespace Aurora
 			}
 			else
 			{
-				RouteInfo routeInfo = FindRoute(path);
+				string alias = routeInfos.OrderByDescending(y => y.Alias).Where(x => path.StartsWith(x.Alias)).Select(x => x.Alias).FirstOrDefault();
+
+				RouteInfo routeInfo = FindRoute(path, alias);
 
 				if (routeInfo != null)
 				{
@@ -4758,6 +4832,13 @@ namespace Aurora
 				}
 			}
 		}
+
+		public static void SetContentType(HttpContextBase context, string contentType)
+		{
+			context.Response.ClearHeaders();
+			context.Response.ClearContent();
+			context.Response.ContentType = contentType;
+		}
 	}
 
 	public class VirtualFileResult : IViewResult
@@ -4777,9 +4858,7 @@ namespace Aurora
 
 		public void Render()
 		{
-			context.Response.ClearContent();
-			context.Response.ClearHeaders();
-			context.Response.ContentType = fileContentType;
+			ResponseHeader.SetContentType(context, fileContentType);
 
 			ResponseHeader.AddEncodingHeaders(context);
 
@@ -4820,9 +4899,7 @@ namespace Aurora
 
 			TimeSpan expiry = new TimeSpan(0, minutesBeforeExpiration, 0);
 
-			context.Response.ClearHeaders();
-			context.Response.ClearContent();
-			context.Response.ContentType = contentType;
+			ResponseHeader.SetContentType(context, contentType);
 
 			ResponseHeader.AddEncodingHeaders(context);
 
@@ -4871,19 +4948,24 @@ namespace Aurora
 			context = ctx;
 			viewEngine = ve;
 			viewKeyName = string.Format("{0}/{1}", controllerName, viewName);
-
-			context.Response.ClearHeaders();
-			context.Response.ClearContent();
-			context.Response.ContentType = "text/html";
-
-			ResponseHeader.AddEncodingHeaders(context);
-
-			ve.LoadView(controllerName, viewName, tags);
+			
+			viewEngine.LoadView(controllerName, viewName, tags);
 		}
 
 		public void Render()
 		{
-			context.Response.Write(viewEngine[viewKeyName]);
+			if (viewEngine.ContainsView(viewKeyName))
+			{
+				ResponseHeader.SetContentType(context, "text/html");
+
+				context.Response.Charset = "utf-8";
+
+				ResponseHeader.AddEncodingHeaders(context);
+
+				context.Response.Write(viewEngine[viewKeyName]);
+			}
+			else
+				throw new Exception(string.Format(MainConfig.CannotFindViewError, viewKeyName));
 		}
 	}
 
@@ -4904,9 +4986,10 @@ namespace Aurora
 
 		public void Render()
 		{
-			context.Response.ClearHeaders();
-			context.Response.ClearContent();
-			context.Response.ContentType = "text/html";
+			ResponseHeader.SetContentType(context, "text/html");
+		
+			context.Response.Charset = "utf-8";
+
 			context.Response.Write(viewEngine[viewKeyName]);
 		}
 	}
@@ -4928,9 +5011,7 @@ namespace Aurora
 			{
 				string json = JsonConvert.SerializeObject(data);
 
-				context.Response.ClearHeaders();
-				context.Response.ClearContent();
-				context.Response.ContentType = "text/html";
+				ResponseHeader.SetContentType(context, "text/html");
 
 				ResponseHeader.AddEncodingHeaders(context);
 
@@ -4963,8 +5044,7 @@ namespace Aurora
 			else
 				message = exception.Message;
 
-			context.Response.ClearHeaders();
-			context.Response.ClearContent();
+			ResponseHeader.SetContentType(context, "text/html");
 
 			ResponseHeader.AddEncodingHeaders(context);
 
@@ -5404,10 +5484,10 @@ namespace Aurora
 				Compile(viewKeyName, templateInfo.Views.RawTemplates, templateInfo.Views.CompiledViews, tags, false);
 		}
 
-		public void LoadView(string fragmentName, Dictionary<string, string> tags)
+		public void LoadView(string fragmentName, Dictionary<string, string> fragTags)
 		{
 			if (templateInfo.Fragments.RawTemplates.ContainsKey(fragmentName))
-				Compile(fragmentName, templateInfo.Fragments.RawTemplates, templateInfo.Fragments.CompiledViews, tags, true);
+				Compile(fragmentName, templateInfo.Fragments.RawTemplates, templateInfo.Fragments.CompiledViews, fragTags, true);
 		}
 
 		public bool ContainsView(string viewName)
