@@ -41,6 +41,9 @@ Changelog:
   of a bound parameter to all actions in a controller.
 - Some minor updates to the documentation in the code comments at the top of 
   the source file.
+- Minor code clean up
+- Added FragTags dictionary to the base Controller to make it more consistent
+  when passing a Dictionary<string,string> to the RenderFragment method.
 
 10 March 2012
 

@@ -850,7 +850,7 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyProduct("Aurora")]
 [assembly: AssemblyCopyright("Copyright © 2012")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.99.40.*")]
+[assembly: AssemblyVersion("1.99.41.*")]
 #endregion
 
 namespace Aurora
@@ -1040,8 +1040,8 @@ namespace Aurora
 		public static CustomErrorsSection CustomErrorsSection = ConfigurationManager.GetSection("system.web/customErrors") as CustomErrorsSection;
 		//public static PagesSection PageSection = System.Configuration.ConfigurationManager.GetSection("system.web/pages") as PagesSection;
 		public static bool ValidateRequest = (MainConfig.WebConfig == null) ? true : WebConfig.ValidateRequest;
-		public static string RouteManager = (MainConfig.WebConfig == null) ? "DefaultRouteManager" : WebConfig.RouteManager;
-		public static string[] SupportedRouteManagers = { "DefaultRouteManager" };
+		public static string RouteManager = (MainConfig.WebConfig == null) ? "AuroraRouteManager" : WebConfig.RouteManager;
+		public static string[] SupportedRouteManagers = { "AuroraRouteManager" };
 		public static string[] SupportedHttpVerbs = { "GET", "POST", "PUT", "DELETE" };
 		public static string EncryptionKey = (MainConfig.WebConfig == null) ? null : WebConfig.EncryptionKey;
 		public static int AuthCookieExpiry = (MainConfig.WebConfig == null) ? 8 : WebConfig.AuthCookieExpiry;
@@ -1165,7 +1165,7 @@ namespace Aurora
 		None
 	}
 
-	#region APP PARTITION
+	#region VIEW PARTITION
 	//[AttributeUsage(AttributeTargets.Class)]
 	//public class PartitionAttribute : Attribute
 	//{
@@ -2519,46 +2519,30 @@ namespace Aurora
 		private IViewEngine viewEngine;
 
 		protected Dictionary<string, string> ViewTags;
+		protected Dictionary<string, string> FragTags;
+
 		protected NameValueCollection Form { get; set; }
 		protected NameValueCollection QueryString { get; set; }
 
 		public delegate void Controller_PreOrPostActionDelegate(object sender, ActionHandlerEventArgs e);
-
-		// Used in RaiseEvent to determine which event to raise during route determination and execution
-		internal enum PreOrPostActionType
-		{
-			Before,
-			After
-		}
 
 		public event Controller_PreOrPostActionDelegate Controller_PreOrPostActionEvent;
 
 		public Controller()
 		{
 			ViewTags = new Dictionary<string, string>();
+			FragTags = new Dictionary<string, string>();
 
 			Controller_PreOrPostActionEvent += Controller_PreOrPostActionEventHandler;
 		}
 
-		private void Controller_PreOrPostActionEventHandler(object sender, ActionHandlerEventArgs e)
-		{
-
-		}
+		protected void Controller_PreOrPostActionEventHandler(object sender, ActionHandlerEventArgs e) { }
 
 		protected virtual void Controller_OnInit() { }
 
-		internal void RaiseEvent(PreOrPostActionType type, RouteInfo routeInfo)
+		internal void RaiseEvent(ActionHandlerEventType type, RouteInfo routeInfo)
 		{
-			switch (type)
-			{
-				case PreOrPostActionType.Before:
-					Controller_PreOrPostActionEvent(this, new ActionHandlerEventArgs(ActionHandlerEventType.Pre, routeInfo));
-					break;
-
-				case PreOrPostActionType.After:
-					Controller_PreOrPostActionEvent(this, new ActionHandlerEventArgs(ActionHandlerEventType.Post, routeInfo));
-					break;
-			}
+			Controller_PreOrPostActionEvent(this, new ActionHandlerEventArgs(type, routeInfo));
 		}
 
 		internal static Controller CreateInstance<T>(HttpContextBase context) where T : Controller
@@ -2589,6 +2573,7 @@ namespace Aurora
 		public void ClearViewTags()
 		{
 			ViewTags = new Dictionary<string, string>();
+			FragTags = new Dictionary<string, string>();
 		}
 
 		public string CreateAntiForgeryToken()
@@ -3480,7 +3465,7 @@ namespace Aurora
 	}
 	#endregion
 
-	#region DEFAULT ROUTE MANAGER
+	#region AURORA ROUTE MANAGER
 	internal interface IRouteManager
 	{
 		IViewResult HandleRoute();
@@ -3921,12 +3906,12 @@ namespace Aurora
 				if (routeInfo != null)
 				{
 					// Execute Controller_BeforeAction
-					routeInfo.ControllerInstance.RaiseEvent(Controller.PreOrPostActionType.Before, routeInfo);
+					routeInfo.ControllerInstance.RaiseEvent(ActionHandlerEventType.Pre, routeInfo);
 
 					iar = ProcessDynamicRoute(routeInfo);
 
 					// Execute Controller_AfterAction
-					routeInfo.ControllerInstance.RaiseEvent(Controller.PreOrPostActionType.After, routeInfo);
+					routeInfo.ControllerInstance.RaiseEvent(ActionHandlerEventType.Post, routeInfo);
 				}
 			}
 
@@ -4104,7 +4089,7 @@ namespace Aurora
 	}
 	#endregion
 
-	#region ENGINE
+	#region AURORA ENGINE
 	public sealed class AuroraEngine
 	{
 		public AuroraEngine(HttpContextBase ctx)
@@ -5252,8 +5237,6 @@ namespace Aurora
 
 		private void LoadTemplates(string path)
 		{
-			List<FileInfo> foo = new DirectoryInfo(path).GetAllFiles().Where(x => x.Directory.Name != MainConfig.FragmentsFolderName).ToList();
-
 			foreach (FileInfo fi in new DirectoryInfo(path).GetAllFiles().Where(x => x.Directory.Name != MainConfig.FragmentsFolderName))
 			{
 				using (StreamReader sr = new StreamReader(fi.OpenRead()))
