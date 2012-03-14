@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 13 March 2012
+// Updated On: 14 March 2012
 //
 // Contact Info:
 //
@@ -39,15 +39,18 @@
 // --- Building ---
 // ----------------
 //
-// This code depends on .NET 3.5 at a minimum
+// Minimum .NET version is 3.5
 //
-// The source code contained here simply needs to be built as a class library.
-// I didn't include a Visual Studio or SharpDevelop project because I wanted 
-// this to remain as cruft free as possible. For now you can just create a new 
-// project in the environment you desire (VS 2008 or higher, MonoDevelop,
-// SharpDevelop) and add the references below.
-// 
-// Add the following references:
+// I purposely did not include the project files needed to build this code. The 
+// reason this was done is to keep all the boilerplate cruft out of the 
+// repository. The great thing about this framework in my opinion is that it's
+// self contained in just a single file. Everything is in here, there is no 
+// hidden magic and if you want to know what's going on just look below. No need
+// to wade through file after file to figure out how the thing works.
+//
+// Build this code as a class library or just drop it into your project. 
+//
+// This code uses the following references:
 //
 //	System
 //	System.Configuration
@@ -60,13 +63,14 @@
 //	System.Xml.dll
 //	Newtonsoft.Json.NET35 - http://json.codeplex.com/
 //	HtmlAgilityPack - http://htmlagilitypack.codeplex.com/
-// 
-// If you need Active Directory support add the following and add the build flag 
-// ACTIVEDIRECTORY:
+//
+// If you want to build in the Active Directory support add the following 
+// reference and use the ACTIVEDIRECTORY build flag:
 //
 //  System.DirectoryServices
 //
-// If you want OpenID support add and then add a build flag OPENID:
+// If you want OpenID support then add the following reference and use the 
+// OPENID build flag:
 //
 //  DotNetOpenAuth.dll - http://www.dotnetopenauth.net/
 //
@@ -90,99 +94,115 @@
 // The only folder that the framework mandates is the Views folder along with
 // it's child folders (eg. Fragments, Shared)
 //
-// Controllers will have a subfolder under Views folder that is the same name of 
-// the controller. 
+// Controllers will have a subfolder under the Views folder that is the same 
+// name of the controller. 
 //
 // The Shared folder is for partial and master views.
 //
-// The Fragments folder is for HTML fragments that are used by actions to be
-// combined with dynamic data.
+// The Fragments folder is for HTML fragments that are used by actions. Think
+// of fragments as being similar to web user controls. They are a mechanism to
+// define a piece of HTML that will be combined with dynamic data and then 
+// inserted into a view.
+//
+// Below you'll see a typical set of folders that represents an Aurora project.
 //
 // Project layout:
 //
 //  App/
-//    Controllers/    <- This is a convention
-//    Models/         <- This is a convention
+//    Controllers/    <- This is a convention (not needed)
+//    Models/         <- This is a convention (not needed)
 //    Views/
 //      Fragments/ (similar to partials but rendered by themselves)
 //      Shared/ (for master pages and partial views)
 //      Home/ (one folder for each controller, folder is the name as controller)
 //
-// NOTE: You may need to add an empty file called Default.aspx so that server 
-//       will find it on an empty request and then redirect to the default 
-//       route. This seems to be the case with the Cassini web server that is
-//       used for testing web apps from Visual Studio.
-//
 // -------------------
 // --- Controllers ---
 // -------------------
 //
-// Controllers in Aurora are just a class that subclass the Controller class 
-// defined in the framework. Controllers have actions (methods) that get invoked
-// based on the URL being requested. 
+// Controllers in Aurora are just a class that subclass the abstract Controller 
+// class defined in the framework. Controllers have actions (methods) that get 
+// invoked based on the URL being requested. These actions can be designated to
+// be invoked based on a particular HTTP verb.
 //
 // Controllers can have event handlers to perform some logic before or after an
 // action.
 //
-// Simply add an event handler for:
+// If you'd like to execute some logic before or after an action simply add an
+// event handler for the following event:
 //
 //	Controller_PreOrPostActionEvent
 //
 // In addition to event handlers a controller can override the Controller_OnInit
-// method to perform some logic right after the controller has bee instantiated.
+// method to perform some logic right after the controller has been 
+// instantiated.
 //
-// Controller instances are cached for each session.
+// Controller instances are cached for each session. The Controller_OnInit 
+// method will only be called when the controller is instantiated. 
 //
 // ---------------
 // --- Actions ---
 // --------------- 
 //
-// NOTE: Action paramters map like this: 
-//
-//  ViewResult ActionName(filter_results (optional), 
-//                        bound_parameters, 
-//                        front_params, 
-//                        url_parameters, 
-//                        form_parameters / (HTTP Put/Delete) payload, 
-//                        files)
-//
 // Actions are nothing more than public methods in your controller that are 
 // labeled with special attributes to tell the framework how to invoke them
-// based on the request.
+// based on the HTTP request.
 //
-// Actions are segregated based of two main types of requests.HttpGet and 
-// HttpPost. Actions can also be attributed with FromRedirectOnly to designate 
-// that the action can only be invoked from a redirect.
+// Unlike ASP.NET MVC you do not need to map routes in the global.asax. Aurora
+// maps parameters automatically. There are several types of parameters that 
+// can be mapped to an action. Here is how they breakdown in an action parameter
+// list:
 //
-// HttpGet has the following named parameters:
+//  public ViewResult ActionName(filter_results (optional), 
+//                               bound_parameters, 
+//                               front_params, 
+//                               url_parameters, 
+//                               form_parameters / (HTTP Put/Delete) payload, 
+//                               files)
 //
-//  RouteAlias (string)
-//  Secure (bool)
-//  Roles (string containing roles deliminted by |)
-//  CacheabilityOption (HttpCacheability)
-//  Cache (bool)
-//  Duration (int)
-//  HttpsOnly (bool)
+// When you build your action's parameter list keep this mapping in mind. The
+// framework will put the various parameters in sequence listed above.
 //
-// HttpPost has the following named parameters: 
+// Actions are segregated based of the following HTTP verbs. 
+//   
+//  [HttpGet]
+//  [HttpPost]
+//  [HttpPut]
+//  [HttpDelete]
 //
-//  RouteAlias (string)
-//  Secure (bool)
-//  Roles (string containing roles deliminted by |)
-//  HttpsOnly (bool)
+// Here is a breakdown of the options along with their respective data type
+// that you can pass into the attributes:
 //
-// Below shows the typical HttpGet request:
+// HttpPost, HttpPut, HttpDelete, HttpGet:
 //
-// public class Home : Controller
-// {
-//   [HttpGet]
-//   public ViewResult Index()
-//   {
-//     ViewTags["msg"] = "Hello,World!";
+//  ActionSecurity SecurityType (Secure or NonSecure (default))
+//  string RouteAlias
+//  string Roles
+//  bool HttpsOnly
+//  string RedirectWithoutAuthorizationTo
 //
-//     return View();
-//   }
-// }
+// HttpGet:
+//
+//  HttpCacheability CacheabilityOption
+//  bool Cache
+//  int Duration
+//  string Refresh 
+//
+// Actions can also be attributed with [FromRedirectOnly] to designate that 
+// actions can only be invoked from a redirect. 
+//
+// Below shows the typical [HttpGet] request:
+//
+//  public class Home : Controller
+//  {
+//    [HttpGet]
+//    public ViewResult Index()
+//    {
+//      ViewTags["msg"] = "Hello,World!";
+//
+//      return View();
+//    }
+//  }
 //
 // The URL that would call this controller and action would be: 
 //
@@ -224,19 +244,19 @@
 // access layer instance to a bunch of actions in a small Wiki application I 
 // wrote.
 // 
-// protected override void Controller_OnInit()
-// {
-//   new ActionBinder(Context).Add("Wiki", new string[] { "Index", "Show", 
-//                    "Edit", "Delete", "Save", "List" }, new DataConnector());
-// }
+//  protected override void Controller_OnInit()
+//  {
+//    new ActionBinder(Context).Add("Wiki", new string[] { "Index", "Show", 
+//                     "Edit", "Delete", "Save", "List" }, new DataConnector());
+//  }
 //
 // Now an action definition would look like this:
 //
-// [HttpGet]
-// public ViewResult Index(DataConnector dc)
-// {
-//   ...
-// }
+//  [HttpGet]
+//  public ViewResult Index(DataConnector dc)
+//  {
+//    ...
+//  }
 //
 // When a request is made for that action a DataConnector instance is passed
 // along as the first parameter in the action.
@@ -256,9 +276,11 @@
 //   }
 // }
 //
-// You can do other things in there for instance if your instance needs to be 
-// cached then you can reuse instances between action invocations.
+// If you'd like to bind a parameter to all actions in your controller you can 
+// do it by calling the following method on the ActionBinder class:
 //
+//   AddForAllActions("ControllerName", new object[] { new Foo() });
+// 
 // -----------------------
 // --- ACTION FILTERS ----
 // -----------------------
@@ -321,52 +343,49 @@
 //
 // Your transformation class must implement the IActionParamTransform interface.
 //
-// NOTE: In the future there will be a mechanism similar to this for dealing 
-//       with post form models. This will make it easier to deal with more 
-//       complex representations of form data that cannot be inferred in the 
-//       framework itself.
-//
-// --------------------
-// --- Error action --- /// NOTE: This is currently not implemented in Aurora
-// -------------------- ///       but I'll retain the information here in the
-//                      ///       event it's added back.
-//
-// Controllers can have a custom error action so that any server errors will be
-// sent through your action to be displayed. A controller can only have one
-// of these.
-//
-// A example of this would look similar to the following:
-//
-// [Error]
-// public ViewResult Error(string message)
-// {
-//   ViewTags["message"] = message;
-//
-//   return View();
-// }
-//
-// NOTE: An error view using this approach would live in the actions view 
-//       folder. So if the controller is named Home then this error view path 
-//       would be /Views/Home/Error.html
-//
-// -------------------
-// --- Error class ---
-// -------------------
+// Here is an example of an action declaration that could transform an incoming
+// ID parameter into a User object:
 // 
-// An application can define a special class that will be used to filter server
-// errors through. An application can only have one of these classes. 
+//  public ViewResult ViewUser(
+//		[ActionParameterTransform("UserTransform")] User id);
 //
-// A example of this would look similar to the following:
+// The transformation class would be declared like this:
 // 
-// public class MyCustomError : CustomError
-// {
-//   public override ViewResult Error(string message, Exception e)
+// The parameterized list on IActionParamTransform denotes that the transform
+// will take an int and transform it to a User.
+//
+// NOTE: If you have bound parameters on the action that is using the transform
+//       then those bound parameters will be passed to the constructor of the
+//       transformation class. Keep this in mind when defining your transform
+//       classes.
+// 
+//   public class UserTransform : IActionParamTransform<User, int>
 //   {
-//     ViewTags["message"] = message;
+//     public UserTransform(BoundParams_Here)
+//		 {
+//     }
+//	 }
 //
-//     return View();
-//   }
-// }
+// --------------------------
+// --- Custom Error Class ---
+// --------------------------
+// 
+// An application can define a special class that will be used to filter errors 
+// through. 
+//
+// NOTE: An application can only have one of these classes. 
+//
+// A example of a custom error class would look similar to the following:
+// 
+//  public class MyCustomError : CustomError
+//  {
+//    public override ViewResult Error(string message, Exception e)
+//    {
+//      ViewTags["message"] = message;
+//
+//      return View();
+//    }
+//  }
 //
 // NOTE: Put your custom error view in the /Views/Shared folder.
 //
@@ -386,40 +405,40 @@
 // A simple view with a tag for the page title and a tag for page content would 
 // look like this:
 //
-// <html>
-// <head>
-// <title>{{title}}</title>
-// </head>
-// <body>
-// {{content}}
-// </body>
-// </html>
+//  <html>
+//   <head>
+//    <title>{{title}}</title>
+//   </head>
+//   <body>
+//    {{content}}
+//   </body>
+//  </html>
 //
 // You can HTML encode your dynamic data by enclosing your tag like this 
 // {|content|}
 //
 // An action that would map content for the tags would look like this:
 //
-// [HttpGet]
-// public ViewResult Index()
-// {
-//   ViewTags["title"] = "My Website";
-//   ViewTags["content"] = "Hello, World!";
+//  [HttpGet]
+//  public ViewResult Index()
+//  {
+//    ViewTags["title"] = "My Website";
+//    ViewTags["content"] = "Hello, World!";
 //
-//   return View();
-// }
+//    return View();
+//  }
 //
 // If you wanted to create a master page you would do something like this:
 //
-// <html>
-// <head>
-// <title>My Site</title>
-// %%Head%%
-// </head>
-// <body>
-// %%View%%
-// </body>
-// </html>
+//  <html>
+//   <head>
+//    <title>My Site</title>
+//    %%Head%%
+//   </head>
+//   <body>
+//    %%View%%
+//   </body>
+//  </html>
 //
 // NOTE: A master page is just an HTML definition that lives in the Shared 
 // folder. You can add %%Head%% to the head tag and then add content to the head
@@ -430,27 +449,27 @@
 // your view (where SiteMaster is the name of the master page minus the file 
 // extension, master pages live in the /Views/Shared folder):
 //
-// %%Master=SiteMaster%%
+//  %%Master=SiteMaster%%
 //
 // To include partial views in a view you use the following directive anywhere 
 // in your view (where MyView is the name of the partial you wish to include in 
 // the final rendered page). Partial views live in the /Views/Shared folder:
 //
-// %%Partial=MyView%%
+//  %%Partial=MyView%%
 //
 // Not everything can be classified as a partial or a master page so we have
 // a concept called Fragments. Fragments are snippets of HTML that you want
 // to combine with dynamic data and render at any arbitrary time in your page.
 // To render a fragment you can do something like this:
 //
-// // [HttpGet]
-// public ViewResult Index()
-// {
-//   ViewTags["title"] = "My Website";
-//   ViewTags["content"] = RenderFragment("Foo");
+//  [HttpGet]
+//  public ViewResult Index()
+//  {
+//    ViewTags["title"] = "My Website";
+//    ViewTags["content"] = RenderFragment("Foo");
 //
-//   return View();
-// }
+//    return View();
+//  }
 //
 // This would render the fragment called Foo to the ViewTags dictionary for
 // key "content". You can use the rendered fragment in any way you like and
@@ -462,12 +481,12 @@
 // [HttpPost] attribute is designated with the RequireAntiForgeryToken set to 
 // false.
 //
-// <form action="/Home/Index" method="post">
-//   %%AntiForgeryToken%%
-//   <input type="text" name="tbMessage1" /><br />
-//   <input type="text" name="tbMessage2" /><br />
-//   <input type="submit" value="Submit" />
-// </form>
+//  <form action="/Home/Index" method="post">
+//    %%AntiForgeryToken%%
+//    <input type="text" name="tbMessage1" /><br />
+//    <input type="text" name="tbMessage2" /><br />
+//    <input type="submit" value="Submit" />
+//  </form>
 //
 // The way this form gets translated on the back end is either of two forms. 
 // You can specify a posted form model that is a simple class with properties
@@ -478,21 +497,19 @@
 // note that it must subclass Model and it must expose properties for it's data 
 // types.
 //
-// public class Data : Model
-// {
-//   public string tbMessage1 { get; set; }
-//   public DateTime tbMessage2 { get; set; }
-// }
+//  public class Data : Model
+//  {
+//    public string tbMessage1 { get; set; }
+//    public DateTime tbMessage2 { get; set; }
+//  }
 //
 // And the action would look like this:
 //
-// [HttpPost]
-// public ViewResult Index(Data d)
-// {
-//   // do something with the posted form data here
-//
-//   return View();
-// }
+//  [HttpPost]
+//  public ViewResult Index(Data d)
+//  {
+//    ...
+//  }
 //
 // ----------------------
 // --- Bundle Manager ---
@@ -527,11 +544,6 @@
 // --------------
 // --- Models ---
 // --------------
-// 
-// At this point in time models are largely notional in that there is no magic
-// behind the scenes or validation of them. Your post or view model subclasses 
-// the abstract Model class and this is used internally in the framework for the 
-// HTML helpers and the posted form determination logic. 
 //
 // Models are simple plain objects that expose public properties that correspond
 // to the data they expose. If the model is a posted form model then it's 
@@ -540,11 +552,22 @@
 // If your model is a view model and is used by let's say the HTMLTable helper 
 // (discussed below) then you can add an optional [DescriptiveName("Foo")] 
 // attribute to your property names so that it will be used in the table header
-// instead of the actual property name. This is great for camel case property 
-// names that you want to present with a friendly name.
+// instead of the actual property name. 
 //
-// Models can optionally call the ToJSON() method to return a JSON string of the 
-// data that it contains.
+// If you simply want to insert spaces in a camel cased name then you can use:
+//
+//  [DescriptiveName(DescriptiveNameOperation.SplitCamelCase)]
+//
+// Models also have a method called ToJSON() method to return a JSON string of 
+// the data that it contains.
+//
+// Model validation can be done using the following attributes on your model
+// properties:
+//
+//  [Required("Error Message")]
+//  [RequiredLength(10, "Error Message")]
+//  [RegularExpression("Pattern", "Error Message")]
+//  [Range(min, max, "Error Message")]
 //
 // --------------------
 // --- HTML Helpers ---
@@ -576,41 +599,41 @@
 //
 // Given the following data model:
 //
-// public class Employee : Model
-// {
-//   public string Name { get; set; }
-//   public string ID { get; set; }
-// }
+//  public class Employee : Model
+//  {
+//    public string Name { get; set; }
+//    public string ID { get; set; }
+//  }
 //
 // And the following action which adds an HTML table representation of our model
 // to a view:
 //
-// [HttpGet("/Employees")]
-// public ViewResult EmployeeList()
-// {
-//   List<Employee> employees = new List<Employee>() 
-//   {
-//     new Employee() { ID="U0001", Name="Frank Hale" },
-//     new Employee() { ID="U0002", Name="John Doe" },
-//     new Employee() { ID="U0003", Name="Steve Smith" }
-//   };
+//  [HttpGet("/Employees")]
+//  public ViewResult EmployeeList()
+//  {
+//    List<Employee> employees = new List<Employee>() 
+//    {
+//      new Employee() { ID="U0001", Name="Frank Hale" },
+//      new Employee() { ID="U0002", Name="John Doe" },
+//      new Employee() { ID="U0003", Name="Steve Smith" }
+//    };
 //
-//   List<ColumnTransform<Employee>> employeeTransforms = 
+//    List<ColumnTransform<Employee>> employeeTransforms = 
 //                                        new List<ColumnTransform<Employee>>();
 //
-//   employeeTransforms.Add(new ColumnTransform<Employee>(employees, "View", 
+//    employeeTransforms.Add(new ColumnTransform<Employee>(employees, "View", 
 //                 x => string.Format("<a href=\"/View/{0}\">View</a>", x.ID)));
-//   employeeTransforms.Add(new ColumnTransform<Employee>(employees, "Delete", 
+//    employeeTransforms.Add(new ColumnTransform<Employee>(employees, "Delete", 
 //             x => string.Format("<a href=\"/Delete/{0}\">Delete</a>", x.ID)));
 //
-//   HTMLTable<Employee> empTable = 
+//    HTMLTable<Employee> empTable = 
 //        new HTMLTable<Employee>(employees, null, employeeTransforms, 
 //                                                              border => "1");
 //
-//   ViewTags["table"] = empTable.ToString();
+//    ViewTags["table"] = empTable.ToString();
 //
-//   return View();
-// }
+//    return View();
+//  }
 //
 // ------------------------
 // --- Security Manager ---
@@ -672,75 +695,75 @@
 //
 // Below is a sample web.config:
 //
-// <?xml version="1.0"?>
-// <configuration>
-//   <configSections>
-//     <section name="Aurora" type="Aurora.WebConfig" 
-//       requirePermission="false"/>
-//     <section name="dotNetOpenAuth" 
-//       type="DotNetOpenAuth.Configuration.DotNetOpenAuthSection" 
-//       requirePermission="false" allowLocation="true"/>
-//   </configSections>
+//  <?xml version="1.0"?>
+//  <configuration>
+//    <configSections>
+//      <section name="Aurora" type="Aurora.WebConfig" 
+//        requirePermission="false"/>
+//      <section name="dotNetOpenAuth" 
+//        type="DotNetOpenAuth.Configuration.DotNetOpenAuthSection" 
+//        requirePermission="false" allowLocation="true"/>
+//    </configSections>
 //
-//   <Aurora 
+//    <Aurora 
 //       DefaultRoute="/Index" 
 //       Debug="true" 
 //       StaticFileExtWhiteList="\.(js|png|jpg|gif|ico|css|txt|swf)$" 
 //       EncryptionKey="YourEncryptionKeyHere">
-//		<AllowedStaticFileContentTypes>
-//			<add FileExtension=".foo" ContentType="text/foobar" />
-//		</AllowedStaticFileContentTypes>
-//   </Aurora>
+//		 <AllowedStaticFileContentTypes>
+//			 <add FileExtension=".foo" ContentType="text/foobar" />
+//		 </AllowedStaticFileContentTypes>
+//    </Aurora>
 //
-//   <dotNetOpenAuth>
-//     <openid>
-//       <relyingParty>
-//         <behaviors>
+//    <dotNetOpenAuth>
+//      <openid>
+//        <relyingParty>
+//          <behaviors>
 //           <!-- The following OPTIONAL behavior allows RPs to use SREG only,
 //                but be compatible with OPs that use Attribute Exchange (in 
 //                various formats). -->
-//         <add type=
-//  "DotNetOpenAuth.OpenId.Behaviors.AXFetchAsSregTransform, DotNetOpenAuth" />
-//         </behaviors>
-//       </relyingParty>
-//     </openid>
-//   </dotNetOpenAuth>
+//          <add type=
+//   "DotNetOpenAuth.OpenId.Behaviors.AXFetchAsSregTransform, DotNetOpenAuth" />
+//          </behaviors>
+//        </relyingParty>
+//      </openid>
+//    </dotNetOpenAuth>
 //
-//   <system.web>
-//     <compilation debug="true"/>
-//     <httpHandlers>
-//       <add verb="*" path="*" validate="false" type="Aurora.AuroraHandler"/>
-//     </httpHandlers>
-//     <httpModules>
-//       <add type="Aurora.AuroraModule" name="AuroraModule" />
-//     </httpModules>
-//   </system.web>
-// </configuration>
+//    <system.web>
+//      <compilation debug="true"/>
+//      <httpHandlers>
+//        <add verb="*" path="*" validate="false" type="Aurora.AuroraHandler"/>
+//      </httpHandlers>
+//      <httpModules>
+//        <add type="Aurora.AuroraModule" name="AuroraModule" />
+//      </httpModules>
+//    </system.web>
+//  </configuration>
 //
 // The web.config Aurora section can accept the following parameters:
 // 
-// DefaultRoute="/Home/Index" 
-// Debug="true"
-// StaticFileExtWhiteList="\.(js|png|jpg|gif|ico|css|txt|swf)$"
-// EncryptionKey="Encryption Key"
-// ValidateRequest="true"
-// StaticContentCacheExpiry="15" <!-- 15 minutes -->
-// AuthCookieExpiration="8" <!-- 8 Hours -->
-// DisableStaticFileCaching="false"
+//  DefaultRoute="/Home/Index" 
+//  Debug="true"
+//  StaticFileExtWhiteList="\.(js|png|jpg|gif|ico|css|txt|swf)$"
+//  EncryptionKey="Encryption Key"
+//  ValidateRequest="true"
+//  StaticContentCacheExpiry="15" <!-- 15 minutes -->
+//  AuthCookieExpiration="8" <!-- 8 Hours -->
+//  DisableStaticFileCaching="false"
 //
 // If you would like to perform basic Active Directory searching for user
 // authentication purposes you can use the built in Active Directory class which
 // provides some of the basic forms of searching for users within an AD 
 // environment. 
-// 
-// ADSearchUser = "Encrypted Username"
-// ADSearchPW = "Encrypted Password"
-// ADSearchRoot = "LDAP://URL_GOES_HERE"
-// ADSearchDomain = "Active Directory Domain Name" 
 //
-// I'd recommend encrypting the Active Directory username and password in the 
-// web.config. You can use the built in Encryption class to encrypt or decrypt 
-// them.
+// NOTE: You don't need to specify any of these in the web.config if you don't
+//       want to. The Active Directory methods have overloads that will allow
+//       you to pass in these at the time you call the method.
+//  
+//  ADSearchUser = "Encrypted Username"
+//  ADSearchPW = "Encrypted Password"
+//  ADSearchRoot = "LDAP://URL_GOES_HERE"
+//  ADSearchDomain = "Active Directory Domain Name" 
 //
 // ------------------------
 // --- Active Directory ---
@@ -771,7 +794,7 @@
 // represent an account as it is in ActiveDirectory. For instance, First and 
 // Last name, Display name and a digital certificate are some of the fields 
 // contained in this class.
-// 
+//
 // -------------
 // --- Notes ---
 // -------------
@@ -847,10 +870,13 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyDescription("An MVC web framework for .NET")]
 [assembly: AssemblyCompany("Frank Hale")]
 [assembly: AssemblyProduct("Aurora")]
-[assembly: AssemblyCopyright("Copyright © 2011-2012")]
+[assembly: AssemblyCopyright("Copyright © 2011 - 2012")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.99.43.*")]
+[assembly: AssemblyVersion("1.99.44.*")]
 #endregion
+
+//TODO: RouteManager: Add model validation checking to the form parameters if they are being placed directly in the action parameter list rather than in a model
+//TODO: HTMLHelpers: All of the areas where I'm using these Func<> lambda func params to add name=value pairs to HTML tags need to have complimentary methods that also use a dictionary. The infrastructure has been put in place in the base HTML helper
 
 namespace Aurora
 {
@@ -1198,6 +1224,7 @@ namespace Aurora
 	public class DescriptiveNameAttribute : Attribute
 	{
 		internal string Name { get; set; }
+
 		internal DescriptiveNameOperation Op;
 
 		public DescriptiveNameAttribute(string name)
@@ -1211,6 +1238,17 @@ namespace Aurora
 			Name = string.Empty; // Name comes from property name
 
 			Op = op; // We'll perform an operation on the property name like put spacing between camel case names, then title case the name.
+		}
+
+		public string PerformOperation(string name)
+		{
+			// This regex comes from this StackOverflow question answer:
+			//
+			// http://stackoverflow.com/questions/155303/net-how-can-you-split-a-caps-delimited-string-into-an-array
+			if (Op == DescriptiveNameOperation.SplitCamelCase)
+				return Regex.Replace(name, "([a-z](?=[A-Z])|[A-Z](?=[A-Z][a-z]))", "$1 ");
+
+			return null;
 		}
 	}
 
@@ -1247,7 +1285,6 @@ namespace Aurora
 		public string Roles = string.Empty;
 		public bool HttpsOnly = false;
 		public string RedirectWithoutAuthorizationTo = string.Empty;
-		public int Refresh = 0;
 		public readonly string RequestType;
 
 		public RequestTypeAttribute(string requestType)
@@ -1272,6 +1309,7 @@ namespace Aurora
 		internal HttpCacheability CacheabilityOption;
 		public bool Cache = false;
 		internal int Duration = 0;
+		public string Refresh = string.Empty;
 
 		public HttpGetAttribute()
 			: base("GET")
@@ -1453,7 +1491,6 @@ namespace Aurora
 			HttpContext ctx = HttpContext.Current;
 			Dictionary<string, string> uids = null;
 
-			//FIXME: Put the session name in MainConfig
 			if (ctx.Session[MainConfig.UniquedIDSessionName] != null)
 			{
 				uids = ctx.Session[MainConfig.UniquedIDSessionName] as Dictionary<string, string>;
@@ -1619,7 +1656,7 @@ namespace Aurora
 		{
 			return LookupUser(ActiveDirectorySearchType.UPN, upn, false, adSearchUser, adSearchPW, null, null);
 		}
-		
+
 		public static ActiveDirectoryUser LookupUserByUPN(string upn, bool global)
 		{
 			return LookupUser(ActiveDirectorySearchType.UPN, upn, global, null, null, null, null);
@@ -2302,7 +2339,7 @@ namespace Aurora
 					throw new Exception(MainConfig.OnlyOneCustomErrorClassPerApplicationError);
 
 				if (customErrors.Count == 1)
-					return CustomError.CreateInstance(customErrors[0], new AuroraViewEngine(context, context.Server.MapPath(MainConfig.ViewRoot), new ViewEngineHelper(context)), context);
+					return CustomError.CreateInstance(customErrors[0], new AuroraViewEngine(context.Server.MapPath(MainConfig.ViewRoot), new ViewEngineHelper(context)), context);
 			}
 
 			return null;
@@ -2627,6 +2664,8 @@ namespace Aurora
 		{
 			Controller controller = (Controller)Activator.CreateInstance(typeof(T));
 
+			controller.viewEngine = new AuroraViewEngine(context.Server.MapPath(MainConfig.ViewRoot), new ViewEngineHelper(context));
+
 			controller.Refresh(context);
 			controller.Controller_OnInit();
 
@@ -2640,8 +2679,6 @@ namespace Aurora
 			QueryString = (context.Request.QueryString == null) ? new NameValueCollection() : new NameValueCollection(context.Request.QueryString);
 			Form = (context.Request.Form == null) ? new NameValueCollection() : new NameValueCollection(context.Request.Form);
 			ClearViewTags();
-
-			viewEngine = new AuroraViewEngine(context, context.Server.MapPath(MainConfig.ViewRoot), new ViewEngineHelper(context));
 
 			if (Form.AllKeys.Contains(MainConfig.AntiForgeryTokenName))
 				Form.Remove(MainConfig.AntiForgeryTokenName);
@@ -2756,7 +2793,10 @@ namespace Aurora
 
 		public ViewResult View(string controllerName, string actionName, bool clearViewTags)
 		{
-			ViewResult vr = new ViewResult(Context, viewEngine, controllerName, actionName, ViewTags);
+			StackFrame sf = new StackFrame(3);
+			RequestTypeAttribute reqAttrib = (RequestTypeAttribute)sf.GetMethod().GetCustomAttributes(false).FirstOrDefault(x => x is RequestTypeAttribute);
+
+			ViewResult vr = new ViewResult(Context, viewEngine, controllerName, actionName, reqAttrib, ViewTags);
 
 			if (clearViewTags)
 				ClearViewTags();
@@ -2797,11 +2837,13 @@ namespace Aurora
 			return RenderFragment(fragmentName, fragTags);
 		}
 
-		public string RenderFragment(string fragmentName, Dictionary<string,string> fragTags)
+		public string RenderFragment(string fragmentName, Dictionary<string, string> fragTags)
 		{
+			string fragKeyName = string.Format("{0}/{1}", MainConfig.FragmentsFolderName, fragmentName);
+
 			viewEngine.LoadView(fragmentName, fragTags);
 
-			return viewEngine[fragmentName];
+			return viewEngine[fragKeyName];
 		}
 		#endregion
 	}
@@ -4163,7 +4205,6 @@ namespace Aurora
 							af.Controller = routeInfo.ControllerInstance;
 							af.OnFilter(routeInfo);
 
-							//TODO: Filters can have results, code needs to be written to add the results to the action parameters array
 							if (af.FilterResult != null)
 								filterResults.Add(af.FilterResult);
 						}
@@ -4334,7 +4375,7 @@ namespace Aurora
 
 		internal ViewResult View(string controller, string name)
 		{
-			return new ViewResult(Context, new AuroraViewEngine(Context, Context.Server.MapPath(MainConfig.ViewRoot), new ViewEngineHelper(Context)), controller, name, ViewTags);
+			return new ViewResult(Context, viewEngine, controller, name, null, ViewTags);
 		}
 	}
 	#endregion
@@ -4382,33 +4423,44 @@ namespace Aurora
 		Post
 	}
 
-	//TODO: All of the areas where I'm using these Func<> lambda params stuff to add name=value pairs to HTML tags need to have...
-	//      complimentary methods that also use a dictionary.
-
 	#region ABSTRACT BASE HELPER
 	public abstract class HTMLBase
 	{
-		protected Func<string, string>[] Attribs;
+		protected Dictionary<string, string> AttribsDict;
+		protected Func<string, string>[] AttribsFunc;
 
-		protected string CondenseAttribs()
+		public string CondenseAttribs()
 		{
-			return (Attribs != null) ? GetParams(Attribs) : string.Empty;
+			return (AttribsFunc != null) ? GetParams() : string.Empty;
 		}
 
-		protected string GetParams(params Func<string, string>[] x)
+		private string GetParams()
 		{
 			StringBuilder sb = new StringBuilder();
 
-			foreach (Func<string, string> f in x)
+			Dictionary<string, string> attribs = new Dictionary<string, string>();
+
+			if (AttribsFunc != null)
 			{
-				Type lambdaType = f.GetType();
-
-				string identifier = (f.Method.GetParameters()[0].Name == "@class") ? "class" : f.Method.GetParameters()[0].Name;
-
-				sb.AppendFormat("{0}=\"{1}\" ", identifier, f(null));
+				foreach (Func<string, string> f in AttribsFunc)
+				{
+					attribs.Add(f.Method.GetParameters()[0].Name == "@class" ? "class" : f.Method.GetParameters()[0].Name, f(null));
+				}
+			}
+			else if (AttribsDict != null)
+			{
+				attribs = AttribsDict;
 			}
 
-			return sb.ToString().Trim();
+			foreach (KeyValuePair<string, string> kvp in attribs)
+			{
+				sb.AppendFormat("{0}=\"{1}\" ", kvp.Key, kvp.Value);
+			}
+
+			if (sb.Length > 0)
+				return sb.ToString().Trim();
+
+			return null;
 		}
 	}
 	#endregion
@@ -4514,7 +4566,7 @@ namespace Aurora
 			Models = models;
 
 			IgnoreColumns = ignoreColumns;
-			Attribs = attribs;
+			AttribsFunc = attribs;
 			ColumnTransforms = columnTransforms;
 			RowTransforms = rowTransforms;
 
@@ -4539,17 +4591,7 @@ namespace Aurora
 					if (pn != null)
 					{
 						if (pn.Op == DescriptiveNameOperation.SplitCamelCase)
-						{
-							//FIXME: This operation needs to be placed inside the DescriptiveNameAttribute.
-							//
-							// REGEX comes from this StackOverflow question answer:
-							//
-							// http://stackoverflow.com/questions/155303/net-how-can-you-split-a-caps-delimited-string-into-an-array
-							string descriptiveName = Regex.Replace(p.Name, "([a-z](?=[A-Z])|[A-Z](?=[A-Z][a-z]))", "$1 ");
-
-							// Realistically the first letter is the only one that would possibly be lower case. I probably shouldn't call ToTitleCase on this!
-							PropertyNames.Add(CultureInfo.InvariantCulture.TextInfo.ToTitleCase(descriptiveName));
-						}
+							PropertyNames.Add(CultureInfo.InvariantCulture.TextInfo.ToTitleCase(pn.PerformOperation(p.Name)));
 						else
 							PropertyNames.Add(pn.Name);
 
@@ -4587,7 +4629,7 @@ namespace Aurora
 
 			StringBuilder html = new StringBuilder();
 
-			html.AppendFormat("<table {0}>", (Attribs != null) ? GetParams(Attribs) : string.Empty);
+			html.AppendFormat("<table {0}>", CondenseAttribs());
 
 			html.Append("<thead>");
 
@@ -4667,12 +4709,12 @@ namespace Aurora
 		{
 			Url = url;
 			Description = description;
-			Attribs = attribs;
+			AttribsFunc = attribs;
 		}
 
 		public override string ToString()
 		{
-			return string.Format("<a {0} href=\"{1}\">{2}</a>", (Attribs != null) ? GetParams(Attribs) : string.Empty, Url, Description);
+			return string.Format("<a {0} href=\"{1}\">{2}</a>", CondenseAttribs(), Url, Description);
 		}
 	}
 
@@ -4682,7 +4724,7 @@ namespace Aurora
 
 		public HTMLInput(HTMLInputType type, params Func<string, string>[] attribs)
 		{
-			Attribs = attribs;
+			AttribsFunc = attribs;
 			InputType = type;
 		}
 
@@ -4709,7 +4751,7 @@ namespace Aurora
 
 		public HTMLForm(string action, HTMLFormPostMethod method, List<string> inputTags, params Func<string, string>[] attribs)
 		{
-			Attribs = attribs;
+			AttribsFunc = attribs;
 			InputTags = inputTags;
 		}
 
@@ -4737,7 +4779,7 @@ namespace Aurora
 		public HTMLSpan(string contents, params Func<string, string>[] attribs)
 		{
 			Contents = contents;
-			Attribs = attribs;
+			AttribsFunc = attribs;
 		}
 
 		public override string ToString()
@@ -4759,7 +4801,7 @@ namespace Aurora
 		public HTMLSelect(List<string> options, string selectedDefault, bool emptyOption, params Func<string, string>[] attribs)
 		{
 			Options = options;
-			Attribs = attribs;
+			AttribsFunc = attribs;
 			SelectedDefault = selectedDefault ?? string.Empty;
 			EmptyOption = emptyOption;
 		}
@@ -4826,7 +4868,7 @@ namespace Aurora
 		public HTMLImage(string src, params Func<string, string>[] attribs)
 		{
 			Src = src;
-			Attribs = attribs;
+			AttribsFunc = attribs;
 		}
 
 		public override string ToString()
@@ -4973,13 +5015,18 @@ namespace Aurora
 		private HttpContextBase context;
 		private IViewEngine viewEngine;
 		private string viewKeyName;
+		private RequestTypeAttribute requestAttribute;
 
-		public ViewResult(HttpContextBase ctx, IViewEngine ve, string controllerName, string viewName, Dictionary<string, string> tags)
+		public ViewResult(HttpContextBase ctx, IViewEngine ve, string controllerName, string viewName, RequestTypeAttribute requestTypeAttribute, Dictionary<string, string> tags)
 		{
 			context = ctx;
 			viewEngine = ve;
 			viewKeyName = string.Format("{0}/{1}", controllerName, viewName);
-			
+			requestAttribute = requestTypeAttribute;
+
+			if (MainConfig.DisableStaticFileCaching)
+				viewEngine.Refresh();
+
 			viewEngine.LoadView(controllerName, viewName, tags);
 		}
 
@@ -4990,6 +5037,14 @@ namespace Aurora
 				ResponseHeader.SetContentType(context, "text/html");
 
 				context.Response.Charset = "utf-8";
+
+				if (requestAttribute is HttpGetAttribute)
+				{
+					string refresh = (requestAttribute as HttpGetAttribute).Refresh;
+
+					if (!string.IsNullOrEmpty(refresh))
+						context.Response.AddHeader("Refresh", refresh);
+				}
 
 				ResponseHeader.AddEncodingHeaders(context);
 
@@ -5010,7 +5065,10 @@ namespace Aurora
 		{
 			context = ctx;
 			viewEngine = ve;
-			viewKeyName = fragmentName;
+			viewKeyName = string.Format("{0}/{1}", MainConfig.FragmentsFolderName, fragmentName);
+
+			if (MainConfig.DisableStaticFileCaching)
+				viewEngine.Refresh();
 
 			ve.LoadView(fragmentName, tags);
 		}
@@ -5018,7 +5076,7 @@ namespace Aurora
 		public void Render()
 		{
 			ResponseHeader.SetContentType(context, "text/html");
-		
+
 			context.Response.Charset = "utf-8";
 
 			context.Response.Write(viewEngine[viewKeyName]);
@@ -5212,8 +5270,14 @@ namespace Aurora
 	#endregion
 
 	#region VIEW ENGINE
+
+	//TODO: The view engine is in need of some serious refactoring to make way for a more robust way to work with views...
+	//      that will allow for a flexible strategy for doing view partitioning.
+
 	public interface IViewEngine
 	{
+		void Refresh();
+
 		void LoadView(string controllerName, string viewName, Dictionary<string, string> tags);
 
 		void LoadView(string fragmentName, Dictionary<string, string> tags);
@@ -5223,29 +5287,18 @@ namespace Aurora
 		string this[string view] { get; }
 	}
 
-	internal class ViewTypeContainer
+	internal class ViewTemplateInfo
 	{
 		public Dictionary<string, StringBuilder> RawTemplates { get; set; }
 		public Dictionary<string, string> CompiledViews { get; set; }
-
-		public ViewTypeContainer()
-		{
-			RawTemplates = new Dictionary<string, StringBuilder>();
-			CompiledViews = new Dictionary<string, string>();
-		}
-	}
-
-	internal class ViewTemplateInfo
-	{
-		public ViewTypeContainer Views { get; set; }
-		public ViewTypeContainer Fragments { get; set; }
 
 		public bool FromCache { get; set; }
 
 		public ViewTemplateInfo()
 		{
-			Views = new ViewTypeContainer();
-			Fragments = new ViewTypeContainer();
+			RawTemplates = new Dictionary<string, StringBuilder>();
+			CompiledViews = new Dictionary<string, string>();
+
 			FromCache = false;
 		}
 	}
@@ -5317,61 +5370,49 @@ namespace Aurora
 		private static string viewDirective = "%%View%%";
 		private static string headDirective = "%%Head%%";
 		private static string partialDirective = "%%Partial={0}%%";
-
+		
 		private ViewTemplateInfo templateInfo;
 
-		public AuroraViewEngine(HttpContextBase ctx, string vr, IViewEngineHelper helper)
+		public AuroraViewEngine(string vr, IViewEngineHelper helper)
 		{
 			viewRoot = vr;
 			viewEngineHelper = helper;
 
-			templateInfo = null;
+			Refresh();
+		}
 
+		public void Refresh()
+		{
 			if (MainConfig.DisableStaticFileCaching)
-			{
 				templateInfo = new ViewTemplateInfo();
-				templateInfo.FromCache = false;
-			}
 			else
-			{
 				templateInfo = viewEngineHelper.TemplateInfo;
-			}
 
 			if (!templateInfo.FromCache)
 			{
-				LoadTemplates(viewRoot);
-				LoadFragments(viewRoot);
+				templateInfo.RawTemplates = LoadTemplates(new DirectoryInfo(viewRoot).GetAllFiles());
 
 				viewEngineHelper.TemplateInfo = templateInfo;
 			}
 		}
 
-		private void LoadTemplates(string path)
+		private Dictionary<string, StringBuilder> LoadTemplates(IEnumerable<FileInfo> files)
 		{
-			foreach (FileInfo fi in new DirectoryInfo(path).GetAllFiles().Where(x => x.Directory.Name != MainConfig.FragmentsFolderName))
+			Dictionary<string, StringBuilder> templates = new Dictionary<string, StringBuilder>();
+
+			foreach (FileInfo fi in files)
 			{
 				using (StreamReader sr = new StreamReader(fi.OpenRead()))
 				{
 					string template = sr.ReadToEnd();
-					string viewKeyName = string.Format("{0}/{1}", fi.Directory.Name, fi.Name.Replace(fi.Extension, string.Empty));
+					string templateName = fi.Name.Replace(fi.Extension, string.Empty);
+					string templateKeyName = string.Format("{0}/{1}", fi.Directory.Name, templateName);
 
-					templateInfo.Views.RawTemplates.Add(viewKeyName, new StringBuilder(template));
+					templates.Add(templateKeyName, new StringBuilder(template));
 				}
 			}
-		}
 
-		private void LoadFragments(string path)
-		{
-			foreach (FileInfo fi in new DirectoryInfo(path).GetAllFiles().Where(x => x.Directory.Name == MainConfig.FragmentsFolderName))
-			{
-				using (StreamReader sr = new StreamReader(fi.OpenRead()))
-				{
-					string fragment = sr.ReadToEnd();
-					string fragmentKeyName = fi.Name.Replace(fi.Extension, string.Empty);
-
-					templateInfo.Fragments.RawTemplates.Add(fragmentKeyName, new StringBuilder(fragment));
-				}
-			}
+			return templates;
 		}
 
 		private StringBuilder ProcessDirectives(string viewKeyName, Dictionary<string, StringBuilder> rawTemplates, StringBuilder rawView)
@@ -5511,19 +5552,21 @@ namespace Aurora
 		{
 			string viewKeyName = string.Format("{0}/{1}", controllerName, viewName);
 
-			if (templateInfo.Views.RawTemplates.ContainsKey(viewKeyName))
-				Compile(viewKeyName, templateInfo.Views.RawTemplates, templateInfo.Views.CompiledViews, tags, false);
+			if (templateInfo.RawTemplates.ContainsKey(viewKeyName))
+				Compile(viewKeyName, templateInfo.RawTemplates, templateInfo.CompiledViews, tags, false);
 		}
 
 		public void LoadView(string fragmentName, Dictionary<string, string> fragTags)
 		{
-			if (templateInfo.Fragments.RawTemplates.ContainsKey(fragmentName))
-				Compile(fragmentName, templateInfo.Fragments.RawTemplates, templateInfo.Fragments.CompiledViews, fragTags, true);
+			string fragKeyName = string.Format("{0}/{1}", MainConfig.FragmentsFolderName, fragmentName);
+
+			if (templateInfo.RawTemplates.ContainsKey(fragKeyName))
+				Compile(fragKeyName, templateInfo.RawTemplates, templateInfo.CompiledViews, fragTags, true);
 		}
 
-		public bool ContainsView(string viewName)
+		public bool ContainsView(string keyName)
 		{
-			if (templateInfo.Views.CompiledViews.ContainsKey(viewName) || templateInfo.Fragments.CompiledViews.ContainsKey(viewName))
+			if (templateInfo.CompiledViews.ContainsKey(keyName))
 				return true;
 
 			return false;
@@ -5533,11 +5576,8 @@ namespace Aurora
 		{
 			get
 			{
-				if (templateInfo.Views.CompiledViews.ContainsKey(key))
-					return templateInfo.Views.CompiledViews[key];
-
-				if (templateInfo.Fragments.CompiledViews.ContainsKey(key))
-					return templateInfo.Fragments.CompiledViews[key];
+				if (templateInfo.CompiledViews.ContainsKey(key))
+					return templateInfo.CompiledViews[key];
 
 				throw new Exception(string.Format(MainConfig.CannotFindViewError, key));
 			}
