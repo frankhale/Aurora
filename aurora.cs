@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 12 March 2012
+// Updated On: 13 March 2012
 //
 // Contact Info:
 //
@@ -849,7 +849,7 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyProduct("Aurora")]
 [assembly: AssemblyCopyright("Copyright © 2011-2012")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.99.42.*")]
+[assembly: AssemblyVersion("1.99.43.*")]
 #endregion
 
 namespace Aurora
@@ -1099,7 +1099,8 @@ namespace Aurora
 		public static string EncryptionKeyNotSpecifiedError = "The encryption key has not been specified in the web.config";
 		public static string PostedFormActionIncorrectNumberOfParametersError = "A post action must have at least one parameter that is the model type of the form that is being posted";
 		public static string ADUserOrPWError = "The username or password used to read from Active Directory is null or empty, please check your web.config";
-		public static string ADSearchRootIsNullOrEmpty = "The Active Directory search root is null or empty, please check your web.config";
+		public static string ADSearchRootIsNullOrEmpty = "The Active Directory search root is null or empty";
+		public static string ADSearchDomainIsNullorEmpty = "The Active Directory search domain is null or empty";
 		public static string ADSearchCriteriaIsNullOrEmptyError = "The LDAP query associated with this search type is null or empty, a valid query must be annotated to this search type via the MetaData attribute";
 		public static string HttpRequestTypeNotSupportedError = "The HTTP Request type [{0}] is not supported.";
 		public static string ActionParameterTransformClassUnknownError = "The action parameter transform class cannot be determined.";
@@ -1509,14 +1510,14 @@ namespace Aurora
 
 	public class ActiveDirectory
 	{
-		private static string GLOBAL_CATALOG = string.Format("GC://{0}", MainConfig.ADSearchDomain);
-
 		[System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2122:DoNotIndirectlyExposeMethodsWithLinkDemands",
 			Justification = "A user of this class cannot call into Active Directory without specifying a username and password with access to the directory.")]
-		internal static ActiveDirectoryUser LookupUser(ActiveDirectorySearchType searchType, string data, bool global, string adSearchUser, string adSearchPW)
+		internal static ActiveDirectoryUser LookupUser(ActiveDirectorySearchType searchType, string data, bool global, string adSearchUser, string adSearchPW, string adSearchRoot, string adSearchDomain)
 		{
 			string searchUser = string.Empty;
 			string searchPW = string.Empty;
+			string searchDomain = string.Empty;
+			string searchRoot = string.Empty;
 
 			if (string.IsNullOrEmpty(adSearchUser) || string.IsNullOrEmpty(adSearchPW))
 			{
@@ -1535,18 +1536,35 @@ namespace Aurora
 				searchPW = adSearchPW;
 			}
 
+			if (string.IsNullOrEmpty(adSearchRoot) || string.IsNullOrEmpty(adSearchDomain))
+			{
+				if (string.IsNullOrEmpty(MainConfig.ADSearchRoot))
+					throw new Exception(MainConfig.ADSearchRoot);
+
+				if (string.IsNullOrEmpty(MainConfig.ADSearchDomain))
+					throw new Exception(MainConfig.ADSearchDomainIsNullorEmpty);
+
+				searchDomain = MainConfig.ADSearchDomain;
+				searchRoot = MainConfig.ADSearchRoot;
+			}
+			else
+			{
+				searchDomain = adSearchDomain;
+				searchRoot = adSearchRoot;
+			}
+
 			if (string.IsNullOrEmpty(data)) return null;
 
-			DirectoryEntry searchRoot = new DirectoryEntry()
+			DirectoryEntry searchRootDE = new DirectoryEntry()
 			{
 				AuthenticationType = AuthenticationTypes.Secure | AuthenticationTypes.Sealing | AuthenticationTypes.Signing,
 				Username = searchUser,
 				Password = searchPW,
-				Path = GetOU(global)
+				Path = (global) ? string.Format("GC://{0}", searchDomain) : searchRoot
 			};
 
 			DirectorySearcher searcher = new DirectorySearcher();
-			searcher.SearchRoot = searchRoot;
+			searcher.SearchRoot = searchRootDE;
 			searcher.Filter = string.Format(searchType.GetMetaData(), data);
 
 			try
@@ -1564,65 +1582,86 @@ namespace Aurora
 			return null;
 		}
 
+		#region LOOKUP BY USERNAME
 		public static ActiveDirectoryUser LookupUserByUserName(string userName)
 		{
-			return LookupUser(ActiveDirectorySearchType.USERNAME, userName, false, null, null);
+			return LookupUser(ActiveDirectorySearchType.USERNAME, userName, false, null, null, null, null);
 		}
 
 		public static ActiveDirectoryUser LookupUserByUserName(string userName, string adSearchUser, string adSearchPW)
 		{
-			return LookupUser(ActiveDirectorySearchType.USERNAME, userName, false, adSearchUser, adSearchPW);
+			return LookupUser(ActiveDirectorySearchType.USERNAME, userName, false, adSearchUser, adSearchPW, null, null);
 		}
 
 		public static ActiveDirectoryUser LookupUserByUserName(string userName, bool global)
 		{
-			return LookupUser(ActiveDirectorySearchType.USERNAME, userName, global, null, null);
+			return LookupUser(ActiveDirectorySearchType.USERNAME, userName, global, null, null, null, null);
 		}
 
 		public static ActiveDirectoryUser LookupUserByUserName(string userName, bool global, string adSearchUser, string adSearchPW)
 		{
-			return LookupUser(ActiveDirectorySearchType.USERNAME, userName, global, adSearchUser, adSearchPW);
+			return LookupUser(ActiveDirectorySearchType.USERNAME, userName, global, adSearchUser, adSearchPW, null, null);
 		}
 
+		public static ActiveDirectoryUser LookupUserByUserName(string userName, bool global, string adSearchUser, string adSearchPW, string adSearchRoot, string adSearchDomain)
+		{
+			return LookupUser(ActiveDirectorySearchType.USERNAME, userName, global, adSearchUser, adSearchPW, adSearchRoot, adSearchDomain);
+		}
+		#endregion
+
+		#region LOOKUP USER BY UPN
 		public static ActiveDirectoryUser LookupUserByUPN(string upn)
 		{
-			return LookupUser(ActiveDirectorySearchType.UPN, upn, false, null, null);
+			return LookupUser(ActiveDirectorySearchType.UPN, upn, false, null, null, null, null);
 		}
 
 		public static ActiveDirectoryUser LookupUserByUPN(string upn, string adSearchUser, string adSearchPW)
 		{
-			return LookupUser(ActiveDirectorySearchType.UPN, upn, false, adSearchUser, adSearchPW);
+			return LookupUser(ActiveDirectorySearchType.UPN, upn, false, adSearchUser, adSearchPW, null, null);
 		}
 		
 		public static ActiveDirectoryUser LookupUserByUPN(string upn, bool global)
 		{
-			return LookupUser(ActiveDirectorySearchType.UPN, upn, global, null, null);
+			return LookupUser(ActiveDirectorySearchType.UPN, upn, global, null, null, null, null);
 		}
 
 		public static ActiveDirectoryUser LookupUserByUPN(string upn, bool global, string adSearchUser, string adSearchPW)
 		{
-			return LookupUser(ActiveDirectorySearchType.UPN, upn, global, adSearchUser, adSearchPW);
+			return LookupUser(ActiveDirectorySearchType.UPN, upn, global, adSearchUser, adSearchPW, null, null);
 		}
-		
+
+		public static ActiveDirectoryUser LookupUserByUPN(string upn, bool global, string adSearchUser, string adSearchPW, string adSearchRoot, string adSearchDomain)
+		{
+			return LookupUser(ActiveDirectorySearchType.UPN, upn, global, adSearchUser, adSearchPW, adSearchRoot, adSearchDomain);
+		}
+		#endregion
+
+		#region LOOKUP USER BY EMAIL ADDRESS
 		public static ActiveDirectoryUser LookupUserByEmailAddress(string email)
 		{
-			return LookupUser(ActiveDirectorySearchType.EMAIL, email, false, null, null);
+			return LookupUser(ActiveDirectorySearchType.EMAIL, email, false, null, null, null, null);
 		}
 
 		public static ActiveDirectoryUser LookupUserByEmailAddress(string email, string adSearchUser, string adSearchPW)
 		{
-			return LookupUser(ActiveDirectorySearchType.EMAIL, email, false, adSearchUser, adSearchPW);
+			return LookupUser(ActiveDirectorySearchType.EMAIL, email, false, adSearchUser, adSearchPW, null, null);
 		}
 
 		public static ActiveDirectoryUser LookupUserByEmailAddress(string email, bool global)
 		{
-			return LookupUser(ActiveDirectorySearchType.EMAIL, email, global, null, null);
+			return LookupUser(ActiveDirectorySearchType.EMAIL, email, global, null, null, null, null);
 		}
 
 		public static ActiveDirectoryUser LookupUserByEmailAddress(string email, bool global, string adSearchUser, string adSearchPW)
 		{
-			return LookupUser(ActiveDirectorySearchType.EMAIL, email, global, adSearchUser, adSearchPW);
+			return LookupUser(ActiveDirectorySearchType.EMAIL, email, global, adSearchUser, adSearchPW, null, null);
 		}
+
+		public static ActiveDirectoryUser LookupUserByEmailAddress(string email, bool global, string adSearchUser, string adSearchPW, string adSearchRoot, string adSearchDomain)
+		{
+			return LookupUser(ActiveDirectorySearchType.EMAIL, email, global, adSearchUser, adSearchPW, adSearchRoot, adSearchDomain);
+		}
+		#endregion
 
 		[System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2122:DoNotIndirectlyExposeMethodsWithLinkDemands",
 			Justification = "A user of this class cannot call into Active Directory without specifying a username and password with access to the directory.")]
@@ -1669,14 +1708,6 @@ namespace Aurora
 			}
 
 			return null;
-		}
-
-		private static string GetOU(bool global)
-		{
-			if (string.IsNullOrEmpty(MainConfig.ADSearchRoot))
-				throw new Exception(MainConfig.ADSearchRootIsNullOrEmpty);
-
-			return (global) ? GLOBAL_CATALOG : MainConfig.ADSearchRoot;
 		}
 	}
 #endif
