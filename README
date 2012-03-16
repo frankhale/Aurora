@@ -39,8 +39,8 @@ Changelog:
 
 - Refactored the view engine so that it can support partitions. Partitions are
   similiar to ASP.NET MVC areas. A controller can now use the [Partition] 
-	attribute to designate that it is in a specific partition. Controllers that 
-	designate a partition would use the following folder structure:
+  attribute to designate that it is in a specific partition. Controllers that 
+  designate a partition would use the following folder structure:
 
   /views (global shared views and fragments)
     /shared
