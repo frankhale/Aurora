@@ -45,9 +45,9 @@ Changelog:
   /views (global shared views and fragments)
     /shared
     /fragments
-	/partition
+  /partition
     /controllers (convention)
-    /models			 (convention)
+    /models      (convention)
       /views
       /folder_for_each_controller
         /shared
