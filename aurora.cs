@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 14 March 2012
+// Updated On: 15 March 2012
 //
 // Contact Info:
 //
@@ -872,7 +872,7 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyProduct("Aurora")]
 [assembly: AssemblyCopyright("Copyright © 2011 - 2012")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.99.44.*")]
+[assembly: AssemblyVersion("1.99.45.*")]
 #endregion
 
 //TODO: RouteManager: Add model validation checking to the form parameters if they are being placed directly in the action parameter list rather than in a model
@@ -1097,6 +1097,7 @@ namespace Aurora
 		public static string ControllerInstancesSessionName = "__ControllerInstances";
 		public static string ModelsSessionName = "__Models";
 		public static string ActionBinderSessionName = "__ActionBinder";
+		public static string ActionInfosSessionName = "__ActionInfos";
 		public static string AntiForgeryTokenSessionName = "__AntiForgeryTokens";
 		public static string SecurityManagerSessionName = "__Securitymanager";
 		public static string TemplatesSessionName = "__Templates";
@@ -1114,9 +1115,11 @@ namespace Aurora
 		public static string AuroraAuthTypeName = "AuroraAuth";
 		public static string OpenIdClaimsResponseSessionName = "__OpenAuthClaimsResponse";
 		public static string OpenIdProviderUriSessionName = "__OpenIdProviderUri";
+		public static string ViewsFolderName = "Views";
 		public static string SharedFolderName = "Shared";
 		public static string PublicResourcesFolderName = "Resources";
 		public static string FragmentsFolderName = "Fragments";
+		public static string ViewRoot = Path.DirectorySeparatorChar + "Views";
 		public static string OpenIDInvalidIdentifierError = "The specified login identifier is invalid";
 		public static string OpenIDLoginCancelledByProviderError = "Login was cancelled at the provider";
 		public static string OpenIDLoginFailedError = "Login failed using the provided OpenID identifier";
@@ -1139,7 +1142,6 @@ namespace Aurora
 		public static string GenericErrorMessage = "An error occurred trying to process this request.";
 		public static string RouteManagerNotSupportedException = "Route manager not supported.";
 		public static string DefaultRoute = (WebConfig == null) ? "/Home/Index" : WebConfig.DefaultRoute;
-		public static string ViewRoot = Path.DirectorySeparatorChar + "Views";
 		public static string CannotFindViewError = "Cannot find view {0}";
 		public static string ModelValidationErrorRequiredField = "Model Validation Error: {0} is a required field.";
 		public static string ModelValidationErrorRequiredLength = "Model Validation Error: {0} has a required length that was not met.";
@@ -1195,17 +1197,17 @@ namespace Aurora
 		None
 	}
 
-	#region VIEW PARTITION
-	//[AttributeUsage(AttributeTargets.Class)]
-	//public class PartitionAttribute : Attribute
-	//{
-	//  internal string Name { get; private set; }
-	//
-	//  public PartitionAttribute(string name)
-	//  {
-	//    Name = name;
-	//  }
-	//}
+	#region APP PARTITION
+	[AttributeUsage(AttributeTargets.Class)]
+	public class PartitionAttribute : Attribute
+	{
+		public string Name { get; private set; }
+
+		public PartitionAttribute(string name)
+		{
+			Name = name;
+		}
+	}
 	#endregion
 
 	#region MISCELLANEOUS
@@ -2074,7 +2076,9 @@ namespace Aurora
 	#region APPLICATION INTERNALS
 	internal class ActionInfo
 	{
+		public string ControllerName { get; set; }
 		public Type ControllerType { get; set; }
+		public string ActionName { get; set; }
 		public MethodInfo ActionMethod { get; set; }
 		public Attribute Attribute { get; set; }
 	}
@@ -2133,7 +2137,13 @@ namespace Aurora
 			}
 			else
 			{
-				return GetTypeList(context, MainConfig.ControllersSessionName, typeof(Controller));
+				List<Type> controllers = GetTypeList(context, MainConfig.ControllersSessionName, typeof(Controller));
+
+				context.Application.Lock();
+				context.Application[MainConfig.ControllersSessionName] = controllers;
+				context.Application.UnLock();
+
+				return controllers;
 			}
 		}
 
@@ -2159,7 +2169,7 @@ namespace Aurora
 
 		private static IEnumerable<ActionInfo> GetAllActionInfos(HttpContextBase context)
 		{
-			foreach (Type c in AllControllers(context))//.Where(x => x.Name == controllerName))
+			foreach (Type c in AllControllers(context))
 			{
 				foreach (MethodInfo mi in c.GetMethods())
 				{
@@ -2179,12 +2189,55 @@ namespace Aurora
 
 							if ((get != null) || (fro != null) || (post != null) || (put != null) || (delete != null))
 							{
-								yield return new ActionInfo() { ControllerType = c, ActionMethod = mi, Attribute = a };
+								yield return new ActionInfo()
+								{
+									ControllerName = c.Name,
+									ControllerType = c,
+									ActionName = mi.Name,
+									ActionMethod = mi,
+									Attribute = a
+								};
 							}
 						}
 					}
 				}
 			}
+		}
+
+		public static List<ActionInfo> AllActionInfos(HttpContextBase context)
+		{
+			List<ActionInfo> actionInfos = new List<ActionInfo>();
+
+			if (context.Application[MainConfig.ActionInfosSessionName] != null)
+			{
+				actionInfos = context.Application[MainConfig.ActionInfosSessionName] as List<ActionInfo>;
+			}
+			else
+			{
+				foreach (ActionInfo ai in GetAllActionInfos(context))
+				{
+					actionInfos.Add(ai);
+				}
+			}
+
+			return actionInfos;
+		}
+
+		public static Dictionary<string, string> AllPartitionNames(HttpContextBase context)
+		{
+			Dictionary<string, string> partitionNames = new Dictionary<string, string>();
+
+			foreach (Type c in AllControllers(context))
+			{
+				PartitionAttribute partitionAttrib = (PartitionAttribute) c.GetCustomAttributes(false).FirstOrDefault(x => x.GetType() == typeof(PartitionAttribute));
+
+				if (partitionAttrib != null)
+					partitionNames[c.Name] = partitionAttrib.Name;
+			}
+
+			if (partitionNames.Count() > 0) return partitionNames;
+
+			return null;
 		}
 
 		public static List<string> AllRoutableActionNames(HttpContextBase context, string controllerName)
@@ -2204,16 +2257,22 @@ namespace Aurora
 		public static List<RouteInfo> AllRouteInfos(HttpContextBase context)
 		{
 			List<RouteInfo> routes = null;
+			List<ActionInfo> actionInfos = null;
 			StringBuilder alias = new StringBuilder();
 
 			if (context.Application[MainConfig.RoutesSessionName] != null)
+			{
 				routes = context.Application[MainConfig.RoutesSessionName] as List<RouteInfo>;
+				actionInfos = context.Application[MainConfig.ActionInfosSessionName] as List<ActionInfo>;
+			}
 			else
 			{
 				routes = new List<RouteInfo>();
+				actionInfos = new List<ActionInfo>();
 
 				context.Application.Lock();
 				context.Application[MainConfig.RoutesSessionName] = routes;
+				context.Application[MainConfig.ActionInfosSessionName] = actionInfos;
 				context.Application.UnLock();
 			}
 
@@ -2231,6 +2290,7 @@ namespace Aurora
 					if (context.Application[MainConfig.RoutesSessionName] != null)
 					{
 						routes = context.Application[MainConfig.RoutesSessionName] as List<RouteInfo>;
+						actionInfos = context.Application[MainConfig.ActionInfosSessionName] as List<ActionInfo>;
 
 						foreach (RouteInfo routeInfo in routes)
 							routeInfo.ControllerInstance = ctrl;
@@ -2239,6 +2299,8 @@ namespace Aurora
 
 					foreach (ActionInfo ai in GetAllActionInfos(context).Where(x => x.ControllerType.Name == c.Name))
 					{
+						actionInfos.Add(ai);
+
 						alias.Length = 0;
 						alias.Insert(0, (ai.Attribute as RequestTypeAttribute).RouteAlias);
 
@@ -2631,6 +2693,8 @@ namespace Aurora
 			}
 		}
 
+		private string PartitionName;
+
 		private IViewEngine viewEngine;
 
 		protected Dictionary<string, string> ViewTags;
@@ -2647,6 +2711,8 @@ namespace Aurora
 		{
 			ViewTags = new Dictionary<string, string>();
 			FragTags = new Dictionary<string, Dictionary<string, string>>();
+
+			PartitionName = GetPartitionName();
 
 			Controller_PreOrPostActionEvent += Controller_PreOrPostActionEventHandler;
 		}
@@ -2694,6 +2760,18 @@ namespace Aurora
 		public string CreateAntiForgeryToken()
 		{
 			return AntiForgeryToken.Create(Context, AntiForgeryTokenType.Raw);
+		}
+
+		private string GetPartitionName()
+		{
+			string partitionName = null;
+			
+			PartitionAttribute partitionAttrib = (PartitionAttribute)this.GetType().GetCustomAttributes(false).FirstOrDefault(x => x.GetType() == typeof(PartitionAttribute));
+
+			if (partitionAttrib != null)
+				partitionName = partitionAttrib.Name;
+
+			return partitionName;
 		}
 		#endregion
 
@@ -2796,7 +2874,7 @@ namespace Aurora
 			StackFrame sf = new StackFrame(3);
 			RequestTypeAttribute reqAttrib = (RequestTypeAttribute)sf.GetMethod().GetCustomAttributes(false).FirstOrDefault(x => x is RequestTypeAttribute);
 
-			ViewResult vr = new ViewResult(Context, viewEngine, controllerName, actionName, reqAttrib, ViewTags);
+			ViewResult vr = new ViewResult(Context, viewEngine, PartitionName, controllerName, actionName, reqAttrib, ViewTags);
 
 			if (clearViewTags)
 				ClearViewTags();
@@ -2824,7 +2902,7 @@ namespace Aurora
 			if (clearViewTags)
 				ClearViewTags();
 
-			return new FragmentResult(Context, viewEngine, fragmentName, ViewTags);
+			return new FragmentResult(Context, viewEngine, PartitionName, this.GetType().Name, fragmentName, ViewTags);
 		}
 
 		public string RenderFragment(string fragmentName)
@@ -2839,11 +2917,7 @@ namespace Aurora
 
 		public string RenderFragment(string fragmentName, Dictionary<string, string> fragTags)
 		{
-			string fragKeyName = string.Format("{0}/{1}", MainConfig.FragmentsFolderName, fragmentName);
-
-			viewEngine.LoadView(fragmentName, fragTags);
-
-			return viewEngine[fragKeyName];
+			return viewEngine.LoadView(PartitionName, this.GetType().Name, fragmentName, fragTags);
 		}
 		#endregion
 	}
@@ -4358,9 +4432,7 @@ namespace Aurora
 
 		public string RenderFragment(string fragmentName, Dictionary<string, string> tags)
 		{
-			viewEngine.LoadView(fragmentName, tags);
-
-			return viewEngine[fragmentName];
+			return viewEngine.LoadView(null, this.GetType().Name, fragmentName, tags);
 		}
 
 		public string RenderFragment(string fragmentName)
@@ -4375,7 +4447,7 @@ namespace Aurora
 
 		internal ViewResult View(string controller, string name)
 		{
-			return new ViewResult(Context, viewEngine, controller, name, null, ViewTags);
+			return new ViewResult(Context, viewEngine, null, controller, name, null, ViewTags);
 		}
 	}
 	#endregion
@@ -5014,44 +5086,45 @@ namespace Aurora
 	{
 		private HttpContextBase context;
 		private IViewEngine viewEngine;
-		private string viewKeyName;
 		private RequestTypeAttribute requestAttribute;
-
-		public ViewResult(HttpContextBase ctx, IViewEngine ve, string controllerName, string viewName, RequestTypeAttribute requestTypeAttribute, Dictionary<string, string> tags)
+		private string partitionName;
+		private string controllerName;
+		private string viewName;
+		private Dictionary<string, string> tags;
+		
+		public ViewResult(HttpContextBase ctx, IViewEngine ve, string pName, string cName, string vName, RequestTypeAttribute requestTypeAttribute, Dictionary<string, string> vTags)
 		{
 			context = ctx;
 			viewEngine = ve;
-			viewKeyName = string.Format("{0}/{1}", controllerName, viewName);
 			requestAttribute = requestTypeAttribute;
+			partitionName = pName;
+			controllerName = cName;
+			viewName = vName;
+			tags = vTags;
 
 			if (MainConfig.DisableStaticFileCaching)
 				viewEngine.Refresh();
-
-			viewEngine.LoadView(controllerName, viewName, tags);
 		}
 
 		public void Render()
 		{
-			if (viewEngine.ContainsView(viewKeyName))
+			string view = viewEngine.LoadView(partitionName, controllerName, viewName, tags);
+
+			ResponseHeader.SetContentType(context, "text/html");
+
+			context.Response.Charset = "utf-8";
+
+			if (requestAttribute is HttpGetAttribute)
 			{
-				ResponseHeader.SetContentType(context, "text/html");
+				string refresh = (requestAttribute as HttpGetAttribute).Refresh;
 
-				context.Response.Charset = "utf-8";
-
-				if (requestAttribute is HttpGetAttribute)
-				{
-					string refresh = (requestAttribute as HttpGetAttribute).Refresh;
-
-					if (!string.IsNullOrEmpty(refresh))
-						context.Response.AddHeader("Refresh", refresh);
-				}
-
-				ResponseHeader.AddEncodingHeaders(context);
-
-				context.Response.Write(viewEngine[viewKeyName]);
+				if (!string.IsNullOrEmpty(refresh))
+					context.Response.AddHeader("Refresh", refresh);
 			}
-			else
-				throw new Exception(string.Format(MainConfig.CannotFindViewError, viewKeyName));
+
+			ResponseHeader.AddEncodingHeaders(context);
+
+			context.Response.Write(view);
 		}
 	}
 
@@ -5059,18 +5132,24 @@ namespace Aurora
 	{
 		private HttpContextBase context;
 		private IViewEngine viewEngine;
-		private string viewKeyName;
+		private string partitionName;
+		private string controllerName;
+		private string fragmentName;
+		private Dictionary<string, string> tags;
 
-		public FragmentResult(HttpContextBase ctx, IViewEngine ve, string fragmentName, Dictionary<string, string> tags)
+		public FragmentResult(HttpContextBase ctx, IViewEngine ve, string pName, string cName, string fName, Dictionary<string, string> vTags)
 		{
 			context = ctx;
 			viewEngine = ve;
-			viewKeyName = string.Format("{0}/{1}", MainConfig.FragmentsFolderName, fragmentName);
+			partitionName = pName;
+			controllerName = cName;
+			fragmentName = fName;
+			tags = vTags;
 
 			if (MainConfig.DisableStaticFileCaching)
 				viewEngine.Refresh();
 
-			ve.LoadView(fragmentName, tags);
+			viewEngine.LoadView(partitionName, controllerName, fragmentName, tags);
 		}
 
 		public void Render()
@@ -5079,7 +5158,7 @@ namespace Aurora
 
 			context.Response.Charset = "utf-8";
 
-			context.Response.Write(viewEngine[viewKeyName]);
+			context.Response.Write(viewEngine.LoadView(partitionName, controllerName, fragmentName, tags));
 		}
 	}
 
@@ -5270,25 +5349,23 @@ namespace Aurora
 	#endregion
 
 	#region VIEW ENGINE
-
-	//TODO: The view engine is in need of some serious refactoring to make way for a more robust way to work with views...
-	//      that will allow for a flexible strategy for doing view partitioning.
-
 	public interface IViewEngine
 	{
 		void Refresh();
+		string LoadView(string partitionName, string controllerName, string viewName, Dictionary<string, string> tags);
+	}
 
-		void LoadView(string controllerName, string viewName, Dictionary<string, string> tags);
-
-		void LoadView(string fragmentName, Dictionary<string, string> tags);
-
-		bool ContainsView(string view);
-
-		string this[string view] { get; }
+	internal interface IViewEngineHelper
+	{
+		string ApplicationRoot { get; }
+		ViewTemplateInfo TemplateInfo { get; set; }
+		string NewAntiForgeryToken(AntiForgeryTokenType type);
+		IEnumerable<string> GetPartitionViewRoots();
 	}
 
 	internal class ViewTemplateInfo
 	{
+		public Dictionary<string, string> PartitionNames { get; set; }
 		public Dictionary<string, StringBuilder> RawTemplates { get; set; }
 		public Dictionary<string, string> CompiledViews { get; set; }
 
@@ -5298,23 +5375,24 @@ namespace Aurora
 		{
 			RawTemplates = new Dictionary<string, StringBuilder>();
 			CompiledViews = new Dictionary<string, string>();
+			PartitionNames = new Dictionary<string, string>();
 
 			FromCache = false;
 		}
-	}
-
-	// In order to keep the view engine loosely coupled I've defined this interface to allow for the bits that connect with the framework
-	// to be implemented outside of the view engine itself. 
-	internal interface IViewEngineHelper
-	{
-		ViewTemplateInfo TemplateInfo { get; set; }
-		string NewAntiForgeryToken(AntiForgeryTokenType type);
 	}
 
 	internal class ViewEngineHelper : IViewEngineHelper
 	{
 		private HttpContextBase context;
 		private ViewTemplateInfo templateInfo;
+
+		public string ApplicationRoot
+		{
+			get
+			{
+				return context.Server.MapPath("/");
+			}
+		}
 
 		public ViewEngineHelper(HttpContextBase ctx)
 		{
@@ -5353,6 +5431,19 @@ namespace Aurora
 		{
 			return AntiForgeryToken.Create(context, type);
 		}
+
+		public IEnumerable<string> GetPartitionViewRoots()
+		{
+			Dictionary<string, string> partitionNames = ApplicationInternals.AllPartitionNames(context);
+
+			if (partitionNames != null)
+			{
+				foreach (KeyValuePair<string, string> kvp in partitionNames)
+				{
+					yield return context.Server.MapPath(kvp.Value);
+				}
+			}
+		}
 		#endregion
 	}
 
@@ -5370,19 +5461,24 @@ namespace Aurora
 		private static string viewDirective = "%%View%%";
 		private static string headDirective = "%%Head%%";
 		private static string partialDirective = "%%Partial={0}%%";
-		
+		private static List<string> partitionViewRoots;
+
 		private ViewTemplateInfo templateInfo;
 
 		public AuroraViewEngine(string vr, IViewEngineHelper helper)
 		{
 			viewRoot = vr;
 			viewEngineHelper = helper;
+			partitionViewRoots = viewEngineHelper.GetPartitionViewRoots().ToList();
 
 			Refresh();
 		}
 
 		public void Refresh()
 		{
+			if (!Directory.Exists(viewRoot))
+				throw new Exception(string.Format("The view root '{0}' does not exist.", viewRoot));
+
 			if (MainConfig.DisableStaticFileCaching)
 				templateInfo = new ViewTemplateInfo();
 			else
@@ -5392,6 +5488,16 @@ namespace Aurora
 			{
 				templateInfo.RawTemplates = LoadTemplates(new DirectoryInfo(viewRoot).GetAllFiles());
 
+				if (partitionViewRoots.Count() > 0)
+				{
+					foreach (string partitionViewRoot in partitionViewRoots)
+					{
+						templateInfo.RawTemplates =
+							templateInfo.RawTemplates.Concat(LoadTemplates(new DirectoryInfo(partitionViewRoot).GetAllFiles()))
+								.ToDictionary(i => i.Key, i => i.Value);
+					}
+				}
+					
 				viewEngineHelper.TemplateInfo = templateInfo;
 			}
 		}
@@ -5406,7 +5512,10 @@ namespace Aurora
 				{
 					string template = sr.ReadToEnd();
 					string templateName = fi.Name.Replace(fi.Extension, string.Empty);
-					string templateKeyName = string.Format("{0}/{1}", fi.Directory.Name, templateName);
+					string templateKeyName = fi.FullName.Replace(viewRoot, string.Empty)
+																							.Replace(viewEngineHelper.ApplicationRoot, string.Empty)
+																							.Replace(fi.Extension, string.Empty)
+																							.Replace("\\", "/").TrimStart('/');
 
 					templates.Add(templateKeyName, new StringBuilder(template));
 				}
@@ -5415,7 +5524,7 @@ namespace Aurora
 			return templates;
 		}
 
-		private StringBuilder ProcessDirectives(string viewKeyName, Dictionary<string, StringBuilder> rawTemplates, StringBuilder rawView)
+		private StringBuilder ProcessDirectives(string partitionName, string controllerName, string viewKeyName, Dictionary<string, StringBuilder> rawTemplates, StringBuilder rawView)
 		{
 			MatchCollection dirMatches = directiveTokenRE.Matches(rawView.ToString());
 			StringBuilder pageContent = new StringBuilder();
@@ -5431,7 +5540,7 @@ namespace Aurora
 				value.Length = 0;
 				value.Insert(0, match.Groups["value"].Value);
 
-				string pageName = string.Join("/", new string[] { MainConfig.SharedFolderName, value.ToString() });
+				string pageName = DetermineKeyName(partitionName, controllerName, value.ToString()); 
 
 				if (!string.IsNullOrEmpty(pageName))
 				{
@@ -5457,7 +5566,7 @@ namespace Aurora
 			// If during the process of building the view we have more directives to process
 			// we'll recursively call ProcessDirectives to take care of them
 			if (directiveTokenRE.Matches(pageContent.ToString()).Count > 0)
-				ProcessDirectives(viewKeyName, rawTemplates, pageContent);
+				ProcessDirectives(partitionName, controllerName, viewKeyName, rawTemplates, pageContent);
 
 			#region PROCESS HEAD SUBSTITUTIONS AFTER ALL TEMPLATES HAVE BEEN COMPILED
 			MatchCollection heads = headBlockRE.Matches(pageContent.ToString());
@@ -5491,13 +5600,13 @@ namespace Aurora
 			return view;
 		}
 
-		private void Compile(string viewKeyName, Dictionary<string, StringBuilder> rawTemplates, Dictionary<string, string> compiledViews, Dictionary<string, string> tags, bool fragments)
+		private void Compile(string partitionName, string controllerName, string viewKeyName, Dictionary<string, StringBuilder> rawTemplates, Dictionary<string, string> compiledViews, Dictionary<string, string> tags, bool fragments)
 		{
 			StringBuilder rawView = new StringBuilder(rawTemplates[viewKeyName].ToString());
 			StringBuilder compiledView = new StringBuilder();
 
 			if (!fragments)
-				compiledView = ProcessDirectives(viewKeyName, rawTemplates, rawView);
+				compiledView = ProcessDirectives(partitionName, controllerName, viewKeyName, rawTemplates, rawView);
 
 			if (string.IsNullOrEmpty(compiledView.ToString()))
 				compiledView = rawView;
@@ -5548,39 +5657,50 @@ namespace Aurora
 			compiledViews[viewKeyName] = compiledView.ToString();
 		}
 
-		public void LoadView(string controllerName, string viewName, Dictionary<string, string> tags)
+		private string DetermineKeyName(string partitionName, string controllerName, string viewName)
 		{
-			string viewKeyName = string.Format("{0}/{1}", controllerName, viewName);
-
-			if (templateInfo.RawTemplates.ContainsKey(viewKeyName))
-				Compile(viewKeyName, templateInfo.RawTemplates, templateInfo.CompiledViews, tags, false);
-		}
-
-		public void LoadView(string fragmentName, Dictionary<string, string> fragTags)
-		{
-			string fragKeyName = string.Format("{0}/{1}", MainConfig.FragmentsFolderName, fragmentName);
-
-			if (templateInfo.RawTemplates.ContainsKey(fragKeyName))
-				Compile(fragKeyName, templateInfo.RawTemplates, templateInfo.CompiledViews, fragTags, true);
-		}
-
-		public bool ContainsView(string keyName)
-		{
-			if (templateInfo.CompiledViews.ContainsKey(keyName))
-				return true;
-
-			return false;
-		}
-
-		public string this[string key]
-		{
-			get
+			List<string> keyTypes = new List<string>()
 			{
-				if (templateInfo.CompiledViews.ContainsKey(key))
-					return templateInfo.CompiledViews[key];
+				// Preference is given to the controller scope first, global scope is last
 
-				throw new Exception(string.Format(MainConfig.CannotFindViewError, key));
+				string.Format("{0}/{1}", controllerName, viewName), // controllerScopeActionKeyName
+				string.Format("{0}/{1}/{2}", controllerName, MainConfig.SharedFolderName, viewName), // controllerScopeSharedKeyName
+				string.Format("{0}/{1}/{2}", controllerName, MainConfig.FragmentsFolderName, viewName), // controllerScopeFragmentKeyName
+			
+				string.Format("{0}/{1}", MainConfig.SharedFolderName, viewName),	// globalScopeSharedKeyName
+				string.Format("{0}/{1}", MainConfig.FragmentsFolderName, viewName) // globalScopeFragmentKeyName
+			};
+
+			if(!string.IsNullOrEmpty(partitionName))
+			{
+				keyTypes.Add(string.Format("{0}/{1}/{2}/{3}", partitionName, controllerName, MainConfig.ViewsFolderName, viewName)); // controllerScopeActionKeyName
+				keyTypes.Add(string.Format("{0}/{1}/{2}/{3}/{4}", partitionName, controllerName, MainConfig.ViewsFolderName, MainConfig.SharedFolderName, viewName)); // controllerScopeSharedKeyName
+				keyTypes.Add(string.Format("{0}/{1}/{2}/{3}/{4}", partitionName, controllerName, MainConfig.ViewsFolderName, MainConfig.FragmentsFolderName, viewName)); // controllerScopeFragmentKeyName
 			}
+
+			foreach (string kt in keyTypes)
+			{
+				if (templateInfo.RawTemplates.ContainsKey(kt))
+					return kt;
+			}
+
+			return null;
+		}
+
+		public string LoadView(string partitionName, string controllerName, string viewName, Dictionary<string, string> tags)
+		{
+			string keyName = DetermineKeyName(partitionName, controllerName, viewName);
+
+			if (!string.IsNullOrEmpty(keyName))
+			{
+				Compile(partitionName, controllerName, keyName, templateInfo.RawTemplates, templateInfo.CompiledViews, tags,
+						keyName.Contains(MainConfig.FragmentsFolderName) ? true : false);
+
+				if (templateInfo.CompiledViews.ContainsKey(keyName))
+					return templateInfo.CompiledViews[keyName];
+			}
+
+			throw new Exception(string.Format(MainConfig.CannotFindViewError, viewName));
 		}
 	}
 	#endregion
