@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 15 March 2012
+// Updated On: 17 March 2012
 //
 // Contact Info:
 //
@@ -1101,6 +1101,7 @@ namespace Aurora
 		public static string AntiForgeryTokenSessionName = "__AntiForgeryTokens";
 		public static string SecurityManagerSessionName = "__Securitymanager";
 		public static string TemplatesSessionName = "__Templates";
+		public static string TemplateKeysSessionName = "__TemplateKeyNames";
 		public static string CustomErrorSessionName = "__CustomError";
 		public static string CurrentUserSessionName = "__CurrentUser";
 		public static string BundleManagerSessionName = "__BundleManager";
@@ -2229,7 +2230,7 @@ namespace Aurora
 
 			foreach (Type c in AllControllers(context))
 			{
-				PartitionAttribute partitionAttrib = (PartitionAttribute) c.GetCustomAttributes(false).FirstOrDefault(x => x.GetType() == typeof(PartitionAttribute));
+				PartitionAttribute partitionAttrib = (PartitionAttribute)c.GetCustomAttributes(false).FirstOrDefault(x => x.GetType() == typeof(PartitionAttribute));
 
 				if (partitionAttrib != null)
 					partitionNames[c.Name] = partitionAttrib.Name;
@@ -2765,7 +2766,7 @@ namespace Aurora
 		private string GetPartitionName()
 		{
 			string partitionName = null;
-			
+
 			PartitionAttribute partitionAttrib = (PartitionAttribute)this.GetType().GetCustomAttributes(false).FirstOrDefault(x => x.GetType() == typeof(PartitionAttribute));
 
 			if (partitionAttrib != null)
@@ -5091,7 +5092,7 @@ namespace Aurora
 		private string controllerName;
 		private string viewName;
 		private Dictionary<string, string> tags;
-		
+
 		public ViewResult(HttpContextBase ctx, IViewEngine ve, string pName, string cName, string vName, RequestTypeAttribute requestTypeAttribute, Dictionary<string, string> vTags)
 		{
 			context = ctx;
@@ -5352,19 +5353,24 @@ namespace Aurora
 	public interface IViewEngine
 	{
 		void Refresh();
+
 		string LoadView(string partitionName, string controllerName, string viewName, Dictionary<string, string> tags);
 	}
 
 	internal interface IViewEngineHelper
 	{
 		string ApplicationRoot { get; }
+
 		ViewTemplateInfo TemplateInfo { get; set; }
+
 		string NewAntiForgeryToken(AntiForgeryTokenType type);
+
 		IEnumerable<string> GetPartitionViewRoots();
 	}
 
 	internal class ViewTemplateInfo
 	{
+		public Dictionary<string, List<string>> TemplateKeyNames { get; set; }
 		public Dictionary<string, string> PartitionNames { get; set; }
 		public Dictionary<string, StringBuilder> RawTemplates { get; set; }
 		public Dictionary<string, string> CompiledViews { get; set; }
@@ -5376,6 +5382,7 @@ namespace Aurora
 			RawTemplates = new Dictionary<string, StringBuilder>();
 			CompiledViews = new Dictionary<string, string>();
 			PartitionNames = new Dictionary<string, string>();
+			TemplateKeyNames = new Dictionary<string, List<string>>();
 
 			FromCache = false;
 		}
@@ -5386,17 +5393,12 @@ namespace Aurora
 		private HttpContextBase context;
 		private ViewTemplateInfo templateInfo;
 
-		public string ApplicationRoot
-		{
-			get
-			{
-				return context.Server.MapPath("/");
-			}
-		}
+		public string ApplicationRoot { get; private set; }
 
 		public ViewEngineHelper(HttpContextBase ctx)
 		{
 			context = ctx;
+			ApplicationRoot = context.Server.MapPath("~/");
 
 			if (context.Application[MainConfig.TemplatesSessionName] != null)
 			{
@@ -5440,7 +5442,7 @@ namespace Aurora
 			{
 				foreach (KeyValuePair<string, string> kvp in partitionNames)
 				{
-					yield return context.Server.MapPath(kvp.Value);
+					yield return context.Server.MapPath("/" + kvp.Value);
 				}
 			}
 		}
@@ -5462,7 +5464,6 @@ namespace Aurora
 		private static string headDirective = "%%Head%%";
 		private static string partialDirective = "%%Partial={0}%%";
 		private static List<string> partitionViewRoots;
-
 		private ViewTemplateInfo templateInfo;
 
 		public AuroraViewEngine(string vr, IViewEngineHelper helper)
@@ -5479,10 +5480,15 @@ namespace Aurora
 			if (!Directory.Exists(viewRoot))
 				throw new Exception(string.Format("The view root '{0}' does not exist.", viewRoot));
 
-			if (MainConfig.DisableStaticFileCaching)
+			if (templateInfo == null || MainConfig.DisableStaticFileCaching)
+			{
 				templateInfo = new ViewTemplateInfo();
+			}
 			else
+			{
 				templateInfo = viewEngineHelper.TemplateInfo;
+				//templateInfo.FromCache = true;
+			}
 
 			if (!templateInfo.FromCache)
 			{
@@ -5497,7 +5503,7 @@ namespace Aurora
 								.ToDictionary(i => i.Key, i => i.Value);
 					}
 				}
-					
+
 				viewEngineHelper.TemplateInfo = templateInfo;
 			}
 		}
@@ -5506,7 +5512,7 @@ namespace Aurora
 		{
 			Dictionary<string, StringBuilder> templates = new Dictionary<string, StringBuilder>();
 
-			foreach (FileInfo fi in files)
+			foreach (FileInfo fi in files.Where(x => x.Extension == ".html"))
 			{
 				using (StreamReader sr = new StreamReader(fi.OpenRead()))
 				{
@@ -5540,7 +5546,7 @@ namespace Aurora
 				value.Length = 0;
 				value.Insert(0, match.Groups["value"].Value);
 
-				string pageName = DetermineKeyName(partitionName, controllerName, value.ToString()); 
+				string pageName = DetermineKeyName(partitionName, controllerName, value.ToString());
 
 				if (!string.IsNullOrEmpty(pageName))
 				{
@@ -5659,23 +5665,42 @@ namespace Aurora
 
 		private string DetermineKeyName(string partitionName, string controllerName, string viewName)
 		{
-			List<string> keyTypes = new List<string>()
+			List<string> keyTypes = null;
+
+			string lookupKeyName = string.Format("{0}/{1}/{2}", partitionName, controllerName, viewName);
+
+			if (!templateInfo.TemplateKeyNames.ContainsKey(lookupKeyName))
 			{
+				keyTypes = new List<string>();
+
 				// Preference is given to the controller scope first, global scope is last
 
-				string.Format("{0}/{1}", controllerName, viewName), // controllerScopeActionKeyName
-				string.Format("{0}/{1}/{2}", controllerName, MainConfig.SharedFolderName, viewName), // controllerScopeSharedKeyName
-				string.Format("{0}/{1}/{2}", controllerName, MainConfig.FragmentsFolderName, viewName), // controllerScopeFragmentKeyName
-			
-				string.Format("{0}/{1}", MainConfig.SharedFolderName, viewName),	// globalScopeSharedKeyName
-				string.Format("{0}/{1}", MainConfig.FragmentsFolderName, viewName) // globalScopeFragmentKeyName
-			};
+				if (!string.IsNullOrEmpty(partitionName))
+				{
+					keyTypes.Add(string.Format("{0}/{1}/{2}/{3}", partitionName, controllerName, MainConfig.ViewsFolderName, viewName)); // controllerScopeActionKeyName
+					keyTypes.Add(string.Format("{0}/{1}/{2}/{3}/{4}", partitionName, controllerName, MainConfig.ViewsFolderName, MainConfig.SharedFolderName, viewName)); // controllerScopeSharedKeyName
+					keyTypes.Add(string.Format("{0}/{1}/{2}/{3}/{4}", partitionName, controllerName, MainConfig.ViewsFolderName, MainConfig.FragmentsFolderName, viewName)); // controllerScopeFragmentKeyName
+				}
+				else
+				{
+					// controllerScopeActionKeyName
+					keyTypes.Add(string.Format("{0}/{1}", controllerName, viewName));
+					// controllerScopeSharedKeyName
+					keyTypes.Add(string.Format("{0}/{1}/{2}", controllerName, MainConfig.SharedFolderName, viewName));
+					// controllerScopeFragmentKeyName
+					keyTypes.Add(string.Format("{0}/{1}/{2}", controllerName, MainConfig.FragmentsFolderName, viewName));
+				}
+					
+				// globalScopeSharedKeyName
+				keyTypes.Add(string.Format("{0}/{1}", MainConfig.SharedFolderName, viewName));
+				// globalScopeFragmentKeyName
+				keyTypes.Add(string.Format("{0}/{1}", MainConfig.FragmentsFolderName, viewName));
 
-			if(!string.IsNullOrEmpty(partitionName))
+				templateInfo.TemplateKeyNames[lookupKeyName] = keyTypes;
+			}
+			else
 			{
-				keyTypes.Add(string.Format("{0}/{1}/{2}/{3}", partitionName, controllerName, MainConfig.ViewsFolderName, viewName)); // controllerScopeActionKeyName
-				keyTypes.Add(string.Format("{0}/{1}/{2}/{3}/{4}", partitionName, controllerName, MainConfig.ViewsFolderName, MainConfig.SharedFolderName, viewName)); // controllerScopeSharedKeyName
-				keyTypes.Add(string.Format("{0}/{1}/{2}/{3}/{4}", partitionName, controllerName, MainConfig.ViewsFolderName, MainConfig.FragmentsFolderName, viewName)); // controllerScopeFragmentKeyName
+				keyTypes = templateInfo.TemplateKeyNames[lookupKeyName];
 			}
 
 			foreach (string kt in keyTypes)

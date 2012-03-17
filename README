@@ -4,7 +4,7 @@ NOTE: See source code comments for usage.
 
 Frank Hale <frankhale@gmail.com>
 
-Date: 15 March 2012
+Date: 17 March 2012
 
 --------------------
 --- Feature List ---
@@ -35,7 +35,11 @@ Date: 15 March 2012
  
 Changelog:
 
-16 March 2012
+17 March 2012
+
+- Tweaks to the view engine.
+
+15 March 2012
 
 - Refactored the view engine so that it can support partitions. Partitions are
   similiar to ASP.NET MVC areas. A controller can now use the [Partition] 
