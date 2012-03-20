@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 17 March 2012
+// Updated On: 19 March 2012
 //
 // Contact Info:
 //
@@ -872,7 +872,7 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyProduct("Aurora")]
 [assembly: AssemblyCopyright("Copyright © 2011 - 2012")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.99.45.*")]
+[assembly: AssemblyVersion("1.99.46.*")]
 #endregion
 
 //TODO: RouteManager: Add model validation checking to the form parameters if they are being placed directly in the action parameter list rather than in a model
@@ -2302,12 +2302,10 @@ namespace Aurora
 					{
 						actionInfos.Add(ai);
 
-						alias.Length = 0;
-						alias.Insert(0, (ai.Attribute as RequestTypeAttribute).RouteAlias);
-
 						RequestTypeAttribute attr = (ai.Attribute as RequestTypeAttribute);
 
-						BoundAction boundAction = new ActionBinder(context).GetBindings(c.Name, ai.ActionMethod.Name);
+						alias.Length = 0;
+						alias.Insert(0, attr.RouteAlias);
 
 						RouteInfo routeInfo = new RouteInfo()
 						{
@@ -2317,8 +2315,7 @@ namespace Aurora
 							ControllerType = c,
 							Action = ai.ActionMethod,
 							ActionName = ai.ActionMethod.Name,
-							BoundActions = boundAction,
-							Bindings = (boundAction != null) ? boundAction.BoundInstances : null,
+							Bindings = new ActionBinder(context).GetBindings(c.Name, ai.ActionMethod.Name),
 							FromRedirectOnlyInfo = (attr as FromRedirectOnlyAttribute) != null ? true : false,
 							Dynamic = (attr as FromRedirectOnlyAttribute) != null ? true : false,
 							IsFiltered = false,
@@ -2326,19 +2323,14 @@ namespace Aurora
 							Attribute = attr
 						};
 
-
 						routes.Add(routeInfo);
 					}
 				}
 				else
-				{
 					ctrl.Refresh(context);
-				}
 
 				foreach (RouteInfo routeInfo in routes)
-				{
 					routeInfo.ControllerInstance = ctrl;
-				}
 			}
 
 			return routes;
@@ -2383,7 +2375,7 @@ namespace Aurora
 				ControllerType = controller.GetType(),
 				FrontLoadedParams = frontParams,
 				RequestType = requestType,
-				BoundActions = new ActionBinder(context).GetBindings(controller.GetType().Name, action.Name),
+				Bindings = new ActionBinder(context).GetBindings(controller.GetType().Name, action.Name),
 				Dynamic = true
 			});
 
@@ -2416,34 +2408,47 @@ namespace Aurora
 		void ExecuteBeforeAction(HttpContextBase ctx);
 	}
 
-	internal class BoundAction
+	internal class ActionBinding
 	{
-		public string ControllerName { get; private set; }
-		public string ActionName { get; private set; }
-		public List<object> BoundInstances { get; private set; }
+		public List<string> ActionNames { get; private set; }
+		public List<object> BindInstances { get; private set; }
 
-		public object[] BoundObjectTypes { get; private set; }
-		public object[] BoundObjects { get; private set; }
-
-		public BoundAction(string controllerName, string actionName, object bindInstance)
+		public ActionBinding(string actionName, object bindInstance)
 		{
-			ControllerName = controllerName;
-			ActionName = actionName;
-			BoundInstances = new List<object>();
+			ActionNames = new List<string>();
+			BindInstances = new List<object>();
 
-			AddBinding(bindInstance);
+			Add(actionName, bindInstance);
 		}
 
-		public void AddBinding(object b)
+		public void Add(string actionName, object bindInstance)
 		{
-			object alreadyBound = BoundInstances.FirstOrDefault(x => x == b);
-
-			if (alreadyBound == null)
+			if (ActionNames.FirstOrDefault(x => x == actionName) == null &&
+					BindInstances.FirstOrDefault(x => x == bindInstance) == null)
 			{
-				BoundInstances.Add(b);
+				ActionNames.Add(actionName);
+				BindInstances.Add(bindInstance);
+			}
+		}
 
-				BoundObjectTypes = BoundInstances.Select(x => x.GetType()).ToArray();
-				BoundObjects = BoundInstances.ToArray();
+		public void AddAction(string actionName)
+		{
+			if (ActionNames.FirstOrDefault(x => x == actionName) == null)
+				ActionNames.Add(actionName);
+		}
+
+		public void AddBindInstance(object bindInstance)
+		{
+			if (BindInstances.FirstOrDefault(x => x == bindInstance) == null)
+				BindInstances.Add(bindInstance);
+		}
+
+		public void RemoveBindInstance(string actionName, object bindInstance)
+		{
+			if (BindInstances.FirstOrDefault(x => x == bindInstance) != null)
+			{
+				ActionNames.Remove(actionName);
+				BindInstances.Remove(bindInstance);
 			}
 		}
 	}
@@ -2451,17 +2456,19 @@ namespace Aurora
 	public class ActionBinder
 	{
 		private HttpContextBase context;
-		internal List<BoundAction> bindings { get; private set; }
+		internal Dictionary<string, List<ActionBinding>> bindings { get; private set; }
 
 		public ActionBinder(HttpContextBase ctx)
 		{
 			context = ctx;
 
+			bindings = new Dictionary<string, List<ActionBinding>>();
+
 			if (context.Session[MainConfig.ActionBinderSessionName] != null)
-				bindings = context.Session[MainConfig.ActionBinderSessionName] as List<BoundAction>;
+				bindings = context.Session[MainConfig.ActionBinderSessionName] as Dictionary<string, List<ActionBinding>>;
 			else
 			{
-				bindings = new List<BoundAction>();
+				bindings = new Dictionary<string, List<ActionBinding>>();
 				context.Session[MainConfig.ActionBinderSessionName] = bindings;
 			}
 		}
@@ -2482,9 +2489,7 @@ namespace Aurora
 		public void Add(string controllerName, string[] actions, object bindInstance)
 		{
 			foreach (string a in actions)
-			{
 				Add(controllerName, a, bindInstance);
-			}
 		}
 
 		public void Add(string controllerName, string[] actions, object[] bindInstances)
@@ -2502,31 +2507,62 @@ namespace Aurora
 
 		public void Add(string controllerName, string actionName, object bindInstance)
 		{
-			BoundAction ba = bindings.FirstOrDefault(x => x.ControllerName == controllerName && x.ActionName == actionName);
+			List<ActionBinding> binding = (bindings.ContainsKey(controllerName)) ? bindings[controllerName] : null;
 
-			if (ba == null)
-				bindings.Add(new BoundAction(controllerName, actionName, bindInstance));
+			if (binding != null)
+			{
+				ActionBinding foundByActionName =
+					binding.FirstOrDefault(x => x.ActionNames.FirstOrDefault(z => z == actionName) != null);
+
+				ActionBinding foundByActionBinding =
+					binding.FirstOrDefault(x => x.BindInstances.FirstOrDefault(y => y == bindInstance) != null);
+
+				if (foundByActionName != null && foundByActionBinding == null)
+				{
+					foundByActionName.AddBindInstance(bindInstance);
+				}
+				else if (foundByActionBinding != null && foundByActionName == null)
+				{
+					foundByActionBinding.AddAction(actionName);
+				}
+				else
+				{
+					bindings[controllerName].Add(new ActionBinding(actionName, bindInstance));
+				}
+			}
 			else
 			{
-				if (!ba.BoundInstances.Contains(bindInstance))
-					ba.AddBinding(bindInstance);
+				bindings[controllerName] = new List<ActionBinding>();
+				bindings[controllerName].Add(new ActionBinding(actionName, bindInstance));
 			}
 		}
 
-		public void Remove(string controllerName, string actionName, object bindInstance)
+		public void RemoveInstanceFromAction(string controllerName, string actionName, object bindInstance)
 		{
-			BoundAction ba = bindings.FirstOrDefault(x => x.ControllerName == controllerName && x.ActionName == actionName);
+			List<ActionBinding> binding = bindings[controllerName];
 
-			if (ba != null)
+			if (binding != null)
 			{
-				if (ba.BoundInstances.Contains(bindInstance))
-					ba.BoundInstances.Remove(bindInstance);
+				ActionBinding ab = binding.FirstOrDefault(x => x.ActionNames.FirstOrDefault(y => y == actionName) != null);
+
+				if (ab != null)
+					ab.RemoveBindInstance(actionName, binding);
 			}
 		}
 
-		internal BoundAction GetBindings(string controllerName, string actionName)
+		internal List<object> GetBindings(string controllerName, string actionName)
 		{
-			return bindings.FirstOrDefault(x => x.ControllerName == controllerName && x.ActionName == actionName);
+			List<ActionBinding> actionBindings = bindings[controllerName];
+
+			if (actionBindings != null)
+			{
+				var results = actionBindings.FirstOrDefault(x => x.ActionNames.FirstOrDefault(y => y == actionName) != null);
+
+				if (results != null)
+					return results.BindInstances;
+			}
+
+			return null;
 		}
 	}
 	#endregion
@@ -3702,7 +3738,6 @@ namespace Aurora
 		internal Type ControllerType { get; set; }
 		internal Controller ControllerInstance { get; set; }
 		internal MethodInfo Action { get; set; }
-		internal BoundAction BoundActions { get; set; }
 		internal string ControllerName { get; set; }
 		internal string ActionName { get; set; }
 		internal string FrontLoadedParams { get; set; }
@@ -3847,7 +3882,7 @@ namespace Aurora
 
 		private object[] GetBoundParams(RouteInfo routeInfo)
 		{
-			return (routeInfo.BoundActions != null) ? routeInfo.BoundActions.BoundInstances.ToArray() : new object[] { };
+			return (routeInfo.Bindings != null) ? routeInfo.Bindings.ToArray() : new object[] { };
 		}
 
 		private object[] GetURLParams(string alias)
@@ -4017,7 +4052,7 @@ namespace Aurora
 				foreach (ActionParamTransformInfo apti in actionParamTransformInfos)
 				{
 					// Instantiate the class, the constructor will receive any bound action objects that the params method received.
-					object actionParamTransformClassInstance = Activator.CreateInstance(apti.TransformClassType, routeInfo.BoundActions.BoundInstances.ToArray());
+					object actionParamTransformClassInstance = Activator.CreateInstance(apti.TransformClassType, routeInfo.Bindings.ToArray());
 
 					Type transformMethodParameterType = apti.TransformMethod.GetParameters()[0].ParameterType;
 					Type incomingParameterType = processedParams[apti.IndexIntoParamList].GetType();
@@ -4248,9 +4283,9 @@ namespace Aurora
 			{
 				IViewResult result = null;
 
-				if (routeInfo.BoundActions != null)
+				if (routeInfo.Bindings != null)
 				{
-					foreach (object i in routeInfo.BoundActions.BoundInstances)
+					foreach (object i in routeInfo.Bindings)
 					{
 						if (i.GetType().GetInterface(typeof(IBoundActionObject).Name) != null)
 						{
@@ -5487,7 +5522,6 @@ namespace Aurora
 			else
 			{
 				templateInfo = viewEngineHelper.TemplateInfo;
-				//templateInfo.FromCache = true;
 			}
 
 			if (!templateInfo.FromCache)
@@ -5667,8 +5701,13 @@ namespace Aurora
 		{
 			List<string> keyTypes = null;
 
-			string lookupKeyName = string.Format("{0}/{1}/{2}", partitionName, controllerName, viewName);
+			string lookupKeyName = string.Empty;
 
+			if (!string.IsNullOrEmpty(partitionName))
+				lookupKeyName = string.Format("{0}/{1}/{2}", partitionName, controllerName, viewName);
+			else
+				lookupKeyName = string.Format("{0}/{1}", controllerName, viewName);
+			
 			if (!templateInfo.TemplateKeyNames.ContainsKey(lookupKeyName))
 			{
 				keyTypes = new List<string>();
@@ -5677,9 +5716,12 @@ namespace Aurora
 
 				if (!string.IsNullOrEmpty(partitionName))
 				{
-					keyTypes.Add(string.Format("{0}/{1}/{2}/{3}", partitionName, controllerName, MainConfig.ViewsFolderName, viewName)); // controllerScopeActionKeyName
-					keyTypes.Add(string.Format("{0}/{1}/{2}/{3}/{4}", partitionName, controllerName, MainConfig.ViewsFolderName, MainConfig.SharedFolderName, viewName)); // controllerScopeSharedKeyName
-					keyTypes.Add(string.Format("{0}/{1}/{2}/{3}/{4}", partitionName, controllerName, MainConfig.ViewsFolderName, MainConfig.FragmentsFolderName, viewName)); // controllerScopeFragmentKeyName
+					// controllerScopeActionKeyName
+					keyTypes.Add(string.Format("{0}/{1}/{2}/{3}", partitionName, controllerName, MainConfig.ViewsFolderName, viewName));
+					// controllerScopeSharedKeyName
+					keyTypes.Add(string.Format("{0}/{1}/{2}/{3}/{4}", partitionName, controllerName, MainConfig.ViewsFolderName, MainConfig.SharedFolderName, viewName));
+					// controllerScopeFragmentKeyName
+					keyTypes.Add(string.Format("{0}/{1}/{2}/{3}/{4}", partitionName, controllerName, MainConfig.ViewsFolderName, MainConfig.FragmentsFolderName, viewName)); 
 				}
 				else
 				{
@@ -5690,7 +5732,7 @@ namespace Aurora
 					// controllerScopeFragmentKeyName
 					keyTypes.Add(string.Format("{0}/{1}/{2}", controllerName, MainConfig.FragmentsFolderName, viewName));
 				}
-					
+
 				// globalScopeSharedKeyName
 				keyTypes.Add(string.Format("{0}/{1}", MainConfig.SharedFolderName, viewName));
 				// globalScopeFragmentKeyName
@@ -5703,13 +5745,7 @@ namespace Aurora
 				keyTypes = templateInfo.TemplateKeyNames[lookupKeyName];
 			}
 
-			foreach (string kt in keyTypes)
-			{
-				if (templateInfo.RawTemplates.ContainsKey(kt))
-					return kt;
-			}
-
-			return null;
+			return keyTypes.FirstOrDefault(x => templateInfo.RawTemplates.ContainsKey(x));
 		}
 
 		public string LoadView(string partitionName, string controllerName, string viewName, Dictionary<string, string> tags)
