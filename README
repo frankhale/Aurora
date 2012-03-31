@@ -35,6 +35,12 @@ Date: 19 March 2012
  
 Changelog:
 
+30 March 2012
+
+- Fixed bug in the ApplicationInternals class in the RouteInfo list creation 
+	method where the list would continue to grow over time with duplicate entries.
+- Made some other little tweaks.
+
 19 March 2012
 
 - The ActionBinder got some love tonight.

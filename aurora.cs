@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 19 March 2012
+// Updated On: 30 March 2012
 //
 // Contact Info:
 //
@@ -872,7 +872,7 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyProduct("Aurora")]
 [assembly: AssemblyCopyright("Copyright © 2011 - 2012")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.99.46.*")]
+[assembly: AssemblyVersion("1.99.49.*")]
 #endregion
 
 //TODO: RouteManager: Add model validation checking to the form parameters if they are being placed directly in the action parameter list rather than in a model
@@ -2152,13 +2152,16 @@ namespace Aurora
 		{
 			List<Controller> controllerInstances = null;
 
-			if (context.Session[MainConfig.ControllerInstancesSessionName] == null)
+			if (context.Application[MainConfig.ControllerInstancesSessionName] == null)
 			{
 				controllerInstances = new List<Controller>();
-				context.Session[MainConfig.ControllerInstancesSessionName] = controllerInstances;
+
+				context.Application.Lock();
+				context.Application[MainConfig.ControllerInstancesSessionName] = controllerInstances;
+				context.Application.UnLock();
 			}
 			else
-				controllerInstances = context.Session[MainConfig.ControllerInstancesSessionName] as List<Controller>;
+				controllerInstances = context.Application[MainConfig.ControllerInstancesSessionName] as List<Controller>;
 
 			return controllerInstances;
 		}
@@ -2259,7 +2262,7 @@ namespace Aurora
 		{
 			List<RouteInfo> routes = null;
 			List<ActionInfo> actionInfos = null;
-			StringBuilder alias = new StringBuilder();
+			string alias = string.Empty;
 
 			if (context.Application[MainConfig.RoutesSessionName] != null)
 			{
@@ -2288,28 +2291,33 @@ namespace Aurora
 					ctrl = (Controller)createInstance.Invoke(createInstance, new object[] { context });
 					AllControllerInstances(context).Add(ctrl);
 
-					if (context.Application[MainConfig.RoutesSessionName] != null)
-					{
-						routes = context.Application[MainConfig.RoutesSessionName] as List<RouteInfo>;
-						actionInfos = context.Application[MainConfig.ActionInfosSessionName] as List<ActionInfo>;
+					#region I HAVE NO IDEA WHY I ADDED THIS!!!
+					//if (context.Application[MainConfig.RoutesSessionName] != null)
+					//{
+					//  routes = context.Application[MainConfig.RoutesSessionName] as List<RouteInfo>;
+					//  actionInfos = context.Application[MainConfig.ActionInfosSessionName] as List<ActionInfo>;
 
-						foreach (RouteInfo routeInfo in routes)
-							routeInfo.ControllerInstance = ctrl;
-					}
+					//  foreach (RouteInfo routeInfo in routes)
+					//    routeInfo.ControllerInstance = ctrl;
+					//}
+					#endregion
 					#endregion
 
 					foreach (ActionInfo ai in GetAllActionInfos(context).Where(x => x.ControllerType.Name == c.Name))
 					{
-						actionInfos.Add(ai);
-
 						RequestTypeAttribute attr = (ai.Attribute as RequestTypeAttribute);
 
-						alias.Length = 0;
-						alias.Insert(0, attr.RouteAlias);
+						if (routes.FirstOrDefault(
+								x =>
+									x.Alias == attr.RouteAlias &&
+									x.Action.Name == ai.ActionMethod.Name &&
+									x.Action.GetParameters().Count() == ai.ActionMethod.GetParameters().Count()
+							) != null)
+							continue;
 
 						RouteInfo routeInfo = new RouteInfo()
 						{
-							Alias = (!string.IsNullOrEmpty(alias.ToString())) ? alias.ToString() : string.Format("/{0}/{1}", c.Name, ai.ActionMethod.Name),
+							Alias = (!string.IsNullOrEmpty(attr.RouteAlias)) ? attr.RouteAlias : string.Format("/{0}/{1}", c.Name, ai.ActionMethod.Name),
 							Context = context,
 							ControllerName = c.Name,
 							ControllerType = c,
@@ -2323,6 +2331,7 @@ namespace Aurora
 							Attribute = attr
 						};
 
+						actionInfos.Add(ai);
 						routes.Add(routeInfo);
 					}
 				}
@@ -2464,12 +2473,15 @@ namespace Aurora
 
 			bindings = new Dictionary<string, List<ActionBinding>>();
 
-			if (context.Session[MainConfig.ActionBinderSessionName] != null)
-				bindings = context.Session[MainConfig.ActionBinderSessionName] as Dictionary<string, List<ActionBinding>>;
+			if (context.Application[MainConfig.ActionBinderSessionName] != null)
+				bindings = context.Application[MainConfig.ActionBinderSessionName] as Dictionary<string, List<ActionBinding>>;
 			else
 			{
 				bindings = new Dictionary<string, List<ActionBinding>>();
-				context.Session[MainConfig.ActionBinderSessionName] = bindings;
+
+				context.Application.Lock();
+				context.Application[MainConfig.ActionBinderSessionName] = bindings;
+				context.Application.UnLock();
 			}
 		}
 
@@ -2556,10 +2568,10 @@ namespace Aurora
 
 			if (actionBindings != null)
 			{
-				var results = actionBindings.FirstOrDefault(x => x.ActionNames.FirstOrDefault(y => y == actionName) != null);
+				ActionBinding ab = actionBindings.FirstOrDefault(x => x.ActionNames.FirstOrDefault(y => y == actionName) != null);
 
-				if (results != null)
-					return results.BindInstances;
+				if (ab != null)
+					return ab.BindInstances;
 			}
 
 			return null;
@@ -2732,7 +2744,7 @@ namespace Aurora
 
 		private string PartitionName;
 
-		private IViewEngine viewEngine;
+		private IViewEngine ViewEngine;
 
 		protected Dictionary<string, string> ViewTags;
 		protected Dictionary<string, Dictionary<string, string>> FragTags;
@@ -2767,7 +2779,7 @@ namespace Aurora
 		{
 			Controller controller = (Controller)Activator.CreateInstance(typeof(T));
 
-			controller.viewEngine = new AuroraViewEngine(context.Server.MapPath(MainConfig.ViewRoot), new ViewEngineHelper(context));
+			controller.ViewEngine = new AuroraViewEngine(context.Server.MapPath(MainConfig.ViewRoot), new ViewEngineHelper(context));
 
 			controller.Refresh(context);
 			controller.Controller_OnInit();
@@ -2782,6 +2794,8 @@ namespace Aurora
 			QueryString = (context.Request.QueryString == null) ? new NameValueCollection() : new NameValueCollection(context.Request.QueryString);
 			Form = (context.Request.Form == null) ? new NameValueCollection() : new NameValueCollection(context.Request.Form);
 			ClearViewTags();
+
+			ViewEngine.Refresh();
 
 			if (Form.AllKeys.Contains(MainConfig.AntiForgeryTokenName))
 				Form.Remove(MainConfig.AntiForgeryTokenName);
@@ -2854,7 +2868,7 @@ namespace Aurora
 
 		public void RedirectToAlias(string alias, params string[] parameters)
 		{
-			Context.Response.Redirect(string.Format("/{0}/{1}", alias, string.Join("/", parameters)));
+			Context.Response.Redirect(string.Format("{0}/{1}", alias, string.Join("/", parameters)));
 		}
 
 		public void RedirectToAction(string action)
@@ -2911,7 +2925,7 @@ namespace Aurora
 			StackFrame sf = new StackFrame(3);
 			RequestTypeAttribute reqAttrib = (RequestTypeAttribute)sf.GetMethod().GetCustomAttributes(false).FirstOrDefault(x => x is RequestTypeAttribute);
 
-			ViewResult vr = new ViewResult(Context, viewEngine, PartitionName, controllerName, actionName, reqAttrib, ViewTags);
+			ViewResult vr = new ViewResult(Context, ViewEngine, PartitionName, controllerName, actionName, reqAttrib, ViewTags);
 
 			if (clearViewTags)
 				ClearViewTags();
@@ -2939,7 +2953,7 @@ namespace Aurora
 			if (clearViewTags)
 				ClearViewTags();
 
-			return new FragmentResult(Context, viewEngine, PartitionName, this.GetType().Name, fragmentName, ViewTags);
+			return new FragmentResult(Context, ViewEngine, PartitionName, this.GetType().Name, fragmentName, ViewTags);
 		}
 
 		public string RenderFragment(string fragmentName)
@@ -2954,7 +2968,7 @@ namespace Aurora
 
 		public string RenderFragment(string fragmentName, Dictionary<string, string> fragTags)
 		{
-			return viewEngine.LoadView(PartitionName, this.GetType().Name, fragmentName, fragTags);
+			return ViewEngine.LoadView(PartitionName, this.GetType().Name, fragmentName, fragTags);
 		}
 		#endregion
 	}
@@ -3406,6 +3420,8 @@ namespace Aurora
 		private int theB;
 		private int theLookahead = EOF;
 
+		private StringReader reader;
+
 		private StringBuilder result { get; set; }
 
 		public string Result
@@ -3413,7 +3429,7 @@ namespace Aurora
 			get
 			{
 				if (pack)
-					return Regex.Replace(result.ToString().Trim(), "(\n|\r)+", " ", RegexOptions.None);
+					return Regex.Replace(result.ToString().Trim(), "(\n|\r)+", " ");
 
 				return result.ToString().Trim();
 			}
@@ -3426,8 +3442,8 @@ namespace Aurora
 			this.css = css;
 			this.pack = pack;
 
-			Console.SetIn(new StringReader(text));
-
+			reader = new StringReader(text);
+			
 			Go();
 		}
 
@@ -3454,7 +3470,7 @@ namespace Aurora
 			theLookahead = EOF;
 			if (c == EOF)
 			{
-				c = Console.Read();
+				c = reader.Read();
 			}
 			if (c >= ' ' || c == '\n' || c == EOF)
 			{
@@ -3870,8 +3886,6 @@ namespace Aurora
 			//if (MainConfig.ApplicationMountPoint.Length > 0)
 			//  path = path.Replace(MainConfig.ApplicationMountPoint, string.Empty);
 
-			routeInfos = ApplicationInternals.AllRouteInfos(context);
-
 			context.RewritePath(path);
 		}
 
@@ -4156,6 +4170,8 @@ namespace Aurora
 			}
 			else
 			{
+				routeInfos = ApplicationInternals.AllRouteInfos(context);
+
 				string alias = routeInfos.OrderByDescending(y => y.Alias).Where(x => path.StartsWith(x.Alias)).Select(x => x.Alias).FirstOrDefault();
 
 				RouteInfo routeInfo = FindRoute(path, alias);
@@ -4725,7 +4741,7 @@ namespace Aurora
 			return null;
 		}
 
-		public string ToString(int start, int length)
+		public string ToString(int start, int length, bool displayNull)
 		{
 			if (start > Models.Count() ||
 					start < 0 ||
@@ -4768,7 +4784,7 @@ namespace Aurora
 					{
 						object o = pn.GetValue(Models[i], null);
 
-						string value = (o == null) ? "NULL" : o.ToString();
+						string value = (o == null) ? ((displayNull) ? "NULL" : string.Empty) : o.ToString();
 
 						if (ColumnTransforms != null)
 						{
@@ -4802,7 +4818,7 @@ namespace Aurora
 
 		public override string ToString()
 		{
-			return ToString(0, Models.Count());
+			return ToString(0, Models.Count(), false);
 		}
 	}
 	#endregion
@@ -5061,13 +5077,11 @@ namespace Aurora
 			filePath = file;
 			contentType = string.Empty;
 
-			foreach (KeyValuePair<string, string> mimeType in MainConfig.MimeTypes)
+			string extension = Path.GetExtension(file);
+
+			if (!string.IsNullOrEmpty(extension) && MainConfig.MimeTypes.ContainsKey(extension))
 			{
-				if (file.EndsWith(mimeType.Key))
-				{
-					contentType = mimeType.Value;
-					break;
-				}
+				contentType = MainConfig.MimeTypes[extension];
 			}
 		}
 
@@ -5109,7 +5123,6 @@ namespace Aurora
 				else
 				{
 					bool css = filePath.EndsWith(".css");
-
 					context.Response.Write(new Minify(File.ReadAllText(filePath), css, false).Result);
 				}
 			}
@@ -5438,7 +5451,6 @@ namespace Aurora
 			if (context.Application[MainConfig.TemplatesSessionName] != null)
 			{
 				templateInfo = context.Application[MainConfig.TemplatesSessionName] as ViewTemplateInfo;
-				templateInfo.FromCache = true;
 			}
 			else
 			{
@@ -5507,21 +5519,23 @@ namespace Aurora
 			viewEngineHelper = helper;
 			partitionViewRoots = viewEngineHelper.GetPartitionViewRoots().ToList();
 
+			if (!Directory.Exists(viewRoot))
+				throw new Exception(string.Format("The view root '{0}' does not exist.", viewRoot));
+
 			Refresh();
 		}
 
 		public void Refresh()
 		{
-			if (!Directory.Exists(viewRoot))
-				throw new Exception(string.Format("The view root '{0}' does not exist.", viewRoot));
-
 			if (templateInfo == null || MainConfig.DisableStaticFileCaching)
 			{
 				templateInfo = new ViewTemplateInfo();
+				templateInfo.FromCache = false;
 			}
 			else
 			{
 				templateInfo = viewEngineHelper.TemplateInfo;
+				templateInfo.FromCache = true;
 			}
 
 			if (!templateInfo.FromCache)
@@ -5533,7 +5547,8 @@ namespace Aurora
 					foreach (string partitionViewRoot in partitionViewRoots)
 					{
 						templateInfo.RawTemplates =
-							templateInfo.RawTemplates.Concat(LoadTemplates(new DirectoryInfo(partitionViewRoot).GetAllFiles()))
+							templateInfo.RawTemplates
+								.Concat(LoadTemplates(new DirectoryInfo(partitionViewRoot).GetAllFiles()))
 								.ToDictionary(i => i.Key, i => i.Value);
 					}
 				}
@@ -5707,7 +5722,7 @@ namespace Aurora
 				lookupKeyName = string.Format("{0}/{1}/{2}", partitionName, controllerName, viewName);
 			else
 				lookupKeyName = string.Format("{0}/{1}", controllerName, viewName);
-			
+
 			if (!templateInfo.TemplateKeyNames.ContainsKey(lookupKeyName))
 			{
 				keyTypes = new List<string>();
@@ -5721,7 +5736,7 @@ namespace Aurora
 					// controllerScopeSharedKeyName
 					keyTypes.Add(string.Format("{0}/{1}/{2}/{3}/{4}", partitionName, controllerName, MainConfig.ViewsFolderName, MainConfig.SharedFolderName, viewName));
 					// controllerScopeFragmentKeyName
-					keyTypes.Add(string.Format("{0}/{1}/{2}/{3}/{4}", partitionName, controllerName, MainConfig.ViewsFolderName, MainConfig.FragmentsFolderName, viewName)); 
+					keyTypes.Add(string.Format("{0}/{1}/{2}/{3}/{4}", partitionName, controllerName, MainConfig.ViewsFolderName, MainConfig.FragmentsFolderName, viewName));
 				}
 				else
 				{
@@ -5815,6 +5830,7 @@ namespace Aurora
 				context.Server.ClearError();
 			}
 		}
+
 	}
 	#endregion
 }
