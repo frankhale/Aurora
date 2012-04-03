@@ -4,7 +4,7 @@ NOTE: See source code comments for usage.
 
 Frank Hale <frankhale@gmail.com>
 
-Date: 30 March 2012
+Date: 2 April 2012
 
 --------------------
 --- Feature List ---
@@ -34,6 +34,15 @@ Date: 30 March 2012
 - Bundling/Minifying of Javascript and CSS.
  
 Changelog:
+
+2 April 2012
+
+- The SecurityManager now has the ability to call a callback at the time roles
+  are checked for an action that is secure so that you can do custom validation.
+- Added a new class called StaticFileManager. This is used to protect static 
+	files. Users with the assigned roles will be able to download the files.
+- The HTMLSelect helper class got a new parameter in it's constructor so you can
+  denote if it's enabled by default or not.
 
 30 March 2012
 

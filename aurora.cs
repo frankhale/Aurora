@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 30 March 2012
+// Updated On: 2 April 2012
 //
 // Contact Info:
 //
@@ -870,9 +870,9 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyDescription("An MVC web framework for .NET")]
 [assembly: AssemblyCompany("Frank Hale")]
 [assembly: AssemblyProduct("Aurora")]
-[assembly: AssemblyCopyright("Copyright © 2011 - 2012")]
+[assembly: AssemblyCopyright("(GNU GPLv3) Copyleft © 2011-2012")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.99.49.*")]
+[assembly: AssemblyVersion("1.99.50.*")]
 #endregion
 
 //TODO: RouteManager: Add model validation checking to the form parameters if they are being placed directly in the action parameter list rather than in a model
@@ -1091,6 +1091,7 @@ namespace Aurora
 		public static Dictionary<string, string> MimeTypes;
 		//public static string ApplicationMountPoint = (WebConfig == null) ? string.Empty : WebConfig.ApplicationMountPoint;
 		public static string FromRedirectOnlySessionFlag = "__FROFlag";
+		public static string StaticFileManagerSessionName = "__StaticFileManager";
 		public static string RouteManagerSessionName = "__RouteManager";
 		public static string RoutesSessionName = "__Routes";
 		public static string ControllersSessionName = "__Controllers";
@@ -1770,6 +1771,18 @@ namespace Aurora
 		public DateTime LoginDate { get; internal set; }
 		public IIdentity Identity { get; internal set; }
 		public List<string> Roles { get; internal set; }
+		
+		// A method to perform role checking against roles that were initially 
+		// tracked when the user was logged in.
+		internal Func<User, string, bool> CheckRoles { get; set; }
+		// During the security check if the action has designated roles then we'll 
+		// populate the action bindings of the method that we are operating on 
+		// behalf of. The CheckRoles method will then be able to use this if need 
+		// be.
+		//
+		// Later on down the road it may be useful to switch this to be the full 
+		// action parameter list rather than just the bindings.
+		public List<object> ActionBindings { get; internal set; }
 
 		public bool IsInRole(string role)
 		{
@@ -1922,14 +1935,14 @@ namespace Aurora
 
 		public static string Logon(HttpContextBase ctx, string id)
 		{
-			return Logon(ctx, id, null);
+			return Logon(ctx, id, null, null);
 		}
 
-		public static string Logon(HttpContextBase ctx, string id, string[] roles)
+		public static string Logon(HttpContextBase ctx, string id, string[] roles, Func<User, string, bool> checkRoles)
 		{
 			if (string.IsNullOrEmpty(MainConfig.EncryptionKey))
 				throw new Exception(MainConfig.EncryptionKeyNotSpecifiedError);
-
+			
 			List<User> users = GetUsers(ctx);
 
 			User u = users.FirstOrDefault(x => x.SessionID == ctx.Session.SessionID && x.Identity.Name == id);
@@ -1964,7 +1977,9 @@ namespace Aurora
 				IPAddress = ctx.IPAddress(),
 				LoginDate = DateTime.Now,
 				Identity = new Identity() { AuthenticationType = MainConfig.AuroraAuthTypeName, IsAuthenticated = true, Name = id },
-				Roles = roles.ToList()
+				Roles = roles.ToList(),
+				CheckRoles = checkRoles,
+				ActionBindings = null
 			};
 
 			users.Add(u);
@@ -2043,26 +2058,36 @@ namespace Aurora
 
 		internal static bool IsAuthenticated(HttpContextBase ctx)
 		{
-			return IsAuthenticated(ctx, null);
+			return IsAuthenticated(ctx, null, null);
 		}
 
-		internal static bool IsAuthenticated(HttpContextBase ctx, string authRoles)
+		internal static bool IsAuthenticated(HttpContextBase ctx, RouteInfo routeInfo, string authRoles)
 		{
 			AuthCookie authCookie = GetAuthCookie(ctx);
 
 			if (authCookie != null)
 			{
 				User u = GetUsers(ctx).FirstOrDefault(x => x.SessionID == ctx.Session.SessionID && x.Identity.Name == authCookie.ID);
-
+				
 				if (u != null)
 				{
 					if (u.AuthenticationCookie.Expires < DateTime.Now) return false;
 
 					if (!string.IsNullOrEmpty(authRoles))
 					{
-						List<string> minimumRoles = authRoles.Split('|').ToList();
+						if (u.CheckRoles != null)
+						{
+							if(routeInfo != null)
+								u.ActionBindings = routeInfo.Bindings;
 
-						if (minimumRoles.Intersect(u.Roles).Count() > 0) return true;
+							return u.CheckRoles(u, authRoles);
+						}
+						else
+						{
+							List<string> minimumRoles = authRoles.Split('|').ToList();
+
+							if (minimumRoles.Intersect(u.Roles).Count() > 0) return true;
+						}
 					}
 					else
 						return true;
@@ -3443,7 +3468,7 @@ namespace Aurora
 			this.pack = pack;
 
 			reader = new StringReader(text);
-			
+
 			Go();
 		}
 
@@ -3733,6 +3758,63 @@ namespace Aurora
 		public Type TransformClassType { get; set; }
 		public MethodInfo TransformMethod { get; set; }
 		public int IndexIntoParamList { get; set; }
+	}
+	#endregion
+
+	#region STATIC FILE MANAGER
+	public static class StaticFileManager
+	{
+		private static Dictionary<string, string> GetProtectedFilesList(HttpContextBase context)
+		{
+			Dictionary<string, string> protectedFiles = null;
+
+			if (context.Application[MainConfig.StaticFileManagerSessionName] != null)
+			{
+				protectedFiles = context.Application[MainConfig.StaticFileManagerSessionName] as Dictionary<string, string>;
+			}
+			else
+			{
+				protectedFiles = new Dictionary<string, string>();
+
+				context.Application.Lock();
+				context.Application[MainConfig.StaticFileManagerSessionName] = protectedFiles;
+				context.Application.UnLock();
+			}
+
+			return protectedFiles;
+		}
+
+		public static void ProtectFile(HttpContextBase ctx, string path, string roles)
+		{
+			Dictionary<string, string> protectedFiles = GetProtectedFilesList(ctx);
+
+			if (!protectedFiles.ContainsKey(path))
+				protectedFiles[path] = roles;
+		}
+
+		public static void UnprotectFile(HttpContextBase ctx, string path)
+		{
+			Dictionary<string, string> protectedFiles = GetProtectedFilesList(ctx);
+
+			if (!protectedFiles.ContainsKey(path))
+				protectedFiles.Remove(path);
+		}
+
+		internal static bool IsProtected(HttpContextBase ctx, string path, out string roles)
+		{
+			Dictionary<string, string> protectedFiles = GetProtectedFilesList(ctx);
+
+			if (protectedFiles.ContainsKey(path))
+			{
+				roles = protectedFiles[path];
+				
+				return true;
+			}
+
+			roles = null;
+
+			return false;
+		}
 	}
 	#endregion
 
@@ -4172,7 +4254,8 @@ namespace Aurora
 			{
 				routeInfos = ApplicationInternals.AllRouteInfos(context);
 
-				string alias = routeInfos.OrderByDescending(y => y.Alias).Where(x => path.StartsWith(x.Alias)).Select(x => x.Alias).FirstOrDefault();
+				string alias =
+					routeInfos.OrderByDescending(y => y.Alias).Where(x => path.StartsWith(x.Alias)).Select(x => x.Alias).FirstOrDefault();
 
 				RouteInfo routeInfo = FindRoute(path, alias);
 
@@ -4202,7 +4285,17 @@ namespace Aurora
 					string staticFilePath = context.Server.MapPath(path);
 
 					if (File.Exists(staticFilePath) || bundleManager.Contains(Path.GetFileName(path)))
+					{
+						string protectedRoles = null;
+
+						if (StaticFileManager.IsProtected(context, staticFilePath, out protectedRoles))
+						{
+							if(!SecurityManager.IsAuthenticated(context, null, protectedRoles))
+								return iar;
+						}
+
 						return new PhysicalFileResult(context, staticFilePath);
+					}
 				}
 			}
 
@@ -4266,7 +4359,7 @@ namespace Aurora
 
 				if (reqAttrib.SecurityType == ActionSecurity.Secure)
 				{
-					if (!SecurityManager.IsAuthenticated(context, reqAttrib.Roles))
+					if (!SecurityManager.IsAuthenticated(context, routeInfo, reqAttrib.Roles))
 					{
 						if (!string.IsNullOrEmpty(reqAttrib.RedirectWithoutAuthorizationTo))
 							return new RedirectResult(context, reqAttrib.RedirectWithoutAuthorizationTo);
@@ -4921,20 +5014,22 @@ namespace Aurora
 		private List<string> Options;
 		private string SelectedDefault;
 		private bool EmptyOption;
+		private string Enabled;
 
-		public HTMLSelect(List<string> options, string selectedDefault, bool emptyOption, params Func<string, string>[] attribs)
+		public HTMLSelect(List<string> options, string selectedDefault, bool emptyOption, bool enabled, params Func<string, string>[] attribs)
 		{
 			Options = options;
 			AttribsFunc = attribs;
 			SelectedDefault = selectedDefault ?? string.Empty;
 			EmptyOption = emptyOption;
+			Enabled = (enabled) ? "disabled=\"disabled\"" : string.Empty;
 		}
 
 		public override string ToString()
 		{
 			StringBuilder sb = new StringBuilder();
 
-			sb.AppendFormat("<select {0}>", CondenseAttribs());
+			sb.AppendFormat("<select {0} {1}>", CondenseAttribs(), Enabled);
 
 			if (EmptyOption)
 				sb.Append("<option selected=\"selected\"></option>");
@@ -4977,8 +5072,6 @@ namespace Aurora
 
 		public override string ToString()
 		{
-
-
 			return string.Format("<input type=\"checkbox\" id=\"{0}\" name=\"{1}\" class=\"{2}\" {3} {4} />", ID, Name, CssClass, Check, Enabled);
 		}
 	}
