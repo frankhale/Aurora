@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 2 April 2012
+// Updated On: 5 April 2012
 //
 // Contact Info:
 //
@@ -580,7 +580,7 @@
 //
 //  HTMLTable - Takes a class derived from Model and creates a table from it's
 //              properties. You can optionally ignore columns or bind your
-//              own columns to it (eg. to create columns for delete/edit)
+//              own columns to it (eg. to create columns for delete/edit, etc)
 //
 //  HTMLAnchor - Creates an achor tag
 //
@@ -660,7 +660,22 @@
 // needs to know if you have a user logged on to your site. It then populates
 // the underlying User object that is contained in the HttpContext.User. If you
 // don't want to tell the SecurityManager what roles a user has that is fine. 
-// You can call the Logon method that doesn't specify the roles. 
+// You can call the Logon method that doesn't specify the roles, however, You 
+// won't be able to use the lock down actions based on roles.
+//
+// The SecurityManager has an overload for Logon that allows you to specify a 
+// callback that will run during the security check on an action that is locked
+// down to certain roles. 
+//
+// The signature of your callback will look like this:
+// 
+//  public bool CheckRoles(User u, string roles) 
+//  {
+//    The roles in this context are the roles that were initially passed in
+//    when you logged the user in and told the SecurityManager about it. You 
+//    can use this to test against your user just in case roles were changed 
+//    while the user was logged in. 
+//  }
 //
 // To tell the framework that the user has logged off do:
 //
@@ -689,6 +704,20 @@
 // The other two delegates pass a string which is the error that was encountered 
 // during logon finalization.
 //
+// ---------------------------
+// --- Static File Manager ---
+// ---------------------------
+//
+// If you desire the ability to protect certain static files from being 
+// downloaded you can use the StaticFileManager class to protect files based on
+// roles. The file can only be downloaded if the roles match the currently 
+// logged in users roles that were set when the user was logged in via the 
+// SecurityManager.
+//
+// Usage:
+// 
+//   StaticFileManager.ProtectFile(context, "/path/foo.bar", "role")
+// 
 // ------------------
 // --- Web.Config ---
 // ------------------
@@ -872,7 +901,7 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyProduct("Aurora")]
 [assembly: AssemblyCopyright("(GNU GPLv3) Copyleft © 2011-2012")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.99.50.*")]
+[assembly: AssemblyVersion("1.99.52.*")]
 #endregion
 
 //TODO: RouteManager: Add model validation checking to the form parameters if they are being placed directly in the action parameter list rather than in a model
@@ -881,6 +910,8 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 namespace Aurora
 {
 	#region WEB.CONFIG CONFIGURATION
+
+	#region CONTENT TYPE ELEMENT AND COLLECTION
 	public class ContentTypeConfigurationElement : ConfigurationElement
 	{
 		[ConfigurationProperty("FileExtension", IsRequired = true)]
@@ -931,6 +962,80 @@ namespace Aurora
 			return ((ContentTypeConfigurationElement)element).FileExtension;
 		}
 	}
+	#endregion
+
+	#region ACTIVE DIRECTORY DOMAIN AND SEARCH PATH ELEMENT AND COLLECTION
+#if ACTIVEDIRECTORY
+	public class ActiveDirectorySearchConfigurationElement : ConfigurationElement
+	{
+		[ConfigurationProperty("Domain", IsRequired = true)]
+		public string Domain
+		{
+			get
+			{
+				return this["Domain"] as string;
+			}
+		}
+
+		[ConfigurationProperty("SearchRoot", IsRequired = true)]
+		public string SearchRoot
+		{
+			get
+			{
+				return this["SearchRoot"] as string;
+			}
+		}
+
+		[ConfigurationProperty("UserName", IsRequired = true)]
+		public string UserName
+		{
+			get
+			{
+				return this["UserName"] as string;
+			}
+		}
+
+		[ConfigurationProperty("Password", IsRequired = true)]
+		public string Password
+		{
+			get
+			{
+				return this["Password"] as string;
+			}
+		}
+	}
+
+	public class ActiveDirectorySearchConfigurationCollection : ConfigurationElementCollection
+	{
+		public ActiveDirectorySearchConfigurationElement this[int index]
+		{
+			get
+			{
+				return base.BaseGet(index) as ActiveDirectorySearchConfigurationElement;
+			}
+
+			set
+			{
+				if (base.BaseGet(index) != null)
+				{
+					base.BaseRemoveAt(index);
+				}
+				this.BaseAdd(index, value);
+			}
+		}
+
+		protected override ConfigurationElement CreateNewElement()
+		{
+			return new ActiveDirectorySearchConfigurationElement();
+		}
+
+		protected override object GetElementKey(ConfigurationElement element)
+		{
+			return ((ActiveDirectorySearchConfigurationElement)element).Domain;
+		}
+	}
+#endif
+	#endregion
 
 	public class WebConfig : ConfigurationSection
 	{
@@ -942,6 +1047,17 @@ namespace Aurora
 				return this["AllowedStaticFileContentTypes"] as ContentTypeConfigurationCollection;
 			}
 		}
+
+#if ACTIVEDIRECTORY
+		[ConfigurationProperty("ActiveDirectorySearchInfo")]
+		public ActiveDirectorySearchConfigurationCollection ActiveDirectorySearchInfo
+		{
+			get
+			{
+				return this["ActiveDirectorySearchInfo"] as ActiveDirectorySearchConfigurationCollection;
+			}
+		}
+#endif
 
 		[ConfigurationProperty("EncryptionKey", DefaultValue = "", IsRequired = true)]
 		public string EncryptionKey
@@ -1062,6 +1178,24 @@ namespace Aurora
 				{
 					MimeTypes.Add(ct.FileExtension, ct.ContentType);
 				}
+
+#if ACTIVEDIRECTORY
+				if (WebConfig.ActiveDirectorySearchInfo.Count > 0)
+				{
+					ActiveDirectorySearchInfos = new string[WebConfig.ActiveDirectorySearchInfo.Count][];
+
+					for (int i = 0; i < ActiveDirectorySearchInfos.Length; i++)
+					{
+						ActiveDirectorySearchInfos[i] = new string[] 
+							{ 
+								WebConfig.ActiveDirectorySearchInfo[i].Domain,
+								WebConfig.ActiveDirectorySearchInfo[i].SearchRoot,
+								Encryption.Decrypt(WebConfig.ActiveDirectorySearchInfo[i].UserName, WebConfig.EncryptionKey),
+								Encryption.Decrypt(WebConfig.ActiveDirectorySearchInfo[i].Password, WebConfig.EncryptionKey)
+							};
+					}
+				}
+#endif
 			}
 		}
 
@@ -1085,6 +1219,7 @@ namespace Aurora
 		public static string ADSearchPW = (MainConfig.WebConfig == null) ? null : (!string.IsNullOrEmpty(WebConfig.ADSearchPW) && !string.IsNullOrEmpty(WebConfig.EncryptionKey)) ? Encryption.Decrypt(WebConfig.ADSearchPW, WebConfig.EncryptionKey) : null;
 		public static string ADSearchDomain = (MainConfig.WebConfig == null) ? null : WebConfig.ADSearchDomain;
 		public static string ADSearchRoot = (MainConfig.WebConfig == null) ? null : WebConfig.ADSearchRoot;
+		public static string[][] ActiveDirectorySearchInfos;
 #endif
 		public static Regex PathTokenRE = new Regex(@"/(?<token>[a-zA-Z0-9]+)");
 		public static Regex PathStaticFileRE = (WebConfig == null) ? new Regex(@"\.(js|css|png|jpg|gif|svg|ico|txt)$") : new Regex(WebConfig.StaticFileExtWhiteList);
@@ -1250,7 +1385,7 @@ namespace Aurora
 			//
 			// http://stackoverflow.com/questions/155303/net-how-can-you-split-a-caps-delimited-string-into-an-array
 			if (Op == DescriptiveNameOperation.SplitCamelCase)
-				return Regex.Replace(name, "([a-z](?=[A-Z])|[A-Z](?=[A-Z][a-z]))", "$1 ");
+				return Regex.Replace(name, @"([a-z](?=[A-Z])|[A-Z](?=[A-Z][a-z]))", "$1 ");
 
 			return null;
 		}
@@ -1551,57 +1686,66 @@ namespace Aurora
 
 	public class ActiveDirectory
 	{
-		[System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2122:DoNotIndirectlyExposeMethodsWithLinkDemands",
-			Justification = "A user of this class cannot call into Active Directory without specifying a username and password with access to the directory.")]
-		internal static ActiveDirectoryUser LookupUser(ActiveDirectorySearchType searchType, string data, bool global, string adSearchUser, string adSearchPW, string adSearchRoot, string adSearchDomain)
+		internal static ActiveDirectoryUser LookupUser(ActiveDirectorySearchType searchType, string data, bool global)
 		{
-			string searchUser = string.Empty;
-			string searchPW = string.Empty;
-			string searchDomain = string.Empty;
-			string searchRoot = string.Empty;
+			if (string.IsNullOrEmpty(searchType.GetMetaData()))
+				throw new Exception(MainConfig.ADSearchCriteriaIsNullOrEmptyError);
 
-			if (string.IsNullOrEmpty(adSearchUser) || string.IsNullOrEmpty(adSearchPW))
+			if (MainConfig.ActiveDirectorySearchInfos.Length > 0)
+			{
+				for (int i = 0; i < MainConfig.ActiveDirectorySearchInfos.Length; i++)
+				{
+					try
+					{
+						return LookupUser(searchType, data, global,
+							MainConfig.ActiveDirectorySearchInfos[i][0],  //Domain
+							MainConfig.ActiveDirectorySearchInfos[i][1],  //SearchRoot
+							MainConfig.ActiveDirectorySearchInfos[i][2],  //UserName
+							MainConfig.ActiveDirectorySearchInfos[i][3]); //Password
+					}
+					catch
+					{
+						if (i < MainConfig.ActiveDirectorySearchInfos.Length - 1)
+							continue;
+						else
+							throw;
+					}
+				}
+			}
+			else
 			{
 				if (string.IsNullOrEmpty(MainConfig.ADSearchUser) || string.IsNullOrEmpty(MainConfig.ADSearchPW))
 					throw new Exception(MainConfig.ADUserOrPWError);
 
-				if (string.IsNullOrEmpty(searchType.GetMetaData()))
-					throw new Exception(MainConfig.ADSearchCriteriaIsNullOrEmptyError);
-
-				searchUser = MainConfig.ADSearchUser;
-				searchPW = MainConfig.ADSearchPW;
-			}
-			else
-			{
-				searchUser = adSearchUser;
-				searchPW = adSearchPW;
-			}
-
-			if (string.IsNullOrEmpty(adSearchRoot) || string.IsNullOrEmpty(adSearchDomain))
-			{
 				if (string.IsNullOrEmpty(MainConfig.ADSearchRoot))
 					throw new Exception(MainConfig.ADSearchRoot);
 
 				if (string.IsNullOrEmpty(MainConfig.ADSearchDomain))
 					throw new Exception(MainConfig.ADSearchDomainIsNullorEmpty);
 
-				searchDomain = MainConfig.ADSearchDomain;
-				searchRoot = MainConfig.ADSearchRoot;
-			}
-			else
-			{
-				searchDomain = adSearchDomain;
-				searchRoot = adSearchRoot;
+				return LookupUser(searchType, data, global,
+						MainConfig.ADSearchDomain,
+						MainConfig.ADSearchRoot,
+						MainConfig.ADSearchUser,
+						MainConfig.ADSearchPW);
 			}
 
+			return null;
+		}
+
+		[System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2122:DoNotIndirectlyExposeMethodsWithLinkDemands",
+			Justification = "A user of this class cannot call into Active Directory without specifying a username and password with access to the directory.")]
+		internal static ActiveDirectoryUser LookupUser(ActiveDirectorySearchType searchType, string data, bool global, string adSearchDomain, string adSearchRoot, string adSearchUser, string adSearchPW)
+		{
+			//FIXME: Throw an exception. We need something to search on here.
 			if (string.IsNullOrEmpty(data)) return null;
 
 			DirectoryEntry searchRootDE = new DirectoryEntry()
 			{
 				AuthenticationType = AuthenticationTypes.Secure | AuthenticationTypes.Sealing | AuthenticationTypes.Signing,
-				Username = searchUser,
-				Password = searchPW,
-				Path = (global) ? string.Format("GC://{0}", searchDomain) : searchRoot
+				Username = adSearchUser,
+				Password = adSearchPW,
+				Path = (global) ? string.Format("GC://{0}", adSearchDomain) : adSearchRoot
 			};
 
 			DirectorySearcher searcher = new DirectorySearcher();
@@ -1626,7 +1770,8 @@ namespace Aurora
 		#region LOOKUP BY USERNAME
 		public static ActiveDirectoryUser LookupUserByUserName(string userName)
 		{
-			return LookupUser(ActiveDirectorySearchType.USERNAME, userName, false, null, null, null, null);
+			//return LookupUser(ActiveDirectorySearchType.USERNAME, userName, false, null, null, null, null);
+			return LookupUser(ActiveDirectorySearchType.USERNAME, userName, false);
 		}
 
 		public static ActiveDirectoryUser LookupUserByUserName(string userName, string adSearchUser, string adSearchPW)
@@ -1636,7 +1781,8 @@ namespace Aurora
 
 		public static ActiveDirectoryUser LookupUserByUserName(string userName, bool global)
 		{
-			return LookupUser(ActiveDirectorySearchType.USERNAME, userName, global, null, null, null, null);
+			//return LookupUser(ActiveDirectorySearchType.USERNAME, userName, global, null, null, null, null);
+			return LookupUser(ActiveDirectorySearchType.USERNAME, userName, global);
 		}
 
 		public static ActiveDirectoryUser LookupUserByUserName(string userName, bool global, string adSearchUser, string adSearchPW)
@@ -1653,7 +1799,8 @@ namespace Aurora
 		#region LOOKUP USER BY UPN
 		public static ActiveDirectoryUser LookupUserByUPN(string upn)
 		{
-			return LookupUser(ActiveDirectorySearchType.UPN, upn, false, null, null, null, null);
+			//return LookupUser(ActiveDirectorySearchType.UPN, upn, false, null, null, null, null);
+			return LookupUser(ActiveDirectorySearchType.UPN, upn, false);
 		}
 
 		public static ActiveDirectoryUser LookupUserByUPN(string upn, string adSearchUser, string adSearchPW)
@@ -1663,7 +1810,8 @@ namespace Aurora
 
 		public static ActiveDirectoryUser LookupUserByUPN(string upn, bool global)
 		{
-			return LookupUser(ActiveDirectorySearchType.UPN, upn, global, null, null, null, null);
+			//return LookupUser(ActiveDirectorySearchType.UPN, upn, global, null, null, null, null);
+			return LookupUser(ActiveDirectorySearchType.UPN, upn, global);
 		}
 
 		public static ActiveDirectoryUser LookupUserByUPN(string upn, bool global, string adSearchUser, string adSearchPW)
@@ -1680,7 +1828,8 @@ namespace Aurora
 		#region LOOKUP USER BY EMAIL ADDRESS
 		public static ActiveDirectoryUser LookupUserByEmailAddress(string email)
 		{
-			return LookupUser(ActiveDirectorySearchType.EMAIL, email, false, null, null, null, null);
+			//return LookupUser(ActiveDirectorySearchType.EMAIL, email, false, null, null, null, null);
+			return LookupUser(ActiveDirectorySearchType.EMAIL, email, false);
 		}
 
 		public static ActiveDirectoryUser LookupUserByEmailAddress(string email, string adSearchUser, string adSearchPW)
@@ -1690,7 +1839,8 @@ namespace Aurora
 
 		public static ActiveDirectoryUser LookupUserByEmailAddress(string email, bool global)
 		{
-			return LookupUser(ActiveDirectorySearchType.EMAIL, email, global, null, null, null, null);
+			//return LookupUser(ActiveDirectorySearchType.EMAIL, email, global, null, null, null, null);
+			return LookupUser(ActiveDirectorySearchType.EMAIL, email, global);
 		}
 
 		public static ActiveDirectoryUser LookupUserByEmailAddress(string email, bool global, string adSearchUser, string adSearchPW)
@@ -1771,7 +1921,7 @@ namespace Aurora
 		public DateTime LoginDate { get; internal set; }
 		public IIdentity Identity { get; internal set; }
 		public List<string> Roles { get; internal set; }
-		
+
 		// A method to perform role checking against roles that were initially 
 		// tracked when the user was logged in.
 		internal Func<User, string, bool> CheckRoles { get; set; }
@@ -1942,7 +2092,7 @@ namespace Aurora
 		{
 			if (string.IsNullOrEmpty(MainConfig.EncryptionKey))
 				throw new Exception(MainConfig.EncryptionKeyNotSpecifiedError);
-			
+
 			List<User> users = GetUsers(ctx);
 
 			User u = users.FirstOrDefault(x => x.SessionID == ctx.Session.SessionID && x.Identity.Name == id);
@@ -2068,7 +2218,7 @@ namespace Aurora
 			if (authCookie != null)
 			{
 				User u = GetUsers(ctx).FirstOrDefault(x => x.SessionID == ctx.Session.SessionID && x.Identity.Name == authCookie.ID);
-				
+
 				if (u != null)
 				{
 					if (u.AuthenticationCookie.Expires < DateTime.Now) return false;
@@ -2077,7 +2227,7 @@ namespace Aurora
 					{
 						if (u.CheckRoles != null)
 						{
-							if(routeInfo != null)
+							if (routeInfo != null)
 								u.ActionBindings = routeInfo.Bindings;
 
 							return u.CheckRoles(u, authRoles);
@@ -3807,7 +3957,7 @@ namespace Aurora
 			if (protectedFiles.ContainsKey(path))
 			{
 				roles = protectedFiles[path];
-				
+
 				return true;
 			}
 
@@ -4290,7 +4440,7 @@ namespace Aurora
 
 						if (StaticFileManager.IsProtected(context, staticFilePath, out protectedRoles))
 						{
-							if(!SecurityManager.IsAuthenticated(context, null, protectedRoles))
+							if (!SecurityManager.IsAuthenticated(context, null, protectedRoles))
 								return iar;
 						}
 
@@ -4725,16 +4875,16 @@ namespace Aurora
 	public class ColumnTransform<T> where T : Model
 	{
 		private List<T> Models;
-		private Func<T, string> Func;
+		private Func<T, string> TransformFunc;
 		private PropertyInfo ColumnInfo;
 		internal ColumnTransformType TransformType { get; private set; }
 
 		public string ColumnName { get; private set; }
 
-		public ColumnTransform(List<T> models, string columnName, Func<T, string> func)
+		public ColumnTransform(List<T> models, string columnName, Func<T, string> transformFunc)
 		{
 			Models = models;
-			Func = func;
+			TransformFunc = transformFunc;
 			ColumnName = columnName;
 			ColumnInfo = typeof(T).GetProperties().FirstOrDefault(x => x.Name == ColumnName);
 
@@ -4746,14 +4896,14 @@ namespace Aurora
 
 		public string Result(int index)
 		{
-			return Func(Models[index]);
+			return TransformFunc(Models[index]);
 		}
 
 		public IEnumerable<string> Results()
 		{
 			foreach (T t in Models)
 			{
-				yield return Func(t);
+				yield return TransformFunc(t);
 			}
 		}
 	}
@@ -4766,6 +4916,7 @@ namespace Aurora
 		private List<string> IgnoreColumns;
 		private List<ColumnTransform<T>> ColumnTransforms;
 		private List<RowTransform<T>> RowTransforms;
+		public string AlternateRowColor { get; set; }
 
 		public HTMLTable(List<T> models, List<string> ignoreColumns, List<ColumnTransform<T>> columnTransforms, params Func<string, string>[] attribs)
 		{
@@ -4786,6 +4937,7 @@ namespace Aurora
 			AttribsFunc = attribs;
 			ColumnTransforms = columnTransforms;
 			RowTransforms = rowTransforms;
+			AlternateRowColor = "#dddddd";
 
 			PropertyNames = ObtainPropertyNames();
 		}
@@ -4858,6 +5010,7 @@ namespace Aurora
 			for (int i = start; i < length; i++)
 			{
 				string rowClass = string.Empty;
+				string alternatingColor = string.Empty;
 
 				if (RowTransforms != null)
 				{
@@ -4866,8 +5019,11 @@ namespace Aurora
 						rowClass = rt.Result(i);
 					}
 				}
+				
+				if (!string.IsNullOrEmpty(AlternateRowColor) && (i & 1) != 0)
+					alternatingColor = string.Format("bgcolor=\"{0}\"", AlternateRowColor);
 
-				html.AppendFormat("<tr {0}>", rowClass);
+				html.AppendFormat("<tr {0} {1}>", rowClass, alternatingColor);
 
 				foreach (PropertyInfo pn in PropertyInfos)
 				{
@@ -5152,7 +5308,7 @@ namespace Aurora
 
 			ResponseHeader.AddEncodingHeaders(context);
 
-			context.Response.AddHeader("content-disposition", "attachment;filename=" + fileName);
+			context.Response.AddHeader("content-disposition", "attachment;filename=\"" + fileName + "\"");
 			//context.Response.AddHeader("Content-Length", fileBytes.Length.ToString());
 			context.Response.BinaryWrite(fileBytes);
 		}

@@ -4,7 +4,7 @@ NOTE: See source code comments for usage.
 
 Frank Hale <frankhale@gmail.com>
 
-Date: 2 April 2012
+Date: 5 April 2012
 
 --------------------
 --- Feature List ---
@@ -34,6 +34,15 @@ Date: 2 April 2012
 - Bundling/Minifying of Javascript and CSS.
  
 Changelog:
+
+5 April 2012
+
+- Added a new web.config section for annotating more than one Active Directory
+  domain and search path.
+- The HTMLTable now highlights every other row. The color can be configured but 
+  it's turned on by default. This will be fixed when I have a chance to update 
+	the constructor(s).
+- Documentation updates
 
 2 April 2012
 
