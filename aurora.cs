@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 5 April 2012
+// Updated On: 12 April 2012
 //
 // Contact Info:
 //
@@ -12,7 +12,8 @@
 // --- Feature List ---
 // --------------------
 //
-// - MVC based 
+// - Model View Controller based 
+// - Front controller aware (optional)
 // - Simple tag based view engine with master pages and partial views as well as
 //   fragments 
 // - URL parameters bind to action method parameters automatically 
@@ -35,6 +36,8 @@
 //   authentication.
 // - Bundling/Minifying of Javascript and CSS.
 //
+
+#region DOCUMENTATION
 // ----------------
 // --- Building ---
 // ----------------
@@ -794,6 +797,20 @@
 //  ADSearchRoot = "LDAP://URL_GOES_HERE"
 //  ADSearchDomain = "Active Directory Domain Name" 
 //
+// If you need to specify more than one domain and search path you can do this:
+// 
+// NOTE: It'd be nice to have the ability to specify more than one search path
+//       per domain but that isn't possible at the moment. If you need more than
+//       one search path per domain you'll have to have more than one line 
+//       unfortunately specifying the domain, username and password again.
+//
+// 	<ActiveDirectorySearchInfo>
+//		<add Domain="domain_here" 
+//			 SearchRoot="LDAP://path_here" 
+//			 UserName="Encrypted_User_Name" 
+//			 Password="Encrypted_Password" />
+//	</ActiveDirectorySearchInfo>
+// 
 // ------------------------
 // --- Active Directory ---
 // ------------------------
@@ -837,9 +854,9 @@
 // you have your posted form values bound to action parameters as the routing 
 // depends on the proper number of parameters being posted to map to an action.
 //
-// ---------------
-// --- LICENSE ---
-// ---------------
+#endregion
+
+#region LICENSE - GPL version 3 <http://www.gnu.org/licenses/gpl-3.0.html>
 //
 // GPL version 3 <http://www.gnu.org/licenses/gpl-3.0.html>
 //
@@ -856,6 +873,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
+#endregion
 
 #region USING STATEMENTS
 using System;
@@ -901,11 +919,24 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyProduct("Aurora")]
 [assembly: AssemblyCopyright("(GNU GPLv3) Copyleft © 2011-2012")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.99.52.*")]
+[assembly: AssemblyVersion("1.99.53.0")]
 #endregion
 
+#region TODO
+//TODO: Documentation: the documentation needs a total overhaul!!!
+//
+//			Undocumented: 
+//				- Partitions
+//				- Front Controller
+//				- Bundle directive in views
+//				- Comments in views
+//				- Examples of all HTML helpers
+//
+//TODO: Add more events to the FrontController class
 //TODO: RouteManager: Add model validation checking to the form parameters if they are being placed directly in the action parameter list rather than in a model
 //TODO: HTMLHelpers: All of the areas where I'm using these Func<> lambda func params to add name=value pairs to HTML tags need to have complimentary methods that also use a dictionary. The infrastructure has been put in place in the base HTML helper
+//TODO: Add HTTP Patch verb support
+#endregion
 
 namespace Aurora
 {
@@ -1059,7 +1090,7 @@ namespace Aurora
 		}
 #endif
 
-		[ConfigurationProperty("EncryptionKey", DefaultValue = "", IsRequired = true)]
+		[ConfigurationProperty("EncryptionKey", DefaultValue = "", IsRequired = false)]
 		public string EncryptionKey
 		{
 			get { return this["EncryptionKey"] as string; }
@@ -1229,6 +1260,8 @@ namespace Aurora
 		public static string StaticFileManagerSessionName = "__StaticFileManager";
 		public static string RouteManagerSessionName = "__RouteManager";
 		public static string RoutesSessionName = "__Routes";
+		public static string FrontControllerSessionName = "__FrontController";
+		public static string FrontControllerInstanceSessionName = "__FrontControllerInstance";
 		public static string ControllersSessionName = "__Controllers";
 		public static string ControllerInstancesSessionName = "__ControllerInstances";
 		public static string ModelsSessionName = "__Models";
@@ -1242,6 +1275,7 @@ namespace Aurora
 		public static string CurrentUserSessionName = "__CurrentUser";
 		public static string BundleManagerSessionName = "__BundleManager";
 		public static string BundleManagerInfoSessionName = "__BundleManagerInfo";
+		public static string BundleNameError = "Bundle names must include a file extension and be either CSS or Javascript";
 		public static string UniquedIDSessionName = "__UniquedIDs";
 		public static string AntiForgeryTokenName = "AntiForgeryToken";
 		public static string JsonAntiForgeryTokenName = "JsonAntiForgeryToken";
@@ -1264,26 +1298,42 @@ namespace Aurora
 		public static string OpenIdProviderUriMismatchError = "The request OpenID provider Uri does not match the response Uri";
 		public static string EncryptionKeyNotSpecifiedError = "The encryption key has not been specified in the web.config";
 		public static string PostedFormActionIncorrectNumberOfParametersError = "A post action must have at least one parameter that is the model type of the form that is being posted";
+		public static string ActiveDirectorySearchCriteriaNullOrEmpty = "The search criteria specified in the Active Directory lookup cannot be null or empty";
 		public static string ADUserOrPWError = "The username or password used to read from Active Directory is null or empty, please check your web.config";
 		public static string ADSearchRootIsNullOrEmpty = "The Active Directory search root is null or empty";
 		public static string ADSearchDomainIsNullorEmpty = "The Active Directory search domain is null or empty";
 		public static string ADSearchCriteriaIsNullOrEmptyError = "The LDAP query associated with this search type is null or empty, a valid query must be annotated to this search type via the MetaData attribute";
-		public static string HttpRequestTypeNotSupportedError = "The HTTP Request type [{0}] is not supported.";
-		public static string ActionParameterTransformClassUnknownError = "The action parameter transform class cannot be determined.";
+		public static string HttpRequestTypeNotSupportedError = "The HTTP Request type [{0}] is not supported";
+		public static string ActionParameterTransformClassUnknownError = "The action parameter transform class cannot be determined";
 		public static string Http404Error = "Http 404 - Page Not Found";
 		//public static string Http401Error = "Http 401 - Unauthorized";
 		public static string CustomErrorNullExceptionError = "The customer error instance was null";
 		public static string OnlyOneCustomErrorClassPerApplicationError = "Cannot have more than one custom error class per application";
-		public static string OnlyOneErrorActionPerControllerError = "Cannot have more than one error action per controller";
+		public static string OnlyOneFrontControllerClassPerApplicationError = "Cannot have more than one front controller class per application";
+		//public static string OnlyOneErrorActionPerControllerError = "Cannot have more than one error action per controller";
 		public static string RedirectWithoutAuthorizationToError = "RedirectWithoutAuthorizationTo is either null or empty";
-		public static string GenericErrorMessage = "An error occurred trying to process this request.";
-		public static string RouteManagerNotSupportedException = "Route manager not supported.";
+		public static string GenericErrorMessage = "An error occurred trying to process this request";
+		public static string RouteManagerNotSupportedException = "Route manager not supported";
 		public static string DefaultRoute = (WebConfig == null) ? "/Home/Index" : WebConfig.DefaultRoute;
 		public static string CannotFindViewError = "Cannot find view {0}";
-		public static string ModelValidationErrorRequiredField = "Model Validation Error: {0} is a required field.";
-		public static string ModelValidationErrorRequiredLength = "Model Validation Error: {0} has a required length that was not met.";
-		public static string ModelValidationErrorRegularExpression = "Model Validation Error: {0} did not pass regular expression validation.";
-		public static string ModelValidationErrorRange = "Model Validation Error: {0} was not within the range specified.";
+		public static string ModelValidationErrorRequiredField = "Model Validation Error: {0} is a required field";
+		public static string ModelValidationErrorRequiredLength = "Model Validation Error: {0} has a required length that was not met";
+		public static string ModelValidationErrorRegularExpression = "Model Validation Error: {0} did not pass regular expression validation";
+		public static string ModelValidationErrorRange = "Model Validation Error: {0} was not within the range specified";
+	}
+	#endregion
+
+	#region AURORA
+	// Any miscellaneous properties and methods that can be used globally will be in here.
+	public static class Aurora
+	{
+		public static bool InDebugMode
+		{
+			get
+			{
+				return (MainConfig.AuroraDebug || MainConfig.ASPNETDebug) ? true : false;
+			}
+		}
 	}
 	#endregion
 
@@ -1445,9 +1495,9 @@ namespace Aurora
 	[AttributeUsage(AttributeTargets.Method)]
 	public class HttpGetAttribute : RequestTypeAttribute
 	{
-		internal HttpCacheability CacheabilityOption;
+		public HttpCacheability CacheabilityOption = HttpCacheability.Public;
 		public bool Cache = false;
-		internal int Duration = 0;
+		public int Duration = 15; // in minutes
 		public string Refresh = string.Empty;
 
 		public HttpGetAttribute()
@@ -1549,14 +1599,19 @@ namespace Aurora
 	}
 	#endregion
 
-	#region ERROR HANDLER
-	//[AttributeUsage(/*AttributeTargets.Method |*/ AttributeTargets.Class)]
-	//public class ErrorAttribute : Attribute
-	//{
-	//  public ErrorAttribute()
-	//  {
-	//  }
-	//}
+	#region MODEL
+
+	#region DATE FORMAT
+	[AttributeUsage(AttributeTargets.Property)]
+	public class DateFormatAttribute : Attribute
+	{
+		internal string Format { get; set; }
+
+		public DateFormatAttribute(string format)
+		{
+			Format = format;
+		}
+	}
 	#endregion
 
 	#region MODEL VALIDATION
@@ -1615,6 +1670,8 @@ namespace Aurora
 			Max = max;
 		}
 	}
+	#endregion
+
 	#endregion
 
 	#region UNIQUE ID
@@ -1737,8 +1794,8 @@ namespace Aurora
 			Justification = "A user of this class cannot call into Active Directory without specifying a username and password with access to the directory.")]
 		internal static ActiveDirectoryUser LookupUser(ActiveDirectorySearchType searchType, string data, bool global, string adSearchDomain, string adSearchRoot, string adSearchUser, string adSearchPW)
 		{
-			//FIXME: Throw an exception. We need something to search on here.
-			if (string.IsNullOrEmpty(data)) return null;
+			if (string.IsNullOrEmpty(data))
+				throw new Exception(MainConfig.ActiveDirectorySearchCriteriaNullOrEmpty);
 
 			DirectoryEntry searchRootDE = new DirectoryEntry()
 			{
@@ -2459,23 +2516,12 @@ namespace Aurora
 			{
 				Controller ctrl = AllControllerInstances(context).FirstOrDefault(x => x.GetType() == c);
 
-				if (ctrl == null)
+				if (ctrl == null || routes.Count() == 0)
 				{
 					#region INSTANTIATE CONTROLLER
-					MethodInfo createInstance = c.BaseType.GetMethod("CreateInstance", BindingFlags.Static | BindingFlags.NonPublic).MakeGenericMethod(c);
-					ctrl = (Controller)createInstance.Invoke(createInstance, new object[] { context });
+					MethodInfo createInstance = c.BaseType.GetMethod("CreateInstance", BindingFlags.Static | BindingFlags.NonPublic);
+					ctrl = (Controller)createInstance.Invoke(createInstance, new object[] { c, context });
 					AllControllerInstances(context).Add(ctrl);
-
-					#region I HAVE NO IDEA WHY I ADDED THIS!!!
-					//if (context.Application[MainConfig.RoutesSessionName] != null)
-					//{
-					//  routes = context.Application[MainConfig.RoutesSessionName] as List<RouteInfo>;
-					//  actionInfos = context.Application[MainConfig.ActionInfosSessionName] as List<ActionInfo>;
-
-					//  foreach (RouteInfo routeInfo in routes)
-					//    routeInfo.ControllerInstance = ctrl;
-					//}
-					#endregion
 					#endregion
 
 					foreach (ActionInfo ai in GetAllActionInfos(context).Where(x => x.ControllerType.Name == c.Name))
@@ -2568,17 +2614,43 @@ namespace Aurora
 			context.Application.UnLock();
 		}
 
+		public static FrontController GetFrontController(HttpContextBase context)
+		{
+			List<Type> frontController = GetTypeList(context, MainConfig.FrontControllerSessionName, typeof(FrontController));
+
+			if (frontController != null && frontController.Count > 0)
+			{
+				if (frontController.Count > 1)
+					throw new Exception(MainConfig.OnlyOneFrontControllerClassPerApplicationError);
+
+				// Check to see if we already have an instance created otherwise create one
+				if (context.Application[MainConfig.FrontControllerInstanceSessionName] != null)
+					return context.Application[MainConfig.FrontControllerInstanceSessionName] as FrontController;
+				else
+				{
+					FrontController fc = FrontController.CreateInstance(frontController[0], context);
+
+					context.Application.Lock();
+					context.Application[MainConfig.FrontControllerInstanceSessionName] = fc;
+					context.Application.UnLock();
+
+					return fc;
+				}
+			}
+			
+			return null;
+		}
+
 		public static CustomError GetCustomError(HttpContextBase context)
 		{
 			List<Type> customErrors = GetTypeList(context, MainConfig.CustomErrorSessionName, typeof(CustomError));
 
 			if (customErrors != null)
 			{
-				if (customErrors.Count > 1)
+				if (customErrors.Count > 1 && customErrors.Count > 0)
 					throw new Exception(MainConfig.OnlyOneCustomErrorClassPerApplicationError);
 
-				if (customErrors.Count == 1)
-					return CustomError.CreateInstance(customErrors[0], new AuroraViewEngine(context.Server.MapPath(MainConfig.ViewRoot), new ViewEngineHelper(context)), context);
+				return CustomError.CreateInstance(customErrors[0], new AuroraViewEngine(context.Server.MapPath(MainConfig.ViewRoot), new ViewEngineHelper(context)), context);
 			}
 
 			return null;
@@ -2739,14 +2811,17 @@ namespace Aurora
 
 		internal List<object> GetBindings(string controllerName, string actionName)
 		{
-			List<ActionBinding> actionBindings = bindings[controllerName];
-
-			if (actionBindings != null)
+			if (bindings.ContainsKey(controllerName))
 			{
-				ActionBinding ab = actionBindings.FirstOrDefault(x => x.ActionNames.FirstOrDefault(y => y == actionName) != null);
+				List<ActionBinding> actionBindings = bindings[controllerName];
 
-				if (ab != null)
-					return ab.BindInstances;
+				if (actionBindings != null)
+				{
+					ActionBinding ab = actionBindings.FirstOrDefault(x => x.ActionNames.FirstOrDefault(y => y == actionName) != null);
+
+					if (ab != null)
+						return ab.BindInstances;
+				}
 			}
 
 			return null;
@@ -2886,36 +2961,95 @@ namespace Aurora
 	}
 	#endregion
 
-	#region CONTROLLER
-	public enum ActionHandlerEventType
+	#region CONTROLLERS
+
+	#region ACTION HANDLER
+	internal enum RouteHandlerEventType
 	{
 		Pre,
-		Post
+		Post,
+		PreRoute,
+		PostRoute,
+		Static
 	}
 
-	public class ActionHandlerEventArgs : EventArgs
+	public class RouteHandlerEventArgs : EventArgs
 	{
-		public ActionHandlerEventType EventType { get; private set; }
+		public string Path { get; set; }
 		public RouteInfo RouteInfo { get; internal set; }
 
-		public ActionHandlerEventArgs(ActionHandlerEventType t, RouteInfo routeInfo)
+		public RouteHandlerEventArgs(string path, RouteInfo routeInfo)
 		{
-			EventType = t;
+			Path = path;
 			RouteInfo = routeInfo;
 		}
 	}
+	#endregion
 
-	public abstract class Controller
+	#region FRONT CONTROLLER
+	public abstract class FrontController
 	{
+		// I'm still undecided about how much power I want to give this class.
+
 		public HttpContextBase Context;
 
-		public bool InDebugMode
+		protected virtual void FrontController_OnInit() { }
+
+		public event EventHandler<RouteHandlerEventArgs> PreActionEvent = (sender, args) => {};
+		public event EventHandler<RouteHandlerEventArgs> PostActionEvent = (sender, args) => { };
+		public event EventHandler<RouteHandlerEventArgs> StaticRouteEvent = (sender, args) => { };
+		public event EventHandler<RouteHandlerEventArgs> PreRouteDeterminationEvent = (sender, args) => { };
+		public event EventHandler<RouteHandlerEventArgs> PostRouteDeterminationEvent = (sender, args) => { };
+
+		internal static FrontController CreateInstance(Type t, HttpContextBase context)
 		{
-			get
+			if (t.BaseType == typeof(FrontController))
 			{
-				return (MainConfig.AuroraDebug || MainConfig.ASPNETDebug) ? true : false;
+				FrontController fc = (FrontController)Activator.CreateInstance(t);
+
+				fc.Context = context;
+				fc.FrontController_OnInit();
+
+				return fc;
+			}
+
+			return null;
+		}
+
+		internal void RaiseEvent(RouteHandlerEventType type, string path, RouteInfo routeInfo)
+		{
+			RouteHandlerEventArgs args = new RouteHandlerEventArgs(path, routeInfo);
+
+			switch (type)
+			{
+				case RouteHandlerEventType.Pre:
+					PreActionEvent(this, args);
+					break;
+
+				case RouteHandlerEventType.Post:
+					PostActionEvent(this, args);
+					break;
+
+				case RouteHandlerEventType.PreRoute:
+					PreRouteDeterminationEvent(this, args);
+					break;
+
+				case RouteHandlerEventType.PostRoute:
+					PostRouteDeterminationEvent(this, args);
+					break;
+
+				case RouteHandlerEventType.Static:
+					StaticRouteEvent(this, args);
+					break;
 			}
 		}
+	}
+	#endregion
+
+	#region APPLICATION CONTROLLER
+	public abstract class Controller
+	{
+		protected HttpContextBase Context;
 
 		private string PartitionName;
 
@@ -2927,9 +3061,8 @@ namespace Aurora
 		protected NameValueCollection Form { get; set; }
 		protected NameValueCollection QueryString { get; set; }
 
-		public delegate void Controller_PreOrPostActionDelegate(object sender, ActionHandlerEventArgs e);
-
-		public event Controller_PreOrPostActionDelegate Controller_PreOrPostActionEvent;
+		public event EventHandler<RouteHandlerEventArgs> PreActionEvent = (sender, args) => { };
+		public event EventHandler<RouteHandlerEventArgs> PostActionEvent = (sender, args) => { };
 
 		public Controller()
 		{
@@ -2937,29 +3070,42 @@ namespace Aurora
 			FragTags = new Dictionary<string, Dictionary<string, string>>();
 
 			PartitionName = GetPartitionName();
-
-			Controller_PreOrPostActionEvent += Controller_PreOrPostActionEventHandler;
 		}
-
-		protected void Controller_PreOrPostActionEventHandler(object sender, ActionHandlerEventArgs e) { }
 
 		protected virtual void Controller_OnInit() { }
 
-		internal void RaiseEvent(ActionHandlerEventType type, RouteInfo routeInfo)
+		internal void RaiseEvent(RouteHandlerEventType type, string path, RouteInfo routeInfo)
 		{
-			Controller_PreOrPostActionEvent(this, new ActionHandlerEventArgs(type, routeInfo));
+			//  PreOrPostActionEvent(this, new ActionHandlerEventArgs(type, routeInfo));
+			RouteHandlerEventArgs args = new RouteHandlerEventArgs(path, routeInfo);
+
+			switch (type)
+			{
+				case RouteHandlerEventType.Pre:
+					PreActionEvent(this, args);
+					break;
+
+				case RouteHandlerEventType.Post:
+					PostActionEvent(this, args);
+					break;
+			}
 		}
 
-		internal static Controller CreateInstance<T>(HttpContextBase context) where T : Controller
+		internal static Controller CreateInstance(Type t, HttpContextBase context)
 		{
-			Controller controller = (Controller)Activator.CreateInstance(typeof(T));
+			if (t.BaseType == typeof(Controller))
+			{
+				Controller controller = (Controller)Activator.CreateInstance(t);
 
-			controller.ViewEngine = new AuroraViewEngine(context.Server.MapPath(MainConfig.ViewRoot), new ViewEngineHelper(context));
+				controller.ViewEngine = new AuroraViewEngine(context.Server.MapPath(MainConfig.ViewRoot), new ViewEngineHelper(context));
 
-			controller.Refresh(context);
-			controller.Controller_OnInit();
+				controller.Refresh(context);
+				controller.Controller_OnInit();
 
-			return controller;
+				return controller;
+			}
+
+			return null;
 		}
 
 		internal void Refresh(HttpContextBase context)
@@ -3147,6 +3293,8 @@ namespace Aurora
 		}
 		#endregion
 	}
+	#endregion
+
 	#endregion
 
 	#region ENCRYPTION
@@ -3444,12 +3592,15 @@ namespace Aurora
 	internal class BundleInfo
 	{
 		public FileInfo FileInfo { get; set; }
+		public string RelativePath { get; set; }
 		public string BundleName { get; set; }
 	}
 
 	// The Bundle class takes Javascript or CSS files and combines and minifies them.
 	public class BundleManager
 	{
+		private static string[] allowedExts = { ".js", ".css" };
+
 		private Dictionary<string, string> bundles;
 		private List<BundleInfo> bundleInfos;
 		private HttpContextBase context;
@@ -3477,7 +3628,10 @@ namespace Aurora
 		{
 			get
 			{
-				return bundles[bundle];
+				if (bundles.ContainsKey(bundle))
+					return bundles[bundle];
+
+				return null;
 			}
 		}
 
@@ -3504,17 +3658,39 @@ namespace Aurora
 
 			foreach (string path in paths)
 			{
+				if (allowedExts.Where(x => Path.GetExtension(path) == x) == null)
+					throw new Exception(MainConfig.BundleNameError);
+
 				string fullPath = context.Server.MapPath(path);
 
 				if (File.Exists(fullPath))
-					files.Add(new FileInfo(context.Server.MapPath(path)));
+				{
+					FileInfo fi = new FileInfo(context.Server.MapPath(path));
+
+					files.Add(fi);
+
+					bundleInfos.Add(new BundleInfo()
+					{
+						BundleName = bundleName,
+						FileInfo = fi,
+						RelativePath = path
+					});
+				}
 			}
 
-			foreach (FileInfo file in files)
-				bundleInfos.Add(new BundleInfo() { BundleName = bundleName, FileInfo = file });
-
-
 			ProcessFiles(files, bundleName);
+		}
+
+		public List<string> GetBundleFileList(string bundle)
+		{
+			var binfos = bundleInfos
+											.Where(x => x.BundleName == bundle)
+											.Select(x => x.RelativePath);
+
+			if (binfos != null)
+				return binfos.ToList();
+
+			return null;
 		}
 
 		private void ProcessFiles(IEnumerable<FileInfo> files, string bundleName)
@@ -4091,11 +4267,14 @@ namespace Aurora
 		private string[] urlStringParams;
 
 		private bool fromRedirectOnlyFlag = false;
+
+		private FrontController frontController;
 		#endregion
 
 		public AuroraRouteManager(HttpContextBase ctx)
 		{
 			bundleManager = new BundleManager(ctx);
+			frontController = ApplicationInternals.GetFrontController(ctx);
 
 			Refresh(ctx);
 		}
@@ -4396,8 +4575,16 @@ namespace Aurora
 		{
 			IViewResult iar = null;
 
+			// Front Controller PreRoute determination event
+			if (frontController != null)
+				frontController.RaiseEvent(RouteHandlerEventType.PreRoute, path, null);
+
 			if (MainConfig.PathStaticFileRE.IsMatch(path))
 			{
+				// Front Controller Static route event
+				if (frontController != null)
+					frontController.RaiseEvent(RouteHandlerEventType.Static, path, null);
+
 				iar = ExecuteStaticRoute();
 			}
 			else
@@ -4411,13 +4598,26 @@ namespace Aurora
 
 				if (routeInfo != null)
 				{
-					// Execute Controller_BeforeAction
-					routeInfo.ControllerInstance.RaiseEvent(ActionHandlerEventType.Pre, routeInfo);
+					if (frontController != null)
+					{
+						// Front Controller PostRoute determination event
+						frontController.RaiseEvent(RouteHandlerEventType.PostRoute, path, routeInfo);
+						// Front Controller PreAction event
+						frontController.RaiseEvent(RouteHandlerEventType.Pre, path, routeInfo);
+					}
 
+					// Execute Controller BeforeAction event
+					routeInfo.ControllerInstance.RaiseEvent(RouteHandlerEventType.Pre, path, routeInfo);
+
+					// Go invoke the route
 					iar = ProcessDynamicRoute(routeInfo);
 
-					// Execute Controller_AfterAction
-					routeInfo.ControllerInstance.RaiseEvent(ActionHandlerEventType.Post, routeInfo);
+					// Front Controller PostAction event
+					if (frontController != null)
+						frontController.RaiseEvent(RouteHandlerEventType.Post, path, routeInfo);
+
+					// Execute Controller AfterAction
+					routeInfo.ControllerInstance.RaiseEvent(RouteHandlerEventType.Post, path, routeInfo);
 				}
 			}
 
@@ -4482,25 +4682,6 @@ namespace Aurora
 					}
 					else
 						throw new Exception(MainConfig.AntiForgeryTokenMissing);
-				}
-				#endregion
-
-				#region HTTP CACHING FOR GET REQUEST
-				if (get != null && get.Cache)
-				{
-					TimeSpan expires = new TimeSpan(0, 0, get.Duration);
-
-					context.Response.Cache.SetCacheability(get.CacheabilityOption);
-					context.Response.Cache.SetExpires(DateTime.Now.Add(expires));
-					context.Response.Cache.SetMaxAge(expires);
-					context.Response.Cache.SetValidUntilExpires(true);
-					context.Response.Cache.VaryByParams.IgnoreParams = true;
-				}
-				else
-				{
-					context.Response.Cache.SetCacheability(HttpCacheability.NoCache);
-					context.Response.Cache.SetNoStore();
-					context.Response.Cache.SetExpires(DateTime.MinValue);
 				}
 				#endregion
 
@@ -4917,19 +5098,30 @@ namespace Aurora
 		private List<ColumnTransform<T>> ColumnTransforms;
 		private List<RowTransform<T>> RowTransforms;
 		public string AlternateRowColor { get; set; }
+		public bool AlternateRowColorEnabled { get; set; }
 
-		public HTMLTable(List<T> models, List<string> ignoreColumns, List<ColumnTransform<T>> columnTransforms, params Func<string, string>[] attribs)
+		public HTMLTable(List<T> models,
+										 List<string> ignoreColumns,
+										 List<ColumnTransform<T>> columnTransforms,
+										 params Func<string, string>[] attribs)
 		{
 			Init(models, ignoreColumns, columnTransforms, null, attribs);
 		}
 
-		public HTMLTable(List<T> models, List<string> ignoreColumns, List<ColumnTransform<T>> columnTransforms, List<RowTransform<T>> rowTransforms, params Func<string, string>[] attribs)
+		public HTMLTable(List<T> models,
+										 List<string> ignoreColumns,
+										 List<ColumnTransform<T>> columnTransforms,
+										 List<RowTransform<T>> rowTransforms,
+										 params Func<string, string>[] attribs)
 		{
 			Init(models, ignoreColumns, columnTransforms, rowTransforms, attribs);
 		}
 
-		private void Init(List<T> models, List<string> ignoreColumns,
-				List<ColumnTransform<T>> columnTransforms, List<RowTransform<T>> rowTransforms, params Func<string, string>[] attribs)
+		private void Init(List<T> models,
+											List<string> ignoreColumns,
+											List<ColumnTransform<T>> columnTransforms,
+											List<RowTransform<T>> rowTransforms,
+											params Func<string, string>[] attribs)
 		{
 			Models = models;
 
@@ -4937,6 +5129,7 @@ namespace Aurora
 			AttribsFunc = attribs;
 			ColumnTransforms = columnTransforms;
 			RowTransforms = rowTransforms;
+			AlternateRowColorEnabled = true;
 			AlternateRowColor = "#dddddd";
 
 			PropertyNames = ObtainPropertyNames();
@@ -4998,9 +5191,7 @@ namespace Aurora
 
 			StringBuilder html = new StringBuilder();
 
-			html.AppendFormat("<table {0}>", CondenseAttribs());
-
-			html.Append("<thead>");
+			html.AppendFormat("<table {0}><thead>", CondenseAttribs());
 
 			foreach (string pn in PropertyNames)
 				html.AppendFormat("<th>{0}</th>", pn);
@@ -5019,8 +5210,8 @@ namespace Aurora
 						rowClass = rt.Result(i);
 					}
 				}
-				
-				if (!string.IsNullOrEmpty(AlternateRowColor) && (i & 1) != 0)
+
+				if (AlternateRowColorEnabled && !string.IsNullOrEmpty(AlternateRowColor) && (i & 1) != 0)
 					alternatingColor = string.Format("bgcolor=\"{0}\"", AlternateRowColor);
 
 				html.AppendFormat("<tr {0} {1}>", rowClass, alternatingColor);
@@ -5031,18 +5222,25 @@ namespace Aurora
 
 					if (pn.CanRead)
 					{
+						string value = string.Empty;
 						object o = pn.GetValue(Models[i], null);
 
-						string value = (o == null) ? ((displayNull) ? "NULL" : string.Empty) : o.ToString();
+						value = (o == null) ? ((displayNull) ? "NULL" : string.Empty) : o.ToString();
+
+						if (o is DateTime)
+						{
+							DateFormatAttribute dfa = (DateFormatAttribute)Attribute.GetCustomAttribute(pn, typeof(DateFormatAttribute));
+
+							if (dfa != null)
+								value = ((DateTime)o).ToString(dfa.Format);
+						}
 
 						if (ColumnTransforms != null)
 						{
 							ColumnTransform<T> transform = (ColumnTransform<T>)ColumnTransforms.FirstOrDefault(x => x.ColumnName == pn.Name && x.TransformType == ColumnTransformType.Existing);
 
 							if (transform != null)
-							{
 								value = transform.Result(i);
-							}
 						}
 
 						html.AppendFormat("<td>{0}</td>", value);
@@ -5414,10 +5612,31 @@ namespace Aurora
 
 			if (requestAttribute is HttpGetAttribute)
 			{
-				string refresh = (requestAttribute as HttpGetAttribute).Refresh;
+				HttpGetAttribute get = (requestAttribute as HttpGetAttribute);
+
+				string refresh = get.Refresh;
 
 				if (!string.IsNullOrEmpty(refresh))
 					context.Response.AddHeader("Refresh", refresh);
+
+				#region HTTP CACHING FOR GET REQUEST
+				if (get.Cache)
+				{
+					TimeSpan expires = new TimeSpan(0, get.Duration, 0);
+
+					context.Response.Cache.SetCacheability(get.CacheabilityOption);
+					context.Response.Cache.SetExpires(DateTime.Now.Add(expires));
+					context.Response.Cache.SetMaxAge(expires);
+					context.Response.Cache.SetValidUntilExpires(true);
+					context.Response.Cache.VaryByParams.IgnoreParams = true;
+				}
+				else
+				{
+					context.Response.Cache.SetCacheability(HttpCacheability.NoCache);
+					context.Response.Cache.SetNoStore();
+					context.Response.Cache.SetExpires(DateTime.MinValue);
+				}
+				#endregion
 			}
 
 			ResponseHeader.AddEncodingHeaders(context);
@@ -5657,7 +5876,7 @@ namespace Aurora
 	internal interface IViewEngineHelper
 	{
 		string ApplicationRoot { get; }
-
+		BundleManager BundleManager { get; }
 		ViewTemplateInfo TemplateInfo { get; set; }
 
 		string NewAntiForgeryToken(AntiForgeryTokenType type);
@@ -5689,6 +5908,7 @@ namespace Aurora
 	{
 		private HttpContextBase context;
 		private ViewTemplateInfo templateInfo;
+		public BundleManager BundleManager { get; private set; }
 
 		public string ApplicationRoot { get; private set; }
 
@@ -5696,6 +5916,7 @@ namespace Aurora
 		{
 			context = ctx;
 			ApplicationRoot = context.Server.MapPath("~/");
+			BundleManager = new BundleManager(ctx);
 
 			if (context.Application[MainConfig.TemplatesSessionName] != null)
 			{
@@ -5747,18 +5968,20 @@ namespace Aurora
 
 	internal class AuroraViewEngine : IViewEngine
 	{
-		private IViewEngineHelper viewEngineHelper;
+		private readonly IViewEngineHelper viewEngineHelper;
 		private string viewRoot;
-		private static Regex directiveTokenRE = new Regex(@"(\%\%(?<directive>[a-zA-Z0-9]+)=(?<value>[a-zA-Z0-9]+)\%\%)");
+		private static Regex directiveTokenRE = new Regex(@"(\%\%(?<directive>[a-zA-Z0-9]+)=(?<value>(\S|\.)+)\%\%)");
 		private static Regex headBlockRE = new Regex(@"\[\[(?<block>[\s\w\p{P}\p{S}]+)\]\]");
+		private static Regex commentBlockRE = new Regex(@"\@\@(?<block>[\s\S]+?)\@\@");
 		private static string tagFormatPattern = @"({{({{|\|){0}(\||}})}})";
 		private static string tagPattern = @"{({|\|)([\w]+)(}|\|)}";
+		private static string cssIncludeTag = @"<link href=""{0}"" rel=""stylesheet"" type=""text/css"" />";
+		private static string jsIncludeTag = @"<script src=""{0}"" type=""text/javascript""></script>";
 		private static string tagEncodingHint = "|";
 		private static string antiForgeryToken = string.Format("%%{0}%%", MainConfig.AntiForgeryTokenName);
 		private static string jsonAntiForgeryToken = string.Format("%%{0}%%", MainConfig.JsonAntiForgeryTokenName);
 		private static string viewDirective = "%%View%%";
 		private static string headDirective = "%%Head%%";
-		private static string partialDirective = "%%Partial={0}%%";
 		private static List<string> partitionViewRoots;
 		private ViewTemplateInfo templateInfo;
 
@@ -5814,14 +6037,27 @@ namespace Aurora
 			{
 				using (StreamReader sr = new StreamReader(fi.OpenRead()))
 				{
-					string template = sr.ReadToEnd();
 					string templateName = fi.Name.Replace(fi.Extension, string.Empty);
 					string templateKeyName = fi.FullName.Replace(viewRoot, string.Empty)
 																							.Replace(viewEngineHelper.ApplicationRoot, string.Empty)
 																							.Replace(fi.Extension, string.Empty)
 																							.Replace("\\", "/").TrimStart('/');
 
-					templates.Add(templateKeyName, new StringBuilder(template));
+					#region STRIP COMMENT SECTIONS
+					StringBuilder templateBuilder = new StringBuilder(sr.ReadToEnd());
+
+					MatchCollection comments = commentBlockRE.Matches(templateBuilder.ToString());
+
+					if (comments.Count > 0)
+					{
+						foreach (Match comment in comments)
+						{
+							templateBuilder.Replace(comment.Value, string.Empty);
+						}
+					}
+					#endregion
+
+					templates.Add(templateKeyName, templateBuilder);
 				}
 			}
 
@@ -5860,8 +6096,32 @@ namespace Aurora
 
 						case "Partial":
 							StringBuilder partialContent = new StringBuilder(template);
-							rawView.Replace(string.Format(partialDirective, value), partialContent.ToString());
+							rawView.Replace(match.Groups[0].Value, partialContent.ToString());
 							break;
+					}
+				}
+				else
+				{
+					if (directive.ToString() == "Bundle")
+					{
+						string bundleName = value.ToString();
+						StringBuilder htmlTagBuilder = new StringBuilder();
+
+						if (Aurora.InDebugMode)
+						{
+							var bundleFileList = viewEngineHelper.BundleManager.GetBundleFileList(bundleName);
+
+							foreach (string bundlePath in bundleFileList)
+							{
+								htmlTagBuilder.AppendLine(ProcessBundlePath(bundlePath));
+							}
+						}
+						else
+						{
+							htmlTagBuilder.AppendLine(ProcessBundlePath(bundleName));
+						}
+
+						rawView.Replace(match.Groups[0].Value, htmlTagBuilder.ToString());
 					}
 				}
 			}
@@ -5892,6 +6152,29 @@ namespace Aurora
 			#endregion
 
 			return pageContent;
+		}
+
+		private string ProcessBundlePath(string bundlePath)
+		{
+			string tag = string.Empty;
+			string extension = Path.GetExtension(bundlePath);
+			bool isAPath = bundlePath.Contains('/') ? true : false;
+
+			if (!isAPath)
+				bundlePath = string.Format("/{0}/{1}/{2}", MainConfig.PublicResourcesFolderName, extension.TrimStart('.'), bundlePath);
+
+			switch (extension)
+			{
+				case ".css":
+					tag = string.Format(cssIncludeTag, bundlePath);
+					break;
+
+				case ".js":
+					tag = string.Format(jsIncludeTag, bundlePath);
+					break;
+			}
+
+			return tag;
 		}
 
 		private StringBuilder ReplaceAntiForgeryTokens(StringBuilder view, string token, AntiForgeryTokenType type)

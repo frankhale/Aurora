@@ -4,13 +4,14 @@ NOTE: See source code comments for usage.
 
 Frank Hale <frankhale@gmail.com>
 
-Date: 5 April 2012
+Date: 12 April 2012
 
 --------------------
 --- Feature List ---
 --------------------  
 
-- MVC based 
+- Model View Controller based
+- Front controller aware (optional)
 - Simple tag based view engine with master pages and partial views as well as
   fragments 
 - URL parameters bind to action method parameters automatically 
@@ -34,6 +35,27 @@ Date: 5 April 2012
 - Bundling/Minifying of Javascript and CSS.
  
 Changelog:
+
+12 April 2012
+
+- Added infrastructure for the Front Controller pattern. How much power it has
+  is still up in the air. Right now there are some basic events for pre/post
+	action and also pre/post route determination and also static route. 
+- Added the ability for not process bundles in the view engine if the app is
+  in debug mode. Added %%Bundle=foo.js%% directive to views. This is used as a
+	placeholder for bundles.
+- Added infrastructure to BundleManager to report on files that make up a bundle
+  so it can be used by the view manager to build a dynamic list of css and 
+	script tags based on if the app is in debug mode or not.
+- Added comments to views with the @@ comment here @@ directive.
+- Added [DateFormat("date format here")] attribute for Model properties. The 
+  HTMLTable helper honors this.
+- Fixed the ActionBinder from adding multple copies of bindings to the binding
+  list
+- Tweaked controller pre/post action events.
+- Fixed Caching for HTTP Get
+- Minor documentation update (documentation will be overhauled very soon)
+- code clean up
 
 5 April 2012
 
