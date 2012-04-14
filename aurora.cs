@@ -1351,6 +1351,9 @@ namespace Aurora
 		public static string ADSearchRootIsNullOrEmpty = "The Active Directory search root is null or empty";
 		public static string ADSearchDomainIsNullorEmpty = "The Active Directory search domain is null or empty";
 		public static string ADSearchCriteriaIsNullOrEmptyError = "The LDAP query associated with this search type is null or empty, a valid query must be annotated to this search type via the MetaData attribute";
+		public static string ClientCertificateError = "The HttpContext.Request.ClientCertificate did not contain a valid certificate";
+		public static string ClientCertificateSimpleNameError = "Cannot determine the simple name from the client certificate";
+		public static string ClientCertificateUnexpectedFormatForCACID = "The CAC ID was not in the expected format within the common name (last.first.middle.cacid), actual CN = {0}";
 		public static string HttpRequestTypeNotSupportedError = "The HTTP Request type [{0}] is not supported";
 		public static string ActionParameterTransformClassUnknownError = "The action parameter transform class cannot be determined";
 		public static string Http404Error = "Http 404 - Page Not Found";
@@ -2053,14 +2056,14 @@ namespace Aurora
 			x509certificate = new X509Certificate2(ctx.Request.ClientCertificate.Certificate);
 
 			if (x509certificate == null)
-				throw new Exception("The HttpContext.Request.ClientCertificate did not contain a valid certificate");
+				throw new Exception(MainConfig.ClientCertificateError);
 
 			string cn = x509certificate.GetNameInfo(X509NameType.SimpleName, false);
 			string cacid = string.Empty;
 			bool valid = true;
 
 			if (string.IsNullOrEmpty(cn))
-				throw new Exception("Cannot determine the simple name from the client certificate");
+				throw new Exception(MainConfig.ClientCertificateSimpleNameError);
 
 			if (cn.Contains("."))
 			{
@@ -2087,9 +2090,7 @@ namespace Aurora
 			}
 			else
 			{
-				throw new Exception(
-					string.Format("The CAC ID was not in the expected format within the common name (last.first.middle.cacid), actual CN = {0}",
-					cn));
+				throw new Exception(string.Format(MainConfig.ClientCertificateUnexpectedFormatForCACID, cn));
 			}
 		}
 #endif
