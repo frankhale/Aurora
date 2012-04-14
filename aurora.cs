@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 13 April 2012
+// Updated On: 14 April 2012
 //
 // Contact Info:
 //
@@ -968,7 +968,7 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyProduct("Aurora")]
 [assembly: AssemblyCopyright("(GNU GPLv3) Copyleft © 2011-2012")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.99.54.0")]
+[assembly: AssemblyVersion("1.99.55.0")]
 #endregion
 
 #region TODO (FUTURE ROADMAP)
@@ -4364,7 +4364,7 @@ namespace Aurora
 	#region AURORA ROUTE MANAGER
 	internal class CachedViewResult
 	{
-		public IViewResult ViewResult { get; set; }
+		public ViewResult ViewResult { get; set; }
 		public string View { get; set; }
 	}
 
@@ -4944,7 +4944,11 @@ namespace Aurora
 						if (frontController != null)
 							frontController.RaiseEvent(RouteHandlerEventType.CachedViewResult, path, routeInfo);
 
-						return context.Cache[path] as IViewResult;
+						CachedViewResult vr = (context.Cache[path] as CachedViewResult);
+
+						vr.ViewResult.Refresh(context, get);
+
+						return vr.ViewResult;
 					}
 				}
 				#endregion
@@ -4963,7 +4967,7 @@ namespace Aurora
 				{
 					context.Cache.Add(
 							path,
-							new CachedViewResult() { ViewResult = result },
+							new CachedViewResult() { ViewResult = result as ViewResult },
 							null,
 							get.DateExpiry,
 							System.Web.Caching.Cache.NoSlidingExpiration,
@@ -5841,17 +5845,18 @@ namespace Aurora
 	{
 		private HttpContextBase context;
 		private IViewEngine viewEngine;
-		private RequestTypeAttribute requestAttribute;
 		private string partitionName;
 		private string controllerName;
 		private string viewName;
 		private Dictionary<string, string> tags;
 
-		public ViewResult(HttpContextBase ctx, IViewEngine ve, string pName, string cName, string vName, RequestTypeAttribute requestTypeAttribute, Dictionary<string, string> vTags)
+		private RequestTypeAttribute requestAttribute;
+
+		public ViewResult(HttpContextBase ctx, IViewEngine ve, string pName, string cName, string vName, RequestTypeAttribute attrib, Dictionary<string, string> vTags)
 		{
 			context = ctx;
 			viewEngine = ve;
-			requestAttribute = requestTypeAttribute;
+			requestAttribute = attrib;
 			partitionName = pName;
 			controllerName = cName;
 			viewName = vName;
@@ -5861,13 +5866,19 @@ namespace Aurora
 				viewEngine.Refresh();
 		}
 
+		public void Refresh(HttpContextBase ctx, RequestTypeAttribute attrib)
+		{
+			context = ctx;
+			requestAttribute = attrib;
+		}
+
 		public void Render()
 		{
 			HttpGetAttribute get = null;
 			string view = string.Empty;
 			string cachedViewName = string.Empty;
 			CachedViewResult cachedViewResult = null;
-			
+
 			ResponseHeader.SetContentType(context, "text/html");
 
 			if (requestAttribute is HttpGetAttribute)

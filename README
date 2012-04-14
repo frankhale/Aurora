@@ -4,7 +4,7 @@ NOTE: See source code comments for usage.
 
 Frank Hale <frankhale@gmail.com>
 
-Date: 13 April 2012
+Date: 14 April 2012
 
 --------------------
 --- Feature List ---
@@ -35,6 +35,12 @@ Date: 13 April 2012
 - Bundling/Minifying of Javascript and CSS.
  
 Changelog:
+
+14 April 2012
+
+- Fixed server side cachine. I was trying to use a HttpContext that was out of 
+  scope of the current request. One of these days I'm going to get this thing
+  right! HAHA.
 
 13 April 2012
 
