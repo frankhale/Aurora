@@ -4,7 +4,7 @@ NOTE: See source code comments for usage.
 
 Frank Hale <frankhale@gmail.com>
 
-Date: 12 April 2012
+Date: 13 April 2012
 
 --------------------
 --- Feature List ---
@@ -35,6 +35,19 @@ Date: 12 April 2012
 - Bundling/Minifying of Javascript and CSS.
  
 Changelog:
+
+13 April 2012
+
+- Started an overhaul of the documentation provided in the source code comments.
+- Added support for server side caching of compiled view results. If an action
+  is marked with Cache=true then it'll be cached on the server as well and 
+  subsequent requests won't trigger the action from being invoked. If no expiry 
+  is denoted then the default is 15 minutes. I plan on making the server side 
+  caching configurable in the future.
+- Added basic CAC authentication through a bound action parameter class. I don't
+  know how your organization handles CAC, perhaps it handles it differently than
+  mine. This class may or may not be useful to you.
+- Added some more events to the FrontController class.
 
 12 April 2012
 

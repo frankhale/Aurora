@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 12 April 2012
+// Updated On: 13 April 2012
 //
 // Contact Info:
 //
@@ -36,20 +36,88 @@
 //   authentication.
 // - Bundling/Minifying of Javascript and CSS.
 //
+// ---------------
+// -- RATIONALE --
+// --------------- 
+//
+// -- Why develop yet another web framework on top of ASP.NET?
+//
+// The short answer is easy and that is to learn! However, there is more to it 
+// than that and that is that I wanted a light modern framework that didn't hide 
+// behind mountains of complexity and that was simple enough to adapt and change
+// over time or with a particular project. I also wanted to create a sandbox so
+// that I could play with concepts, framework design and have fun doing it.
+//
+// As with all things there is more than one way to skin a cat and my view of 
+// how a framework should work might be quite a bit different from yours. If you 
+// find something amazingly stupid please let me know so I can fix it.
+//
+// Patches are welcome!
+//
+// -- Why is all the code in a single file?
+//
+// The great thing about this framework in my opinion is that it's
+// self contained in just a single file. Everything is in here, there is no 
+// hidden magic and if you want to know what's going on just look below. No need
+// to wade through file after file to figure out how the thing works. A big turn
+// off when looking at somebody elses code (in my opinion) is shuffling through 
+// the files to figure how all of it is put together. 
+//
+// What I hope to do here is provide a single file with the appropriate 
+// commentary and rationale for those that are interested in building a web 
+// framework on top of ASP.NET. As this framework matures I will be putting 
+// descriptive commentary throughout to describe the classes, how they work and 
+// why they are there.
+//
+// I have not provided XML documentation comments (yet?). This is really because
+// I want to encourage others to look at the code, plus, I want to provide a 
+// closer relationship with the code and it's comments. I think they both go 
+// together and they should be taken as a whole not just one by itself. If you 
+// want to know the why or how then look below rather than just looking at one
+// side of the puzzle through Visual Studio intellisense.
+//
+// -- Conventions used in this file:
+//
+// Regions are heavily (ab)used and are the logical separator between sections
+// of code. Also comments that are intended to be documentation are constrained
+// to 80 columns. Transitional comments (short lived that is) are not. The 
+// documentation section will be the definitive source for the how to use the 
+// framework. Comments on the code level will go into why I am doing or my 
+// mindset at the time of writing.
+//
 
-#region DOCUMENTATION
+#region LICENSE - GPL version 3 <http://www.gnu.org/licenses/gpl-3.0.html>
+//
+// GNU GPLv3 quick guide: http://www.gnu.org/licenses/quick-guide-gplv3.html
+//
+// GNU GPLv3 license <http://www.gnu.org/licenses/gpl-3.0.html>
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//
+#endregion
+
+#region DOCUMENTATION (A LITTLE OUTDATED, UNDERGOING A TOTAL OVERHAUL!)
 // ----------------
 // --- Building ---
 // ----------------
 //
 // Minimum .NET version is 3.5
 //
-// I purposely did not include the project files needed to build this code. The 
-// reason this was done is to keep all the boilerplate cruft out of the 
-// repository. The great thing about this framework in my opinion is that it's
-// self contained in just a single file. Everything is in here, there is no 
-// hidden magic and if you want to know what's going on just look below. No need
-// to wade through file after file to figure out how the thing works.
+// I purposely did not include a full Visual Studio solution. You can use the 
+// included .csproj file to build with MSBuild if you like, or, you can create 
+// your own VS project. The reason this was done is to keep all the boilerplate 
+// cruft out of the repository. Keep in mind the dependencies listed below.
 //
 // Build this code as a class library or just drop it into your project. 
 //
@@ -84,11 +152,11 @@
 // There are no project templates yet to make it simple to create a new 
 // project. With that said, it's not difficult to create a new project. You can 
 // start with a blank ASP.NET project and just delete everything except for the 
-// web.config and the default.aspx. I delete all the code inside the 
+// web.config and perhaps the default.aspx. I delete all the code inside the 
 // default.aspx so that it's just a blank file. This is useful if IIS is set up 
 // to hit the default.aspx page if no action is provided. The framework ignores 
-// requests for default.aspx and replaces a request for it with the default 
-// action instead.
+// requests for default.aspx and replaces it with a request for it with the 
+// default action instead.
 //
 // An Aurora web application takes on the form below. There are some convention
 // based directories like Controllers and Models. Those aren't needed by the 
@@ -132,16 +200,15 @@
 // action.
 //
 // If you'd like to execute some logic before or after an action simply add an
-// event handler for the following event:
+// event handler for the following events:
 //
-//	Controller_PreOrPostActionEvent
+//	PreActionEvent
+//  PostActionEvent
 //
 // In addition to event handlers a controller can override the Controller_OnInit
 // method to perform some logic right after the controller has been 
-// instantiated.
-//
-// Controller instances are cached for each session. The Controller_OnInit 
-// method will only be called when the controller is instantiated. 
+// instantiated. Controller instances are cached so OnInit is not called for 
+// each request.
 //
 // ---------------
 // --- Actions ---
@@ -152,9 +219,9 @@
 // based on the HTTP request.
 //
 // Unlike ASP.NET MVC you do not need to map routes in the global.asax. Aurora
-// maps parameters automatically. There are several types of parameters that 
-// can be mapped to an action. Here is how they breakdown in an action parameter
-// list:
+// maps parameters automatically. There are several types of parameters classes 
+// that can be mapped to an action. Here is how they breakdown in an action 
+// parameter list:
 //
 //  public ViewResult ActionName(filter_results (optional), 
 //                               bound_parameters, 
@@ -856,25 +923,6 @@
 //
 #endregion
 
-#region LICENSE - GPL version 3 <http://www.gnu.org/licenses/gpl-3.0.html>
-//
-// GPL version 3 <http://www.gnu.org/licenses/gpl-3.0.html>
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
-//
-#endregion
-
 #region USING STATEMENTS
 using System;
 using System.Collections;
@@ -896,6 +944,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Web;
+using System.Web.Caching;
 using System.Web.Configuration;
 using System.Web.SessionState;
 using HtmlAgilityPack;
@@ -919,29 +968,25 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyProduct("Aurora")]
 [assembly: AssemblyCopyright("(GNU GPLv3) Copyleft © 2011-2012")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.99.53.0")]
+[assembly: AssemblyVersion("1.99.54.0")]
 #endregion
 
-#region TODO
-//TODO: Documentation: the documentation needs a total overhaul!!!
-//
-//			Undocumented: 
-//				- Partitions
-//				- Front Controller
-//				- Bundle directive in views
-//				- Comments in views
-//				- Examples of all HTML helpers
-//
-//TODO: Add more events to the FrontController class
+#region TODO (FUTURE ROADMAP)
+//TODO: Documentation: total overhaul!!!
+//TODO: Add more events to the FrontController class, decide how much power it'll ultimately have
 //TODO: RouteManager: Add model validation checking to the form parameters if they are being placed directly in the action parameter list rather than in a model
-//TODO: HTMLHelpers: All of the areas where I'm using these Func<> lambda func params to add name=value pairs to HTML tags need to have complimentary methods that also use a dictionary. The infrastructure has been put in place in the base HTML helper
-//TODO: Add HTTP Patch verb support
+//TODO: HTMLHelpers: All of the areas where I'm using these Func<> lambda (craziness!) params to add name=value pairs to HTML tags need to have complimentary methods that also use a dictionary. The infrastructure has been put in place in the base HTML helper but not used yet.
+//TODO: Add HTTP Patch verb support (need to research this more!)
+//TODO: Look at the (in)flexibility of the hooks into the view engine. It'd be nice to be able to support Razor or other view engines but I may have gotten a little too tightly coupled over the last several months.
 #endregion
 
 namespace Aurora
 {
 	#region WEB.CONFIG CONFIGURATION
-
+	//
+	// All web.config specific stuff is here. We define the Aurora configuration 
+	// element and it's sub elements.
+	//
 	#region CONTENT TYPE ELEMENT AND COLLECTION
 	public class ContentTypeConfigurationElement : ConfigurationElement
 	{
@@ -1185,6 +1230,9 @@ namespace Aurora
 	#endregion
 
 	#region MAIN CONFIG
+	//
+	// The main config class is an area to manage all framework configuration options and variables.
+	//
 	[System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2141:TransparentMethodsMustNotSatisfyLinkDemandsFxCopRule",
 		Justification = "This is an internal class, this does not expose an indirect security risk because of link demands.")]
 	internal static class MainConfig
@@ -1324,7 +1372,9 @@ namespace Aurora
 	#endregion
 
 	#region AURORA
-	// Any miscellaneous properties and methods that can be used globally will be in here.
+	//
+	// Any miscellaneous properties and methods that can be used by applications will be in here.
+	//
 	public static class Aurora
 	{
 		public static bool InDebugMode
@@ -1500,6 +1550,9 @@ namespace Aurora
 		public int Duration = 15; // in minutes
 		public string Refresh = string.Empty;
 
+		internal TimeSpan Expires = new TimeSpan(0,15,0);
+		internal DateTime DateExpiry = DateTime.Now.Add(new TimeSpan(0,15,0));
+
 		public HttpGetAttribute()
 			: base("GET")
 		{
@@ -1518,11 +1571,6 @@ namespace Aurora
 		{
 			SecurityType = sec;
 			RouteAlias = routeAlias;
-
-			if (Cache)
-				CacheabilityOption = HttpCacheability.Public;
-			else
-				CacheabilityOption = HttpCacheability.NoCache;
 		}
 	}
 
@@ -1716,6 +1764,10 @@ namespace Aurora
 	#endregion
 
 	#region ACTIVE DIRECTORY
+	//
+	// This provides some basic Active Directory lookup methods for user accounts. 
+	// It also 
+	//
 #if ACTIVEDIRECTORY
 	public class ActiveDirectoryUser
 	{
@@ -1958,6 +2010,152 @@ namespace Aurora
 			return null;
 		}
 	}
+
+	#region CAC AUTHENTICATION
+#if CAC_AUTHENTICATION
+	public class ActiveDirectoryAuthenticationEventArgs : EventArgs
+	{
+		public ActiveDirectoryUser User { get; set; }
+		public bool Authenticated { get; set; }
+		public string CACID { get; set; }
+	}
+
+	public class ActiveDirectoryAuthentication : IBoundActionObject
+	{
+		public ActiveDirectoryUser User { get; private set; }
+		public bool Authenticated { get; private set; }
+		public string CACID { get; private set; }
+
+#if DEBUG
+		private event EventHandler<ActiveDirectoryAuthenticationEventArgs> DebugModeAuthenticationEvent = (sender, args) => { };
+
+		public ActiveDirectoryAuthentication(EventHandler<ActiveDirectoryAuthenticationEventArgs> debugModeHandler)
+		{
+			DebugModeAuthenticationEvent += debugModeHandler;
+		}
+#else
+		private event EventHandler<ActiveDirectoryAuthenticationEventArgs> ActiveDirectoryLookupEvent = (sender, args) => { };
+
+		public ActiveDirectoryAuthentication(EventHandler<ActiveDirectoryAuthenticationEventArgs> activeDirectoryLookupHandler)
+		{
+			ActiveDirectoryLookupEvent += activeDirectoryLookupHandler;
+		}
+#endif
+
+		public void ExecuteBeforeAction(HttpContextBase ctx)
+		{
+			ValidateClientCertificate(ctx);
+		}
+
+#if !DEBUG
+		private static string GetCACIDFromCN(HttpContextBase ctx, out X509Certificate2 x509certificate)
+		{
+			x509certificate = new X509Certificate2(ctx.Request.ClientCertificate.Certificate);
+
+			if (x509certificate == null)
+				throw new Exception("The HttpContext.Request.ClientCertificate did not contain a valid certificate");
+
+			string cn = x509certificate.GetNameInfo(X509NameType.SimpleName, false);
+			string cacid = string.Empty;
+			bool valid = true;
+
+			if (string.IsNullOrEmpty(cn))
+				throw new Exception("Cannot determine the simple name from the client certificate");
+
+			if (cn.Contains("."))
+			{
+				string[] fields = cn.Split('.');
+
+				if (fields.Length > 0)
+				{
+					cacid = fields[fields.Length - 1];
+
+					foreach (char c in cacid.ToCharArray())
+					{
+						if (!Char.IsDigit(c))
+						{
+							valid = false;
+							break;
+						}
+					}
+				}
+			}
+
+			if (valid) 
+			{ 
+				return cacid; 
+			}
+			else
+			{
+				throw new Exception(
+					string.Format("The CAC ID was not in the expected format within the common name (last.first.middle.cacid), actual CN = {0}",
+					cn));
+			}
+		}
+#endif
+
+		private void ValidateClientCertificate(HttpContextBase ctx)
+		{
+#if DEBUG
+			ActiveDirectoryAuthenticationEventArgs args = new ActiveDirectoryAuthenticationEventArgs();
+
+			DebugModeAuthenticationEvent(this, args);
+
+			User = args.User;
+			Authenticated = args.Authenticated;
+			CACID = args.CACID;
+#else
+			X509Certificate2 x509fromASPNET;
+			
+			CACID = GetCACIDFromCN(ctx, out x509fromASPNET);
+
+			User = null;
+			Authenticated = false;
+
+			if (!String.IsNullOrEmpty(CACID))
+			{
+				X509Chain chain = new X509Chain();
+				chain.ChainPolicy.RevocationFlag = X509RevocationFlag.EntireChain;
+				chain.ChainPolicy.RevocationMode = X509RevocationMode.Online;
+				chain.ChainPolicy.UrlRetrievalTimeout = new TimeSpan(0, 0, 30);
+				
+				if (chain.Build(x509fromASPNET))
+				{
+					ActiveDirectoryUser user = null;
+
+					try
+					{
+						ActiveDirectoryAuthenticationEventArgs args = new ActiveDirectoryAuthenticationEventArgs();
+
+						ActiveDirectoryLookupEvent(this, args);
+
+						if (args.User != null)
+							user = args.User;
+					}
+					catch (DirectoryServicesCOMException)
+					{
+						throw new Exception("A problem occurred trying to communicate with Active Directory");
+					}
+
+					if (user != null)
+					{
+						X509Certificate2 x509fromAD;
+
+						string cacidFromAD = GetCACIDFromCN(ctx, out x509fromAD);
+
+						if (CACID == cacidFromAD)
+						{
+							Authenticated = true;
+							User = user;
+						}
+					}
+				}
+			}
+#endif
+		}
+	}
+#endif
+#endregion
 #endif
 	#endregion
 
@@ -2637,7 +2835,7 @@ namespace Aurora
 					return fc;
 				}
 			}
-			
+
 			return null;
 		}
 
@@ -2970,7 +3168,10 @@ namespace Aurora
 		Post,
 		PreRoute,
 		PostRoute,
-		Static
+		Static,
+		CachedViewResult,
+		PassedSecurity,
+		FailedSecurity
 	}
 
 	public class RouteHandlerEventArgs : EventArgs
@@ -2995,11 +3196,14 @@ namespace Aurora
 
 		protected virtual void FrontController_OnInit() { }
 
-		public event EventHandler<RouteHandlerEventArgs> PreActionEvent = (sender, args) => {};
+		public event EventHandler<RouteHandlerEventArgs> PreActionEvent = (sender, args) => { };
 		public event EventHandler<RouteHandlerEventArgs> PostActionEvent = (sender, args) => { };
 		public event EventHandler<RouteHandlerEventArgs> StaticRouteEvent = (sender, args) => { };
+		public event EventHandler<RouteHandlerEventArgs> CachedViewResultEvent = (sender, args) => { };
 		public event EventHandler<RouteHandlerEventArgs> PreRouteDeterminationEvent = (sender, args) => { };
 		public event EventHandler<RouteHandlerEventArgs> PostRouteDeterminationEvent = (sender, args) => { };
+		public event EventHandler<RouteHandlerEventArgs> PassedSecurityEvent = (sender, args) => { };
+		public event EventHandler<RouteHandlerEventArgs> FailedSecurityEvent = (sender, args) => { };
 
 		internal static FrontController CreateInstance(Type t, HttpContextBase context)
 		{
@@ -3040,6 +3244,18 @@ namespace Aurora
 
 				case RouteHandlerEventType.Static:
 					StaticRouteEvent(this, args);
+					break;
+
+				case RouteHandlerEventType.CachedViewResult:
+					CachedViewResultEvent(this, args);
+					break;
+
+				case RouteHandlerEventType.PassedSecurity:
+					PassedSecurityEvent(this, args);
+					break;
+
+				case RouteHandlerEventType.FailedSecurity:
+					FailedSecurityEvent(this, args);
 					break;
 			}
 		}
@@ -4145,6 +4361,12 @@ namespace Aurora
 	#endregion
 
 	#region AURORA ROUTE MANAGER
+	internal class CachedViewResult
+	{
+		public IViewResult ViewResult { get; set; }
+		public string View { get; set; }
+	}
+
 	internal interface IRouteManager
 	{
 		IViewResult HandleRoute();
@@ -4300,6 +4522,7 @@ namespace Aurora
 			context.RewritePath(path);
 		}
 
+		#region PARAM GETTERS
 		private object[] GetFrontParams(RouteInfo routeInfo)
 		{
 			return !string.IsNullOrEmpty(routeInfo.FrontLoadedParams) ? routeInfo.FrontLoadedParams.Split('/') : new object[] { };
@@ -4394,6 +4617,7 @@ namespace Aurora
 
 			return new object[] { };
 		}
+		#endregion
 
 		private object[] DetermineAndProcessSanitizeAttributes(RouteInfo routeInfo)
 		{
@@ -4660,14 +4884,38 @@ namespace Aurora
 			{
 				RequestTypeAttribute reqAttrib = Attribute.GetCustomAttribute(routeInfo.Action, typeof(RequestTypeAttribute), false) as RequestTypeAttribute;
 				HttpGetAttribute get = Attribute.GetCustomAttribute(routeInfo.Action, typeof(HttpGetAttribute), false) as HttpGetAttribute;
+				string cachedViewName = string.Empty;
 
-				#region REFINE ACTION PARAMS
-				routeInfo.ActionParameters = DetermineAndProcessSanitizeAttributes(routeInfo);
-				routeInfo.ActionParameterTransforms = DetermineActionParameterTransforms(routeInfo);
+				#region SECURITY CHECKING
+				if (reqAttrib.HttpsOnly && !context.Request.IsSecureConnection) return result;
 
-				if (routeInfo.ActionParameterTransforms != null && routeInfo.ActionParameterTransforms.Count > 0)
-					routeInfo.ActionParameters = ProcessActionParameterTransforms(routeInfo, routeInfo.ActionParameterTransforms);
+				if (reqAttrib.SecurityType == ActionSecurity.Secure)
+				{
+					if (!SecurityManager.IsAuthenticated(context, routeInfo, reqAttrib.Roles))
+					{
+						if (frontController != null)
+							frontController.RaiseEvent(RouteHandlerEventType.FailedSecurity, path, routeInfo);
 
+						if (!string.IsNullOrEmpty(reqAttrib.RedirectWithoutAuthorizationTo))
+							return new RedirectResult(context, reqAttrib.RedirectWithoutAuthorizationTo);
+						else
+							throw new Exception(MainConfig.RedirectWithoutAuthorizationToError);
+					}
+
+					if (frontController != null)
+						frontController.RaiseEvent(RouteHandlerEventType.PassedSecurity, path, routeInfo);
+				}
+				#endregion
+
+				#region AJAX GET REQUEST WITH JSON RESULT
+				if (get != null && routeInfo.Action.ReturnType == typeof(JsonResult))
+				{
+					if (context.Request.QueryString[MainConfig.AntiForgeryTokenName] != null)
+					{
+						if (!AntiForgeryToken.VerifyToken(context))
+							throw new Exception(MainConfig.AntiForgeryTokenMissing);
+					}
+				}
 				#endregion
 
 				#region ANTI FORGERY TOKEN VERIFICATION
@@ -4685,33 +4933,42 @@ namespace Aurora
 				}
 				#endregion
 
-				#region SECURITY CHECKING
-				if (reqAttrib.HttpsOnly && !context.Request.IsSecureConnection) return result;
-
-				if (reqAttrib.SecurityType == ActionSecurity.Secure)
+				#region HTTP GET CACHE BYPASS
+				//TODO: Write RouteManager specific HTTP GET cache bypass logic here...
+				if (get != null && get.Cache)
 				{
-					if (!SecurityManager.IsAuthenticated(context, routeInfo, reqAttrib.Roles))
+					// if we have a cached view result for this request we will return it and skip invocation of the action
+					if (context.Cache[path] != null)
 					{
-						if (!string.IsNullOrEmpty(reqAttrib.RedirectWithoutAuthorizationTo))
-							return new RedirectResult(context, reqAttrib.RedirectWithoutAuthorizationTo);
-						else
-							throw new Exception(MainConfig.RedirectWithoutAuthorizationToError);
+						if (frontController != null)
+							frontController.RaiseEvent(RouteHandlerEventType.CachedViewResult, path, routeInfo);
+
+						return context.Cache[path] as IViewResult;
 					}
 				}
 				#endregion
 
-				#region AJAX GET REQUEST WITH JSON RESULT
-				if (get != null && routeInfo.Action.ReturnType == typeof(JsonResult))
-				{
-					if (context.Request.QueryString[MainConfig.AntiForgeryTokenName] != null)
-					{
-						if (!AntiForgeryToken.VerifyToken(context))
-							throw new Exception(MainConfig.AntiForgeryTokenMissing);
-					}
-				}
+				#region REFINE ACTION PARAMS
+				routeInfo.ActionParameters = DetermineAndProcessSanitizeAttributes(routeInfo);
+				routeInfo.ActionParameterTransforms = DetermineActionParameterTransforms(routeInfo);
+
+				if (routeInfo.ActionParameterTransforms != null && routeInfo.ActionParameterTransforms.Count > 0)
+					routeInfo.ActionParameters = ProcessActionParameterTransforms(routeInfo, routeInfo.ActionParameterTransforms);
 				#endregion
 
 				result = InvokeAction(routeInfo);
+
+				if (get != null && get.Cache)
+				{
+					context.Cache.Add(
+							path,
+							new CachedViewResult() { ViewResult = result },
+							null,
+							get.DateExpiry,
+							System.Web.Caching.Cache.NoSlidingExpiration,
+							CacheItemPriority.Normal,
+							null);
+				}
 			}
 
 			return result;
@@ -5481,6 +5738,7 @@ namespace Aurora
 		{
 			context.Response.ClearHeaders();
 			context.Response.ClearContent();
+			context.Response.Charset = "utf-8";
 			context.Response.ContentType = contentType;
 		}
 	}
@@ -5604,31 +5862,47 @@ namespace Aurora
 
 		public void Render()
 		{
-			string view = viewEngine.LoadView(partitionName, controllerName, viewName, tags);
-
+			HttpGetAttribute get = null;
+			string view = string.Empty;
+			string cachedViewName = string.Empty;
+			CachedViewResult cachedViewResult = null;
+			
 			ResponseHeader.SetContentType(context, "text/html");
 
-			context.Response.Charset = "utf-8";
-
 			if (requestAttribute is HttpGetAttribute)
-			{
-				HttpGetAttribute get = (requestAttribute as HttpGetAttribute);
+				get = (requestAttribute as HttpGetAttribute);
 
+			if (get != null && get.Cache)
+			{
+				if (context.Cache[context.Request.Path] != null)
+				{
+					cachedViewResult = context.Cache[context.Request.Path] as CachedViewResult;
+										
+					view = cachedViewResult.View;
+				}
+			}
+
+			if (string.IsNullOrEmpty(view))
+				view = viewEngine.LoadView(partitionName, controllerName, viewName, tags);
+
+			if (get != null)
+			{
 				string refresh = get.Refresh;
 
 				if (!string.IsNullOrEmpty(refresh))
 					context.Response.AddHeader("Refresh", refresh);
 
-				#region HTTP CACHING FOR GET REQUEST
+				#region ADD (OR NOT) HTTP CACHE HEADERS TO THE REQUEST
 				if (get.Cache)
 				{
-					TimeSpan expires = new TimeSpan(0, get.Duration, 0);
-
 					context.Response.Cache.SetCacheability(get.CacheabilityOption);
-					context.Response.Cache.SetExpires(DateTime.Now.Add(expires));
-					context.Response.Cache.SetMaxAge(expires);
+					context.Response.Cache.SetExpires(get.DateExpiry);
+					context.Response.Cache.SetMaxAge(get.Expires);
 					context.Response.Cache.SetValidUntilExpires(true);
 					context.Response.Cache.VaryByParams.IgnoreParams = true;
+
+					if (cachedViewResult != null && string.IsNullOrEmpty(cachedViewResult.View))
+						cachedViewResult.View = view;
 				}
 				else
 				{
@@ -5966,6 +6240,11 @@ namespace Aurora
 		#endregion
 	}
 
+	//
+	// The overall idea of this view engine is to keep it all simple. The views
+	// are clean (no code in them) and the special directives are few and far 
+	// between so that the HTML is not overwhelmed with view specific context.
+	//
 	internal class AuroraViewEngine : IViewEngine
 	{
 		private readonly IViewEngineHelper viewEngineHelper;
@@ -5997,6 +6276,11 @@ namespace Aurora
 			Refresh();
 		}
 
+		// When a request is made all templates are loaded and cached if Aurora is not 
+		// in debug mode. If Aurora is in debug mode then views are reloaded with each
+		// request. I probably should only be loading the views that need to be loaded 
+		// per the request but I opted to load all views up front so they could be 
+		// cached.
 		public void Refresh()
 		{
 			if (templateInfo == null || MainConfig.DisableStaticFileCaching)
