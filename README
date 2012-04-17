@@ -47,6 +47,9 @@ Changelog:
 - Added some more search paths for views that belong to a partition.
 - Added icon which will be used for the NuGet package
 - Updated aurora.csproj getting ready for the NuGet package
+- Added dependencies
+- Added compile.bat used to compile Aurora from the commandline and build the
+  NuGet package.
 
 14 April 2012
 
