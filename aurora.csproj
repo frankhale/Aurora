@@ -32,11 +32,11 @@
   <ItemGroup>
     <Reference Include="HtmlAgilityPack">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>Libs\HtmlAgilityPack.dll</HintPath>
+      <HintPath>lib\HtmlAgilityPack.dll</HintPath>
     </Reference>
     <Reference Include="Newtonsoft.Json">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>Libs\Newtonsoft.Json.dll</HintPath>
+      <HintPath>lib\Newtonsoft.Json.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.configuration" />

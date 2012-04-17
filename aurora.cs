@@ -1,12 +1,14 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 14 April 2012
+// Updated On: 16 April 2012
 //
 // Contact Info:
 //
 //  Frank Hale - <frankhale@gmail.com> 
 //               <http://about.me/frank.hale>
+//
+// LICENSE - GPL version 3 <http://www.gnu.org/licenses/gpl-3.0.html>
 //
 // --------------------
 // --- Feature List ---
@@ -39,6 +41,12 @@
 // ---------------
 // -- RATIONALE --
 // --------------- 
+//
+// -- What is this?
+//
+// Aurora is a simple framework that aims to have modern features but have a 
+// small code footprint. What you get is a tight MVC framework that just does
+// enough to get the job done.
 //
 // -- Why develop yet another web framework on top of ASP.NET?
 //
@@ -107,21 +115,20 @@
 //
 #endregion
 
-#region DOCUMENTATION (A LITTLE OUTDATED, UNDERGOING A TOTAL OVERHAUL!)
+#region DOCUMENTATION (NEW)
 // ----------------
 // --- Building ---
 // ----------------
 //
-// Minimum .NET version is 3.5
+// Aurora requires .NET 3.5 or higher to compile.
 //
-// I purposely did not include a full Visual Studio solution. You can use the 
-// included .csproj file to build with MSBuild if you like, or, you can create 
-// your own VS project. The reason this was done is to keep all the boilerplate 
-// cruft out of the repository. Keep in mind the dependencies listed below.
+// You can use the included CSPROJ file to compile the assembly using MSBUILD or 
+// you can build a Visual Studio project with it. The CSPROJ file assumes that 
+// the external dependencies are located in a folder called Libs. The code 
+// depends on HtmlAgilityPack.dll and Newtonsoft.Json.dll. The URLs to download
+// them are provided below. 
 //
-// Build this code as a class library or just drop it into your project. 
-//
-// This code uses the following references:
+// References:
 //
 //	System
 //	System.Configuration
@@ -135,226 +142,416 @@
 //	Newtonsoft.Json.NET35 - http://json.codeplex.com/
 //	HtmlAgilityPack - http://htmlagilitypack.codeplex.com/
 //
-// If you want to build in the Active Directory support add the following 
-// reference and use the ACTIVEDIRECTORY build flag:
+// There are some compile flags that you can annotate if you'd like support for
+// Active Directory or OpenID. 
+// 
+// The flags are:
 //
-//  System.DirectoryServices
-//
-// If you want OpenID support then add the following reference and use the 
-// OPENID build flag:
-//
-//  DotNetOpenAuth.dll - http://www.dotnetopenauth.net/
+//  COMPILE FLAG        | Reference
+//  -------------------------------------------------------------------------
+//  ACTIVEDIRECTORY     | System.DirectoryServices
+//  CAC_AUTHENTICATION  | System.DirectoryServices
+//  OPENID              | DotNetOpenAuth.dll - http://www.dotnetopenauth.net/
 //
 // -------------
 // --- Usage ---
 // -------------
 //
-// There are no project templates yet to make it simple to create a new 
-// project. With that said, it's not difficult to create a new project. You can 
-// start with a blank ASP.NET project and just delete everything except for the 
-// web.config and perhaps the default.aspx. I delete all the code inside the 
-// default.aspx so that it's just a blank file. This is useful if IIS is set up 
-// to hit the default.aspx page if no action is provided. The framework ignores 
-// requests for default.aspx and replaces it with a request for it with the 
-// default action instead.
+// Compiling the code is simple but how do you use it?
 //
-// An Aurora web application takes on the form below. There are some convention
-// based directories like Controllers and Models. Those aren't needed by the 
-// framework, however, they make the project easier to read.
-//
-// The only folder that the framework mandates is the Views folder along with
-// it's child folders (eg. Fragments, Shared)
-//
-// Controllers will have a subfolder under the Views folder that is the same 
-// name of the controller. 
-//
-// The Shared folder is for partial and master views.
-//
-// The Fragments folder is for HTML fragments that are used by actions. Think
-// of fragments as being similar to web user controls. They are a mechanism to
-// define a piece of HTML that will be combined with dynamic data and then 
-// inserted into a view.
-//
-// Below you'll see a typical set of folders that represents an Aurora project.
-//
-// Project layout:
+// There are no project templates at the moment. The only way to create a new 
+// project is by using a manual process. The basic project structure is quite 
+// simple and looks like this:
 //
 //  App/
-//    Controllers/    <- This is a convention (not needed)
-//    Models/         <- This is a convention (not needed)
+//    Controllers/    <- This is a convention (optional)
+//    Models/         <- This is a convention (optional)
 //    Views/
 //      Fragments/ (similar to partials but rendered by themselves)
 //      Shared/ (for master pages and partial views)
 //      Home/ (one folder for each controller, folder is the name as controller)
 //
+// I fully plan to create a Visual Studio template but for the time being what
+// you can do is start with a fresh ASP.NET project and just delete everything 
+// except for the web.config. Create an empty Default.aspx so the Visual Studio
+// dev server has something to look for in an empty request. The framework will
+// rewrite the request with the default route instead.
+//
+// The folder structure is quite simple. There are a couple of convention based
+// directories for controllers and models. These directories are optional but 
+// are encouraged for readability. The Views directory should contain Fragments 
+// and Shared folders. The Fragments folder is used for small HTML fragments 
+// that can be used by any actions. The Shared folder is for master pages and
+// partial views. In addition to those two folders a folder for each controller 
+// will also need to be created to store the controllers action views.
+//
+//	Master Pages - A page that will be applied as a base to your views. Master
+//                 pages an contain partial views, fragments and views.
+//  Views     - Either a complete HTML page or a page that depends on a master
+//              page. Views can contain partial views and fragments.
+//  Fragments - A succinct piece of HTML that can be used by multiple actions,
+//              fragments can use tags for data substituion just like views and
+//              master pages. Fragments cannot include partial views or master
+//              pages.
+//              
+// The project structure can be organized in another way by using Partitions. 
+// This allows you to separate controllers into logical partitions to keep their
+// code and views grouped. I'll talk more about this in the Partitions section.
+//
 // -------------------
 // --- Controllers ---
 // -------------------
 //
-// Controllers in Aurora are just a class that subclass the abstract Controller 
-// class defined in the framework. Controllers have actions (methods) that get 
-// invoked based on the URL being requested. These actions can be designated to
-// be invoked based on a particular HTTP verb.
+// Controllers are nothing more than specialized classes that subclass the 
+// abstract Controller class. Controllers can have actions and they are nothing 
+// more than public methods annotated with special attributes.
 //
-// Controllers can have event handlers to perform some logic before or after an
-// action.
+// Actions can be annotated with the folling attribute verbs.
 //
-// If you'd like to execute some logic before or after an action simply add an
-// event handler for the following events:
+// [HttpGet], [HttpPost], [HttpPut], [HttpDelete] and [FromRedirectOnly]
+// 
+// These verbs are used to tell the framework how to handle the action.
+//
+// A simple controller with an index action would look something like this:
+//
+//  public class Home : Controller
+//  {
+//    [HttpGet] 
+//    public ViewResult Index()
+//    {
+//      return View();
+//    }
+//  }
+//
+// Notice that we proceed the Index action with [HttpGet]. The framework will
+// not assume you want the method to react to a HTTP Get unless you annotate it.
+//
+// A more indepth description of HTTP attribute verbs and actions will be done 
+// in the Actions section.
+//
+// In addition to having actions a controller has a few special plumbing 
+// features that you can use to perform initilization code or code before or 
+// after an action. 
+//
+// You can specify code to execute on controller initilization. This is a step
+// that occurs right after the controller has been instantiated.
+//
+// The controller initialization method: 
+//
+// Controller_OnInit
+// 
+// You can override this method to perform anything you like at the init phase
+// of the controller.
+//
+//  protected override void Controller_OnInit()
+//  {
+//		// We want to perform some code before our actions are invoked
+//    PreActionEvent += 
+//			new EventHandler<RouteHandlerEventArgs>(Home_ActionHandler);
+//  }  
+//
+// Actions have two events that occur right before and right after the action
+// invocation. You can add handlers for either/both of these events as you 
+// desire:
 //
 //	PreActionEvent
 //  PostActionEvent
 //
-// In addition to event handlers a controller can override the Controller_OnInit
-// method to perform some logic right after the controller has been 
-// instantiated. Controller instances are cached so OnInit is not called for 
-// each request.
+// The really cool thing about these events is that they are aware of the 
+// parameters that are being passed to the action. You can do any specialized
+// logic in here that you need to. Keep in mind that these events are for every
+// action. If you need special logic to be performed for one or a set of actions 
+// you can use an ActionFilter which will be described in the ActionFilter's 
+// section.
+//
+// Sometimes it's not enough to have your code inside a controller init method
+// or pre and post action event handlers or even action filters. Sometimes you 
+// need to go one step higher so that your code can be relevant for all your 
+// controllers. This is where the front controller comes in. The front 
+// controller can do a lot more and has access to a set of events that the 
+// controller doesn't have access to.
+//
+// Front Controllers have access to the folling events:
+//
+// NOTE: This list is going to grow in the future. Events that deal with routing
+//       with exception of the PreRouteDeterminationEvent and StaticRouteEvent 
+//       have access to the route specific information such as parameters to the
+//       action.
+//
+//  PreActionEvent
+//  PostActionEvent
+//  StaticRouteEvent
+//  CachedViewResultEvent
+//  PreRouteDeterminationEvent
+//  PostRouteDeterminationEvent
+//  PassedSecurityEvent
+//  FailedSecurityEvent
+//
+// The front controller also has an OnInit method.
+//
+// Here is a sample front controller definition:
+//
+//  public class MyFrontController : FrontController
+//  {
+//		protected override void FrontController_OnInit()
+//    {
+//			ActionBinder actionBinder = new ActionBinder(Context);
+//			actionBinder.AddForAllControllers(new Foo());
+//    }
+//  }
 //
 // ---------------
 // --- Actions ---
 // --------------- 
 //
-// Actions are nothing more than public methods in your controller that are 
-// labeled with special attributes to tell the framework how to invoke them
-// based on the HTTP request.
+// Actions are public methods in your controller that are annotated with one of 
+// the following attributes:
 //
-// Unlike ASP.NET MVC you do not need to map routes in the global.asax. Aurora
-// maps parameters automatically. There are several types of parameters classes 
-// that can be mapped to an action. Here is how they breakdown in an action 
-// parameter list:
+// [HttpGet], [HttpPost], [HttpPut], [HttpDelete] and [FromRedirectOnly]
 //
-//  public ViewResult ActionName(filter_results (optional), 
+// Actions are mapped dynamically to URLs based on the parameters passed in. 
+// Parameters are grouped into a number of categories (in order of their 
+// precedence):
+// 
+//  filter results (optional)
+//  bound parameters
+//  front parameters
+//  url parameters
+//  form parameters / post model / (HTTP Put/Delete) payload 
+//  files
+//
+// Filter Results - If an action has been anotated with a filter then any 
+// results from the invocation of the filter will be applied to the parameter 
+// list of the action. Filters are invoked right after the action pre event and
+// right before the action is invoked. Keep in mind filters are not required to 
+// return a result.
+//
+// Bound Parameters - An action can have bound parameters that are applied to 
+// the action when it is invoked. These bound parameters can be any valid object
+// and give you a mechanism to have objects automatically passed to your actions
+// without needing to worry about fetching them on your own. For instance, you 
+// could use bound parameters to have a database access object passed to your
+// actions.
+// 
+// Front Parameters - Routes can be added dynamically through code and you can
+// specify default parameters that will be applied to them. These parameters are
+// called front parameters.
+//
+// URL Parameters - Anything in the URL that isn't the action alias and is not a 
+// query string is a URL parameter.
+//
+// Form Parameters - These are either your form elements or a post model.
+//
+// HTTP Put/Delete payload - The payload of a PUT or DELETE request.
+//
+// Files - Files that are posted to the action will be listed here. These are of
+// the type HttpPostedFileBase.
+//
+// So with that said action parameters map like this:
+//
+//  public ViewResult ActionName(filter_results, 
 //                               bound_parameters, 
 //                               front_params, 
 //                               url_parameters, 
-//                               form_parameters / (HTTP Put/Delete) payload, 
+//                               form (post model) / (HTTP Put/Delete) payload, 
 //                               files)
-//
-// When you build your action's parameter list keep this mapping in mind. The
-// framework will put the various parameters in sequence listed above.
-//
-// Actions are segregated based of the following HTTP verbs. 
-//   
-//  [HttpGet]
-//  [HttpPost]
-//  [HttpPut]
-//  [HttpDelete]
-//
-// Here is a breakdown of the options along with their respective data type
-// that you can pass into the attributes:
-//
-// HttpPost, HttpPut, HttpDelete, HttpGet:
-//
-//  ActionSecurity SecurityType (Secure or NonSecure (default))
-//  string RouteAlias
-//  string Roles
-//  bool HttpsOnly
-//  string RedirectWithoutAuthorizationTo
-//
-// HttpGet:
-//
-//  HttpCacheability CacheabilityOption
-//  bool Cache
-//  int Duration
-//  string Refresh 
-//
-// Actions can also be attributed with [FromRedirectOnly] to designate that 
-// actions can only be invoked from a redirect. 
-//
-// Below shows the typical [HttpGet] request:
-//
-//  public class Home : Controller
-//  {
-//    [HttpGet]
-//    public ViewResult Index()
-//    {
-//      ViewTags["msg"] = "Hello,World!";
-//
-//      return View();
-//    }
-//  }
-//
-// The URL that would call this controller and action would be: 
-//
-// http://yoursite.com/Home/Index
-//
-// Actions can have a route alias
-//
-//  [HttpGet("/Index")]
-//  public ViewResult Index()
 //  {
 //    ...
 //  }
+// 
+// An index action that mapped to the following URL would look like this:
 //
-// The action can then be called like:
+// URL: http://mysite.com 
 //
-//  http://yoursite.com/Index
+//  [HttpGet] 
+//  public ViewResult Index()
+//  {
+//    ViewTags["msg"] = "Hello,World!";
 //
-// In addition to [HttpGet] and [HttpPost] you can designate an action so that
-// it can only be invoked from a redirect. The attribute is named 
-// [FromRedirectOnly] and you invoke it by calling RedirectOnlyToAlias or 
-// RedirectOnlyToAction.
+//    return View();
+//  }
+//
+// An action that mapped to the following URL would look like this:
+//
+// URL: http://mysite.com/Users/Frank
+//
+//  [HttpGet("/Users")] 
+//  public ViewResult Users(string name)
+//  {
+//    return View();
+//  }
+//
+// NOTE: Actions have access to a special dictionary called ViewTags which is 
+// used to describe a key=value pair where the key is the tag name in your view
+// and the value is the data that will be substituted when the view is compiled.
+// More on this in the Views section.
+//
+// NOTE: Bound parameters, Front parameters and Filter parameters will be 
+// discussed in more detail their respective sections.
+//
+// -------------------------
+// --- ACTION ATTRIBUTES ---
+// -------------------------
+//
+// The various attributes which can be annotated on actions can have many 
+// options that denote various characteristics of the particular attribute. For 
+// instance actions can have aliases. Aliases are great if you don't want to 
+// refer to your action with the following signature /ControllerName/ActionName. 
+//
+// Here is a list of options you can use with the various types of action 
+// attributes:
+//
+//  HttpPost, HttpPut, HttpDelete and HttpGet:
+//
+//    ActionSecurity SecurityType - Secure
+//    string RouteAlias
+//    string Roles - separated by |
+//    bool HttpsOnly
+//    string RedirectWithoutAuthorizationTo
+//
+//  HttpGet (specific):
+//
+//    HttpCacheability CacheabilityOption - default public
+//    bool Cache
+//    int Duration - default 15 minutes
+//    string Refresh - in minutes
+//
+// A action with an alias that is secure might look like this:
+// 
+//  [HttpGet("/Admin", 
+//           ActionSecurity.Secure, 
+//           RedirectWithoutAuthorizationTo = "/Index", 
+//           Roles = "Admin")] 
+//  public ViewResult Admin()
+//  {
+//    return View();
+//  }
+//
+// NOTE: Methods with no action attribute will not be invoked from a URL 
+// regardless if they are public or not.
+//
+// There is an attribute that is used for special cases where you want to 
+// redirect to an action but you don't want that action publically available. 
+// The attribute to annotate this situation is called [FromRedirectOnly] and
+// it's invoked by calling RedirectOnlyToAlias or RedirectOnlyToAction.
+//
+// --------------------
+// --- VIEW RESULTS ---
+// --------------------
+//
+// Views can have various types of results. The most common result is one that
+// renders an HTML page. Actions can also return physical file results,
+// virtual file results, JSON results and Fragment results.
+//
+// The following methods in the controller class are used to return your view 
+// result at the end of your action.
+//
+//  public ViewResult View()
+//
+//    - Returns an HTML result
+//
+//  public ViewResult View(bool clearViewTags)
+//
+//    - Returns an HTML and allows you to specify that you want the view tags
+//      cleared. The default behavior is to keep the view tags as they are 
+//      between requests.
+// 
+//  public ViewResult View(string name)
+//
+//    - Specify a view to return for this action's result.
+//
+//  public ViewResult View(string name, bool clearViewTags)
+//
+//    - Specify a view to return and optionally clear the view tags.
+//
+//  public ViewResult View(string controllerName, string actionName, 
+//                                                           bool clearViewTags)
+//
+//    - Specify a view based on it's controller and action name as well as 
+//      optionally clear the view tags.
+//
+//  public JsonResult View(object jsonData)
+//
+//    - Returns a JSON result. The object is passed in as is and is converted
+//      to JSON before it's sent to the client.
+//
+//  public VirtualFileResult View(string fileName, byte[] bytes, 
+//                                                           string contentType)
+//
+//    - Returns a file result for a file that is not physically stored on a disk
+//      this file could reside in a DB or have been created during the execution
+//      of the action.
+//
+//  public FragmentResult Fragment(string fragmentName)
+//
+//    - Returns a fragment of HTML as a result. This could be used in an AJAX
+//      request.
+//
+//  public FragmentResult Fragment(string fragmentName, bool clearViewTags)
+//
+//    - Returns a fragment and optionally clears the view tags.
 //
 // ------------------------
 // --- Bound Parameters ---
 // ------------------------ 
-// 
-// Actions can have bound parameters (think dependency injection) that happens
-// automatically when the action is invoked from a URL. Bound parameters are 
-// useful so that you can break out some logic that needs to be shared by 
-// many actions and have an instance of it passed as a parameter to an action
-// at the time it's invoked. This makes actions less complex and they can just
-// use an instance of a bound parameter without really worrying where it came 
-// from.
 //
-// Instances are bound to actions using the ActionBinder class. This keeps track 
-// of all instances of objects you want to bind to a particular action. These 
-// instances are then propagated to the action when they are called from a URL. 
-// The example below uses one of the overloaded Add methods to bind a database 
-// access layer instance to a bunch of actions in a small Wiki application I 
-// wrote.
-// 
-//  protected override void Controller_OnInit()
+// Actions can have parameters bound to them when they are invoked. This type of 
+// parameter is special and implements the IBoundActionObject interface. This is 
+// a very simple interface and mandates only one method be implemented. This 
+// method is named ExecuteBeforeAction and as it's name suggests executes before
+// the action to perform any initialization steps necessary to new up the 
+// object. Once this step is complete the object is passed off to the action.
+//
+// A class implementing the IBoundActionObject could look like this:
+//
+//  public class DataConnector : IBoundActionObject
 //  {
-//    new ActionBinder(Context).Add("Wiki", new string[] { "Index", "Show", 
-//                     "Edit", "Delete", "Save", "List" }, new DataConnector());
+//    public WikiDataClassesDataContext DB { get; internal set; }
+//
+//    public void ExecuteBeforeAction()
+//    {
+//      DB = new WikiDataClassesDataContext();
+//    }
 //  }
 //
-// Now an action definition would look like this:
+// This adds a simple wrapper around a LINQ to SQL data context. This is just
+// a trivial example and perhaps a better usage would be for your data access
+// layer to directly implement the IBoundActionObject.
 //
-//  [HttpGet]
-//  public ViewResult Index(DataConnector dc)
+// Another usage could be to pass an instance of the currently logged in user to 
+// a set of actions.
+//
+// Bound parameters are added to an action by the ActionBinder class. A typical
+// usage of this class would be like this:
+//
+//  public class Home : Controller
 //  {
-//    ...
+//		protected override void Controller_OnInit()
+//    {
+//			ActionBinder actionBinder = new ActionBinder(Context);
+//			actionBinder.Add("Home", "Index", new Foo());
+//    }
+//
+//    [HttpGet] 
+//    public ViewResult Index(Foo f)
+//    {
+//      return View();
+//    }
 //  }
 //
-// When a request is made for that action a DataConnector instance is passed
-// along as the first parameter in the action.
+// At the time OnInit is executed the action binder is instructed to add a 
+// bound parameter for the Index action in the Home controller. Each time 
+// the action is invoked the bound parameters ExecuteBeforeAction() method will
+// be triggered initializing the object and then it'll be passed to the action.
 //
-// Another interesting thing you can do is have some arbitary code execute 
-// before each action that does something to the bound parameters. In the case 
-// below I have the database context get newed up before each action tries to 
-// use it.
+// In addition to the Add methods there are a few others that make it convenient
+// to add bound parameters to all actions in a controller or even to all actions
+// in all controllers.
 //
-// public class DataConnector : IBoundActionObject
-// {
-//   public WikiDataClassesDataContext DB { get; internal set; }
-//
-//   public void ExecuteBeforeAction()
-//   {
-//     DB = new WikiDataClassesDataContext();
-//   }
-// }
-//
-// If you'd like to bind a parameter to all actions in your controller you can 
-// do it by calling the following method on the ActionBinder class:
-//
-//   AddForAllActions("ControllerName", new object[] { new Foo() });
-// 
 // -----------------------
 // --- ACTION FILTERS ----
 // -----------------------
-// 
+//
 // Actions can have filters that perform some arbitrary logic before the action 
 // is invoked. The filter is denoted by an attribute, this attribute is created
 // by subclassing ActionFilter. Action filters can optionally have results which
@@ -362,9 +559,12 @@
 //
 // Action filter results are any class that implements the IActionFilterResult
 // interface. This interface defines no methods or properties so you are open
-// to define your implementation however you like.
+// to define your implementation however you like. This interface is necessary
+// so that the framework knows how to handle your result.
 //
-// You can define a filter result like this (NOTE: filter results are optional):
+// You can define a filter result like this: 
+//
+// NOTE: filter results are optional
 //
 //  public class FooFilterResult : IActionFilterResult
 //  {
@@ -395,55 +595,74 @@
 //    ...
 //  }
 //
+// Your action filter is derived from the ActionFilter attribute class and 
+// should override the OnFilter() method like in the above example.
+//
 // -----------------------------------
 // --- Action Parameter Transforms ---
 // -----------------------------------
 // 
-// Action parameter transforms makes it easy to transform a request parameter 
-// into a more complex type. For instance you could transform an ID into a User 
-// object. The way this is done is by declaring your action to take the 
-// parameter you want and then using the attribute:
+// To make the URL to action invocation a little bit more sane you can use a 
+// feature that will transform an incoming parameter into another type. This
+// is done through action parameter transforms. Action Parameter Transforms use
+// an attribute annotation on your parameter in your action parameter list and a 
+// class to transform the parameter to the desired one.
+//
+// Let's assume you have an action that looks like this that takes a string
+// which represents a user id and has a bound parameter of our data access 
+// layer:
+//
+//  [HttpGet]
+//  public ViewResult Index(IDataAccess db, string uid)
+//  {
+//    ...
+//  }
 // 
-//  [ActionParameterTransform("TransformClassName")]
+// This can be transformed into a user object like this:
 //
-// This tells the framework the class that will handle the transformation of the
-// incoming parameter to the designated one. 
+//  [HttpGet]
+//  public ViewResult Index(IDataAccess db,
+//													[ActionParamTransform("UserTransform")] User user)
+//  {
+//    ...
+//  }
 //
-// Parameters coming in from a request are simple types like string, int or bool
-//
-// Your transformation class must implement the IActionParamTransform interface.
-//
-// Here is an example of an action declaration that could transform an incoming
-// ID parameter into a User object:
+// Notice that we've changed the parameter to declare the type we want and we
+// annotated the ActionParamTransform attribute to it with the class name that
+// will transform the incoming string into the type we want.
 // 
-//  public ViewResult ViewUser(
-//		[ActionParameterTransform("UserTransform")] User id);
+// The transform class could look like this: 
 //
-// The transformation class would be declared like this:
-// 
-// The parameterized list on IActionParamTransform denotes that the transform
-// will take an int and transform it to a User.
+//  public class UserTransform : IActionParamTransform<User, string>
+//  {
+//    private IDataAccess db;
 //
-// NOTE: If you have bound parameters on the action that is using the transform
-//       then those bound parameters will be passed to the constructor of the
-//       transformation class. Keep this in mind when defining your transform
-//       classes.
-// 
-//   public class UserTransform : IActionParamTransform<User, int>
-//   {
-//     public UserTransform(BoundParams_Here)
-//		 {
-//     }
-//	 }
+//    public UserTransform(IDataAccess db)
+//    {
+//      this.db = db;
+//    }
+//
+//    public User Transform(string uid)
+//    {
+//      // Perform steps to lookup user based on the id along with any error 
+//      // handling.
+//    }
+//  }
+//
+// When the action is invoked now the incoming string is transformed into the 
+// type we want. 
 //
 // --------------------------
 // --- Custom Error Class ---
 // --------------------------
-// 
+//
 // An application can define a special class that will be used to filter errors 
 // through. 
 //
-// NOTE: An application can only have one of these classes. 
+// NOTE: An application can only have one of these classes.
+// NOTE: Turn on custom errors in your web.config
+//
+//	<customErrors mode="On"></customErrors>
 //
 // A example of a custom error class would look similar to the following:
 // 
@@ -457,20 +676,28 @@
 //    }
 //  }
 //
-// NOTE: Put your custom error view in the /Views/Shared folder.
+// The view for the error action should be placed in the /Views/Shared folder at
+// the root of your application.
 //
 // -------------
 // --- Views ---
 // -------------
 //
-// Views are put in a directory called Views with subdirectories named for the 
-// controllers they go with. The view name is the same name as the action. A 
-// master page can be placed in a folder called Shared which lives the root of 
-// the View directory.
+// Views are the primary mechanism to take dynamic data and combine them with 
+// HTML.
+// 
+// Given a simple application scenario that doesn't use partitioning (more on 
+// that later) your views would live inside a folder at the root of your 
+// application called Views.
 //
-// Views are simply just HTML templates with specially formatted tags and 
-// directives to give the view engine direction on what to do with the view at 
-// time of they are compiled.
+// Views are just HTML templates with specially formatted tags and directives to 
+// give the view engine direction on what to do with the view at time they are 
+// compiled.
+//
+// Tags (otherwise known as ViewTags) are formatted like:
+//
+//  {{myTag}} - Not HTML Encoded
+//  {|myTag|} - HTML Encoded
 //
 // A simple view with a tag for the page title and a tag for page content would 
 // look like this:
@@ -484,9 +711,6 @@
 //   </body>
 //  </html>
 //
-// You can HTML encode your dynamic data by enclosing your tag like this 
-// {|content|}
-//
 // An action that would map content for the tags would look like this:
 //
 //  [HttpGet]
@@ -498,7 +722,10 @@
 //    return View();
 //  }
 //
-// If you wanted to create a master page you would do something like this:
+// More often than not you'd want to create a master page that can be used by
+// multiple actions. Master pages are simlar to regular views but they declare
+// special directives that tell the view engine how to handle them and they live
+// inside the /Views/Shared folder.
 //
 //  <html>
 //   <head>
@@ -510,16 +737,47 @@
 //   </body>
 //  </html>
 //
-// NOTE: A master page is just an HTML definition that lives in the Shared 
-// folder. You can add %%Head%% to the head tag and then add content to the head
-// from your view pages by enclosing the content in [[ stuff here ]]. This is
-// primarily for including javascript or css that is specific to a view. 
+// The %%HEAD%% directive is used as a place holder to place content into the 
+// HEAD section of your page when the view that uses this master page is 
+// compiled.
 //
-// To use this master page in a view use the following directive at the top of 
-// your view (where SiteMaster is the name of the master page minus the file 
-// extension, master pages live in the /Views/Shared folder):
+// The %%VIEW%% directive is the place holder where the view that uses this
+// master page will be inserted.
 //
-//  %%Master=SiteMaster%%
+// A view that uses this master page might look like this:
+//
+//  %%Master=MyMasterPage%%
+//
+//  [[ 
+//     <script src="/Resources/jquery.js" type="text/javascript"></script>
+//  ]]
+//
+//  ... additional html formatting ...
+//
+//  {{content}}
+//
+//  ... additional html formatting ...
+//
+// Notice that when we use the Master directive we specify the name of the 
+// master page but we do not tell it what extension it is. All views are 
+// expected to have an extension of .html
+//
+// Partials are incomplete pages that can contain tags just like regular views.
+// Partials are used to combine with other views at compile time. They differ
+// from Fragments in that they cannot be rendered inside a view tag.
+//
+// Bundle directives are used to annotate a CSS or Javascript bundle that will
+// be replaced at compile time with a bundle. The bundle will either be 
+// compressed if your app is not in debug mode or uncompressed if it is. More
+// on bundling later.
+//
+// The bundle directive looks like:
+//
+//  %%Bundle=All.js%%
+//
+#endregion
+
+#region DOCUMENTATION (OLD)
 //
 // To include partial views in a view you use the following directive anywhere 
 // in your view (where MyView is the name of the partial you wish to include in 
@@ -968,16 +1226,21 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyProduct("Aurora")]
 [assembly: AssemblyCopyright("(GNU GPLv3) Copyleft © 2011-2012")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.99.55.0")]
+[assembly: AssemblyVersion("1.99.56.0")]
 #endregion
 
-#region TODO (FUTURE ROADMAP)
+#region TODO (DEFINITE CHANGES AND NICE TO HAVES)
 //TODO: Documentation: total overhaul!!!
+//TODO: Create a Visual Studio template
+//TODO: Create a NuGet package
 //TODO: Add more events to the FrontController class, decide how much power it'll ultimately have
 //TODO: RouteManager: Add model validation checking to the form parameters if they are being placed directly in the action parameter list rather than in a model
 //TODO: HTMLHelpers: All of the areas where I'm using these Func<> lambda (craziness!) params to add name=value pairs to HTML tags need to have complimentary methods that also use a dictionary. The infrastructure has been put in place in the base HTML helper but not used yet.
 //TODO: Add HTTP Patch verb support (need to research this more!)
 //TODO: Look at the (in)flexibility of the hooks into the view engine. It'd be nice to be able to support Razor or other view engines but I may have gotten a little too tightly coupled over the last several months.
+//TODO: If we are adding bound parameters during the OnInit() method execution then we should have a method overload that infers the name of the current controller.
+//TODO: We shouldn't need to new up the ActionBinder to add new bindings. Let's put an instance in the controller base class.
+//TODO: Need ability to render a partial as a view result
 #endregion
 
 namespace Aurora
@@ -1553,8 +1816,8 @@ namespace Aurora
 		public int Duration = 15; // in minutes
 		public string Refresh = string.Empty;
 
-		internal TimeSpan Expires = new TimeSpan(0,15,0);
-		internal DateTime DateExpiry = DateTime.Now.Add(new TimeSpan(0,15,0));
+		internal TimeSpan Expires = new TimeSpan(0, 15, 0);
+		internal DateTime DateExpiry = DateTime.Now.Add(new TimeSpan(0, 15, 0));
 
 		public HttpGetAttribute()
 			: base("GET")
@@ -2156,7 +2419,7 @@ namespace Aurora
 		}
 	}
 #endif
-#endregion
+	#endregion
 #endif
 	#endregion
 
@@ -2933,8 +3196,7 @@ namespace Aurora
 
 		public void AddForAllActions(string controllerName, object bindInstance)
 		{
-			foreach (string actionName in ApplicationInternals.AllRoutableActionNames(context, controllerName))
-				Add(controllerName, actionName, bindInstance);
+			AddForAllActions(controllerName, new object[] { bindInstance });
 		}
 
 		public void AddForAllActions(string controllerName, object[] bindInstances)
@@ -2942,6 +3204,19 @@ namespace Aurora
 			foreach (string actionName in ApplicationInternals.AllRoutableActionNames(context, controllerName))
 				foreach (object o in bindInstances)
 					Add(controllerName, actionName, o);
+		}
+
+		public void AddForAllControllers(object bindInstance)
+		{
+			AddForAllControllers(new object[] { bindInstance });
+		}
+
+		public void AddForAllControllers(object[] bindInstances)
+		{
+			foreach (Type controller in ApplicationInternals.AllControllers(context))
+				foreach (string actionName in ApplicationInternals.AllRoutableActionNames(context, controller.Name))
+					foreach (object o in bindInstances)
+						Add(controller.Name, actionName, o);
 		}
 
 		public void Add(string controllerName, string[] actions, object bindInstance)
@@ -3161,7 +3436,6 @@ namespace Aurora
 	#endregion
 
 	#region CONTROLLERS
-
 	#region ACTION HANDLER
 	internal enum RouteHandlerEventType
 	{
@@ -3511,7 +3785,6 @@ namespace Aurora
 		#endregion
 	}
 	#endregion
-
 	#endregion
 
 	#region ENCRYPTION
@@ -5188,6 +5461,67 @@ namespace Aurora
 			return new ViewResult(Context, viewEngine, null, controller, name, null, ViewTags);
 		}
 	}
+
+	#region DEFAULT CUSTOM ERROR IMPLEMENTATION
+//  public class DefaultCustomError : CustomError
+//  {
+//    public override ViewResult Error(string message, Exception e)
+//    {
+//      if (e != null)
+//      {
+//        string msg = string.Empty;
+
+//        if ((e.InnerException != null && e.InnerException is TargetParameterCountException) ||
+//            (e != null && e is TargetParameterCountException))
+//        {
+//          msg = "HTTP 404 - Page Not Found";
+//        }
+//        else
+//        {
+//          if (e.InnerException != null)
+//            msg = e.InnerException.Message;
+//          else
+//            msg = e.Message;
+//        }
+
+//        ViewTags["error"] = String.Format("<i>{0}</i><br/><br/>Path: {1}", msg, Context.Request.Path);
+
+//#if DEBUG
+//        StringBuilder stacktraceBuilder = new StringBuilder();
+
+//        var trace = new System.Diagnostics.StackTrace((e.InnerException != null) ? e.InnerException : e, true);
+
+//        if (trace.FrameCount > 0)
+//        {
+//          foreach (StackFrame sf in trace.GetFrames())
+//          {
+//            if (!string.IsNullOrEmpty(sf.GetFileName()))
+//              stacktraceBuilder.AppendFormat("method: {0} file: {1}<br />", sf.GetMethod().Name, Path.GetFileName(sf.GetFileName()));
+//          }
+
+//          if (stacktraceBuilder.ToString().Length > 0)
+//          {
+//            Dictionary<string, string> fragTags = new Dictionary<string, string>();
+//            fragTags["stacktrace"] = "The problem occurred at: <br /><br />" + stacktraceBuilder.ToString();
+
+//            ViewTags["stacktrace"] = RenderFragment("StackTrace", fragTags);
+//          }
+//        }
+//#endif
+//      }
+//      else if (!string.IsNullOrEmpty(message))
+//      {
+//        ViewTags["error"] = message;
+//      }
+//      else
+//      {
+//        ViewTags["error"] = "An error occurred.";
+//      }
+
+//      return View();
+//    }
+//  }
+	#endregion
 	#endregion
 
 	#region HTML HELPERS
@@ -5805,7 +6139,6 @@ namespace Aurora
 			TimeSpan expiry = new TimeSpan(0, minutesBeforeExpiration, 0);
 
 			ResponseHeader.SetContentType(context, contentType);
-
 			ResponseHeader.AddEncodingHeaders(context);
 
 			if (!MainConfig.DisableStaticFileCaching)
@@ -5817,7 +6150,8 @@ namespace Aurora
 				context.Response.Cache.VaryByParams.IgnoreParams = true;
 			}
 
-			if (filePath.EndsWith(".css") || filePath.EndsWith(".js"))
+			if (filePath.EndsWith(".css") ||
+					filePath.EndsWith(".js") && !Aurora.InDebugMode)
 			{
 				BundleManager bm = new BundleManager(context);
 
@@ -5889,7 +6223,7 @@ namespace Aurora
 				if (context.Cache[context.Request.Path] != null)
 				{
 					cachedViewResult = context.Cache[context.Request.Path] as CachedViewResult;
-										
+
 					view = cachedViewResult.View;
 				}
 			}
@@ -6559,11 +6893,15 @@ namespace Aurora
 
 				if (!string.IsNullOrEmpty(partitionName))
 				{
-					// controllerScopeActionKeyName
+					// partitionRootScopeSharedKeyName
+					keyTypes.Add(string.Format("{0}/{1}/{2}/{3}", partitionName, MainConfig.ViewsFolderName, MainConfig.SharedFolderName, viewName));
+					// partitionRootScopeFragmentsKeyName
+					keyTypes.Add(string.Format("{0}/{1}/{2}/{3}", partitionName, MainConfig.ViewsFolderName, MainConfig.FragmentsFolderName, viewName));
+					// partitionControllerScopeActionKeyName
 					keyTypes.Add(string.Format("{0}/{1}/{2}/{3}", partitionName, controllerName, MainConfig.ViewsFolderName, viewName));
-					// controllerScopeSharedKeyName
+					// partitionControllerScopeSharedKeyName
 					keyTypes.Add(string.Format("{0}/{1}/{2}/{3}/{4}", partitionName, controllerName, MainConfig.ViewsFolderName, MainConfig.SharedFolderName, viewName));
-					// controllerScopeFragmentKeyName
+					// partitionControllerScopeFragmentKeyName
 					keyTypes.Add(string.Format("{0}/{1}/{2}/{3}/{4}", partitionName, controllerName, MainConfig.ViewsFolderName, MainConfig.FragmentsFolderName, viewName));
 				}
 				else
