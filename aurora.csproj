@@ -17,7 +17,7 @@
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>TRACE;DEBUG;ACTIVEDIRECTORY</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;ACTIVEDIRECTORY;CAC_AUTHENTICATION;OPENID</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
@@ -25,18 +25,20 @@
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE;ACTIVEDIRECTORY</DefineConstants>
+    <DefineConstants>TRACE;ACTIVEDIRECTORY;CAC_AUTHENTICATION;OPENID</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="HtmlAgilityPack">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>lib\HtmlAgilityPack.dll</HintPath>
+      <HintPath>lib\20\HtmlAgilityPack.dll</HintPath>
     </Reference>
     <Reference Include="Newtonsoft.Json">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>lib\Newtonsoft.Json.dll</HintPath>
+      <HintPath>lib\20\Newtonsoft.Json.dll</HintPath>
+	  <Private>true</Private>
+    </Reference>
+	<Reference Include="DotNetOpenAuth">
+      <HintPath>lib\20\DotNetOpenAuth.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.configuration" />

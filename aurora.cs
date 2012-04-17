@@ -31,10 +31,10 @@
 // - Actions can be invoked on a special basis, they are designated with the
 //   [FromRedirectOnly] attribute.
 // - Built in OpenID authentication which is as easy as calling two methods. One 
-//	 to initiate the login with the provider and then one to finalize 
-//	 authentication.
+//   to initiate the login with the provider and then one to finalize 
+//   authentication.
 // - Built in Active Directory querying so you can authenticate your user 
-//	 against an Active Directory user. Typically for use in client certificate
+//   against an Active Directory user. Typically for use in client certificate
 //   authentication.
 // - Bundling/Minifying of Javascript and CSS.
 //
