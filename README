@@ -4,7 +4,7 @@ NOTE: See source code comments for usage.
 
 Frank Hale <frankhale@gmail.com>
 
-Date: 16 April 2012
+Date: 17 April 2012
 
 --------------------
 --- Feature List ---
@@ -35,6 +35,14 @@ Date: 16 April 2012
 - Bundling/Minifying of Javascript and CSS.
  
 Changelog:
+
+17 April 2012
+
+- Added RequireAntiForgeryToken to HttpPost, Put and Delete attributes
+- Documentation updates
+- Unified the ActiveDirectoryAuthentication events
+- Fixed bug in ActiveDirectoryAuthentication where the CACID was not being set in the event args
+- Reworked some code in ProcessDynamicRoute in the RouteManager
 
 16 April 2012
 
