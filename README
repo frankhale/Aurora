@@ -46,6 +46,7 @@ Changelog:
   compressed even when in debug mode.
 - Added some more search paths for views that belong to a partition.
 - Added icon which will be used for the NuGet package
+- Updated aurora.csproj getting ready for the NuGet package
 
 14 April 2012
 
