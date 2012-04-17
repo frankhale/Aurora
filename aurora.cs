@@ -1,7 +1,7 @@
-﻿//
+//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 16 April 2012
+// Updated On: 17 April 2012
 //
 // Contact Info:
 //
@@ -408,6 +408,7 @@
 //    string Roles - separated by |
 //    bool HttpsOnly
 //    string RedirectWithoutAuthorizationTo
+//    bool RequireAntiForgeryToken
 //
 //  HttpGet (specific):
 //
@@ -684,7 +685,9 @@
 // -------------
 //
 // Views are the primary mechanism to take dynamic data and combine them with 
-// HTML.
+// HTML. Views in Aurora are simple text files with HTML and a few directives
+// that tell the view engine what to do with the files. The Aurora view engine
+// does not support code inside the view. 
 // 
 // Given a simple application scenario that doesn't use partitioning (more on 
 // that later) your views would live inside a folder at the root of your 
@@ -764,30 +767,20 @@
 //
 // Partials are incomplete pages that can contain tags just like regular views.
 // Partials are used to combine with other views at compile time. They differ
-// from Fragments in that they cannot be rendered inside a view tag.
+// from Fragments in that they cannot be rendered inside a view tag as part of
+// an action result.
 //
-// Bundle directives are used to annotate a CSS or Javascript bundle that will
-// be replaced at compile time with a bundle. The bundle will either be 
-// compressed if your app is not in debug mode or uncompressed if it is. More
-// on bundling later.
-//
-// The bundle directive looks like:
-//
-//  %%Bundle=All.js%%
-//
-#endregion
-
-#region DOCUMENTATION (OLD)
-//
-// To include partial views in a view you use the following directive anywhere 
-// in your view (where MyView is the name of the partial you wish to include in 
-// the final rendered page). Partial views live in the /Views/Shared folder:
+// To include partial views you use the following directive anywhere in your 
+// view (where MyView is the name of the partial you wish to include in the 
+// final rendered page). Partial views live in the /Views/Shared folder:
 //
 //  %%Partial=MyView%%
 //
 // Not everything can be classified as a partial or a master page so we have
 // a concept called Fragments. Fragments are snippets of HTML that you want
-// to combine with dynamic data and render at any arbitrary time in your page.
+// to combine with dynamic data and render anywhere in your page from a view 
+// tag.
+// 
 // To render a fragment you can do something like this:
 //
 //  [HttpGet]
@@ -804,6 +797,15 @@
 // you are free to do string substitution on it or use it in a combined way
 // to build up bigger fragments. 
 //
+// Bundle directives are used to annotate a CSS or Javascript bundle that will
+// be replaced at compile time with a bundle. The bundle will either be 
+// compressed if your app is is in release mode or uncompressed if it isn't. 
+// More on bundling later.
+//
+// The bundle directive looks like:
+//
+//  %%Bundle=All.js%%
+//
 // Moving on The following example shows how to post a form to an action. All 
 // forms require the tag %%AntiForgeryToken%% to be designated unless the 
 // [HttpPost] attribute is designated with the RequireAntiForgeryToken set to 
@@ -819,7 +821,9 @@
 // The way this form gets translated on the back end is either of two forms. 
 // You can specify a posted form model that is a simple class with properties
 // that have the same name as the input elements in your form or you can specify
-// that the action they map to takes each of the elements as a parameter.
+// that the action they map to takes each of the elements as a parameter. The 
+// order of the elements in the form is the order that they should appear in the 
+// action parameter list.
 // 
 // If you take the posted form model approach the class would look like this, 
 // note that it must subclass Model and it must expose properties for it's data 
@@ -839,13 +843,22 @@
 //    ...
 //  }
 //
+// To specify an action that takes the posted data and applies it directly to
+// the action as parameters it would look like this:
+//
+//  [HttpPost]
+//  public ViewResult Index(string tbMessage1, DateTime tbMessage2)
+//  {
+//    ...
+//  }
+//
 // ----------------------
 // --- Bundle Manager ---
 // ----------------------
 //
 // The bundle manager is responsible for taking Javascript or CSS and combining
 // and minifying it into a single bundle for transport to the client. You can 
-// create as many bundles as you need for whatever circumstances you have. 
+// create as many bundles as you need for whatever scenarios you have. 
 //
 // You can create your bundles in the Global.asax Application_Start method.
 //
@@ -869,6 +882,10 @@
 // 
 //  <link href="/Resources/Styles/all.css" rel="stylesheet" type="text/css" />
 //
+// Or you can use the bundle directive in your view. This will instruct the 
+// view engine to include your bundle if your app is in release mode or the 
+// actual files if in debug mode. 
+//
 // --------------
 // --- Models ---
 // --------------
@@ -886,10 +903,10 @@
 //
 //  [DescriptiveName(DescriptiveNameOperation.SplitCamelCase)]
 //
-// Models also have a method called ToJSON() method to return a JSON string of 
-// the data that it contains.
+// Models also have a method called ToJSON() to return a JSON string of the data 
+// that it contains.
 //
-// Model validation can be done using the following attributes on your model
+// Model validation can be done using the following attributes on your 
 // properties:
 //
 //  [Required("Error Message")]
@@ -901,8 +918,7 @@
 // --- HTML Helpers ---
 // --------------------
 //
-// A small group of HTML helper classes have been created to assist in creating 
-// formatted dynamic data for easy insertion into the ViewTags dictionary. 
+// A small group of HTML helper classes have been created to make things easier.
 // 
 // The classes are:
 //
@@ -1166,6 +1182,36 @@
 // Last name, Display name and a digital certificate are some of the fields 
 // contained in this class.
 //
+// -------------------------------------------
+// --- ACTIVE DIRECTORY CAC AUTHENTICATION ---
+// -------------------------------------------
+//
+// A few assumptions are made pertaining to CAC authentication. Firstly, the 
+// universalPrincipleName field in Active Directory is used to look up CAC ID's.
+// Secondly the user in Active Directory will have a certificate in their 
+// Active Directory account.
+//
+// The ActiveDirectoryAuthentication class is a bound action object that 
+// performs the authentication. It will grab the CAC ID from the client 
+// certificate submitted in the request. Then it will fire off the 
+// ActiveDirectoryLookupEvent. This event is used to lookup the account in
+// Active Directory. 
+//
+// Here is a sample handler:
+//
+//  public void ActiveDirectoryLookupHandler(object sender, 
+//                                  ActiveDirectoryAuthenticationEventArgs args)
+//  {
+//    #if DEBUG
+//     // Fake the logon
+//     args.CACID = "1234567890;
+//     args.User = ActiveDirectory.LookupUserByUPN(args.CACID);
+//     args.Authenticated = true;
+//    #else
+//     args.User = ActiveDirectory.LookupUserByUPN(args.CACID, true);
+//    #endif
+//  }
+//
 // -------------
 // --- Notes ---
 // -------------
@@ -1226,7 +1272,7 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyProduct("Aurora")]
 [assembly: AssemblyCopyright("(GNU GPLv3) Copyleft © 2011-2012")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.99.56.0")]
+[assembly: AssemblyVersion("1.99.57.0")]
 #endregion
 
 #region TODO (DEFINITE CHANGES AND NICE TO HAVES)
@@ -1590,7 +1636,7 @@ namespace Aurora
 		public static string UniquedIDSessionName = "__UniquedIDs";
 		public static string AntiForgeryTokenName = "AntiForgeryToken";
 		public static string JsonAntiForgeryTokenName = "JsonAntiForgeryToken";
-		public static string AntiForgeryTokenMissing = "An AntiForgery token is required on all forms";
+		public static string AntiForgeryTokenMissing = "An AntiForgery token is required on all forms unless RequireAntiForgeryToken is set to false in the [HttpPost] attribute";
 		public static string AntiForgeryTokenVerificationFailed = "AntiForgery token verification failed";
 		public static string JsonAntiForgeryTokenMissing = "An AntiForgry token is required on all Json requests";
 		public static string AuroraAuthCookieName = "AuroraAuthCookie";
@@ -1843,6 +1889,8 @@ namespace Aurora
 	[AttributeUsage(AttributeTargets.Method)]
 	public class HttpPostAttribute : RequestTypeAttribute
 	{
+		public bool RequireAntiForgeryToken = true;
+
 		public HttpPostAttribute() : base("POST") { }
 
 		public HttpPostAttribute(string routeAlias)
@@ -1867,6 +1915,8 @@ namespace Aurora
 	[AttributeUsage(AttributeTargets.Method)]
 	public class HttpPutAttribute : RequestTypeAttribute
 	{
+		public bool RequireAntiForgeryToken = true;
+
 		public HttpPutAttribute() : base("PUT") { }
 
 		public HttpPutAttribute(string routeAlias)
@@ -1891,6 +1941,8 @@ namespace Aurora
 	[AttributeUsage(AttributeTargets.Method)]
 	public class HttpDeleteAttribute : RequestTypeAttribute
 	{
+		public bool RequireAntiForgeryToken = true;
+
 		public HttpDeleteAttribute() : base("DELETE") { }
 
 		public HttpDeleteAttribute(string routeAlias)
@@ -2292,21 +2344,12 @@ namespace Aurora
 		public bool Authenticated { get; private set; }
 		public string CACID { get; private set; }
 
-#if DEBUG
-		private event EventHandler<ActiveDirectoryAuthenticationEventArgs> DebugModeAuthenticationEvent = (sender, args) => { };
-
-		public ActiveDirectoryAuthentication(EventHandler<ActiveDirectoryAuthenticationEventArgs> debugModeHandler)
-		{
-			DebugModeAuthenticationEvent += debugModeHandler;
-		}
-#else
 		private event EventHandler<ActiveDirectoryAuthenticationEventArgs> ActiveDirectoryLookupEvent = (sender, args) => { };
 
 		public ActiveDirectoryAuthentication(EventHandler<ActiveDirectoryAuthenticationEventArgs> activeDirectoryLookupHandler)
 		{
 			ActiveDirectoryLookupEvent += activeDirectoryLookupHandler;
 		}
-#endif
 
 		public void ExecuteBeforeAction(HttpContextBase ctx)
 		{
@@ -2360,10 +2403,10 @@ namespace Aurora
 
 		private void ValidateClientCertificate(HttpContextBase ctx)
 		{
-#if DEBUG
 			ActiveDirectoryAuthenticationEventArgs args = new ActiveDirectoryAuthenticationEventArgs();
 
-			DebugModeAuthenticationEvent(this, args);
+#if DEBUG
+			ActiveDirectoryLookupEvent(this, args);
 
 			User = args.User;
 			Authenticated = args.Authenticated;
@@ -2389,7 +2432,7 @@ namespace Aurora
 
 					try
 					{
-						ActiveDirectoryAuthenticationEventArgs args = new ActiveDirectoryAuthenticationEventArgs();
+						args.CACID = CACID;
 
 						ActiveDirectoryLookupEvent(this, args);
 
@@ -5157,7 +5200,7 @@ namespace Aurora
 			if (routeInfo != null && !routeInfo.IsFiltered)
 			{
 				RequestTypeAttribute reqAttrib = Attribute.GetCustomAttribute(routeInfo.Action, typeof(RequestTypeAttribute), false) as RequestTypeAttribute;
-				HttpGetAttribute get = Attribute.GetCustomAttribute(routeInfo.Action, typeof(HttpGetAttribute), false) as HttpGetAttribute;
+				HttpGetAttribute get = routeInfo.Attribute as HttpGetAttribute;
 				string cachedViewName = string.Empty;
 
 				#region SECURITY CHECKING
@@ -5181,21 +5224,46 @@ namespace Aurora
 				}
 				#endregion
 
-				#region AJAX GET REQUEST WITH JSON RESULT
-				if (get != null && routeInfo.Action.ReturnType == typeof(JsonResult))
+				if (get != null)
 				{
-					if (context.Request.QueryString[MainConfig.AntiForgeryTokenName] != null)
+					#region AJAX GET REQUEST WITH JSON RESULT
+					if (routeInfo.Action.ReturnType == typeof(JsonResult))
 					{
-						if (!AntiForgeryToken.VerifyToken(context))
-							throw new Exception(MainConfig.AntiForgeryTokenMissing);
+						if (context.Request.QueryString[MainConfig.AntiForgeryTokenName] != null)
+						{
+							if (!AntiForgeryToken.VerifyToken(context))
+								throw new Exception(MainConfig.AntiForgeryTokenMissing);
+						}
 					}
+					#endregion
+
+					#region HTTP GET CACHE BYPASS
+					//TODO: Write RouteManager specific HTTP GET cache bypass logic here...
+					if (get.Cache)
+					{
+						// if we have a cached view result for this request we will return it and skip invocation of the action
+						if (context.Cache[path] != null)
+						{
+							if (frontController != null)
+								frontController.RaiseEvent(RouteHandlerEventType.CachedViewResult, path, routeInfo);
+
+							CachedViewResult vr = (context.Cache[path] as CachedViewResult);
+
+							vr.ViewResult.Refresh(context, get);
+
+							return vr.ViewResult;
+						}
+					}
+					#endregion
 				}
-				#endregion
 
 				#region ANTI FORGERY TOKEN VERIFICATION
-				if (context.Request.RequestType == "POST" || context.Request.RequestType == "PUT" || context.Request.RequestType == "DELETE")
+				if ((context.Request.RequestType == "POST" && (routeInfo.Attribute as HttpPostAttribute).RequireAntiForgeryToken ||
+						context.Request.RequestType == "PUT" && (routeInfo.Attribute as HttpPutAttribute).RequireAntiForgeryToken ||
+						context.Request.RequestType == "DELETE" && (routeInfo.Attribute as HttpDeleteAttribute).RequireAntiForgeryToken))
 				{
-					string antiForgeryToken = (routeInfo.Payload == null) ? context.Request.Form[MainConfig.AntiForgeryTokenName] : routeInfo.Payload[MainConfig.AntiForgeryTokenName];
+					string antiForgeryToken = (routeInfo.Payload == null) ?
+						context.Request.Form[MainConfig.AntiForgeryTokenName] : routeInfo.Payload[MainConfig.AntiForgeryTokenName];
 
 					if (!string.IsNullOrEmpty(antiForgeryToken))
 					{
@@ -5204,25 +5272,6 @@ namespace Aurora
 					}
 					else
 						throw new Exception(MainConfig.AntiForgeryTokenMissing);
-				}
-				#endregion
-
-				#region HTTP GET CACHE BYPASS
-				//TODO: Write RouteManager specific HTTP GET cache bypass logic here...
-				if (get != null && get.Cache)
-				{
-					// if we have a cached view result for this request we will return it and skip invocation of the action
-					if (context.Cache[path] != null)
-					{
-						if (frontController != null)
-							frontController.RaiseEvent(RouteHandlerEventType.CachedViewResult, path, routeInfo);
-
-						CachedViewResult vr = (context.Cache[path] as CachedViewResult);
-
-						vr.ViewResult.Refresh(context, get);
-
-						return vr.ViewResult;
-					}
 				}
 				#endregion
 
@@ -5236,6 +5285,7 @@ namespace Aurora
 
 				result = InvokeAction(routeInfo);
 
+				#region VIEW CACHING
 				if (get != null && get.Cache)
 				{
 					context.Cache.Add(
@@ -5247,6 +5297,7 @@ namespace Aurora
 							CacheItemPriority.Normal,
 							null);
 				}
+				#endregion
 			}
 
 			return result;
@@ -5327,6 +5378,16 @@ namespace Aurora
 		{
 			IRouteManager routeManager = null;
 
+			HttpCookie authCookie = ctx.Request.Cookies[MainConfig.AuroraAuthCookieName];
+
+			if (authCookie != null)
+			{
+				if (ctx.Session[MainConfig.CurrentUserSessionName] != null)
+				{
+					ctx.User = ctx.Session[MainConfig.CurrentUserSessionName] as User;
+				}
+			}
+
 			if (!MainConfig.SupportedHttpVerbs.Contains(ctx.Request.RequestType))
 				throw new Exception(string.Format(MainConfig.HttpRequestTypeNotSupportedError, ctx.Request.RequestType));
 
@@ -5355,21 +5416,9 @@ namespace Aurora
 				ctx.Application.UnLock();
 			}
 
-			HttpCookie authCookie = ctx.Request.Cookies[MainConfig.AuroraAuthCookieName];
-
-			if (authCookie != null)
-			{
-				if (ctx.Session[MainConfig.CurrentUserSessionName] != null)
-				{
-					ctx.User = ctx.Session[MainConfig.CurrentUserSessionName] as User;
-				}
-			}
-
-			IViewResult result = null;
-
 			try
 			{
-				result = routeManager.HandleRoute();
+				IViewResult result = routeManager.HandleRoute();
 
 				if (result == null)
 				{
@@ -5463,64 +5512,64 @@ namespace Aurora
 	}
 
 	#region DEFAULT CUSTOM ERROR IMPLEMENTATION
-//  public class DefaultCustomError : CustomError
-//  {
-//    public override ViewResult Error(string message, Exception e)
-//    {
-//      if (e != null)
-//      {
-//        string msg = string.Empty;
+	//  public class DefaultCustomError : CustomError
+	//  {
+	//    public override ViewResult Error(string message, Exception e)
+	//    {
+	//      if (e != null)
+	//      {
+	//        string msg = string.Empty;
 
-//        if ((e.InnerException != null && e.InnerException is TargetParameterCountException) ||
-//            (e != null && e is TargetParameterCountException))
-//        {
-//          msg = "HTTP 404 - Page Not Found";
-//        }
-//        else
-//        {
-//          if (e.InnerException != null)
-//            msg = e.InnerException.Message;
-//          else
-//            msg = e.Message;
-//        }
+	//        if ((e.InnerException != null && e.InnerException is TargetParameterCountException) ||
+	//            (e != null && e is TargetParameterCountException))
+	//        {
+	//          msg = "HTTP 404 - Page Not Found";
+	//        }
+	//        else
+	//        {
+	//          if (e.InnerException != null)
+	//            msg = e.InnerException.Message;
+	//          else
+	//            msg = e.Message;
+	//        }
 
-//        ViewTags["error"] = String.Format("<i>{0}</i><br/><br/>Path: {1}", msg, Context.Request.Path);
+	//        ViewTags["error"] = String.Format("<i>{0}</i><br/><br/>Path: {1}", msg, Context.Request.Path);
 
-//#if DEBUG
-//        StringBuilder stacktraceBuilder = new StringBuilder();
+	//#if DEBUG
+	//        StringBuilder stacktraceBuilder = new StringBuilder();
 
-//        var trace = new System.Diagnostics.StackTrace((e.InnerException != null) ? e.InnerException : e, true);
+	//        var trace = new System.Diagnostics.StackTrace((e.InnerException != null) ? e.InnerException : e, true);
 
-//        if (trace.FrameCount > 0)
-//        {
-//          foreach (StackFrame sf in trace.GetFrames())
-//          {
-//            if (!string.IsNullOrEmpty(sf.GetFileName()))
-//              stacktraceBuilder.AppendFormat("method: {0} file: {1}<br />", sf.GetMethod().Name, Path.GetFileName(sf.GetFileName()));
-//          }
+	//        if (trace.FrameCount > 0)
+	//        {
+	//          foreach (StackFrame sf in trace.GetFrames())
+	//          {
+	//            if (!string.IsNullOrEmpty(sf.GetFileName()))
+	//              stacktraceBuilder.AppendFormat("method: {0} file: {1}<br />", sf.GetMethod().Name, Path.GetFileName(sf.GetFileName()));
+	//          }
 
-//          if (stacktraceBuilder.ToString().Length > 0)
-//          {
-//            Dictionary<string, string> fragTags = new Dictionary<string, string>();
-//            fragTags["stacktrace"] = "The problem occurred at: <br /><br />" + stacktraceBuilder.ToString();
+	//          if (stacktraceBuilder.ToString().Length > 0)
+	//          {
+	//            Dictionary<string, string> fragTags = new Dictionary<string, string>();
+	//            fragTags["stacktrace"] = "The problem occurred at: <br /><br />" + stacktraceBuilder.ToString();
 
-//            ViewTags["stacktrace"] = RenderFragment("StackTrace", fragTags);
-//          }
-//        }
-//#endif
-//      }
-//      else if (!string.IsNullOrEmpty(message))
-//      {
-//        ViewTags["error"] = message;
-//      }
-//      else
-//      {
-//        ViewTags["error"] = "An error occurred.";
-//      }
+	//            ViewTags["stacktrace"] = RenderFragment("StackTrace", fragTags);
+	//          }
+	//        }
+	//#endif
+	//      }
+	//      else if (!string.IsNullOrEmpty(message))
+	//      {
+	//        ViewTags["error"] = message;
+	//      }
+	//      else
+	//      {
+	//        ViewTags["error"] = "An error occurred.";
+	//      }
 
-//      return View();
-//    }
-//  }
+	//      return View();
+	//    }
+	//  }
 	#endregion
 	#endregion
 
