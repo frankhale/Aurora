@@ -1,8 +1,7 @@
-rem msbuild Aurora.csproj /property:Configuration=Debug
-
+msbuild Aurora.csproj /property:Configuration=Debug
 msbuild Aurora.csproj /property:Configuration=Release
 
-copy bin\Release\Aurora.dll lib\20
-rmdir /Q /S bin
-rmdir /Q /S obj
-nuget pack Aurora.nuspec
+rem copy bin\Release\Aurora.dll lib\20
+rem rmdir /Q /S bin
+rem rmdir /Q /S obj
+rem nuget pack Aurora.nuspec
