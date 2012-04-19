@@ -1277,7 +1277,8 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 #endregion
 
 #region TODO (DEFINITE CHANGES AND NICE TO HAVES)
-//TODO: Continue to refine documentation
+//TODO: Finish documentation rewrite (eg. Write the Partitioning section)
+//TODO: Change location of Fragment views. Their path needs to be in the following format Fragments/ControllerName/Frag.html
 //TODO: Create a Visual Studio template
 //TODO: Upload NuGet package to NuGet.org Package Gallery
 //TODO: Read through this in it's entirety and see if I can implement something like this in Aurora -> http://haacked.com/archive/2011/01/15/building-a-self-updating-site-using-nuget.aspx
@@ -1292,7 +1293,6 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 
 #region TODO (COMPLETED)
 //TODO_COMPLETE: Create a NuGet package
-//TODO_COMPLETE: Documentation: total overhaul!!!
 //TODO_COMPLETE: Add default custom error class and support infrastructure
 //TODO_COMPLETE: Need ability to render a partial as a view result; The ability was already there in FragmentResult, I've renamed this to PartialResult.
 #endregion
