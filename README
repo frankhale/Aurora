@@ -4,7 +4,7 @@ NOTE: See source code comments for usage.
 
 Frank Hale <frankhale@gmail.com>
 
-Date: 17 April 2012
+Date: 18 April 2012
 
 --------------------
 --- Feature List ---
@@ -35,6 +35,15 @@ Date: 17 April 2012
 - Bundling/Minifying of Javascript and CSS.
  
 Changelog:
+
+18 April 2012
+
+- Renamed the FragmentResult to PartialResult since it can render both fragments
+  and partials.
+- Added default error handling class and infrastructure in case one is not 
+  specified.
+- Fix for routes with aliases with the same name and methods with the same name 
+  that only varied by parameter lists.
 
 17 April 2012
 

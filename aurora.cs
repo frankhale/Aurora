@@ -1,7 +1,7 @@
-//
+﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 17 April 2012
+// Updated On: 18 April 2012
 //
 // Contact Info:
 //
@@ -483,14 +483,14 @@
 //      this file could reside in a DB or have been created during the execution
 //      of the action.
 //
-//  public FragmentResult Fragment(string fragmentName)
+//  public PartialResult Fragment(string partialName)
 //
-//    - Returns a fragment of HTML as a result. This could be used in an AJAX
-//      request.
+//    - Returns a fragment or partial as a result. This could be used in an AJAX
+//      request for instance.
 //
-//  public FragmentResult Fragment(string fragmentName, bool clearViewTags)
+//  public PartialResult Fragment(string partialName, bool clearViewTags)
 //
-//    - Returns a fragment and optionally clears the view tags.
+//    - Returns a fragment or partial and optionally clears the view tags.
 //
 // ------------------------
 // --- Bound Parameters ---
@@ -1159,7 +1159,8 @@
 // The ActiveDirectory class provides a few static methods to search for a user
 // account within an Active Directory based network. You specify the 
 // ActiveDirectory domain, searchroot, username and password in the web.config
-// as noted above.
+// as noted above or you can use the overloaded methods which allow you to 
+// specify that information when you call the method.
 //
 // To search for a user account by samAccountName simply call the following
 // method:
@@ -1272,13 +1273,14 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyProduct("Aurora")]
 [assembly: AssemblyCopyright("(GNU GPLv3) Copyleft © 2011-2012")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.99.57.0")]
+[assembly: AssemblyVersion("1.99.58.0")]
 #endregion
 
 #region TODO (DEFINITE CHANGES AND NICE TO HAVES)
-//TODO: Documentation: total overhaul!!!
+//TODO: Continue to refine documentation
 //TODO: Create a Visual Studio template
-//TODO: Create a NuGet package
+//TODO: Upload NuGet package to NuGet.org Package Gallery
+//TODO: Read through this in it's entirety and see if I can implement something like this in Aurora -> http://haacked.com/archive/2011/01/15/building-a-self-updating-site-using-nuget.aspx
 //TODO: Add more events to the FrontController class, decide how much power it'll ultimately have
 //TODO: RouteManager: Add model validation checking to the form parameters if they are being placed directly in the action parameter list rather than in a model
 //TODO: HTMLHelpers: All of the areas where I'm using these Func<> lambda (craziness!) params to add name=value pairs to HTML tags need to have complimentary methods that also use a dictionary. The infrastructure has been put in place in the base HTML helper but not used yet.
@@ -1286,7 +1288,13 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 //TODO: Look at the (in)flexibility of the hooks into the view engine. It'd be nice to be able to support Razor or other view engines but I may have gotten a little too tightly coupled over the last several months.
 //TODO: If we are adding bound parameters during the OnInit() method execution then we should have a method overload that infers the name of the current controller.
 //TODO: We shouldn't need to new up the ActionBinder to add new bindings. Let's put an instance in the controller base class.
-//TODO: Need ability to render a partial as a view result
+#endregion
+
+#region TODO (COMPLETED)
+//TODO_COMPLETE: Create a NuGet package
+//TODO_COMPLETE: Documentation: total overhaul!!!
+//TODO_COMPLETE: Add default custom error class and support infrastructure
+//TODO_COMPLETE: Need ability to render a partial as a view result; The ability was already there in FragmentResult, I've renamed this to PartialResult.
 #endregion
 
 namespace Aurora
@@ -3148,17 +3156,25 @@ namespace Aurora
 
 		public static CustomError GetCustomError(HttpContextBase context)
 		{
-			List<Type> customErrors = GetTypeList(context, MainConfig.CustomErrorSessionName, typeof(CustomError));
+			List<Type> customErrors = GetTypeList(context, MainConfig.CustomErrorSessionName, typeof(CustomError)).Where(x => x.Name != "DefaultCustomError").ToList();
 
-			if (customErrors != null)
+			Type errorType = null;
+
+			if (customErrors.Count > 1)
 			{
-				if (customErrors.Count > 1 && customErrors.Count > 0)
-					throw new Exception(MainConfig.OnlyOneCustomErrorClassPerApplicationError);
-
-				return CustomError.CreateInstance(customErrors[0], new AuroraViewEngine(context.Server.MapPath(MainConfig.ViewRoot), new ViewEngineHelper(context)), context);
+				throw new Exception(MainConfig.OnlyOneCustomErrorClassPerApplicationError);
 			}
 
-			return null;
+			if (customErrors.Count != 0)
+			{
+				errorType = customErrors[0];
+			}
+			else
+			{
+				errorType = typeof(DefaultCustomError);
+			}
+
+			return CustomError.CreateInstance(errorType, new AuroraViewEngine(context.Server.MapPath(MainConfig.ViewRoot), new ViewEngineHelper(context)), context);
 		}
 	}
 	#endregion
@@ -3798,17 +3814,17 @@ namespace Aurora
 			return new VirtualFileResult(Context, fileName, bytes, contentType);
 		}
 
-		public FragmentResult Fragment(string fragmentName)
+		public PartialResult Partial(string partialName)
 		{
-			return Fragment(fragmentName, false);
+			return Partial(partialName, false);
 		}
 
-		public FragmentResult Fragment(string fragmentName, bool clearViewTags)
+		public PartialResult Partial(string partialName, bool clearViewTags)
 		{
 			if (clearViewTags)
 				ClearViewTags();
 
-			return new FragmentResult(Context, ViewEngine, PartitionName, this.GetType().Name, fragmentName, ViewTags);
+			return new PartialResult(Context, ViewEngine, PartitionName, this.GetType().Name, partialName, ViewTags);
 		}
 
 		public string RenderFragment(string fragmentName)
@@ -5089,6 +5105,8 @@ namespace Aurora
 				Type[] actionParameterTypes = actionParameters.Select(x => (x != null) ? x.GetType() : null).ToArray();
 				Type[] methodParamTypes = routeInfo.Action.GetParameters().Select(x => x.ParameterType).ToArray();
 
+				if (methodParamTypes.Count() < actionParameters.Count()) continue;
+
 				var filteredMethodParams = methodParamTypes.Where(x => x.GetInterfaces().FirstOrDefault(i => i.UnderlyingSystemType == typeof(IActionFilterResult)) != null);
 
 				if (filteredMethodParams != null && filteredMethodParams.Count() > 0)
@@ -5238,7 +5256,6 @@ namespace Aurora
 					#endregion
 
 					#region HTTP GET CACHE BYPASS
-					//TODO: Write RouteManager specific HTTP GET cache bypass logic here...
 					if (get.Cache)
 					{
 						// if we have a cached view result for this request we will return it and skip invocation of the action
@@ -5505,6 +5522,11 @@ namespace Aurora
 			return View(MainConfig.SharedFolderName, "Error");
 		}
 
+		internal ViewResult View(string view)
+		{
+			return new ViewResult(Context, view);
+		}
+
 		internal ViewResult View(string controller, string name)
 		{
 			return new ViewResult(Context, viewEngine, null, controller, name, null, ViewTags);
@@ -5512,64 +5534,83 @@ namespace Aurora
 	}
 
 	#region DEFAULT CUSTOM ERROR IMPLEMENTATION
-	//  public class DefaultCustomError : CustomError
-	//  {
-	//    public override ViewResult Error(string message, Exception e)
-	//    {
-	//      if (e != null)
-	//      {
-	//        string msg = string.Empty;
+	public class DefaultCustomError : CustomError
+	{
+		public override ViewResult Error(string message, Exception e)
+		{
+			string error = string.Empty;
+			string stackTrace = string.Empty;
 
-	//        if ((e.InnerException != null && e.InnerException is TargetParameterCountException) ||
-	//            (e != null && e is TargetParameterCountException))
-	//        {
-	//          msg = "HTTP 404 - Page Not Found";
-	//        }
-	//        else
-	//        {
-	//          if (e.InnerException != null)
-	//            msg = e.InnerException.Message;
-	//          else
-	//            msg = e.Message;
-	//        }
+			if (e != null)
+			{
+				string msg = string.Empty;
 
-	//        ViewTags["error"] = String.Format("<i>{0}</i><br/><br/>Path: {1}", msg, Context.Request.Path);
+				if ((e.InnerException != null && e.InnerException is TargetParameterCountException) ||
+						(e != null && e is TargetParameterCountException))
+				{
+					msg = MainConfig.Http404Error;
+				}
+				else
+				{
+					if (e.InnerException != null)
+						msg = e.InnerException.Message;
+					else
+						msg = e.Message;
+				}
 
-	//#if DEBUG
-	//        StringBuilder stacktraceBuilder = new StringBuilder();
+				error = String.Format("<i>{0}</i><br/><br/>Path: {1}", msg, Context.Request.Path);
 
-	//        var trace = new System.Diagnostics.StackTrace((e.InnerException != null) ? e.InnerException : e, true);
+#if DEBUG
+				StringBuilder stacktraceBuilder = new StringBuilder();
 
-	//        if (trace.FrameCount > 0)
-	//        {
-	//          foreach (StackFrame sf in trace.GetFrames())
-	//          {
-	//            if (!string.IsNullOrEmpty(sf.GetFileName()))
-	//              stacktraceBuilder.AppendFormat("method: {0} file: {1}<br />", sf.GetMethod().Name, Path.GetFileName(sf.GetFileName()));
-	//          }
+				var trace = new System.Diagnostics.StackTrace((e.InnerException != null) ? e.InnerException : e, true);
 
-	//          if (stacktraceBuilder.ToString().Length > 0)
-	//          {
-	//            Dictionary<string, string> fragTags = new Dictionary<string, string>();
-	//            fragTags["stacktrace"] = "The problem occurred at: <br /><br />" + stacktraceBuilder.ToString();
+				if (trace.FrameCount > 0)
+				{
+					foreach (StackFrame sf in trace.GetFrames())
+					{
+						if (!string.IsNullOrEmpty(sf.GetFileName()))
+							stacktraceBuilder.AppendFormat("method: {0} file: {1}<br />", sf.GetMethod().Name, Path.GetFileName(sf.GetFileName()));
+					}
 
-	//            ViewTags["stacktrace"] = RenderFragment("StackTrace", fragTags);
-	//          }
-	//        }
-	//#endif
-	//      }
-	//      else if (!string.IsNullOrEmpty(message))
-	//      {
-	//        ViewTags["error"] = message;
-	//      }
-	//      else
-	//      {
-	//        ViewTags["error"] = "An error occurred.";
-	//      }
+					if (stacktraceBuilder.ToString().Length > 0)
+					{
+						stackTrace = stacktraceBuilder.ToString();
+					}
+				}
+#endif
+			}
+			else if (!string.IsNullOrEmpty(message))
+			{
+				error = message;
+			}
+			else
+			{
+				error = "An error occurred.";
+			}
 
-	//      return View();
-	//    }
-	//  }
+			string sharedViewRoot = string.Format(@"{0}\{1}", Context.Server.MapPath(MainConfig.ViewRoot), MainConfig.SharedFolderName);
+			string errorViewPath = string.Format(@"{0}\Error.html", sharedViewRoot);
+			string stackTraceView = @"<hr />The problem occurred at:<br /><br /><pre><span>{0}</span></pre>";
+
+			if (!File.Exists(errorViewPath))
+			{
+				string view = @"<!DOCTYPE html PUBLIC ""-//W3C//DTD XHTML 1.0 Transitional//EN"" ""http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd""><html xmlns=""http://www.w3.org/1999/xhtml""><head><title>Error</title></head><body>{0}{1}</body></html>";
+
+				stackTraceView = string.Format(stackTraceView, stackTrace);
+				view = string.Format(view, error, stackTraceView);
+
+				return View(view);
+			}
+			else
+			{
+				ViewTags["error"] = error;
+				ViewTags["stacktrace"] = string.Format(stackTraceView, stackTrace);
+
+				return View();
+			}
+		}
+	}
 	#endregion
 	#endregion
 
@@ -6231,6 +6272,7 @@ namespace Aurora
 		private string partitionName;
 		private string controllerName;
 		private string viewName;
+		private string view;
 		private Dictionary<string, string> tags;
 
 		private RequestTypeAttribute requestAttribute;
@@ -6244,9 +6286,20 @@ namespace Aurora
 			controllerName = cName;
 			viewName = vName;
 			tags = vTags;
+			view = string.Empty;
 
 			if (MainConfig.DisableStaticFileCaching)
 				viewEngine.Refresh();
+		}
+
+		internal ViewResult(HttpContextBase ctx, string view)
+		{
+			// This constructor is used by the DefaultCustomError class to 
+			// by pass the load view code in the Render method if the web application
+			// does not specify the Error view.
+
+			context = ctx;
+			this.view = view;
 		}
 
 		public void Refresh(HttpContextBase ctx, RequestTypeAttribute attrib)
@@ -6257,53 +6310,57 @@ namespace Aurora
 
 		public void Render()
 		{
-			HttpGetAttribute get = null;
-			string view = string.Empty;
-			string cachedViewName = string.Empty;
-			CachedViewResult cachedViewResult = null;
-
 			ResponseHeader.SetContentType(context, "text/html");
 
-			if (requestAttribute is HttpGetAttribute)
-				get = (requestAttribute as HttpGetAttribute);
-
-			if (get != null && get.Cache)
-			{
-				if (context.Cache[context.Request.Path] != null)
-				{
-					cachedViewResult = context.Cache[context.Request.Path] as CachedViewResult;
-
-					view = cachedViewResult.View;
-				}
-			}
-
 			if (string.IsNullOrEmpty(view))
-				view = viewEngine.LoadView(partitionName, controllerName, viewName, tags);
-
-			if (get != null)
 			{
-				string refresh = get.Refresh;
+				#region LOAD THE VIEW
+				HttpGetAttribute get = null;
+				string cachedViewName = string.Empty;
+				CachedViewResult cachedViewResult = null;
 
-				if (!string.IsNullOrEmpty(refresh))
-					context.Response.AddHeader("Refresh", refresh);
+				if (requestAttribute is HttpGetAttribute)
+					get = (requestAttribute as HttpGetAttribute);
 
-				#region ADD (OR NOT) HTTP CACHE HEADERS TO THE REQUEST
-				if (get.Cache)
+				if (get != null && get.Cache)
 				{
-					context.Response.Cache.SetCacheability(get.CacheabilityOption);
-					context.Response.Cache.SetExpires(get.DateExpiry);
-					context.Response.Cache.SetMaxAge(get.Expires);
-					context.Response.Cache.SetValidUntilExpires(true);
-					context.Response.Cache.VaryByParams.IgnoreParams = true;
+					if (context.Cache[context.Request.Path] != null)
+					{
+						cachedViewResult = context.Cache[context.Request.Path] as CachedViewResult;
 
-					if (cachedViewResult != null && string.IsNullOrEmpty(cachedViewResult.View))
-						cachedViewResult.View = view;
+						view = cachedViewResult.View;
+					}
 				}
-				else
+
+				if (string.IsNullOrEmpty(view))
+					view = viewEngine.LoadView(partitionName, controllerName, viewName, tags);
+
+				if (get != null)
 				{
-					context.Response.Cache.SetCacheability(HttpCacheability.NoCache);
-					context.Response.Cache.SetNoStore();
-					context.Response.Cache.SetExpires(DateTime.MinValue);
+					string refresh = get.Refresh;
+
+					if (!string.IsNullOrEmpty(refresh))
+						context.Response.AddHeader("Refresh", refresh);
+
+					#region ADD (OR NOT) HTTP CACHE HEADERS TO THE REQUEST
+					if (get.Cache)
+					{
+						context.Response.Cache.SetCacheability(get.CacheabilityOption);
+						context.Response.Cache.SetExpires(get.DateExpiry);
+						context.Response.Cache.SetMaxAge(get.Expires);
+						context.Response.Cache.SetValidUntilExpires(true);
+						context.Response.Cache.VaryByParams.IgnoreParams = true;
+
+						if (cachedViewResult != null && string.IsNullOrEmpty(cachedViewResult.View))
+							cachedViewResult.View = view;
+					}
+					else
+					{
+						context.Response.Cache.SetCacheability(HttpCacheability.NoCache);
+						context.Response.Cache.SetNoStore();
+						context.Response.Cache.SetExpires(DateTime.MinValue);
+					}
+					#endregion
 				}
 				#endregion
 			}
@@ -6314,7 +6371,7 @@ namespace Aurora
 		}
 	}
 
-	public class FragmentResult : IViewResult
+	public class PartialResult : IViewResult
 	{
 		private HttpContextBase context;
 		private IViewEngine viewEngine;
@@ -6323,7 +6380,7 @@ namespace Aurora
 		private string fragmentName;
 		private Dictionary<string, string> tags;
 
-		public FragmentResult(HttpContextBase ctx, IViewEngine ve, string pName, string cName, string fName, Dictionary<string, string> vTags)
+		public PartialResult(HttpContextBase ctx, IViewEngine ve, string pName, string cName, string fName, Dictionary<string, string> vTags)
 		{
 			context = ctx;
 			viewEngine = ve;
@@ -6341,8 +6398,6 @@ namespace Aurora
 		public void Render()
 		{
 			ResponseHeader.SetContentType(context, "text/html");
-
-			context.Response.Charset = "utf-8";
 
 			context.Response.Write(viewEngine.LoadView(partitionName, controllerName, fragmentName, tags));
 		}
@@ -6366,7 +6421,6 @@ namespace Aurora
 				string json = JsonConvert.SerializeObject(data);
 
 				ResponseHeader.SetContentType(context, "text/html");
-
 				ResponseHeader.AddEncodingHeaders(context);
 
 				context.Response.Write(json);
@@ -6460,12 +6514,14 @@ namespace Aurora
 			return tokens;
 		}
 
-		private static string CreateUniqueToken(List<string> tokens)
+		private static string CreateUniqueToken(HttpContextBase context)
 		{
+			List<string> tokens = GetTokens(context);
+
 			string token = string.Format("{0}{1}", Guid.NewGuid(), Guid.NewGuid()).Replace("-", string.Empty);
 
 			if (tokens.Contains(token))
-				CreateUniqueToken(tokens);
+				CreateUniqueToken(context);
 
 			return token;
 		}
@@ -6473,7 +6529,7 @@ namespace Aurora
 		public static string Create(HttpContextBase context, AntiForgeryTokenType type)
 		{
 			List<string> tokens = GetTokens(context);
-			string token = CreateUniqueToken(tokens);
+			string token = CreateUniqueToken(context);
 			tokens.Add(token);
 
 			string renderToken = string.Empty;
@@ -6597,7 +6653,6 @@ namespace Aurora
 			}
 		}
 
-		#region IViewEngineHelper Members
 		public ViewTemplateInfo TemplateInfo
 		{
 			get
@@ -6632,7 +6687,6 @@ namespace Aurora
 				}
 			}
 		}
-		#endregion
 	}
 
 	//
