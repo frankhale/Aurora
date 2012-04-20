@@ -4,7 +4,7 @@ NOTE: See source code comments for usage.
 
 Frank Hale <frankhale@gmail.com>
 
-Date: 18 April 2012
+Date: 19 April 2012
 
 --------------------
 --- Feature List ---
@@ -35,6 +35,13 @@ Date: 18 April 2012
 - Bundling/Minifying of Javascript and CSS.
  
 Changelog:
+
+19 April 2012
+
+- Wrote small section in the documentation about Partitioning.
+- Actions that had the same name as a fragment could return a view of the 
+  fragment inside a ViewResult. This is not the correct behavior. This has been 
+  fixed. Fragments can be returned by a FragmentResult.
 
 18 April 2012
 

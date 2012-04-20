@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 18 April 2012
+// Updated On: 19 April 2012
 //
 // Contact Info:
 //
@@ -852,6 +852,39 @@
 //    ...
 //  }
 //
+// --------------------
+// --- PARTITIONING ---
+// --------------------
+//
+// Partitioning is a project management feature that allows you to group similar
+// controllers together so that their views are logically separate from the 
+// standard location for views. 
+//
+// Let's say we have a controller that declares a partition called Main:
+//
+//  [Partition("Main")]
+//  public class Home : Controller
+//  {
+//  } 
+// 
+// The folder structure of your application would need to conform to this:
+//
+//  /
+//  /Main
+//		/Controllers (this is a convention and is optional)
+//			Home.cs
+//		/Home
+//			/Views
+//        /Fragments
+//			  /Shared
+//  /Views
+//		/Fragments
+//		/Shared
+//
+// So really what the partition does is rearrange how your views are looked up
+// by the view engine. This feature does not dictate where your controllers are
+// located.
+//
 // ----------------------
 // --- Bundle Manager ---
 // ----------------------
@@ -1273,11 +1306,11 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyProduct("Aurora")]
 [assembly: AssemblyCopyright("(GNU GPLv3) Copyleft © 2011-2012")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.99.58.0")]
+[assembly: AssemblyVersion("1.99.59.0")]
 #endregion
 
 #region TODO (DEFINITE CHANGES AND NICE TO HAVES)
-//TODO: Continue to refine documentation
+//TODO: Finish documentation rewrite
 //TODO: Create a Visual Studio template
 //TODO: Upload NuGet package to NuGet.org Package Gallery
 //TODO: Read through this in it's entirety and see if I can implement something like this in Aurora -> http://haacked.com/archive/2011/01/15/building-a-self-updating-site-using-nuget.aspx
@@ -1292,7 +1325,6 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 
 #region TODO (COMPLETED)
 //TODO_COMPLETE: Create a NuGet package
-//TODO_COMPLETE: Documentation: total overhaul!!!
 //TODO_COMPLETE: Add default custom error class and support infrastructure
 //TODO_COMPLETE: Need ability to render a partial as a view result; The ability was already there in FragmentResult, I've renamed this to PartialResult.
 #endregion
@@ -3839,7 +3871,7 @@ namespace Aurora
 
 		public string RenderFragment(string fragmentName, Dictionary<string, string> fragTags)
 		{
-			return ViewEngine.LoadView(PartitionName, this.GetType().Name, fragmentName, fragTags);
+			return ViewEngine.LoadView(PartitionName, this.GetType().Name, fragmentName, false, fragTags);
 		}
 		#endregion
 	}
@@ -5509,7 +5541,7 @@ namespace Aurora
 
 		public string RenderFragment(string fragmentName, Dictionary<string, string> tags)
 		{
-			return viewEngine.LoadView(null, this.GetType().Name, fragmentName, tags);
+			return viewEngine.LoadView(null, this.GetType().Name, fragmentName, false, tags);
 		}
 
 		public string RenderFragment(string fragmentName)
@@ -6333,7 +6365,7 @@ namespace Aurora
 				}
 
 				if (string.IsNullOrEmpty(view))
-					view = viewEngine.LoadView(partitionName, controllerName, viewName, tags);
+					view = viewEngine.LoadView(partitionName, controllerName, viewName, true, tags);
 
 				if (get != null)
 				{
@@ -6391,15 +6423,13 @@ namespace Aurora
 
 			if (MainConfig.DisableStaticFileCaching)
 				viewEngine.Refresh();
-
-			viewEngine.LoadView(partitionName, controllerName, fragmentName, tags);
 		}
 
 		public void Render()
 		{
 			ResponseHeader.SetContentType(context, "text/html");
 
-			context.Response.Write(viewEngine.LoadView(partitionName, controllerName, fragmentName, tags));
+			context.Response.Write(viewEngine.LoadView(partitionName, controllerName, fragmentName, false, tags));
 		}
 	}
 
@@ -6594,8 +6624,8 @@ namespace Aurora
 	public interface IViewEngine
 	{
 		void Refresh();
-
-		string LoadView(string partitionName, string controllerName, string viewName, Dictionary<string, string> tags);
+		
+		string LoadView(string partitionName, string controllerName, string viewName, bool renderFinal, Dictionary<string, string> tags);
 	}
 
 	internal interface IViewEngineHelper
@@ -7032,9 +7062,12 @@ namespace Aurora
 			return keyTypes.FirstOrDefault(x => templateInfo.RawTemplates.ContainsKey(x));
 		}
 
-		public string LoadView(string partitionName, string controllerName, string viewName, Dictionary<string, string> tags)
+		public string LoadView(string partitionName, string controllerName, string viewName, bool renderFinal, Dictionary<string, string> tags)
 		{
 			string keyName = DetermineKeyName(partitionName, controllerName, viewName);
+
+			if(renderFinal && keyName.Contains("Fragments"))
+				throw new Exception(string.Format(MainConfig.CannotFindViewError, viewName));
 
 			if (!string.IsNullOrEmpty(keyName))
 			{
