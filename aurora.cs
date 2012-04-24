@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 19 April 2012
+// Updated On: 23 April 2012
 //
 // Contact Info:
 //
@@ -388,6 +388,30 @@
 //
 // NOTE: Bound parameters, Front parameters and Filter parameters will be 
 // discussed in more detail their respective sections.
+//
+// --------------
+// --- ROUTES ---
+// --------------
+//
+// Routes in Aurora make some assumptions and they are that URL's will conform
+// to the following structure:
+//
+//  http://yoursite.com/alias/param1/param2/param3/etc 
+//
+// Actions that do not specify a specific alias will have the following default
+// alias. 
+//
+//  /controller_name/action_name
+//
+// Routes can be added dynamically through code. This is very useful if you 
+// wanted to create a psuedo alias for usernames for example so that it would
+// make it easier to navigate to a user details page. 
+//
+// Both normal controllers and the front controller have the following methods
+// for adding and removing routes at runtime:
+//
+//  AddRoute
+//  RemoveRoute
 //
 // -------------------------
 // --- ACTION ATTRIBUTES ---
@@ -1306,10 +1330,11 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyProduct("Aurora")]
 [assembly: AssemblyCopyright("(GNU GPLv3) Copyleft © 2011-2012")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.99.59.0")]
+[assembly: AssemblyVersion("1.99.60.0")]
 #endregion
 
 #region TODO (DEFINITE CHANGES AND NICE TO HAVES)
+//TODO: FindRoute is in need of some refactoring love again!
 //TODO: Finish documentation rewrite
 //TODO: Create a Visual Studio template
 //TODO: Upload NuGet package to NuGet.org Package Gallery
@@ -1866,6 +1891,11 @@ namespace Aurora
 			return value;
 		}
 	}
+
+	[AttributeUsage(AttributeTargets.Property)]
+	internal class HiddenAttribute : Attribute
+	{
+	}
 	#endregion
 
 	#region HTTP REQUEST
@@ -2124,7 +2154,6 @@ namespace Aurora
 	#region ACTIVE DIRECTORY
 	//
 	// This provides some basic Active Directory lookup methods for user accounts. 
-	// It also 
 	//
 #if ACTIVEDIRECTORY
 	public class ActiveDirectoryUser
@@ -2863,7 +2892,7 @@ namespace Aurora
 
 	internal static class ApplicationInternals
 	{
-		private static List<Type> GetTypeList(HttpContextBase context, string sessionName, Type t)
+		internal static List<Type> GetTypeList(HttpContextBase context, string sessionName, Type t)
 		{
 			List<Type> types = null;
 
@@ -2948,7 +2977,7 @@ namespace Aurora
 			return GetTypeList(context, MainConfig.ModelsSessionName, typeof(Model));
 		}
 
-		private static IEnumerable<ActionInfo> GetAllActionInfos(HttpContextBase context)
+		internal static IEnumerable<ActionInfo> GetAllActionInfos(HttpContextBase context)
 		{
 			foreach (Type c in AllControllers(context))
 			{
@@ -3111,7 +3140,7 @@ namespace Aurora
 			return routes;
 		}
 
-		public static Type GetActionTransformClassType(ActionParamTransform apt)
+		public static Type GetActionTransformClassType(ActionParamTransformAttribute apt)
 		{
 			Type actionTransformClassType = (from assembly in AppDomain.CurrentDomain.GetAssemblies().Where(x => x.GetName().Name != "DotNetOpenAuth")
 																			 from type in assembly.GetTypes().Where(x => x.GetInterface(typeof(IActionParamTransform<,>).Name) != null && x.Name == apt.TransformName)
@@ -3125,11 +3154,19 @@ namespace Aurora
 		public static void RemoveRouteInfo(HttpContextBase context, string alias)
 		{
 			List<RouteInfo> routes = AllRouteInfos(context);
+			List<RouteInfo> routeInfos = routes.Where(x => x.Dynamic == true && x.Alias == alias).ToList();
 
-			RouteInfo routeInfo = routes.FirstOrDefault(x => x.Dynamic == true && x.Alias == alias);
-
-			if (routeInfo != null)
+			foreach(RouteInfo routeInfo in routeInfos)
+			{
 				routes.Remove(routeInfo);
+			}
+
+			if (routeInfos.Count > 0)
+			{
+				context.Application.Lock();
+				context.Application[MainConfig.RoutesSessionName] = routes;
+				context.Application.UnLock();
+			}
 		}
 
 		public static void AddRouteInfo(HttpContextBase context, string alias, Controller controller, MethodInfo action, string requestType, string frontParams)
@@ -3397,9 +3434,8 @@ namespace Aurora
 	#region MODEL BASE
 	public class Model
 	{
-		public bool IsValid { get; private set; }
-
-		public string Error { get; private set; }
+		[Hidden] public bool IsValid { get; private set; }
+		[Hidden] public string Error { get; private set; }
 
 		public string ToJSON()
 		{
@@ -3495,9 +3531,13 @@ namespace Aurora
 			instance.IsValid = isValid;
 		}
 
+		// This method returns the properties of a Model minus IsValid and Error. 
+		//
+		// The HTML Table helper uses this so it can build out a table based on the model properties.
 		internal static List<PropertyInfo> GetPropertiesWithExclusions<T>(Type t) where T : Model
 		{
-			return t.GetProperties().Where(x => x.Name != "IsValid" && x.Name != "Error").ToList();
+			return t.GetProperties().Where(x => 
+				x.GetCustomAttributes(false).FirstOrDefault(y => y.GetType() != typeof(HiddenAttribute))!=null).ToList();
 		}
 
 		internal static Type DetermineModelFromPostedForm(HttpContextBase context)
@@ -3579,11 +3619,25 @@ namespace Aurora
 
 				fc.Context = context;
 				fc.FrontController_OnInit();
-
+				
 				return fc;
 			}
 
 			return null;
+		}
+
+		public void AddRoute(string alias, string controllerName, string actionName, string requestType, string frontParams)
+		{
+			Controller controller = ApplicationInternals.AllControllerInstances(Context).FirstOrDefault(x => x.GetType().Name == controllerName);
+			MethodInfo actionMethod = GetType().GetMethods().FirstOrDefault(x => x.Name == actionName);
+
+			if (actionMethod != null && controller != null)
+			  ApplicationInternals.AddRouteInfo(Context, alias, controller, actionMethod, requestType, frontParams);
+		}
+
+		public void RemoveRoute(string alias)
+		{
+			ApplicationInternals.RemoveRouteInfo(Context, alias);
 		}
 
 		internal void RaiseEvent(RouteHandlerEventType type, string path, RouteInfo routeInfo)
@@ -3730,14 +3784,14 @@ namespace Aurora
 		#endregion
 
 		#region ADD / REMOVE ROUTE
-		public void AddRoute(string alias, string action, string requestType)
+		public void AddRoute(string alias, string actionName, string requestType)
 		{
-			AddRoute(alias, action, requestType, null);
+			AddRoute(alias, actionName, requestType, null);
 		}
 
-		public void AddRoute(string alias, string action, string requestType, string frontParams)
+		public void AddRoute(string alias, string actionName, string requestType, string frontParams)
 		{
-			MethodInfo actionMethod = GetType().GetMethods().FirstOrDefault(x => x.Name == action);
+			MethodInfo actionMethod = GetType().GetMethods().FirstOrDefault(x => x.Name == actionName);
 
 			if (actionMethod != null)
 				ApplicationInternals.AddRouteInfo(Context, alias, this, actionMethod, requestType, frontParams);
@@ -3947,12 +4001,15 @@ namespace Aurora
 	{
 		public static object[] ToObjectArray(string[] parms)
 		{
+			DateTime? dt = null;
+
 			if (parms != null)
 			{
 				object[] _parms = new object[parms.Length];
 
 				for (int i = 0; i < parms.Length; i++)
 				{
+					#region INT32 OR 64
 					if (parms[i].IsInt32())
 					{
 						_parms[i] = Convert.ToInt32(parms[i]);
@@ -3961,15 +4018,19 @@ namespace Aurora
 					{
 						_parms[i] = Convert.ToInt64(parms[i]);
 					}
+					#endregion
+					#region DOUBLE
 					else if (parms[i].IsDouble())
 					{
 						_parms[i] = Convert.ToDouble(parms[i]);
 					}
+					#endregion
+					#region BOOLEAN
 					else if (parms[i].ToLower() == "true" ||
 									parms[i].ToLower() == "false" ||
-									parms[i].ToLower() == "on" ||
-									parms[i].ToLower() == "off" ||
-									parms[i].ToLower() == "checked")
+									parms[i].ToLower() == "on" || // HTML checkbox value
+									parms[i].ToLower() == "off" || // HTML checkbox value
+									parms[i].ToLower() == "checked") // HTML checkbox value
 					{
 						if (parms[i].ToLower() == "on" || parms[i].ToLower() == "checked")
 							parms[i] = "true";
@@ -3978,8 +4039,17 @@ namespace Aurora
 
 						_parms[i] = Convert.ToBoolean(parms[i]);
 					}
+					#endregion
+					#region DATETIME
+					else if (parms[i].IsDate(out dt))
+					{
+						_parms[i] = dt.Value;
+					}
+					#endregion
+					#region DEFAULT
 					else
 						_parms[i] = parms[i];
+					#endregion
 				}
 
 				return _parms;
@@ -4043,11 +4113,19 @@ namespace Aurora
 			return JsonConvert.SerializeObject(t);
 		}
 
-		public static bool IsDate(this string s)
+		public static bool IsDate(this string s, out DateTime? dt)
 		{
 			DateTime x;
+			dt = null;
 
-			return DateTime.TryParse(s, out x);
+			if (DateTime.TryParse(s, out x))
+			{
+				dt = x;
+
+				return true;
+			}
+
+			return false;
 		}
 
 		public static bool IsLong(this string s)
@@ -4650,11 +4728,11 @@ namespace Aurora
 	}
 
 	[AttributeUsage(AttributeTargets.Parameter)]
-	public class ActionParamTransform : Attribute
+	public class ActionParamTransformAttribute : Attribute
 	{
 		internal string TransformName { get; set; }
 
-		public ActionParamTransform(string transformName)
+		public ActionParamTransformAttribute(string transformName)
 		{
 			TransformName = transformName;
 		}
@@ -4809,9 +4887,11 @@ namespace Aurora
 					}
 					else if (p.PropertyType == typeof(DateTime?))
 					{
-						DateTime? d = (context.Request.Form[p.Name].IsDate()) ? (DateTime?)DateTime.Parse(context.Request.Form[p.Name]) : null;
+						DateTime? dt = null;
+						
+						context.Request.Form[p.Name].IsDate(out dt);
 
-						p.SetValue(DataTypeInstance, d, null);
+						p.SetValue(DataTypeInstance, dt, null);
 					}
 					else if (p.PropertyType == typeof(List<HttpPostedFileBase>))
 					{
@@ -5016,7 +5096,7 @@ namespace Aurora
 			{
 				ParameterInfo pi = routeInfo.Action.GetParameters()[i];
 
-				ActionParamTransform apt = (ActionParamTransform)pi.GetCustomAttributes(typeof(ActionParamTransform), false).FirstOrDefault();
+				ActionParamTransformAttribute apt = (ActionParamTransformAttribute)pi.GetCustomAttributes(typeof(ActionParamTransformAttribute), false).FirstOrDefault();
 
 				if (apt != null)
 				{
@@ -5144,12 +5224,25 @@ namespace Aurora
 				if (filteredMethodParams != null && filteredMethodParams.Count() > 0)
 					methodParamTypes = methodParamTypes.Except(filteredMethodParams).ToArray();
 
-				var matches = methodParamTypes.Where(mp =>
-					actionParameterTypes.Where(ap =>
-						mp.GetInterfaces()
-								.Where(x => x.UnderlyingSystemType ==
-									ap.GetInterfaces().Where(y => y.UnderlyingSystemType == x.UnderlyingSystemType)
-										.FirstOrDefault()).FirstOrDefault() != null || mp == ap) != null);
+				//var matches =
+				//  methodParamTypes.Where(mp =>
+				//    actionParameterTypes.Where(ap =>
+				//      mp.GetInterfaces().Where(x => x.UnderlyingSystemType ==
+				//        ap.GetInterfaces().Where(y => y.UnderlyingSystemType == x.UnderlyingSystemType).FirstOrDefault())
+				//              .FirstOrDefault() != null || mp == ap) != null);
+
+				List<Type> matches = new List<Type>();
+				ParameterInfo[] methodParameterInfos = routeInfo.Action.GetParameters();
+
+				for (int x = 0; x < methodParamTypes.Length; x++)
+				{
+					if ((methodParamTypes[x].FullName == actionParameterTypes[x].FullName) ||
+							(actionParameterTypes[x].GetInterface(methodParamTypes[x].FullName) != null) ||
+							(methodParameterInfos[x].GetCustomAttributes(typeof(ActionParamTransformAttribute), false).FirstOrDefault() != null))
+					{
+						matches.Add(actionParameterTypes[x]);
+					}
+				}
 
 				if (matches.Count() == methodParamTypes.Count())
 				{

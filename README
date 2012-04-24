@@ -4,7 +4,7 @@ NOTE: See source code comments for usage.
 
 Frank Hale <frankhale@gmail.com>
 
-Date: 19 April 2012
+Date: 23 April 2012
 
 --------------------
 --- Feature List ---
@@ -36,6 +36,13 @@ Date: 19 April 2012
  
 Changelog:
 
+23 April 2012
+
+- Documentation updates
+- Still tweaking the FindRoute method in the route manager class
+- AddRoute and RemoveRoute methods were added to the front controller class.
+- Code cleanup
+
 19 April 2012
 
 - Wrote small section in the documentation about Partitioning.
@@ -46,11 +53,11 @@ Changelog:
 18 April 2012
 
 - Renamed the FragmentResult to PartialResult since it can render both fragments
-  and partials.
+  and partials
 - Added default error handling class and infrastructure in case one is not 
-  specified.
+  specified
 - Fix for routes with aliases with the same name and methods with the same name 
-  that only varied by parameter lists.
+  that only varied by parameter lists
 
 17 April 2012
 
