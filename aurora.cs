@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 23 April 2012
+// Updated On: 24 April 2012
 //
 // Contact Info:
 //
@@ -141,6 +141,7 @@
 //	System.Xml.dll
 //	Newtonsoft.Json.NET35 - http://json.codeplex.com/
 //	HtmlAgilityPack - http://htmlagilitypack.codeplex.com/
+//  MarkdownSharp - http://code.google.com/p/markdownsharp/
 //
 // There are some compile flags that you can annotate if you'd like support for
 // Active Directory or OpenID. 
@@ -1311,6 +1312,7 @@ using System.Web.Configuration;
 using System.Web.SessionState;
 using HtmlAgilityPack;
 using Newtonsoft.Json;
+using MarkdownSharp;
 
 #if ACTIVEDIRECTORY
 using System.DirectoryServices;
@@ -1330,7 +1332,7 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyProduct("Aurora")]
 [assembly: AssemblyCopyright("(GNU GPLv3) Copyleft © 2011-2012")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.99.60.0")]
+[assembly: AssemblyVersion("1.99.61.0")]
 #endregion
 
 #region TODO (DEFINITE CHANGES AND NICE TO HAVES)
@@ -1674,6 +1676,13 @@ namespace Aurora
 		public static string ADSearchRoot = (MainConfig.WebConfig == null) ? null : WebConfig.ADSearchRoot;
 		public static string[][] ActiveDirectorySearchInfos;
 #endif
+#if OPENID		
+		public static string OpenIDInvalidIdentifierError = "The specified login identifier is invalid";
+		public static string OpenIDLoginCancelledByProviderError = "Login was cancelled at the provider";
+		public static string OpenIDLoginFailedError = "Login failed using the provided OpenID identifier";
+		public static string OpenIDProviderClaimsResponseError = "The open auth provider did not return a claims response with a valid email address";
+		public static string OpenIdProviderUriMismatchError = "The request OpenID provider Uri does not match the response Uri";
+#endif
 		public static Regex PathTokenRE = new Regex(@"/(?<token>[a-zA-Z0-9]+)");
 		public static Regex PathStaticFileRE = (WebConfig == null) ? new Regex(@"\.(js|css|png|jpg|gif|svg|ico|txt)$") : new Regex(WebConfig.StaticFileExtWhiteList);
 		public static Dictionary<string, string> MimeTypes;
@@ -1713,11 +1722,8 @@ namespace Aurora
 		public static string PublicResourcesFolderName = "Resources";
 		public static string FragmentsFolderName = "Fragments";
 		public static string ViewRoot = Path.DirectorySeparatorChar + "Views";
-		public static string OpenIDInvalidIdentifierError = "The specified login identifier is invalid";
-		public static string OpenIDLoginCancelledByProviderError = "Login was cancelled at the provider";
-		public static string OpenIDLoginFailedError = "Login failed using the provided OpenID identifier";
-		public static string OpenIDProviderClaimsResponseError = "The open auth provider did not return a claims response with a valid email address";
-		public static string OpenIdProviderUriMismatchError = "The request OpenID provider Uri does not match the response Uri";
+		public static string ViewRootDoesNotExistError = "The view root '{0}' does not exist.";
+		public static string CannotFindViewError = "Cannot find view {0}";
 		public static string EncryptionKeyNotSpecifiedError = "The encryption key has not been specified in the web.config";
 		public static string PostedFormActionIncorrectNumberOfParametersError = "A post action must have at least one parameter that is the model type of the form that is being posted";
 		public static string ActiveDirectorySearchCriteriaNullOrEmpty = "The search criteria specified in the Active Directory lookup cannot be null or empty";
@@ -1740,7 +1746,6 @@ namespace Aurora
 		public static string GenericErrorMessage = "An error occurred trying to process this request";
 		public static string RouteManagerNotSupportedException = "Route manager not supported";
 		public static string DefaultRoute = (WebConfig == null) ? "/Home/Index" : WebConfig.DefaultRoute;
-		public static string CannotFindViewError = "Cannot find view {0}";
 		public static string ModelValidationErrorRequiredField = "Model Validation Error: {0} is a required field";
 		public static string ModelValidationErrorRequiredLength = "Model Validation Error: {0} has a required length that was not met";
 		public static string ModelValidationErrorRegularExpression = "Model Validation Error: {0} did not pass regular expression validation";
@@ -3156,7 +3161,7 @@ namespace Aurora
 			List<RouteInfo> routes = AllRouteInfos(context);
 			List<RouteInfo> routeInfos = routes.Where(x => x.Dynamic == true && x.Alias == alias).ToList();
 
-			foreach(RouteInfo routeInfo in routeInfos)
+			foreach (RouteInfo routeInfo in routeInfos)
 			{
 				routes.Remove(routeInfo);
 			}
@@ -3434,8 +3439,10 @@ namespace Aurora
 	#region MODEL BASE
 	public class Model
 	{
-		[Hidden] public bool IsValid { get; private set; }
-		[Hidden] public string Error { get; private set; }
+		[Hidden]
+		public bool IsValid { get; private set; }
+		[Hidden]
+		public string Error { get; private set; }
 
 		public string ToJSON()
 		{
@@ -3531,13 +3538,14 @@ namespace Aurora
 			instance.IsValid = isValid;
 		}
 
-		// This method returns the properties of a Model minus IsValid and Error. 
+		// This method returns the properties of a Model minus hidden properties. 
 		//
 		// The HTML Table helper uses this so it can build out a table based on the model properties.
 		internal static List<PropertyInfo> GetPropertiesWithExclusions<T>(Type t) where T : Model
 		{
-			return t.GetProperties().Where(x => 
-				x.GetCustomAttributes(false).FirstOrDefault(y => y.GetType() != typeof(HiddenAttribute))!=null).ToList();
+			return t.GetProperties()
+							.Where(x => x.GetCustomAttributes(false)
+														.FirstOrDefault(y => y is HiddenAttribute)==null).ToList();
 		}
 
 		internal static Type DetermineModelFromPostedForm(HttpContextBase context)
@@ -3619,7 +3627,7 @@ namespace Aurora
 
 				fc.Context = context;
 				fc.FrontController_OnInit();
-				
+
 				return fc;
 			}
 
@@ -3632,7 +3640,7 @@ namespace Aurora
 			MethodInfo actionMethod = GetType().GetMethods().FirstOrDefault(x => x.Name == actionName);
 
 			if (actionMethod != null && controller != null)
-			  ApplicationInternals.AddRouteInfo(Context, alias, controller, actionMethod, requestType, frontParams);
+				ApplicationInternals.AddRouteInfo(Context, alias, controller, actionMethod, requestType, frontParams);
 		}
 
 		public void RemoveRoute(string alias)
@@ -4888,7 +4896,7 @@ namespace Aurora
 					else if (p.PropertyType == typeof(DateTime?))
 					{
 						DateTime? dt = null;
-						
+
 						context.Request.Form[p.Name].IsDate(out dt);
 
 						p.SetValue(DataTypeInstance, dt, null);
@@ -6717,7 +6725,7 @@ namespace Aurora
 	public interface IViewEngine
 	{
 		void Refresh();
-		
+
 		string LoadView(string partitionName, string controllerName, string viewName, bool renderFinal, Dictionary<string, string> tags);
 	}
 
@@ -6821,14 +6829,17 @@ namespace Aurora
 	{
 		private readonly IViewEngineHelper viewEngineHelper;
 		private string viewRoot;
+		private static Markdown Markdown = new Markdown();
 		private static Regex directiveTokenRE = new Regex(@"(\%\%(?<directive>[a-zA-Z0-9]+)=(?<value>(\S|\.)+)\%\%)");
 		private static Regex headBlockRE = new Regex(@"\[\[(?<block>[\s\w\p{P}\p{S}]+)\]\]");
-		private static Regex commentBlockRE = new Regex(@"\@\@(?<block>[\s\S]+?)\@\@");
-		private static string tagFormatPattern = @"({{({{|\|){0}(\||}})}})";
-		private static string tagPattern = @"{({|\|)([\w]+)(}|\|)}";
+		private static Regex commentBlockRE = new Regex(@"\@\@(?<block>[\s\w\p{P}\p{S}]+?)\@\@");
+		private static Regex tagRE = new Regex(@"{({|\||\!)([\w]+)(}|\!|\|)}");
+		private static string tagFormatPattern = @"({{({{|\||\!){0}(\||\!|}})}})";
 		private static string cssIncludeTag = @"<link href=""{0}"" rel=""stylesheet"" type=""text/css"" />";
 		private static string jsIncludeTag = @"<script src=""{0}"" type=""text/javascript""></script>";
-		private static string tagEncodingHint = "|";
+		private static string tagEncodingHint = "{|";
+		private static string markdownEncodingHint = "{!";
+		private static string unencodedTagHint = "{{";
 		private static string antiForgeryToken = string.Format("%%{0}%%", MainConfig.AntiForgeryTokenName);
 		private static string jsonAntiForgeryToken = string.Format("%%{0}%%", MainConfig.JsonAntiForgeryTokenName);
 		private static string viewDirective = "%%View%%";
@@ -6843,7 +6854,7 @@ namespace Aurora
 			partitionViewRoots = viewEngineHelper.GetPartitionViewRoots().ToList();
 
 			if (!Directory.Exists(viewRoot))
-				throw new Exception(string.Format("The view root '{0}' does not exist.", viewRoot));
+				throw new Exception(string.Format(MainConfig.ViewRootDoesNotExistError, viewRoot));
 
 			Refresh();
 		}
@@ -7068,29 +7079,35 @@ namespace Aurora
 					tagSB.Length = 0;
 					tagSB.Insert(0, string.Format(tagFormatPattern, tag.Key));
 
-					Regex nonHTMLEncodedTagRE = new Regex(tagSB.ToString());
+					Regex tempTagRE = new Regex(tagSB.ToString());
 
-					if (nonHTMLEncodedTagRE.IsMatch(compiledView.ToString()))
+					MatchCollection tagMatches = tempTagRE.Matches(compiledView.ToString());
+					
+					if (tagMatches != null)
 					{
-						MatchCollection nonEncodedMatches = nonHTMLEncodedTagRE.Matches(compiledView.ToString());
-
-						foreach (Match m in nonEncodedMatches)
+						foreach (Match m in tagMatches)
 						{
-							if (!m.Value.Contains(tagEncodingHint))
+							if (m.Value.StartsWith(unencodedTagHint))
+							{
 								compiledView.Replace(m.Value, tag.Value.Trim());
-							else
+							}
+							else if (m.Value.StartsWith(tagEncodingHint))
+							{
 								compiledView.Replace(m.Value, HttpUtility.HtmlEncode(tag.Value.Trim()));
+							}
+							else if (m.Value.StartsWith(markdownEncodingHint))
+							{
+								compiledView.Replace(m.Value, Markdown.Transform(tag.Value.Trim()));
+							}
 						}
 					}
 				}
 
-				Regex leftOverTags = new Regex(tagPattern);
+				MatchCollection leftoverMatches = tagRE.Matches(compiledView.ToString());
 
-				if (leftOverTags.IsMatch(compiledView.ToString()))
+				if (leftoverMatches != null)
 				{
-					MatchCollection m = leftOverTags.Matches(compiledView.ToString());
-
-					foreach (Match match in m)
+					foreach (Match match in leftoverMatches)
 					{
 						compiledView.Replace(match.Value, string.Empty);
 					}
@@ -7159,7 +7176,7 @@ namespace Aurora
 		{
 			string keyName = DetermineKeyName(partitionName, controllerName, viewName);
 
-			if(renderFinal && keyName.Contains("Fragments"))
+			if (renderFinal && keyName.Contains("Fragments"))
 				throw new Exception(string.Format(MainConfig.CannotFindViewError, viewName));
 
 			if (!string.IsNullOrEmpty(keyName))
@@ -7212,7 +7229,7 @@ namespace Aurora
 			HttpContext context = HttpContext.Current;
 
 			Exception ex = context.Server.GetLastError();
-
+			
 			CustomError customError = ApplicationInternals.GetCustomError(new HttpContextWrapper(context));
 
 			if (customError != null)

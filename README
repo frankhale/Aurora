@@ -4,7 +4,7 @@ NOTE: See source code comments for usage.
 
 Frank Hale <frankhale@gmail.com>
 
-Date: 23 April 2012
+Date: 24 April 2012
 
 --------------------
 --- Feature List ---
@@ -35,6 +35,13 @@ Date: 23 April 2012
 - Bundling/Minifying of Javascript and CSS.
  
 Changelog:
+
+24 April 2012
+
+- Added new tag format to the view engine so you can transform your text using
+  markdown. The tag is {!foo!} where foo is your tag identifier. This will be
+  configurable via a build flag in the future.
+- Code cleanup.
 
 23 April 2012
 
