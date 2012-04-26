@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 24 April 2012
+// Updated On: 25 April 2012
 //
 // Contact Info:
 //
@@ -1332,10 +1332,10 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyProduct("Aurora")]
 [assembly: AssemblyCopyright("(GNU GPLv3) Copyleft © 2011-2012")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.99.61.0")]
+[assembly: AssemblyVersion("1.99.62.0")]
 #endregion
 
-#region TODO (DEFINITE CHANGES AND NICE TO HAVES)
+#region TODO 
 //TODO: FindRoute is in need of some refactoring love again!
 //TODO: Finish documentation rewrite
 //TODO: Create a Visual Studio template
@@ -2927,7 +2927,7 @@ namespace Aurora
 						errorMessage = errorBuilder.ToString();
 					}
 
-					CustomError customError = GetCustomError(context);
+					CustomError customError = GetCustomError(context, false);
 
 					if (customError != null)
 						customError.Error(errorMessage, rtle);
@@ -3228,24 +3228,23 @@ namespace Aurora
 			return null;
 		}
 
-		public static CustomError GetCustomError(HttpContextBase context)
+		public static CustomError GetCustomError(HttpContextBase context, bool useDefaultHandler)
 		{
-			List<Type> customErrors = GetTypeList(context, MainConfig.CustomErrorSessionName, typeof(CustomError)).Where(x => x.Name != "DefaultCustomError").ToList();
+			Type errorType = typeof(DefaultCustomError);
 
-			Type errorType = null;
+			if (!useDefaultHandler)
+			{
+				List<Type> customErrors = GetTypeList(context, MainConfig.CustomErrorSessionName, typeof(CustomError)).Where(x => x.Name != "DefaultCustomError").ToList();
 
-			if (customErrors.Count > 1)
-			{
-				throw new Exception(MainConfig.OnlyOneCustomErrorClassPerApplicationError);
-			}
+				if (customErrors.Count > 1)
+				{
+					throw new Exception(MainConfig.OnlyOneCustomErrorClassPerApplicationError);
+				}
 
-			if (customErrors.Count != 0)
-			{
-				errorType = customErrors[0];
-			}
-			else
-			{
-				errorType = typeof(DefaultCustomError);
+				if (customErrors.Count != 0)
+				{
+					errorType = customErrors[0];
+				}
 			}
 
 			return CustomError.CreateInstance(errorType, new AuroraViewEngine(context.Server.MapPath(MainConfig.ViewRoot), new ViewEngineHelper(context)), context);
@@ -3545,7 +3544,7 @@ namespace Aurora
 		{
 			return t.GetProperties()
 							.Where(x => x.GetCustomAttributes(false)
-														.FirstOrDefault(y => y is HiddenAttribute)==null).ToList();
+														.FirstOrDefault(y => y is HiddenAttribute) == null).ToList();
 		}
 
 		internal static Type DetermineModelFromPostedForm(HttpContextBase context)
@@ -3760,7 +3759,8 @@ namespace Aurora
 			Form = (context.Request.Form == null) ? new NameValueCollection() : new NameValueCollection(context.Request.Form);
 			ClearViewTags();
 
-			ViewEngine.Refresh();
+			// I cannot remember why I had this here!
+			//ViewEngine.Refresh();
 
 			if (Form.AllKeys.Contains(MainConfig.AntiForgeryTokenName))
 				Form.Remove(MainConfig.AntiForgeryTokenName);
@@ -5581,11 +5581,10 @@ namespace Aurora
 			{
 				if (!(e is ThreadAbortException))
 				{
-					if (MainConfig.CustomErrorsSection.Mode != CustomErrorsMode.Off &&
-							MainConfig.CustomErrorsSection.Mode != CustomErrorsMode.RemoteOnly)
+					if (MainConfig.CustomErrorsSection.Mode == CustomErrorsMode.On)
 					{
 						// Check to see if there is a derived CustomError class otherwise look to see if there is a cusom error method on a controller
-						CustomError customError = ApplicationInternals.GetCustomError(ctx);
+						CustomError customError = ApplicationInternals.GetCustomError(ctx, false);
 
 						if (customError == null)
 						{
@@ -5597,11 +5596,17 @@ namespace Aurora
 						{
 							// The custom error class is for all controllers and all static content that may produce an error.
 							customError.Error(e.Message, e).Render();
-							ctx.Server.ClearError();
 						}
+					}
+					else
+					{
+						CustomError customError = ApplicationInternals.GetCustomError(ctx, true);
+						customError.Error(e.Message, e).Render();
 					}
 				}
 			}
+
+			ctx.Server.ClearError();
 		}
 	}
 	#endregion
@@ -5724,21 +5729,29 @@ namespace Aurora
 
 			string sharedViewRoot = string.Format(@"{0}\{1}", Context.Server.MapPath(MainConfig.ViewRoot), MainConfig.SharedFolderName);
 			string errorViewPath = string.Format(@"{0}\Error.html", sharedViewRoot);
-			string stackTraceView = @"<hr />The problem occurred at:<br /><br /><pre><span>{0}</span></pre>";
+#if DEBUG
+			string stackTraceView = @"<br/><br/>The problem occurred at:<br /><br /><pre><span>{0}</span></pre>";
+#endif
 
 			if (!File.Exists(errorViewPath))
 			{
 				string view = @"<!DOCTYPE html PUBLIC ""-//W3C//DTD XHTML 1.0 Transitional//EN"" ""http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd""><html xmlns=""http://www.w3.org/1999/xhtml""><head><title>Error</title></head><body>{0}{1}</body></html>";
 
+#if DEBUG
 				stackTraceView = string.Format(stackTraceView, stackTrace);
 				view = string.Format(view, error, stackTraceView);
-
+#else
+				view = string.Format(view, error);
+#endif
+				
 				return View(view);
 			}
 			else
 			{
 				ViewTags["error"] = error;
+#if DEBUG
 				ViewTags["stacktrace"] = string.Format(stackTraceView, stackTrace);
+#endif
 
 				return View();
 			}
@@ -6421,8 +6434,8 @@ namespace Aurora
 			tags = vTags;
 			view = string.Empty;
 
-			if (MainConfig.DisableStaticFileCaching)
-				viewEngine.Refresh();
+			//if (MainConfig.DisableStaticFileCaching)
+			//	viewEngine.Refresh();
 		}
 
 		internal ViewResult(HttpContextBase ctx, string view)
@@ -6522,8 +6535,8 @@ namespace Aurora
 			fragmentName = fName;
 			tags = vTags;
 
-			if (MainConfig.DisableStaticFileCaching)
-				viewEngine.Refresh();
+			//if (MainConfig.DisableStaticFileCaching)
+			//	viewEngine.Refresh();
 		}
 
 		public void Render()
@@ -6724,7 +6737,10 @@ namespace Aurora
 	#region VIEW ENGINE
 	public interface IViewEngine
 	{
-		void Refresh();
+		// This method is problematic to be able to extend the capabilities of Aurora with other view engines.
+		// I am relying on functionality in the various ViewResults that depend on certain behaviors in the default
+		// view engine. This is bad and needs to be fixed!
+		//void Refresh();
 
 		string LoadView(string partitionName, string controllerName, string viewName, bool renderFinal, Dictionary<string, string> tags);
 	}
@@ -6863,8 +6879,9 @@ namespace Aurora
 		// in debug mode. If Aurora is in debug mode then views are reloaded with each
 		// request. I probably should only be loading the views that need to be loaded 
 		// per the request but I opted to load all views up front so they could be 
-		// cached.
-		public void Refresh()
+		// cached. So preference to performance is given to release mode rathern than
+		// debug.
+		private void Refresh()
 		{
 			if (templateInfo == null || MainConfig.DisableStaticFileCaching)
 			{
@@ -7082,7 +7099,7 @@ namespace Aurora
 					Regex tempTagRE = new Regex(tagSB.ToString());
 
 					MatchCollection tagMatches = tempTagRE.Matches(compiledView.ToString());
-					
+
 					if (tagMatches != null)
 					{
 						foreach (Match m in tagMatches)
@@ -7174,6 +7191,9 @@ namespace Aurora
 
 		public string LoadView(string partitionName, string controllerName, string viewName, bool renderFinal, Dictionary<string, string> tags)
 		{
+			if (MainConfig.DisableStaticFileCaching)
+				Refresh();
+
 			string keyName = DetermineKeyName(partitionName, controllerName, viewName);
 
 			if (renderFinal && keyName.Contains("Fragments"))
@@ -7227,22 +7247,12 @@ namespace Aurora
 		private void app_Error(object sender, EventArgs e)
 		{
 			HttpContext context = HttpContext.Current;
-
 			Exception ex = context.Server.GetLastError();
+			CustomError customError = ApplicationInternals.GetCustomError(new HttpContextWrapper(context), false);
 			
-			CustomError customError = ApplicationInternals.GetCustomError(new HttpContextWrapper(context));
-
-			if (customError != null)
-			{
-				if (MainConfig.CustomErrorsSection.Mode != CustomErrorsMode.Off &&
-					 MainConfig.CustomErrorsSection.Mode != CustomErrorsMode.RemoteOnly)
-					ex = new Exception(MainConfig.GenericErrorMessage);
-
-				customError.Error(null, ex).Render();
-				context.Server.ClearError();
-			}
+			customError.Error(null, ex).Render();
+			context.Server.ClearError();
 		}
-
 	}
 	#endregion
 }
