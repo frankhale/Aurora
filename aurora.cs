@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 25 April 2012
+// Updated On: 26 April 2012
 //
 // Contact Info:
 //
@@ -1332,10 +1332,10 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyProduct("Aurora")]
 [assembly: AssemblyCopyright("(GNU GPLv3) Copyleft © 2011-2012")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.99.62.0")]
+[assembly: AssemblyVersion("1.99.63.0")]
 #endregion
 
-#region TODO 
+#region TODO
 //TODO: FindRoute is in need of some refactoring love again!
 //TODO: Finish documentation rewrite
 //TODO: Create a Visual Studio template
@@ -1754,11 +1754,14 @@ namespace Aurora
 	#endregion
 
 	#region AURORA
-	//
-	// Any miscellaneous properties and methods that can be used by applications will be in here.
-	//
+	/// <summary>
+	/// Any miscellaneous properties and methods that can be used by applications will be in here.
+	/// </summary>
 	public static class Aurora
 	{
+		/// <summary>
+		/// Returns true if either Aurora or the web application is in debug mode, false otherwise.
+		/// </summary>
 		public static bool InDebugMode
 		{
 			get
@@ -1770,6 +1773,10 @@ namespace Aurora
 	#endregion
 
 	#region ACTION FILTER ATTRIBUTE
+	/// <summary>
+	/// This empty interface is used to identify a filter result that will be passed
+	/// to an action after the filter is invoked.
+	/// </summary>
 	public interface IActionFilterResult { }
 
 	[AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
@@ -2464,9 +2471,9 @@ namespace Aurora
 				}
 			}
 
-			if (valid) 
-			{ 
-				return cacid; 
+			if (valid)
+			{
+				return cacid;
 			}
 			else
 			{
@@ -2487,7 +2494,7 @@ namespace Aurora
 			CACID = args.CACID;
 #else
 			X509Certificate2 x509fromASPNET;
-			
+
 			CACID = GetCACIDFromCN(ctx, out x509fromASPNET);
 
 			User = null;
@@ -2499,7 +2506,7 @@ namespace Aurora
 				chain.ChainPolicy.RevocationFlag = X509RevocationFlag.EntireChain;
 				chain.ChainPolicy.RevocationMode = X509RevocationMode.Online;
 				chain.ChainPolicy.UrlRetrievalTimeout = new TimeSpan(0, 0, 30);
-				
+
 				if (chain.Build(x509fromASPNET))
 				{
 					ActiveDirectoryUser user = null;
@@ -2886,17 +2893,25 @@ namespace Aurora
 	#endregion
 
 	#region APPLICATION INTERNALS
-	internal class ActionInfo
-	{
-		public string ControllerName { get; set; }
-		public Type ControllerType { get; set; }
-		public string ActionName { get; set; }
-		public MethodInfo ActionMethod { get; set; }
-		public Attribute Attribute { get; set; }
-	}
-
+	/// <summary>
+	/// The purpose of this class is to do all the reflection and plumbing needed to obtain information
+	/// about the application that uses this framework.
+	/// </summary>
 	internal static class ApplicationInternals
 	{
+		/// <summary>
+		/// This is a representation of action related information. This is used as a helper for
+		/// various methods below to assist in building up the RouteInfo list.
+		/// </summary>
+		internal class ActionInfo
+		{
+			public string ControllerName { get; set; }
+			public Type ControllerType { get; set; }
+			public string ActionName { get; set; }
+			public MethodInfo ActionMethod { get; set; }
+			public Attribute Attribute { get; set; }
+		}
+
 		internal static List<Type> GetTypeList(HttpContextBase context, string sessionName, Type t)
 		{
 			List<Type> types = null;
@@ -3438,9 +3453,9 @@ namespace Aurora
 	#region MODEL BASE
 	public class Model
 	{
-		[Hidden]
+		[Hidden] // Used by the HTMLTable helper so that these fields aren't wrapped up in a table constructed from a model.
 		public bool IsValid { get; private set; }
-		[Hidden]
+		[Hidden] // Used by the HTMLTable helper so that these fields aren't wrapped up in a table constructed from a model.
 		public string Error { get; private set; }
 
 		public string ToJSON()
@@ -3490,15 +3505,12 @@ namespace Aurora
 				{
 					if (requiredLengthAttribute != null)
 					{
-						if (value.GetType() == typeof(string))
+						if (((string)value).Length >= requiredLengthAttribute.Length)
+							isValid = true;
+						else
 						{
-							if (((string)value).Length >= requiredLengthAttribute.Length)
-								isValid = true;
-							else
-							{
-								isValid = false;
-								Error = string.Format(MainConfig.ModelValidationErrorRequiredLength, pi.Name);
-							}
+							isValid = false;
+							Error = string.Format(MainConfig.ModelValidationErrorRequiredLength, pi.Name);
 						}
 					}
 
@@ -3719,7 +3731,6 @@ namespace Aurora
 
 		internal void RaiseEvent(RouteHandlerEventType type, string path, RouteInfo routeInfo)
 		{
-			//  PreOrPostActionEvent(this, new ActionHandlerEventArgs(type, routeInfo));
 			RouteHandlerEventArgs args = new RouteHandlerEventArgs(path, routeInfo);
 
 			switch (type)
@@ -3758,9 +3769,6 @@ namespace Aurora
 			QueryString = (context.Request.QueryString == null) ? new NameValueCollection() : new NameValueCollection(context.Request.QueryString);
 			Form = (context.Request.Form == null) ? new NameValueCollection() : new NameValueCollection(context.Request.Form);
 			ClearViewTags();
-
-			// I cannot remember why I had this here!
-			//ViewEngine.Refresh();
 
 			if (Form.AllKeys.Contains(MainConfig.AntiForgeryTokenName))
 				Form.Remove(MainConfig.AntiForgeryTokenName);
@@ -4004,10 +4012,14 @@ namespace Aurora
 	}
 	#endregion
 
-	#region STRING CONVERSION
-	internal static class StringTypeConversion
+	#region EXTENSION & MISCELLANEOUS METHODS
+	/// <summary>
+	/// Various extension methods are contained in here. They are used to perform data
+	/// type casting, retrieve attributes and other simple stuff.
+	/// </summary>
+	public static class ExtensionMethods
 	{
-		public static object[] ToObjectArray(string[] parms)
+		public static object[] ToObjectArray(this string[] parms)
 		{
 			DateTime? dt = null;
 
@@ -4065,12 +4077,7 @@ namespace Aurora
 
 			return null;
 		}
-	}
-	#endregion
 
-	#region EXTENSION & MISCELLANEOUS METHODS
-	public static class ExtensionMethods
-	{
 		// This method is based on the following example at StackOverflow:
 		//
 		// http://stackoverflow.com/questions/735350/how-to-get-a-users-client-ip-address-in-asp-net
@@ -4256,16 +4263,21 @@ namespace Aurora
 	#endregion
 
 	#region BUNDLE MANAGER
-	internal class BundleInfo
-	{
-		public FileInfo FileInfo { get; set; }
-		public string RelativePath { get; set; }
-		public string BundleName { get; set; }
-	}
-
-	// The Bundle class takes Javascript or CSS files and combines and minifies them.
+	/// <summary>
+	/// The Bundle class takes Javascript or CSS files and combines and minifies them.
+	/// The minification uses a ported copy of JSMin to minify the javascript and css
+	/// files. No variable/function shortening is performed. Comments are removed and
+	/// new lines are removed. 
+	/// </summary>
 	public class BundleManager
 	{
+		internal class BundleInfo
+		{
+			public FileInfo FileInfo { get; set; }
+			public string RelativePath { get; set; }
+			public string BundleName { get; set; }
+		}
+
 		private static string[] allowedExts = { ".js", ".css" };
 
 		private Dictionary<string, string> bundles;
@@ -4830,7 +4842,7 @@ namespace Aurora
 		public List<object> Bindings { get; internal set; }
 		public string RequestType { get; internal set; }
 		public string Alias { get; internal set; }
-		public Dictionary<string, string> Payload { get; set; }
+		public Dictionary<string, string> Payload { get; internal set; }
 
 		internal Type ControllerType { get; set; }
 		internal Controller ControllerInstance { get; set; }
@@ -4991,7 +5003,8 @@ namespace Aurora
 			urlStringParams = path.Replace(alias, string.Empty).Split('/').Where(x => !string.IsNullOrEmpty(x)).Select(x => HttpUtility.UrlEncode(x)).ToArray();
 
 			if (urlStringParams != null)
-				return StringTypeConversion.ToObjectArray(urlStringParams);
+				return urlStringParams.ToObjectArray();
+				//return StringTypeConversion.ToObjectArray(urlStringParams);
 
 			return new object[] { };
 		}
@@ -5030,7 +5043,7 @@ namespace Aurora
 							formValues[i] = form.Get(i);
 						}
 
-						return StringTypeConversion.ToObjectArray(formValues);
+						//return StringTypeConversion.ToObjectArray(formValues);
 					}
 				}
 			}
@@ -5743,7 +5756,7 @@ namespace Aurora
 #else
 				view = string.Format(view, error);
 #endif
-				
+
 				return View(view);
 			}
 			else
@@ -6433,9 +6446,6 @@ namespace Aurora
 			viewName = vName;
 			tags = vTags;
 			view = string.Empty;
-
-			//if (MainConfig.DisableStaticFileCaching)
-			//	viewEngine.Refresh();
 		}
 
 		internal ViewResult(HttpContextBase ctx, string view)
@@ -6534,9 +6544,6 @@ namespace Aurora
 			controllerName = cName;
 			fragmentName = fName;
 			tags = vTags;
-
-			//if (MainConfig.DisableStaticFileCaching)
-			//	viewEngine.Refresh();
 		}
 
 		public void Render()
@@ -6737,11 +6744,6 @@ namespace Aurora
 	#region VIEW ENGINE
 	public interface IViewEngine
 	{
-		// This method is problematic to be able to extend the capabilities of Aurora with other view engines.
-		// I am relying on functionality in the various ViewResults that depend on certain behaviors in the default
-		// view engine. This is bad and needs to be fixed!
-		//void Refresh();
-
 		string LoadView(string partitionName, string controllerName, string viewName, bool renderFinal, Dictionary<string, string> tags);
 	}
 
@@ -6836,11 +6838,13 @@ namespace Aurora
 		}
 	}
 
-	//
-	// The overall idea of this view engine is to keep it all simple. The views
-	// are clean (no code in them) and the special directives are few and far 
-	// between so that the HTML is not overwhelmed with view specific context.
-	//
+	/// <summary>
+	/// The overall idea of this view engine is to keep it all simple. The views are 
+	/// clean (no C# code in them) and the special directives are few and far between 
+	/// so that the HTML is not overwhelmed with view specific context. There are a 
+	/// limited set of directives and dynamic data is replaced by tags that map to the
+	/// controllers ViewTags dictionary.
+	/// </summary>
 	internal class AuroraViewEngine : IViewEngine
 	{
 		private readonly IViewEngineHelper viewEngineHelper;
@@ -7189,6 +7193,15 @@ namespace Aurora
 			return keyTypes.FirstOrDefault(x => templateInfo.RawTemplates.ContainsKey(x));
 		}
 
+		/// <summary>
+		/// Loads, compiles and then returns the view
+		/// </summary>
+		/// <param name="partitionName">The partition name</param>
+		/// <param name="controllerName">The controller name</param>
+		/// <param name="viewName">The view name</param>
+		/// <param name="renderFinal">Determines if this is a partial view or a full view</param>
+		/// <param name="tags">The tags dictionary that will be used to replace tags in the view with dynamic data</param>
+		/// <returns>The compiled view</returns>
 		public string LoadView(string partitionName, string controllerName, string viewName, bool renderFinal, Dictionary<string, string> tags)
 		{
 			if (MainConfig.DisableStaticFileCaching)
@@ -7249,7 +7262,7 @@ namespace Aurora
 			HttpContext context = HttpContext.Current;
 			Exception ex = context.Server.GetLastError();
 			CustomError customError = ApplicationInternals.GetCustomError(new HttpContextWrapper(context), false);
-			
+
 			customError.Error(null, ex).Render();
 			context.Server.ClearError();
 		}
