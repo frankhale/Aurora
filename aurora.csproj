@@ -30,15 +30,17 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="HtmlAgilityPack">
-      <HintPath>lib\20\HtmlAgilityPack.dll</HintPath>
-    </Reference>
     <Reference Include="Newtonsoft.Json">
-      <HintPath>lib\20\Newtonsoft.Json.dll</HintPath>
-	  <Private>true</Private>
+      <HintPath>lib\40\Newtonsoft.Json.dll</HintPath>
+    </Reference>
+	<Reference Include="HtmlAgilityPack">
+      <HintPath>lib\40\HtmlAgilityPack.dll</HintPath>
+    </Reference>
+    <Reference Include="MarkdownSharp">
+      <HintPath>lib\40\MarkdownSharp.dll</HintPath>
     </Reference>
 	<Reference Include="DotNetOpenAuth">
-      <HintPath>lib\20\DotNetOpenAuth.dll</HintPath>
+      <HintPath>lib\40\DotNetOpenAuth.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.configuration" />

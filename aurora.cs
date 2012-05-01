@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 26 April 2012
+// Updated On: 30 April 2012
 //
 // Contact Info:
 //
@@ -115,7 +115,7 @@
 //
 #endregion
 
-#region DOCUMENTATION (NEW)
+#region DOCUMENTATION
 // ----------------
 // --- Building ---
 // ----------------
@@ -1332,10 +1332,10 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyProduct("Aurora")]
 [assembly: AssemblyCopyright("(GNU GPLv3) Copyleft © 2011-2012")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.99.63.0")]
+[assembly: AssemblyVersion("1.99.64.0")]
 #endregion
 
-#region TODO
+#region TODO (MAYBE)
 //TODO: FindRoute is in need of some refactoring love again!
 //TODO: Finish documentation rewrite
 //TODO: Create a Visual Studio template
@@ -1348,12 +1348,7 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 //TODO: Look at the (in)flexibility of the hooks into the view engine. It'd be nice to be able to support Razor or other view engines but I may have gotten a little too tightly coupled over the last several months.
 //TODO: If we are adding bound parameters during the OnInit() method execution then we should have a method overload that infers the name of the current controller.
 //TODO: We shouldn't need to new up the ActionBinder to add new bindings. Let's put an instance in the controller base class.
-#endregion
-
-#region TODO (COMPLETED)
-//TODO_COMPLETE: Create a NuGet package
-//TODO_COMPLETE: Add default custom error class and support infrastructure
-//TODO_COMPLETE: Need ability to render a partial as a view result; The ability was already there in FragmentResult, I've renamed this to PartialResult.
+//TODO: A dynamic VeiwTags dictionary in the Controllers would be awesome! http://haacked.com/archive/2009/08/26/method-missing-csharp-4.aspx
 #endregion
 
 namespace Aurora
@@ -1517,7 +1512,7 @@ namespace Aurora
 			get { return this["EncryptionKey"] as string; }
 		}
 
-		[ConfigurationProperty("StaticFileExtWhiteList", DefaultValue = @"\.(js|png|jpg|gif|ico|css|txt|swf)$", IsRequired = false)]
+		[ConfigurationProperty("StaticFileExtWhiteList", DefaultValue = @"\.(js|css|png|jpg|gif|ico|txt)$", IsRequired = false)]
 		public string StaticFileExtWhiteList
 		{
 			get { return this["StaticFileExtWhiteList"] as string; }
@@ -1684,7 +1679,7 @@ namespace Aurora
 		public static string OpenIdProviderUriMismatchError = "The request OpenID provider Uri does not match the response Uri";
 #endif
 		public static Regex PathTokenRE = new Regex(@"/(?<token>[a-zA-Z0-9]+)");
-		public static Regex PathStaticFileRE = (WebConfig == null) ? new Regex(@"\.(js|css|png|jpg|gif|svg|ico|txt)$") : new Regex(WebConfig.StaticFileExtWhiteList);
+		public static Regex PathStaticFileRE = (WebConfig == null) ? new Regex(@"\.(js|css|png|jpg|gif|ico|txt)$") : new Regex(WebConfig.StaticFileExtWhiteList);
 		public static Dictionary<string, string> MimeTypes;
 		//public static string ApplicationMountPoint = (WebConfig == null) ? string.Empty : WebConfig.ApplicationMountPoint;
 		public static string FromRedirectOnlySessionFlag = "__FROFlag";
@@ -3705,14 +3700,11 @@ namespace Aurora
 	public abstract class Controller
 	{
 		protected HttpContextBase Context;
-
+		internal RouteInfo CurrentRoute { get; set; }
 		private string PartitionName;
-
 		private IViewEngine ViewEngine;
-
 		protected Dictionary<string, string> ViewTags;
 		protected Dictionary<string, Dictionary<string, string>> FragTags;
-
 		protected NameValueCollection Form { get; set; }
 		protected NameValueCollection QueryString { get; set; }
 
@@ -3873,11 +3865,7 @@ namespace Aurora
 
 		public ViewResult View(bool clearViewTags)
 		{
-			StackFrame sf = new StackFrame(2);
-			string viewName = sf.GetMethod().Name;
-			string className = sf.GetMethod().DeclaringType.Name;
-
-			return View(className, viewName, clearViewTags);
+			return View(CurrentRoute.ControllerName, CurrentRoute.ActionName, clearViewTags);
 		}
 
 		public ViewResult View(string name)
@@ -3887,17 +3875,13 @@ namespace Aurora
 
 		public ViewResult View(string name, bool clearViewTags)
 		{
-			StackFrame sf = new StackFrame(2);
-			string className = sf.GetMethod().DeclaringType.Name;
-
-			return View(className, name, clearViewTags);
+			return View(CurrentRoute.ControllerName, name, clearViewTags);
 		}
 
 		public ViewResult View(string controllerName, string actionName, bool clearViewTags)
 		{
-			StackFrame sf = new StackFrame(3);
-			RequestTypeAttribute reqAttrib = (RequestTypeAttribute)sf.GetMethod().GetCustomAttributes(false).FirstOrDefault(x => x is RequestTypeAttribute);
-
+			RequestTypeAttribute reqAttrib = (RequestTypeAttribute)CurrentRoute.Action.GetCustomAttributes(false).FirstOrDefault(x => x is RequestTypeAttribute);
+		
 			ViewResult vr = new ViewResult(Context, ViewEngine, PartitionName, controllerName, actionName, reqAttrib, ViewTags);
 
 			if (clearViewTags)
@@ -5366,6 +5350,8 @@ namespace Aurora
 				RequestTypeAttribute reqAttrib = Attribute.GetCustomAttribute(routeInfo.Action, typeof(RequestTypeAttribute), false) as RequestTypeAttribute;
 				HttpGetAttribute get = routeInfo.Attribute as HttpGetAttribute;
 				string cachedViewName = string.Empty;
+
+				routeInfo.ControllerInstance.CurrentRoute = routeInfo;
 
 				#region SECURITY CHECKING
 				if (reqAttrib.HttpsOnly && !context.Request.IsSecureConnection) return result;

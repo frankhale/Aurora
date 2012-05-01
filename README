@@ -4,7 +4,7 @@ NOTE: See source code comments for usage.
 
 Frank Hale <frankhale@gmail.com>
 
-Date: 26 April 2012
+Date: 30 April 2012
 
 --------------------
 --- Feature List ---
@@ -35,6 +35,11 @@ Date: 26 April 2012
 - Bundling/Minifying of Javascript and CSS.
  
 Changelog:
+
+30 April 2012
+
+- Minor Tweaking! Not much to mention really.
+- Updated the .csproj and external libs
 
 26 April 2012
 
