@@ -4,7 +4,7 @@ NOTE: See source code comments for usage.
 
 Frank Hale <frankhale@gmail.com>
 
-Date: 4 May 2012
+Date: 8 May 2012
 
 --------------------
 --- Feature List ---
@@ -35,6 +35,13 @@ Date: 4 May 2012
 - Bundling/Minifying of Javascript and CSS.
  
 Changelog:
+
+8 May 2012
+
+- Lots of work using the Visual Studio code analysis feature. Still lots of
+  work left to do on that front.
+- Bug fixes!
+- Some code cleanup.
 
 4 May 2012
 
