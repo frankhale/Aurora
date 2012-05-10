@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 8 May 2012
+// Updated On: 9 May 2012
 //
 // Contact Info:
 //
@@ -1317,6 +1317,7 @@ using MarkdownSharp;
 
 #if ACTIVEDIRECTORY
 using System.DirectoryServices;
+using System.DirectoryServices.ActiveDirectory;
 #endif
 
 #if OPENID
@@ -1334,7 +1335,7 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyCopyright("(GNU GPLv3) Copyleft © 2011-2012")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("1.99.66.0")]
+[assembly: AssemblyVersion("1.99.67.0")]
 #endregion
 
 #region TODO (MAYBE)
@@ -2173,6 +2174,8 @@ namespace Aurora
 			: base("GET")
 		{
 			RouteAlias = routeAlias;
+
+			Init();
 		}
 
 		public HttpGetAttribute(ActionSecurity sec) : this(string.Empty, sec) { }
@@ -2182,6 +2185,8 @@ namespace Aurora
 		{
 			SecurityType = sec;
 			RouteAlias = routeAlias;
+
+			Init();
 		}
 
 		private void Init()
@@ -2499,19 +2504,55 @@ namespace Aurora
 					searchRootDE.Password = adSearchPW;
 					searchRootDE.Path = (global) ? string.Format(CultureInfo.InvariantCulture, "GC://{0}", adSearchDomain) : adSearchRoot;
 
-					using (DirectorySearcher searcher = new DirectorySearcher())
+					DirectorySearcher searcher = null;
+					searcher.SearchRoot = searchRootDE;
+					searcher.Filter = string.Format(CultureInfo.InvariantCulture, searchType.GetMetadata(), data);
+
+					SearchResult result = null;
+
+					try
 					{
-						searcher.SearchRoot = searchRootDE;
-						searcher.Filter = string.Format(CultureInfo.InvariantCulture, searchType.GetMetadata(), data);
-
-						SearchResult result = searcher.FindOne();
-
-						if (result != null)
-							user = GetUser(result.GetDirectoryEntry());
+						using (searcher = new DirectorySearcher())
+						{
+							result = searcher.FindOne();
+						}
 					}
+					catch (DirectoryServicesCOMException)
+					{
+						// If there was a problem contacting the domain controller then lets try another one.
+
+						DomainControllerCollection dcc = DomainController.FindAll(new DirectoryContext(DirectoryContextType.Domain, adSearchDomain));
+						List<DomainController> domainControllers = (from DomainController dc in dcc select dc).ToList();
+
+						for (int i = 0; i < domainControllers.Count(); i++)
+						{
+							DomainController dc = domainControllers[i];
+
+							try
+							{
+								using (searcher = dc.GetDirectorySearcher())
+								{
+									searcher.SearchRoot = searchRootDE;
+									searcher.Filter = string.Format(CultureInfo.InvariantCulture, searchType.GetMetadata(), data);
+
+									result = searcher.FindOne();
+								}
+
+								if (result != null)
+									break;
+							}
+							catch (DirectoryServicesCOMException)
+							{
+								// Forget about this exception and move to the next domain controller
+							}
+						}
+					}
+
+					if (result != null)
+						user = GetUser(result.GetDirectoryEntry());
 				}
 			}
-			catch
+			catch (DirectoryServicesCOMException)
 			{
 				throw;
 			}
