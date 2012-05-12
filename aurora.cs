@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 9 May 2012
+// Updated On: 11 May 2012
 //
 // Contact Info:
 //
@@ -1335,16 +1335,14 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyCopyright("(GNU GPLv3) Copyleft © 2011-2012")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("1.99.67.0")]
+[assembly: AssemblyVersion("1.99.68.0")]
 #endregion
 
 #region TODO (MAYBE)
 //TODO: I've changed the names of some of the API and need to update the documentation
-//TODO: FindRoute is in need of some refactoring love again!
 //TODO: Finish documentation rewrite
 //TODO: Create a Visual Studio template
 //TODO: Upload NuGet package to NuGet.org Package Gallery
-//TODO: Read through this in it's entirety and see if I can implement something like this in Aurora -> http://haacked.com/archive/2011/01/15/building-a-self-updating-site-using-nuget.aspx
 //TODO: Add more events to the FrontController class, decide how much power it'll ultimately have
 //TODO: RouteManager: Add model validation checking to the form parameters if they are being placed directly in the action parameter list rather than in a model
 //TODO: HTMLHelpers: All of the areas where I'm using these Func<> lambda (craziness!) params to add name=value pairs to HTML tags need to have complimentary methods that also use a dictionary. The infrastructure has been put in place in the base HTML helper but not used yet.
@@ -1355,7 +1353,7 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 //TODO: A dynamic VeiwTags dictionary in the Controllers would be awesome! http://haacked.com/archive/2009/08/26/method-missing-csharp-4.aspx
 #endregion
 
-#region CODE ANALYSIS SUPPRESSIONS (THESE WILL GO AWAY AS I FIX THE ISSUES)
+#region CODE ANALYSIS SUPPRESSED MESSAGES
 // --- Microsoft.Naming
 [assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "upn", Scope = "member", Target = "Aurora.ActiveDirectory.#LookupUserByUpn(System.String)")]
 [assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Upn", Scope = "member", Target = "Aurora.ActiveDirectory.#LookupUserByUpn(System.String)")]
@@ -1426,6 +1424,17 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "attribs", Scope = "member", Target = "Aurora.HtmlTable`1.#.ctor(System.Collections.Generic.List`1<!0>,System.Collections.Generic.List`1<System.String>,System.Collections.Generic.List`1<Aurora.ColumnTransform`1<!0>>,System.Collections.Generic.List`1<Aurora.RowTransform`1<!0>>,System.Func`2<System.String,System.String>[])")]
 [assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "attribs", Scope = "member", Target = "Aurora.HtmlTable`1.#.ctor(System.Collections.Generic.List`1<!0>,System.Collections.Generic.List`1<System.String>,System.Collections.Generic.List`1<Aurora.ColumnTransform`1<!0>>,System.Func`2<System.String,System.String>[])")]
 [assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1720:IdentifiersShouldNotContainTypeNames", MessageId = "bool", Scope = "member", Target = "Aurora.ExtensionMethods.#IsBool(System.String)")]
+[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Plugin", Scope = "type", Target = "Aurora.PluginException")]
+[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Plugin", Scope = "type", Target = "Aurora.PluginDevelopmentStatus")]
+[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Plugin", Scope = "type", Target = "Aurora.PluginHost")]
+[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Plugin", Scope = "type", Target = "Aurora.IPlugin`1")]
+[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Plugin", Scope = "type", Target = "Aurora.Plugin`1")]
+[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Plugin", Scope = "type", Target = "Aurora.IPluginHost")]
+[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Plugins", Scope = "member", Target = "Aurora.PluginManager`1.#LoadPlugins(System.String)")]
+[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Plugins", Scope = "member", Target = "Aurora.PluginManager`1.#UnloadPlugins()")]
+[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Plugin", Scope = "type", Target = "Aurora.PluginManager`1")]
+[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Plugins", Scope = "member", Target = "Aurora.PluginManager`1.#Plugins")]
+[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Plugin", Scope = "member", Target = "Aurora.PluginManager`1.#LoadPlugin(System.String)")]
 // --- Microsoft.Design
 [assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1019:DefineAccessorsForAttributeArguments", Scope = "type", Target = "Aurora.HttpGetAttribute")]
 [assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1019:DefineAccessorsForAttributeArguments", Scope = "type", Target = "Aurora.HttpPostAttribute")]
@@ -1456,6 +1465,8 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1002:DoNotExposeGenericLists", Scope = "member", Target = "Aurora.HtmlTable`1.#.ctor(System.Collections.Generic.List`1<!0>,System.Collections.Generic.List`1<System.String>,System.Collections.Generic.List`1<Aurora.ColumnTransform`1<!0>>,System.Func`2<System.String,System.String>[])")]
 [assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1002:DoNotExposeGenericLists", Scope = "member", Target = "Aurora.ColumnTransform`1.#.ctor(System.Collections.Generic.List`1<!0>,System.String,System.Func`2<!0,System.String>)")]
 [assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1002:DoNotExposeGenericLists", Scope = "member", Target = "Aurora.RowTransform`1.#.ctor(System.Collections.Generic.List`1<!0>,System.Func`2<!0,System.String>)")]
+[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1002:DoNotExposeGenericLists", Scope = "member", Target = "Aurora.PluginManager`1.#Plugins")]
+[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1006:DoNotNestGenericTypesInMemberSignatures", Scope = "member", Target = "Aurora.PluginManager`1.#Plugins")]
 // --- Microsoft.Performance
 [assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode", Scope = "member", Target = "Aurora.AuthCookie.#Expiration")]
 [assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode", Scope = "member", Target = "Aurora.ApplicationInternals.#GetFrontController(System.Web.HttpContextBase)")]
@@ -1486,11 +1497,14 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity", Scope = "member", Target = "Aurora.HtmlTable`1.#ToString(System.Int32,System.Int32,System.Boolean)")]
 // --- Microsoft.Performance
 [assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1810:InitializeReferenceTypeStaticFieldsInline", Scope = "member", Target = "Aurora.MainConfig.#.cctor()")]
+[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays", Scope = "member", Target = "Aurora.Plugin`1.#Authors")]
 // --- Microsoft.Security
 [assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2122:DoNotIndirectlyExposeMethodsWithLinkDemands", Scope = "member", Target = "Aurora.ActiveDirectoryAuthentication.#ValidateClientCertificate(System.Web.HttpContextBase)")]
 [assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2122:DoNotIndirectlyExposeMethodsWithLinkDemands", Scope = "member", Target = "Aurora.ActiveDirectory.#LookupUser(Aurora.ActiveDirectorySearchType,System.String,System.Boolean,System.String,System.String,System.String,System.String)")]
 [assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2122:DoNotIndirectlyExposeMethodsWithLinkDemands", Scope = "member", Target = "Aurora.ActiveDirectory.#GetUser(System.DirectoryServices.DirectoryEntry)")]
 [assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2122:DoNotIndirectlyExposeMethodsWithLinkDemands", Scope = "member", Target = "Aurora.ActiveDirectory.#GetProxyAddresses(System.DirectoryServices.DirectoryEntry)")]
+// --- Microsoft.Reliability
+[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Reliability", "CA2001:AvoidCallingProblematicMethods", MessageId = "System.Reflection.Assembly.LoadFrom", Scope = "member", Target = "Aurora.PluginManager`1.#LoadPlugin(System.String)")]
 #endregion
 
 namespace Aurora
@@ -1897,6 +1911,14 @@ namespace Aurora
 		public static string ModelValidationErrorRange = "Model Validation Error: {0} was not within the range specified";
 		#endregion
 
+		#region PLUGIN MANAGEMENT
+#if PLUGIN
+		public static string TypeDoesNotImplementTheIPluginInterfaceError = "{0} does not implement the IPlugin interface";
+		public static string AssemblyContainsNoPluginsError = "There are no plugins in {0}";
+		public static string UnableToLoadPluginAssembly = "Unable to load {0}";
+#endif
+		#endregion
+
 #if !DEBUG
 		public static string ClientCertificateError = "The HttpContext.Request.ClientCertificate did not contain a valid certificate";
 		public static string ClientCertificateSimpleNameError = "Cannot determine the simple name from the client certificate";
@@ -1925,6 +1947,32 @@ namespace Aurora
 	#endregion
 
 	#region EXCEPTIONS
+#if PLUGIN
+	[Serializable()]
+	public class PluginException : Exception, ISerializable
+	{
+		public PluginException(string message)
+			: base(message)
+		{
+		}
+
+		public PluginException(string message, Exception innerException)
+			: base(message, innerException)
+		{
+		}
+
+		public PluginException()
+			: base(MainConfig.AntiForgeryTokenMissingError)
+		{
+		}
+
+		protected PluginException(SerializationInfo info, StreamingContext context)
+			: base(info, context)
+		{
+		}
+	}
+#endif
+
 	[Serializable()]
 	public class AntiForgeryTokenMissingException : Exception, ISerializable
 	{
@@ -2025,7 +2073,7 @@ namespace Aurora
 	public enum ActionSecurity
 	{
 		Secure,
-		NonSecure
+		None	// dummy value for RequestTypeAttribute.SecurityType default
 	}
 
 	public enum DescriptiveNameOperation
@@ -2116,7 +2164,7 @@ namespace Aurora
 	}
 
 	[AttributeUsage(AttributeTargets.Property)]
-	internal sealed class HiddenAttribute : Attribute
+	public sealed class HiddenAttribute : Attribute
 	{
 	}
 
@@ -2138,7 +2186,7 @@ namespace Aurora
 
 		protected RequestTypeAttribute(string requestType)
 		{
-			SecurityType = ActionSecurity.NonSecure;
+			SecurityType = ActionSecurity.None;
 			RequestType = requestType;
 		}
 	}
@@ -2504,16 +2552,15 @@ namespace Aurora
 					searchRootDE.Password = adSearchPW;
 					searchRootDE.Path = (global) ? string.Format(CultureInfo.InvariantCulture, "GC://{0}", adSearchDomain) : adSearchRoot;
 
-					DirectorySearcher searcher = null;
-					searcher.SearchRoot = searchRootDE;
-					searcher.Filter = string.Format(CultureInfo.InvariantCulture, searchType.GetMetadata(), data);
-
 					SearchResult result = null;
 
 					try
 					{
-						using (searcher = new DirectorySearcher())
+						using (DirectorySearcher searcher = new DirectorySearcher())
 						{
+							searcher.SearchRoot = searchRootDE;
+							searcher.Filter = string.Format(CultureInfo.InvariantCulture, searchType.GetMetadata(), data);
+
 							result = searcher.FindOne();
 						}
 					}
@@ -2530,7 +2577,7 @@ namespace Aurora
 
 							try
 							{
-								using (searcher = dc.GetDirectorySearcher())
+								using (DirectorySearcher searcher = dc.GetDirectorySearcher())
 								{
 									searcher.SearchRoot = searchRootDE;
 									searcher.Filter = string.Format(CultureInfo.InvariantCulture, searchType.GetMetadata(), data);
@@ -7842,5 +7889,141 @@ namespace Aurora
 			context.Server.ClearError();
 		}
 	}
+	#endregion
+
+	#region PLUGIN MANAGEMENT
+#if PLUGIN
+	public enum PluginDevelopmentStatus
+	{
+		PreAlpha,
+		Alpha,
+		Beta,
+		RC,
+		Stable
+	}
+
+	public interface IPluginHost
+	{
+		string HostName { get; }
+		string HostVersion { get; }
+	}
+
+	public interface IPlugin<T>
+	{
+		void Load(T host);
+		void Unload();
+	}
+
+	public abstract class Plugin<T> : IPlugin<T> where T : IPluginHost
+	{
+		public T Host { get; protected set; }
+
+		public string Guid { get; protected set; }
+		public string Name { get; protected set; }
+		public string[] Authors { get; protected set; }
+		public string Website { get; protected set; }
+		public string Version { get; protected set; }
+		public PluginDevelopmentStatus DevelopmentStatus { get; protected set; }
+		public DateTime DevelopmentDate { get; protected set; }
+		public bool Enabled { get; protected set; }
+		public string ShortDescription { get; protected set; }
+		public string LongDescription { get; protected set; }
+
+		public abstract void Load(T host);
+		public abstract void Unload();
+	}
+
+	public sealed class PluginManager<T>
+	{
+		public List<IPlugin<T>> Plugins { get; private set; }
+		public T Host { get; private set; }
+
+		public PluginManager(T host)
+		{
+			Host = host;
+		}
+
+		public void LoadPlugin(string path)
+		{
+			if (Plugins == null)
+				Plugins = new List<IPlugin<T>>();
+
+			if (File.Exists(path))
+			{
+				FileInfo fi = new FileInfo(path);
+
+				if (fi.Extension.Equals(".dll"))
+				{
+					try
+					{
+						Assembly pluginAssembly = Assembly.LoadFrom(fi.FullName);
+
+						string ipluginFullName = typeof(IPlugin<>).FullName;
+
+						var pluginsInAssembly = pluginAssembly.GetTypes()
+							.Where(x => x.GetInterface(ipluginFullName, false) != null);
+
+						if (pluginsInAssembly.Count() > 0)
+						{
+							foreach (Type t in pluginsInAssembly)
+							{
+								if (t.IsPublic && !t.IsAbstract)
+								{
+									Type ti = t.GetInterface(ipluginFullName, false);
+
+									if (ti != null)
+									{
+										IPlugin<T> p = (IPlugin<T>)Activator.CreateInstance(pluginAssembly.GetType(t.ToString()));
+
+										p.Load(Host);
+
+										Plugins.Add(p);
+									}
+									else
+									{
+										throw new PluginException(string.Format(CultureInfo.CurrentCulture, MainConfig.TypeDoesNotImplementTheIPluginInterfaceError, t.Name));
+									}
+								}
+							}
+						}
+						else
+						{
+							throw new PluginException(string.Format(CultureInfo.CurrentCulture, MainConfig.AssemblyContainsNoPluginsError, fi.Name));
+						}
+					}
+					catch(Exception ex)
+					{
+						if (ex is BadImageFormatException || ex is ReflectionTypeLoadException)
+						{
+							throw new PluginException(string.Format(CultureInfo.CurrentCulture, MainConfig.UnableToLoadPluginAssembly, fi.Name));
+						}
+
+						throw;
+					}
+				}
+			}
+		}
+
+		public void LoadPlugins(string path)
+		{
+			if (Directory.Exists(path))
+			{
+				foreach (FileInfo fi in new DirectoryInfo(path).GetFiles())
+				{
+					LoadPlugin(fi.FullName);
+				}
+			}
+		}
+
+		public void UnloadPlugins()
+		{
+			foreach (IPlugin<T> p in Plugins)
+			{
+				p.Unload();
+				Plugins.Remove(p);
+			}
+		}
+	}
+#endif
 	#endregion
 }
