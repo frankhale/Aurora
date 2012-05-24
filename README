@@ -4,7 +4,7 @@ NOTE: See source code comments for usage.
 
 Frank Hale <frankhale@gmail.com>
 
-Date: 11 May 2012
+Date: 23 May 2012
 
 --------------------
 --- Feature List ---
@@ -35,6 +35,30 @@ Date: 11 May 2012
 - Bundling/Minifying of Javascript and CSS.
  
 Changelog:
+
+23 May 2012
+
+* Major refactoring going on in this update and I'm not done yet. This is all 
+  being done to eventually make the engine and apps created with it unit test
+  friendly. Aurora will be getting it's own built in testing support in the 
+  future. This will be facilitated via Nunit. The idea will be to make unit
+  testing as seamless as possible.
+
+** It's very likely there are some view engine regressions in this release. I
+   have not had time to test every scenario yet.
+
+- Aurora now uses a naive wrapped HttpContext. The context only exposes what
+  the framework actually needs. This is one of the changes that will make unit
+  testing much simpler.
+- The RouteEngine now only finds routes. The AuroraEngine is responsible for 
+  enforcing the business rules of routing. 
+- The ViewEngine has got a major face lift as far as it's code goes. This was
+  glued in today and I'm sure there are some outstanding issues and I've got
+  some band-aids in place (rough edges and crap) that needs to be taken care of.
+- Refactoring in other areas as well. 
+- Changed version numbering scheme because the work I'm doing now will be 
+  officially called 1.0 at some point. So the version scheme is now 
+  0.99.build#
 
 11 May 2012
 

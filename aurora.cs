@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 11 May 2012
+// Updated On: 23 May 2012
 //
 // Contact Info:
 //
@@ -1315,6 +1315,10 @@ using HtmlAgilityPack;
 using Newtonsoft.Json;
 using MarkdownSharp;
 
+#if TEST
+using NUnit.Framework;
+#endif
+
 #if ACTIVEDIRECTORY
 using System.DirectoryServices;
 using System.DirectoryServices.ActiveDirectory;
@@ -1335,180 +1339,25 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyCopyright("(GNU GPLv3) Copyleft © 2011-2012")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("1.99.68.0")]
+[assembly: AssemblyVersion("0.99.69.0")]
 #endregion
 
 #region TODO (MAYBE)
-//TODO: I've changed the names of some of the API and need to update the documentation
-//TODO: Finish documentation rewrite
-//TODO: Create a Visual Studio template
+//TODO: Continue the documentation rewrite/revision
 //TODO: Upload NuGet package to NuGet.org Package Gallery
 //TODO: Add more events to the FrontController class, decide how much power it'll ultimately have
 //TODO: RouteManager: Add model validation checking to the form parameters if they are being placed directly in the action parameter list rather than in a model
 //TODO: HTMLHelpers: All of the areas where I'm using these Func<> lambda (craziness!) params to add name=value pairs to HTML tags need to have complimentary methods that also use a dictionary. The infrastructure has been put in place in the base HTML helper but not used yet.
 //TODO: Add HTTP Patch verb support (need to research this more!)
-//TODO: Look at the (in)flexibility of the hooks into the view engine. It'd be nice to be able to support Razor or other view engines but I may have gotten a little too tightly coupled over the last several months.
 //TODO: If we are adding bound parameters during the OnInit() method execution then we should have a method overload that infers the name of the current controller.
 //TODO: We shouldn't need to new up the ActionBinder to add new bindings. Let's put an instance in the controller base class.
 //TODO: A dynamic VeiwTags dictionary in the Controllers would be awesome! http://haacked.com/archive/2009/08/26/method-missing-csharp-4.aspx
 #endregion
 
-#region CODE ANALYSIS SUPPRESSED MESSAGES
-// --- Microsoft.Naming
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "upn", Scope = "member", Target = "Aurora.ActiveDirectory.#LookupUserByUpn(System.String)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Upn", Scope = "member", Target = "Aurora.ActiveDirectory.#LookupUserByUpn(System.String)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Upn", Scope = "member", Target = "Aurora.ActiveDirectory.#LookupUserByUpn(System.String,System.String,System.String)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "upn", Scope = "member", Target = "Aurora.ActiveDirectory.#LookupUserByUpn(System.String,System.String,System.String)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Upn", Scope = "member", Target = "Aurora.ActiveDirectory.#LookupUserByUpn(System.String,System.Boolean)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "upn", Scope = "member", Target = "Aurora.ActiveDirectory.#LookupUserByUpn(System.String,System.Boolean)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Upn", Scope = "member", Target = "Aurora.ActiveDirectory.#LookupUserByUpn(System.String,System.Boolean,System.String,System.String)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "upn", Scope = "member", Target = "Aurora.ActiveDirectory.#LookupUserByUpn(System.String,System.Boolean,System.String,System.String)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "CACID", Scope = "member", Target = "Aurora.ActiveDirectoryAuthenticationEventArgs.#CACID")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "CACID", Scope = "member", Target = "Aurora.ActiveDirectoryAuthentication.#CACID")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Upn", Scope = "member", Target = "Aurora.ActiveDirectory.#LookupUserByUpn(System.String,System.Boolean,System.String,System.String,System.String,System.String)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "upn", Scope = "member", Target = "Aurora.ActiveDirectory.#LookupUserByUpn(System.String,System.Boolean,System.String,System.String,System.String,System.String)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "ctx", Scope = "member", Target = "Aurora.SecurityManager.#LogOn(System.Web.HttpContextBase,System.String)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "ctx", Scope = "member", Target = "Aurora.SecurityManager.#LogOn(System.Web.HttpContextBase,System.String,System.String[],System.Func`3<Aurora.User,System.String,System.Boolean>)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "ctx", Scope = "member", Target = "Aurora.SecurityManager.#GetLoggedOnUser(System.Web.HttpContextBase)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "ctx", Scope = "member", Target = "Aurora.SecurityManager.#LogOff(System.Web.HttpContextBase)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "ctx", Scope = "member", Target = "Aurora.IBoundActionObject.#ExecuteBeforeAction(System.Web.HttpContextBase)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "ctx", Scope = "member", Target = "Aurora.ActionBinder.#.ctor(System.Web.HttpContextBase)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "ctx", Scope = "member", Target = "Aurora.RedirectResult.#.ctor(System.Web.HttpContextBase,System.String)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "e", Scope = "member", Target = "Aurora.ErrorResult.#.ctor(System.Web.HttpContextBase,System.Exception)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "ctx", Scope = "member", Target = "Aurora.ErrorResult.#.ctor(System.Web.HttpContextBase,System.Exception)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "d", Scope = "member", Target = "Aurora.JsonResult.#.ctor(System.Web.HttpContextBase,System.Object)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "ctx", Scope = "member", Target = "Aurora.JsonResult.#.ctor(System.Web.HttpContextBase,System.Object)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "ve", Scope = "member", Target = "Aurora.PartialResult.#.ctor(System.Web.HttpContextBase,Aurora.IViewEngine,System.String,System.String,System.String,System.Collections.Generic.Dictionary`2<System.String,System.String>)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "v", Scope = "member", Target = "Aurora.PartialResult.#.ctor(System.Web.HttpContextBase,Aurora.IViewEngine,System.String,System.String,System.String,System.Collections.Generic.Dictionary`2<System.String,System.String>)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "p", Scope = "member", Target = "Aurora.PartialResult.#.ctor(System.Web.HttpContextBase,Aurora.IViewEngine,System.String,System.String,System.String,System.Collections.Generic.Dictionary`2<System.String,System.String>)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "f", Scope = "member", Target = "Aurora.PartialResult.#.ctor(System.Web.HttpContextBase,Aurora.IViewEngine,System.String,System.String,System.String,System.Collections.Generic.Dictionary`2<System.String,System.String>)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "ctx", Scope = "member", Target = "Aurora.PartialResult.#.ctor(System.Web.HttpContextBase,Aurora.IViewEngine,System.String,System.String,System.String,System.Collections.Generic.Dictionary`2<System.String,System.String>)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "c", Scope = "member", Target = "Aurora.PartialResult.#.ctor(System.Web.HttpContextBase,Aurora.IViewEngine,System.String,System.String,System.String,System.Collections.Generic.Dictionary`2<System.String,System.String>)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "ctx", Scope = "member", Target = "Aurora.ViewResult.#Refresh(System.Web.HttpContextBase,Aurora.RequestTypeAttribute)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "ve", Scope = "member", Target = "Aurora.ViewResult.#.ctor(System.Web.HttpContextBase,Aurora.IViewEngine,System.String,System.String,System.String,Aurora.RequestTypeAttribute,System.Collections.Generic.Dictionary`2<System.String,System.String>)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "v", Scope = "member", Target = "Aurora.ViewResult.#.ctor(System.Web.HttpContextBase,Aurora.IViewEngine,System.String,System.String,System.String,Aurora.RequestTypeAttribute,System.Collections.Generic.Dictionary`2<System.String,System.String>)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "p", Scope = "member", Target = "Aurora.ViewResult.#.ctor(System.Web.HttpContextBase,Aurora.IViewEngine,System.String,System.String,System.String,Aurora.RequestTypeAttribute,System.Collections.Generic.Dictionary`2<System.String,System.String>)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "ctx", Scope = "member", Target = "Aurora.ViewResult.#.ctor(System.Web.HttpContextBase,Aurora.IViewEngine,System.String,System.String,System.String,Aurora.RequestTypeAttribute,System.Collections.Generic.Dictionary`2<System.String,System.String>)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "c", Scope = "member", Target = "Aurora.ViewResult.#.ctor(System.Web.HttpContextBase,Aurora.IViewEngine,System.String,System.String,System.String,Aurora.RequestTypeAttribute,System.Collections.Generic.Dictionary`2<System.String,System.String>)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Attribs", Scope = "member", Target = "Aurora.HtmlBase.#AttribsDict")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Dict", Scope = "member", Target = "Aurora.HtmlBase.#AttribsDict")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Attribs", Scope = "member", Target = "Aurora.HtmlBase.#AttribsFunc")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Attribs", Scope = "member", Target = "Aurora.HtmlBase.#CondenseAttribs()")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "parms", Scope = "member", Target = "Aurora.ExtensionMethods.#ToObjectArray(System.String[])")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Frag", Scope = "member", Target = "Aurora.Controller.#FragTags")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Params", Scope = "member", Target = "Aurora.FrontController.#AddRoute(System.String,System.String,System.String,System.String,System.String)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Params", Scope = "member", Target = "Aurora.Controller.#AddRoute(System.String,System.String,System.String,System.String)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "frag", Scope = "member", Target = "Aurora.Controller.#RenderFragment(System.String,System.Collections.Generic.Dictionary`2<System.String,System.String>)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "ctx", Scope = "member", Target = "Aurora.PhysicalFileResult.#.ctor(System.Web.HttpContextBase,System.String)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1720:IdentifiersShouldNotContainTypeNames", MessageId = "bytes", Scope = "member", Target = "Aurora.VirtualFileResult.#.ctor(System.Web.HttpContextBase,System.String,System.Byte[],System.String)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "ctx", Scope = "member", Target = "Aurora.VirtualFileResult.#.ctor(System.Web.HttpContextBase,System.String,System.Byte[],System.String)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "src", Scope = "member", Target = "Aurora.HtmlImage.#.ctor(System.String,System.Func`2<System.String,System.String>[])")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "attribs", Scope = "member", Target = "Aurora.HtmlImage.#.ctor(System.String,System.Func`2<System.String,System.String>[])")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "src", Scope = "member", Target = "Aurora.HtmlImage.#.ctor(System.String)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Src", Scope = "member", Target = "Aurora.HtmlImage.#Src")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "attribs", Scope = "member", Target = "Aurora.HtmlSelect.#.ctor(System.Collections.Generic.List`1<System.String>,System.String,System.Boolean,System.Boolean,System.Func`2<System.String,System.String>[])")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "attribs", Scope = "member", Target = "Aurora.HtmlSpan.#.ctor(System.String,System.Func`2<System.String,System.String>[])")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "attribs", Scope = "member", Target = "Aurora.HtmlAnchor.#.ctor(System.String,System.String,System.Func`2<System.String,System.String>[])")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "attribs", Scope = "member", Target = "Aurora.HtmlInput.#.ctor(Aurora.HtmlInputType,System.Func`2<System.String,System.String>[])")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "attribs", Scope = "member", Target = "Aurora.HtmlForm.#.ctor(System.String,Aurora.HtmlFormPostMethod,System.Collections.Generic.List`1<System.String>,System.Func`2<System.String,System.String>[])")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1720:IdentifiersShouldNotContainTypeNames", MessageId = "bytes", Scope = "member", Target = "Aurora.Controller.#View(System.String,System.Byte[],System.String)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "ctx", Scope = "member", Target = "Aurora.BundleManager.#.ctor(System.Web.HttpContextBase)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Param", Scope = "type", Target = "Aurora.IActionParamTransform`2")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "V", Scope = "type", Target = "Aurora.IActionParamTransform`2")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1715:IdentifiersShouldHaveCorrectPrefix", MessageId = "T", Scope = "type", Target = "Aurora.IActionParamTransform`2")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "ctx", Scope = "member", Target = "Aurora.StaticFileManager.#ProtectFile(System.Web.HttpContextBase,System.String,System.String)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "ctx", Scope = "member", Target = "Aurora.StaticFileManager.#UnprotectFile(System.Web.HttpContextBase,System.String)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "ctx", Scope = "member", Target = "Aurora.AuroraEngine.#.ctor(System.Web.HttpContextBase)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "ctx", Scope = "member", Target = "Aurora.ExtensionMethods.#IPAddress(System.Web.HttpContextBase)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Param", Scope = "type", Target = "Aurora.ActionParamTransformAttribute")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "attribs", Scope = "member", Target = "Aurora.HtmlTable`1.#.ctor(System.Collections.Generic.List`1<!0>,System.Collections.Generic.List`1<System.String>,System.Collections.Generic.List`1<Aurora.ColumnTransform`1<!0>>,System.Collections.Generic.List`1<Aurora.RowTransform`1<!0>>,System.Func`2<System.String,System.String>[])")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "attribs", Scope = "member", Target = "Aurora.HtmlTable`1.#.ctor(System.Collections.Generic.List`1<!0>,System.Collections.Generic.List`1<System.String>,System.Collections.Generic.List`1<Aurora.ColumnTransform`1<!0>>,System.Func`2<System.String,System.String>[])")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1720:IdentifiersShouldNotContainTypeNames", MessageId = "bool", Scope = "member", Target = "Aurora.ExtensionMethods.#IsBool(System.String)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Plugin", Scope = "type", Target = "Aurora.PluginException")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Plugin", Scope = "type", Target = "Aurora.PluginDevelopmentStatus")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Plugin", Scope = "type", Target = "Aurora.PluginHost")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Plugin", Scope = "type", Target = "Aurora.IPlugin`1")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Plugin", Scope = "type", Target = "Aurora.Plugin`1")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Plugin", Scope = "type", Target = "Aurora.IPluginHost")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Plugins", Scope = "member", Target = "Aurora.PluginManager`1.#LoadPlugins(System.String)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Plugins", Scope = "member", Target = "Aurora.PluginManager`1.#UnloadPlugins()")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Plugin", Scope = "type", Target = "Aurora.PluginManager`1")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Plugins", Scope = "member", Target = "Aurora.PluginManager`1.#Plugins")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Plugin", Scope = "member", Target = "Aurora.PluginManager`1.#LoadPlugin(System.String)")]
-// --- Microsoft.Design
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1019:DefineAccessorsForAttributeArguments", Scope = "type", Target = "Aurora.HttpGetAttribute")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1019:DefineAccessorsForAttributeArguments", Scope = "type", Target = "Aurora.HttpPostAttribute")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1019:DefineAccessorsForAttributeArguments", Scope = "type", Target = "Aurora.HttpPutAttribute")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1019:DefineAccessorsForAttributeArguments", Scope = "type", Target = "Aurora.HttpDeleteAttribute")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1019:DefineAccessorsForAttributeArguments", Scope = "type", Target = "Aurora.StringFormatAttribute")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1019:DefineAccessorsForAttributeArguments", Scope = "type", Target = "Aurora.RegularExpressionAttribute")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1019:DefineAccessorsForAttributeArguments", Scope = "type", Target = "Aurora.DateFormatAttribute")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA2210:AssembliesShouldHaveValidStrongNames")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1002:DoNotExposeGenericLists", Scope = "member", Target = "Aurora.User.#Roles")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1002:DoNotExposeGenericLists", Scope = "member", Target = "Aurora.User.#ActionBindings")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1062:Validate arguments of public methods", MessageId = "0", Scope = "member", Target = "Aurora.SecurityManager.#LogOff(System.Web.HttpContextBase)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1062:Validate arguments of public methods", MessageId = "0", Scope = "member", Target = "Aurora.SecurityManager.#GetLoggedOnUser(System.Web.HttpContextBase)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1021:AvoidOutParameters", MessageId = "1#", Scope = "member", Target = "Aurora.ExtensionMethods.#IsDate(System.String,System.Nullable`1<System.DateTime>&)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1002:DoNotExposeGenericLists", Scope = "member", Target = "Aurora.HtmlSelect.#.ctor(System.Collections.Generic.List`1<System.String>,System.String,System.Boolean,System.Boolean,System.Func`2<System.String,System.String>[])")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1054:UriParametersShouldNotBeStrings", MessageId = "0#", Scope = "member", Target = "Aurora.HtmlAnchor.#.ctor(System.String,System.String,System.Func`2<System.String,System.String>[])")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1002:DoNotExposeGenericLists", Scope = "member", Target = "Aurora.HtmlForm.#.ctor(System.String,Aurora.HtmlFormPostMethod,System.Collections.Generic.List`1<System.String>,System.Func`2<System.String,System.String>[])")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1006:DoNotNestGenericTypesInMemberSignatures", Scope = "member", Target = "Aurora.Controller.#FragTags")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1040:AvoidEmptyInterfaces", Scope = "type", Target = "Aurora.IActionFilterResult")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1002:DoNotExposeGenericLists", Scope = "member", Target = "Aurora.BundleManager.#GetBundleFileList(System.String)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1002:DoNotExposeGenericLists", Scope = "member", Target = "Aurora.RouteInfo.#Bindings")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1031:DoNotCatchGeneralExceptionTypes", Scope = "member", Target = "Aurora.AuroraEngine.#.ctor(System.Web.HttpContextBase)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1051:DoNotDeclareVisibleInstanceFields", Scope = "member", Target = "Aurora.HtmlBase.#AttribsDict")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1051:DoNotDeclareVisibleInstanceFields", Scope = "member", Target = "Aurora.HtmlBase.#AttribsFunc")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1002:DoNotExposeGenericLists", Scope = "member", Target = "Aurora.HtmlTable`1.#.ctor(System.Collections.Generic.List`1<!0>,System.Collections.Generic.List`1<System.String>,System.Collections.Generic.List`1<Aurora.ColumnTransform`1<!0>>,System.Collections.Generic.List`1<Aurora.RowTransform`1<!0>>,System.Func`2<System.String,System.String>[])")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1006:DoNotNestGenericTypesInMemberSignatures", Scope = "member", Target = "Aurora.HtmlTable`1.#.ctor(System.Collections.Generic.List`1<!0>,System.Collections.Generic.List`1<System.String>,System.Collections.Generic.List`1<Aurora.ColumnTransform`1<!0>>,System.Collections.Generic.List`1<Aurora.RowTransform`1<!0>>,System.Func`2<System.String,System.String>[])")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1006:DoNotNestGenericTypesInMemberSignatures", Scope = "member", Target = "Aurora.HtmlTable`1.#.ctor(System.Collections.Generic.List`1<!0>,System.Collections.Generic.List`1<System.String>,System.Collections.Generic.List`1<Aurora.ColumnTransform`1<!0>>,System.Func`2<System.String,System.String>[])")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1002:DoNotExposeGenericLists", Scope = "member", Target = "Aurora.HtmlTable`1.#.ctor(System.Collections.Generic.List`1<!0>,System.Collections.Generic.List`1<System.String>,System.Collections.Generic.List`1<Aurora.ColumnTransform`1<!0>>,System.Func`2<System.String,System.String>[])")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1002:DoNotExposeGenericLists", Scope = "member", Target = "Aurora.ColumnTransform`1.#.ctor(System.Collections.Generic.List`1<!0>,System.String,System.Func`2<!0,System.String>)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1002:DoNotExposeGenericLists", Scope = "member", Target = "Aurora.RowTransform`1.#.ctor(System.Collections.Generic.List`1<!0>,System.Func`2<!0,System.String>)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1002:DoNotExposeGenericLists", Scope = "member", Target = "Aurora.PluginManager`1.#Plugins")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1006:DoNotNestGenericTypesInMemberSignatures", Scope = "member", Target = "Aurora.PluginManager`1.#Plugins")]
-// --- Microsoft.Performance
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode", Scope = "member", Target = "Aurora.AuthCookie.#Expiration")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode", Scope = "member", Target = "Aurora.ApplicationInternals.#GetFrontController(System.Web.HttpContextBase)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode", Scope = "member", Target = "Aurora.RouteInfo.#ControllerType")]
-// --- Microsoft.Usage
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA1801:ReviewUnusedParameters", MessageId = "ctx", Scope = "member", Target = "Aurora.ActiveDirectoryAuthentication.#ValidateClientCertificate(System.Web.HttpContextBase)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA1806:DoNotIgnoreMethodResults", MessageId = "Aurora.AuroraEngine", Scope = "member", Target = "Aurora.AuroraHandler.#ProcessRequest(System.Web.HttpContext)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2201:DoNotRaiseReservedExceptionTypes", Scope = "member", Target = "Aurora.AuroraRouteManager.#ProcessDynamicRoute(Aurora.RouteInfo)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2201:DoNotRaiseReservedExceptionTypes", Scope = "member", Target = "Aurora.ActiveDirectory.#LookupUser(Aurora.ActiveDirectorySearchType,System.String,System.Boolean)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2201:DoNotRaiseReservedExceptionTypes", Scope = "member", Target = "Aurora.SecurityManager.#LogOn(System.Web.HttpContextBase,System.String,System.String[],System.Func`3<Aurora.User,System.String,System.Boolean>)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2201:DoNotRaiseReservedExceptionTypes", Scope = "member", Target = "Aurora.ApplicationInternals.#GetFrontController(System.Web.HttpContextBase)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2201:DoNotRaiseReservedExceptionTypes", Scope = "member", Target = "Aurora.ApplicationInternals.#GetCustomError(System.Web.HttpContextBase,System.Boolean)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2201:DoNotRaiseReservedExceptionTypes", Scope = "member", Target = "Aurora.AuroraEngine.#.ctor(System.Web.HttpContextBase)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2201:DoNotRaiseReservedExceptionTypes", Scope = "member", Target = "Aurora.ActiveDirectoryAuthentication.#ValidateClientCertificate(System.Web.HttpContextBase)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2201:DoNotRaiseReservedExceptionTypes", Scope = "member", Target = "Aurora.ActiveDirectoryAuthentication.#GetCACIDFromCN(System.Web.HttpContextBase,System.Security.Cryptography.X509Certificates.X509Certificate2&)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2201:DoNotRaiseReservedExceptionTypes", Scope = "member", Target = "Aurora.ActiveDirectory.#LookupUser(Aurora.ActiveDirectorySearchType,System.String,System.Boolean,System.String,System.String,System.String,System.String)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2201:DoNotRaiseReservedExceptionTypes", Scope = "member", Target = "Aurora.BundleManager.#AddFiles(System.String[],System.String)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2201:DoNotRaiseReservedExceptionTypes", Scope = "member", Target = "Aurora.Minify.#Next()")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2201:DoNotRaiseReservedExceptionTypes", Scope = "member", Target = "Aurora.Minify.#Action(System.Int32)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2201:DoNotRaiseReservedExceptionTypes", Scope = "member", Target = "Aurora.PostedFormInfo.#FormProcessor(System.Type)")]
-// --- Microsoft.Globalization
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Globalization", "CA1308:NormalizeStringsToUppercase", Scope = "member", Target = "Aurora.ActiveDirectory.#GetPrimarySMTP(System.DirectoryServices.DirectoryEntry)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Globalization", "CA1308:NormalizeStringsToUppercase", Scope = "member", Target = "Aurora.ExtensionMethods.#ToObjectArray(System.String[])")]
-// --- Microsoft.Maintainability
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity", Scope = "member", Target = "Aurora.AuroraRouteManager.#ProcessDynamicRoute(Aurora.RouteInfo)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity", Scope = "member", Target = "Aurora.AuroraRouteManager.#FindRoute(System.String,System.String)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity", Scope = "member", Target = "Aurora.Minify.#Action(System.Int32)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity", Scope = "member", Target = "Aurora.HtmlTable`1.#ToString(System.Int32,System.Int32,System.Boolean)")]
-// --- Microsoft.Performance
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1810:InitializeReferenceTypeStaticFieldsInline", Scope = "member", Target = "Aurora.MainConfig.#.cctor()")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays", Scope = "member", Target = "Aurora.Plugin`1.#Authors")]
-// --- Microsoft.Security
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2122:DoNotIndirectlyExposeMethodsWithLinkDemands", Scope = "member", Target = "Aurora.ActiveDirectoryAuthentication.#ValidateClientCertificate(System.Web.HttpContextBase)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2122:DoNotIndirectlyExposeMethodsWithLinkDemands", Scope = "member", Target = "Aurora.ActiveDirectory.#LookupUser(Aurora.ActiveDirectorySearchType,System.String,System.Boolean,System.String,System.String,System.String,System.String)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2122:DoNotIndirectlyExposeMethodsWithLinkDemands", Scope = "member", Target = "Aurora.ActiveDirectory.#GetUser(System.DirectoryServices.DirectoryEntry)")]
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2122:DoNotIndirectlyExposeMethodsWithLinkDemands", Scope = "member", Target = "Aurora.ActiveDirectory.#GetProxyAddresses(System.DirectoryServices.DirectoryEntry)")]
-// --- Microsoft.Reliability
-[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Reliability", "CA2001:AvoidCallingProblematicMethods", MessageId = "System.Reflection.Assembly.LoadFrom", Scope = "member", Target = "Aurora.PluginManager`1.#LoadPlugin(System.String)")]
-#endregion
-
 namespace Aurora
 {
+  #region CONFIGURATION
+
   #region WEB.CONFIG CONFIGURATION
   //
   // All web.config specific stuff is here. We define the Aurora configuration 
@@ -1536,7 +1385,6 @@ namespace Aurora
     }
   }
 
-  [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1010:CollectionsShouldImplementGenericInterface")]
   public class ContentTypeConfigurationCollection : ConfigurationElementCollection
   {
     public ContentTypeConfigurationElement this[int index]
@@ -1653,17 +1501,6 @@ namespace Aurora
       }
     }
 
-#if ACTIVEDIRECTORY
-    [ConfigurationProperty("ActiveDirectorySearchInfo")]
-    public ActiveDirectorySearchConfigurationCollection ActiveDirectorySearchInfo
-    {
-      get
-      {
-        return this["ActiveDirectorySearchInfo"] as ActiveDirectorySearchConfigurationCollection;
-      }
-    }
-#endif
-
     [ConfigurationProperty("EncryptionKey", DefaultValue = "", IsRequired = false)]
     public string EncryptionKey
     {
@@ -1675,12 +1512,6 @@ namespace Aurora
     {
       get { return this["StaticFileExtWhiteList"] as string; }
     }
-
-    //[ConfigurationProperty("ApplicationMountPoint", DefaultValue = "", IsRequired = false)]
-    //public string ApplicationMountPoint
-    //{
-    //  get { return this["ApplicationMountPoint"] as string; }
-    //}
 
     [ConfigurationProperty("ValidateRequest", DefaultValue = true, IsRequired = false)]
     public bool ValidateRequest
@@ -1718,14 +1549,17 @@ namespace Aurora
       get { return Convert.ToBoolean(this["DisableStaticFileCaching"], CultureInfo.CurrentCulture); }
     }
 
-    //[ConfigurationProperty("RouteManager", DefaultValue = "AuroraRouteManager", IsRequired = false)]
-    //public string RouteManager
-    //{
-    //  get { return this["RouteManager"] as string; }
-    //}
-
     #region ACTIVE DIRECTORY CONFIGURATION
 #if ACTIVEDIRECTORY
+    [ConfigurationProperty("ActiveDirectorySearchInfo")]
+    public ActiveDirectorySearchConfigurationCollection ActiveDirectorySearchInfo
+    {
+      get
+      {
+        return this["ActiveDirectorySearchInfo"] as ActiveDirectorySearchConfigurationCollection;
+      }
+    }
+
     [ConfigurationProperty("ADSearchUser", DefaultValue = null, IsRequired = false)]
     public string ADSearchUser
     {
@@ -1805,18 +1639,6 @@ namespace Aurora
       }
     }
 
-    #region DECOMISSIONED VARIABLES
-    //public static PagesSection PageSection = System.Configuration.ConfigurationManager.GetSection("system.web/pages") as PagesSection;
-    //public static string RouteManager = (MainConfig.WebConfig == null) ? "AuroraRouteManager" : WebConfig.RouteManager;
-    //public static string[] SupportedRouteManagers = { "AuroraRouteManager" };
-    //public static string ApplicationMountPoint = (WebConfig == null) ? string.Empty : WebConfig.ApplicationMountPoint;
-    //public static string Http401Error = "Http 401 - Unauthorized";
-    //public static string CustomErrorNullExceptionError = "The customer error instance was null";
-    //public static string OnlyOneErrorActionPerControllerError = "Cannot have more than one error action per controller";
-    //public static string GenericErrorMessage = "An error occurred trying to process this request";
-    //public static string RouteManagerNotSupportedException = "Route manager not supported";
-    #endregion
-
     public static WebConfig WebConfig = ConfigurationManager.GetSection("Aurora") as WebConfig;
     public static CustomErrorsSection CustomErrorsSection = ConfigurationManager.GetSection("system.web/customErrors") as CustomErrorsSection;
     public static bool ValidateRequest = (MainConfig.WebConfig == null) ? true : WebConfig.ValidateRequest;
@@ -1854,7 +1676,7 @@ namespace Aurora
     public static Dictionary<string, string> MimeTypes;
     public static string FromRedirectOnlySessionFlag = "__FROFlag";
     public static string StaticFileManagerSessionName = "__StaticFileManager";
-    public static string RouteManagerSessionName = "__RouteManager";
+    public static string RouteEngineSessionName = "__RouteManager";
     public static string RoutesSessionName = "__Routes";
     public static string FrontControllerSessionName = "__FrontController";
     public static string FrontControllerInstanceSessionName = "__FrontControllerInstance";
@@ -1870,6 +1692,7 @@ namespace Aurora
     public static string CurrentUserSessionName = "__CurrentUser";
     public static string BundleManagerSessionName = "__BundleManager";
     public static string BundleManagerInfoSessionName = "__BundleManagerInfo";
+    public static string ViewEngineSessionName = "__ViewEngine";
     public static string BundleNameError = "Bundle names must include a file extension and be either CSS or Javascript";
     public static string UniquedIDSessionName = "__UniquedIDs";
     public static string AntiForgeryTokenName = "AntiForgeryToken";
@@ -1912,11 +1735,9 @@ namespace Aurora
     #endregion
 
     #region PLUGIN MANAGEMENT
-#if PLUGIN
     public static string TypeDoesNotImplementTheIPluginInterfaceError = "{0} does not implement the IPlugin interface";
     public static string AssemblyContainsNoPluginsError = "There are no plugins in {0}";
     public static string UnableToLoadPluginAssembly = "Unable to load {0}";
-#endif
     #endregion
 
 #if !DEBUG
@@ -1927,1293 +1748,9 @@ namespace Aurora
   }
   #endregion
 
-  #region AURORA PUBLIC CONFIG
-  /// <summary>
-  /// Any miscellaneous properties and methods that can be used by applications will be in here.
-  /// </summary>
-  public static class AuroraConfig
-  {
-    /// <summary>
-    /// Returns true if either Aurora or the web application is in debug mode, false otherwise.
-    /// </summary>
-    public static bool InDebugMode
-    {
-      get
-      {
-        return (MainConfig.AuroraDebug || MainConfig.ASPNETDebug) ? true : false;
-      }
-    }
-  }
   #endregion
 
-  #region EXCEPTIONS
-#if PLUGIN
-  [Serializable()]
-  public class PluginException : Exception, ISerializable
-  {
-    public PluginException(string message)
-      : base(message)
-    {
-    }
-
-    public PluginException(string message, Exception innerException)
-      : base(message, innerException)
-    {
-    }
-
-    public PluginException()
-      : base(MainConfig.AntiForgeryTokenMissingError)
-    {
-    }
-
-    protected PluginException(SerializationInfo info, StreamingContext context)
-      : base(info, context)
-    {
-    }
-  }
-#endif
-
-  [Serializable()]
-  public class AntiForgeryTokenMissingException : Exception, ISerializable
-  {
-    public AntiForgeryTokenMissingException(string message)
-      : base(message)
-    {
-    }
-
-    public AntiForgeryTokenMissingException(string message, Exception innerException)
-      : base(message, innerException)
-    {
-    }
-
-    public AntiForgeryTokenMissingException()
-      : base(MainConfig.AntiForgeryTokenMissingError)
-    {
-    }
-
-    protected AntiForgeryTokenMissingException(SerializationInfo info, StreamingContext context)
-      : base(info, context)
-    {
-    }
-  }
-
-  [Serializable()]
-  public class ActionParameterTransformClassUnknownException : Exception, ISerializable
-  {
-    public ActionParameterTransformClassUnknownException(string message)
-      : base(message)
-    {
-    }
-
-    public ActionParameterTransformClassUnknownException(string message, Exception innerException)
-      : base(message, innerException)
-    {
-    }
-
-    public ActionParameterTransformClassUnknownException()
-      : base(MainConfig.ActionParameterTransformClassUnknownError)
-    {
-    }
-
-    protected ActionParameterTransformClassUnknownException(SerializationInfo info, StreamingContext context)
-      : base(info, context)
-    {
-    }
-  }
-  #endregion
-
-  #region ACTION FILTER ATTRIBUTE
-  /// <summary>
-  /// This empty interface is used to identify a filter result that will be passed
-  /// to an action after the filter is invoked.
-  /// </summary>
-  public interface IActionFilterResult
-  {
-    //FIXME: Warning	224	CA1040 : Microsoft.Design : Define a custom attribute to replace 'IActionFilterResult'.
-  }
-
-  //[AttributeUsage(AttributeTargets.Parameter)]
-  //public class ActionFilterResultAttribute : Attribute 
-  //{ 
-  //  This will be used when I implement the fix for the warning listed in IActionFilterResult
-  //}
-
-  [AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
-  public abstract class ActionFilterAttribute : Attribute
-  {
-    internal Controller Controller { get; set; }
-
-    public IActionFilterResult FilterResult { get; set; }
-
-    public abstract void OnFilter(RouteInfo routeInfo);
-
-    public void RedirectToAlias(string alias)
-    {
-      Controller.RedirectToAlias(alias);
-    }
-
-    public void RedirectOnlyToAlias(string alias)
-    {
-      Controller.RedirectOnlyToAlias(alias);
-    }
-
-    public void RedirectToAction(string controllerName, string actionName)
-    {
-      Controller.RedirectToAction(controllerName, actionName);
-    }
-
-    public void RedirectOnlyToAction(string controllerName, string actionName)
-    {
-      Controller.RedirectOnlyToAction(controllerName, actionName);
-    }
-  }
-  #endregion
-
-  #region ATTRIBUTES
-  public enum ActionSecurity
-  {
-    Secure,
-    None	// dummy value for RequestTypeAttribute.SecurityType default
-  }
-
-  public enum DescriptiveNameOperation
-  {
-    SplitCamelCase,
-    None
-  }
-
-  #region APP PARTITION
-  [AttributeUsage(AttributeTargets.Class)]
-  public sealed class PartitionAttribute : Attribute
-  {
-    public string Name { get; private set; }
-
-    public PartitionAttribute(string name)
-    {
-      Name = name;
-    }
-  }
-  #endregion
-
-  #region MISCELLANEOUS
-  [AttributeUsage(AttributeTargets.All)]
-  public sealed class MetadataAttribute : Attribute
-  {
-    public string Metadata { get; private set; }
-
-    public MetadataAttribute(string metadata)
-    {
-      Metadata = metadata;
-    }
-  }
-
-  [AttributeUsage(AttributeTargets.All)]
-  public sealed class DescriptiveNameAttribute : Attribute
-  {
-    public string Name { get; private set; }
-
-    public DescriptiveNameOperation Op { get; private set; }
-
-    public DescriptiveNameAttribute(string name)
-    {
-      Name = name;
-      Op = DescriptiveNameOperation.None;
-    }
-
-    public DescriptiveNameAttribute(DescriptiveNameOperation op)
-    {
-      Name = string.Empty; // Name comes from property name
-
-      Op = op; // We'll perform an operation on the property name like put spacing between camel case names, then title case the name.
-    }
-
-    public string PerformOperation(string name)
-    {
-      // This regex comes from this StackOverflow question answer:
-      //
-      // http://stackoverflow.com/questions/155303/net-how-can-you-split-a-caps-delimited-string-into-an-array
-      if (Op == DescriptiveNameOperation.SplitCamelCase)
-        return Regex.Replace(name, @"([a-z](?=[A-Z])|[A-Z](?=[A-Z][a-z]))", "$1 ");
-
-      return null;
-    }
-  }
-
-  [AttributeUsage(AttributeTargets.Parameter | AttributeTargets.Property)]
-  public sealed class SanitizeAttribute : Attribute
-  {
-    public bool StripHtml { get; set; }
-    public bool HtmlEncode { get; set; }
-
-    public SanitizeAttribute()
-    {
-      StripHtml = true;
-      HtmlEncode = true;
-    }
-
-    public string Sanitize(string value)
-    {
-      if (StripHtml)
-        value = value.StripHtml();
-
-      if (HtmlEncode)
-        value = HttpUtility.HtmlEncode(value);
-
-      return value;
-    }
-  }
-
-  [AttributeUsage(AttributeTargets.Property)]
-  public sealed class HiddenAttribute : Attribute
-  {
-  }
-
-  [AttributeUsage(AttributeTargets.Property)]
-  internal sealed class ExcludeFromBindingAttribute : Attribute
-  {
-  }
-  #endregion
-
-  #region HTTP REQUEST
-  public abstract class RequestTypeAttribute : Attribute
-  {
-    public ActionSecurity SecurityType { get; set; }
-    public string RouteAlias { get; set; }
-    public string Roles { get; set; }
-    public bool HttpsOnly { get; set; }
-    public string RedirectWithoutAuthorizationTo { get; set; }
-    public string RequestType { get; private set; }
-
-    protected RequestTypeAttribute(string requestType)
-    {
-      SecurityType = ActionSecurity.None;
-      RequestType = requestType;
-    }
-  }
-
-  [AttributeUsage(AttributeTargets.Method)]
-  public sealed class FromRedirectOnlyAttribute : RequestTypeAttribute
-  {
-    public FromRedirectOnlyAttribute(string routeAlias)
-      : base("GET")
-    {
-      RouteAlias = routeAlias;
-    }
-  }
-
-  [AttributeUsage(AttributeTargets.Method)]
-  public sealed class HttpGetAttribute : RequestTypeAttribute
-  {
-    public HttpCacheability CacheabilityOption { get; set; }
-    public bool Cache { get; set; }
-    public int Duration { get; set; } // in minutes
-    public string Refresh { get; set; }
-
-    internal TimeSpan Expires { get; set; }
-    internal DateTime DateExpiry { get; set; }
-
-    public HttpGetAttribute()
-      : base("GET")
-    {
-      Init();
-    }
-
-    public HttpGetAttribute(string routeAlias)
-      : base("GET")
-    {
-      RouteAlias = routeAlias;
-
-      Init();
-    }
-
-    public HttpGetAttribute(ActionSecurity sec) : this(string.Empty, sec) { }
-
-    public HttpGetAttribute(string routeAlias, ActionSecurity sec)
-      : base("GET")
-    {
-      SecurityType = sec;
-      RouteAlias = routeAlias;
-
-      Init();
-    }
-
-    private void Init()
-    {
-      CacheabilityOption = HttpCacheability.Public;
-      Duration = 15;
-      Expires = new TimeSpan(0, 15, 0);
-      DateExpiry = DateTime.Now.Add(new TimeSpan(0, 15, 0));
-    }
-  }
-
-  [AttributeUsage(AttributeTargets.Method)]
-  public sealed class HttpPostAttribute : RequestTypeAttribute
-  {
-    public bool RequireAntiForgeryToken { get; set; }
-
-    public HttpPostAttribute() : base("POST") { }
-
-    public HttpPostAttribute(string routeAlias)
-      : base("POST")
-    {
-      RouteAlias = routeAlias;
-      RequireAntiForgeryToken = true;
-    }
-
-    public HttpPostAttribute(ActionSecurity sec)
-      : this(string.Empty, sec)
-    {
-    }
-
-    public HttpPostAttribute(string routeAlias, ActionSecurity sec)
-      : base("POST")
-    {
-      SecurityType = sec;
-      RouteAlias = routeAlias;
-    }
-  }
-
-  [AttributeUsage(AttributeTargets.Method)]
-  public sealed class HttpPutAttribute : RequestTypeAttribute
-  {
-    public bool RequireAntiForgeryToken { get; set; }
-
-    public HttpPutAttribute() : base("PUT") { }
-
-    public HttpPutAttribute(string routeAlias)
-      : base("PUT")
-    {
-      RouteAlias = routeAlias;
-      RequireAntiForgeryToken = true;
-    }
-
-    public HttpPutAttribute(ActionSecurity sec)
-      : this(string.Empty, sec)
-    {
-    }
-
-    public HttpPutAttribute(string routeAlias, ActionSecurity sec)
-      : base("PUT")
-    {
-      SecurityType = sec;
-      RouteAlias = routeAlias;
-    }
-  }
-
-  [AttributeUsage(AttributeTargets.Method)]
-  public sealed class HttpDeleteAttribute : RequestTypeAttribute
-  {
-    public bool RequireAntiForgeryToken { get; set; }
-    public HttpDeleteAttribute() : base("DELETE") { }
-
-    public HttpDeleteAttribute(string routeAlias)
-      : base("DELETE")
-    {
-      RouteAlias = routeAlias;
-      RequireAntiForgeryToken = true;
-    }
-
-    public HttpDeleteAttribute(ActionSecurity sec)
-      : this(string.Empty, sec)
-    {
-    }
-
-    public HttpDeleteAttribute(string routeAlias, ActionSecurity sec)
-      : base("DELETE")
-    {
-      SecurityType = sec;
-      RouteAlias = routeAlias;
-    }
-  }
-  #endregion
-
-  #region MODEL
-
-  #region STRING FORMAT
-  [AttributeUsage(AttributeTargets.Property)]
-  public sealed class StringFormatAttribute : Attribute
-  {
-    public string Format { get; set; }
-
-    public StringFormatAttribute(string format)
-    {
-      Format = format;
-    }
-  }
-  #endregion
-
-  #region DATE FORMAT
-  [AttributeUsage(AttributeTargets.Property)]
-  public sealed class DateFormatAttribute : Attribute
-  {
-    public string Format { get; set; }
-
-    public DateFormatAttribute(string format)
-    {
-      Format = format;
-    }
-  }
-  #endregion
-
-  #region MODEL VALIDATION
-  public abstract class ModelValidationBaseAttribute : Attribute
-  {
-    public string ErrorMessage { get; set; }
-
-    protected ModelValidationBaseAttribute(string errorMessage)
-    {
-      ErrorMessage = errorMessage;
-    }
-  }
-
-  [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field)]
-  public sealed class RequiredAttribute : ModelValidationBaseAttribute
-  {
-    public RequiredAttribute(string errorMessage)
-      : base(errorMessage)
-    {
-    }
-  }
-
-  [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field)]
-  public sealed class RequiredLengthAttribute : ModelValidationBaseAttribute
-  {
-    public int Length { get; private set; }
-
-    public RequiredLengthAttribute(int length, string errorMessage)
-      : base(errorMessage)
-    {
-      Length = length;
-    }
-  }
-
-  [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field)]
-  public sealed class RegularExpressionAttribute : ModelValidationBaseAttribute
-  {
-    public Regex Pattern { get; set; }
-
-    public RegularExpressionAttribute(string pattern, string errorMessage)
-      : base(errorMessage)
-    {
-      Pattern = new Regex(pattern);
-    }
-  }
-
-  [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field)]
-  public sealed class RangeAttribute : ModelValidationBaseAttribute
-  {
-    public int Min { get; private set; }
-    public int Max { get; private set; }
-
-    public RangeAttribute(int min, int max, string errorMessage)
-      : base(errorMessage)
-    {
-      Min = min;
-      Max = max;
-    }
-  }
-  #endregion
-
-  #endregion
-
-  #region UNIQUE ID
-  [AttributeUsage(AttributeTargets.Field)]
-  public sealed class UniqueIdAttribute : Attribute
-  {
-    internal string Id { get; set; }
-
-    public UniqueIdAttribute() { }
-
-    internal void GenerateID(string name)
-    {
-      HttpContext ctx = HttpContext.Current;
-      Dictionary<string, string> uids = null;
-
-      if (ctx.Session[MainConfig.UniquedIDSessionName] != null)
-      {
-        uids = ctx.Session[MainConfig.UniquedIDSessionName] as Dictionary<string, string>;
-      }
-      else
-      {
-        ctx.Session[MainConfig.UniquedIDSessionName] = uids = new Dictionary<string, string>();
-      }
-
-      if (!uids.ContainsKey(name))
-      {
-        Id = NewUID();
-        uids[name] = Id;
-      }
-      else
-      {
-        Id = uids[name];
-      }
-    }
-
-    private static string NewUID()
-    {
-      return Guid.NewGuid().ToString().Replace("-", "").Substring(0, 16);
-    }
-  }
-  #endregion
-  #endregion
-
-  #region ACTIVE DIRECTORY
-  /// <summary>
-  /// This provides some basic Active Directory lookup methods for user accounts.  
-  /// </summary>
-#if ACTIVEDIRECTORY
-  public class ActiveDirectoryUser
-  {
-    public string FirstName { get; internal set; }
-    public string LastName { get; internal set; }
-    public string DisplayName { get; internal set; }
-    public string UserName { get; internal set; }
-    public string UserPrincipalName { get; internal set; }
-    public string PrimaryEmailAddress { get; internal set; }
-    public string PhoneNumber { get; internal set; }
-    public string Path { get; internal set; }
-    public X509Certificate2 ClientCertificate { get; internal set; }
-  }
-
-  internal enum ActiveDirectorySearchType
-  {
-    [Metadata("(&(objectClass=user)(userPrincipalName={0}))")]
-    UPN,
-
-    [Metadata("(&(objectClass=user)(proxyAddresses=smtp:{0}))")]
-    EMAIL,
-
-    [Metadata("(&(objectClass=user)(samAccountName={0}))")]
-    USERNAME
-  }
-
-  public static class ActiveDirectory
-  {
-    internal static ActiveDirectoryUser LookupUser(ActiveDirectorySearchType searchType, string data, bool global)
-    {
-      if (string.IsNullOrEmpty(searchType.GetMetadata()))
-        throw new ArgumentNullException("searchType", MainConfig.ADSearchCriteriaIsNullOrEmptyError);
-
-      if (MainConfig.ActiveDirectorySearchInfos.Length > 0)
-      {
-        for (int i = 0; i < MainConfig.ActiveDirectorySearchInfos.Length; i++)
-        {
-          try
-          {
-            return LookupUser(searchType, data, global,
-              MainConfig.ActiveDirectorySearchInfos[i][0],  //Domain
-              MainConfig.ActiveDirectorySearchInfos[i][1],  //SearchRoot
-              MainConfig.ActiveDirectorySearchInfos[i][2],  //UserName
-              MainConfig.ActiveDirectorySearchInfos[i][3]); //Password
-          }
-          catch
-          {
-            if (i < MainConfig.ActiveDirectorySearchInfos.Length - 1)
-              continue;
-            else
-              throw;
-          }
-        }
-      }
-      else
-      {
-        if (string.IsNullOrEmpty(MainConfig.ADSearchUser) || string.IsNullOrEmpty(MainConfig.ADSearchPW))
-          throw new Exception(MainConfig.ADUserOrPWError);
-
-        if (string.IsNullOrEmpty(MainConfig.ADSearchRoot))
-          throw new Exception(MainConfig.ADSearchRootIsNullOrEmpty);
-
-        if (string.IsNullOrEmpty(MainConfig.ADSearchDomain))
-          throw new Exception(MainConfig.ADSearchDomainIsNullorEmpty);
-
-        return LookupUser(searchType, data, global,
-            MainConfig.ADSearchDomain,
-            MainConfig.ADSearchRoot,
-            MainConfig.ADSearchUser,
-            MainConfig.ADSearchPW);
-      }
-
-      return null;
-    }
-
-    internal static ActiveDirectoryUser LookupUser(ActiveDirectorySearchType searchType, string data, bool global, string adSearchDomain, string adSearchRoot, string adSearchUser, string adSearchPW)
-    {
-      ActiveDirectoryUser user = null;
-
-      if (string.IsNullOrEmpty(data))
-        throw new ArgumentNullException("data", MainConfig.ActiveDirectorySearchCriteriaNullOrEmpty);
-
-      try
-      {
-        using (DirectoryEntry searchRootDE = new DirectoryEntry())
-        {
-          searchRootDE.AuthenticationType = AuthenticationTypes.Secure | AuthenticationTypes.Sealing | AuthenticationTypes.Signing;
-          searchRootDE.Username = adSearchUser;
-          searchRootDE.Password = adSearchPW;
-          searchRootDE.Path = (global) ? string.Format(CultureInfo.InvariantCulture, "GC://{0}", adSearchDomain) : adSearchRoot;
-
-          SearchResult result = null;
-
-          try
-          {
-            using (DirectorySearcher searcher = new DirectorySearcher())
-            {
-              searcher.SearchRoot = searchRootDE;
-              searcher.Filter = string.Format(CultureInfo.InvariantCulture, searchType.GetMetadata(), data);
-
-              result = searcher.FindOne();
-            }
-          }
-          catch (DirectoryServicesCOMException)
-          {
-            // If there was a problem contacting the domain controller then lets try another one.
-
-            DomainControllerCollection dcc = DomainController.FindAll(new DirectoryContext(DirectoryContextType.Domain, adSearchDomain));
-            List<DomainController> domainControllers = (from DomainController dc in dcc select dc).ToList();
-
-            for (int i = 0; i < domainControllers.Count(); i++)
-            {
-              DomainController dc = domainControllers[i];
-
-              try
-              {
-                using (DirectorySearcher searcher = dc.GetDirectorySearcher())
-                {
-                  searcher.SearchRoot = searchRootDE;
-                  searcher.Filter = string.Format(CultureInfo.InvariantCulture, searchType.GetMetadata(), data);
-
-                  result = searcher.FindOne();
-                }
-
-                if (result != null)
-                  break;
-              }
-              catch (DirectoryServicesCOMException)
-              {
-                // Forget about this exception and move to the next domain controller
-              }
-            }
-          }
-
-          if (result != null)
-            user = GetUser(result.GetDirectoryEntry());
-        }
-      }
-      catch (DirectoryServicesCOMException)
-      {
-        throw;
-      }
-
-      return user;
-    }
-
-    #region LOOKUP BY USERNAME
-    public static ActiveDirectoryUser LookupUserByUserName(string userName)
-    {
-      return LookupUser(ActiveDirectorySearchType.USERNAME, userName, false);
-    }
-
-    public static ActiveDirectoryUser LookupUserByUserName(string userName, string adSearchUser, string adSearchPW)
-    {
-      return LookupUser(ActiveDirectorySearchType.USERNAME, userName, false, adSearchUser, adSearchPW, null, null);
-    }
-
-    public static ActiveDirectoryUser LookupUserByUserName(string userName, bool global)
-    {
-      return LookupUser(ActiveDirectorySearchType.USERNAME, userName, global);
-    }
-
-    public static ActiveDirectoryUser LookupUserByUserName(string userName, bool global, string adSearchUser, string adSearchPW)
-    {
-      return LookupUser(ActiveDirectorySearchType.USERNAME, userName, global, adSearchUser, adSearchPW, null, null);
-    }
-
-    public static ActiveDirectoryUser LookupUserByUserName(string userName, bool global, string adSearchUser, string adSearchPW, string adSearchRoot, string adSearchDomain)
-    {
-      return LookupUser(ActiveDirectorySearchType.USERNAME, userName, global, adSearchUser, adSearchPW, adSearchRoot, adSearchDomain);
-    }
-    #endregion
-
-    #region LOOKUP USER BY UPN
-    public static ActiveDirectoryUser LookupUserByUpn(string upn)
-    {
-      return LookupUser(ActiveDirectorySearchType.UPN, upn, false);
-    }
-
-    public static ActiveDirectoryUser LookupUserByUpn(string upn, string adSearchUser, string adSearchPW)
-    {
-      return LookupUser(ActiveDirectorySearchType.UPN, upn, false, adSearchUser, adSearchPW, null, null);
-    }
-
-    public static ActiveDirectoryUser LookupUserByUpn(string upn, bool global)
-    {
-      return LookupUser(ActiveDirectorySearchType.UPN, upn, global);
-    }
-
-    public static ActiveDirectoryUser LookupUserByUpn(string upn, bool global, string adSearchUser, string adSearchPW)
-    {
-      return LookupUser(ActiveDirectorySearchType.UPN, upn, global, adSearchUser, adSearchPW, null, null);
-    }
-
-    public static ActiveDirectoryUser LookupUserByUpn(string upn, bool global, string adSearchUser, string adSearchPW, string adSearchRoot, string adSearchDomain)
-    {
-      return LookupUser(ActiveDirectorySearchType.UPN, upn, global, adSearchUser, adSearchPW, adSearchRoot, adSearchDomain);
-    }
-    #endregion
-
-    #region LOOKUP USER BY EMAIL ADDRESS
-    public static ActiveDirectoryUser LookupUserByEmailAddress(string email)
-    {
-      return LookupUser(ActiveDirectorySearchType.EMAIL, email, false);
-    }
-
-    public static ActiveDirectoryUser LookupUserByEmailAddress(string email, string adSearchUser, string adSearchPW)
-    {
-      return LookupUser(ActiveDirectorySearchType.EMAIL, email, false, adSearchUser, adSearchPW, null, null);
-    }
-
-    public static ActiveDirectoryUser LookupUserByEmailAddress(string email, bool global)
-    {
-      return LookupUser(ActiveDirectorySearchType.EMAIL, email, global);
-    }
-
-    public static ActiveDirectoryUser LookupUserByEmailAddress(string email, bool global, string adSearchUser, string adSearchPW)
-    {
-      return LookupUser(ActiveDirectorySearchType.EMAIL, email, global, adSearchUser, adSearchPW, null, null);
-    }
-
-    public static ActiveDirectoryUser LookupUserByEmailAddress(string email, bool global, string adSearchUser, string adSearchPW, string adSearchRoot, string adSearchDomain)
-    {
-      return LookupUser(ActiveDirectorySearchType.EMAIL, email, global, adSearchUser, adSearchPW, adSearchRoot, adSearchDomain);
-    }
-    #endregion
-
-    private static ActiveDirectoryUser GetUser(DirectoryEntry de)
-    {
-      return new ActiveDirectoryUser()
-      {
-        FirstName = de.Properties["givenName"].Value.ToString(),
-        LastName = de.Properties["sn"].Value.ToString(),
-        UserPrincipalName = (de.Properties["userPrincipalName"].Value != null) ?
-              de.Properties["userPrincipalName"].Value.ToString() : null,
-        DisplayName = de.Properties["displayName"].Value.ToString(),
-        UserName = (de.Properties["samAccountName"].Value != null) ? de.Properties["samAccountName"].Value.ToString() : null,
-        PrimaryEmailAddress = GetPrimarySMTP(de) ?? string.Empty,
-        PhoneNumber = de.Properties["telephoneNumber"].Value.ToString(),
-        Path = de.Path,
-        ClientCertificate = de.Properties.Contains("userSMIMECertificate") ?
-                new X509Certificate2(de.Properties["userSMIMECertificate"].Value as byte[]) ?? null :
-                new X509Certificate2(de.Properties["userCertificate"].Value as byte[]) ?? null
-      };
-    }
-
-    private static List<string> GetProxyAddresses(DirectoryEntry user)
-    {
-      List<string> addresses = new List<string>();
-
-      if (user.Properties.Contains("proxyAddresses"))
-      {
-        foreach (string addr in user.Properties["proxyAddresses"])
-        {
-          addresses.Add(Regex.Replace(addr, @"\s+", string.Empty, RegexOptions.IgnoreCase).Trim());
-        }
-      }
-
-      return addresses;
-    }
-
-    private static string GetPrimarySMTP(DirectoryEntry user)
-    {
-      foreach (string p in GetProxyAddresses(user))
-      {
-        if (p.StartsWith("SMTP:", StringComparison.Ordinal)) return p.Replace("SMTP:", string.Empty).ToLowerInvariant();
-      }
-
-      return null;
-    }
-  }
-
-  #region CAC AUTHENTICATION
-#if CAC_AUTHENTICATION
-  public class ActiveDirectoryAuthenticationEventArgs : EventArgs
-  {
-    public ActiveDirectoryUser User { get; set; }
-    public bool Authenticated { get; set; }
-    public string CACID { get; set; }
-  }
-
-  public class ActiveDirectoryAuthentication : IBoundActionObject
-  {
-    public ActiveDirectoryUser User { get; private set; }
-    public bool Authenticated { get; private set; }
-    public string CACID { get; private set; }
-
-    private event EventHandler<ActiveDirectoryAuthenticationEventArgs> ActiveDirectoryLookupEvent = (sender, args) => { };
-
-    public ActiveDirectoryAuthentication(EventHandler<ActiveDirectoryAuthenticationEventArgs> activeDirectoryLookupHandler)
-    {
-      ActiveDirectoryLookupEvent += activeDirectoryLookupHandler;
-    }
-
-    public void ExecuteBeforeAction(HttpContextBase ctx)
-    {
-      ValidateClientCertificate(ctx);
-    }
-
-#if !DEBUG
-    private static string GetCACIDFromCN(HttpContextBase ctx, out X509Certificate2 x509certificate)
-    {
-      x509certificate = new X509Certificate2(ctx.Request.ClientCertificate.Certificate);
-
-      if (x509certificate == null)
-        throw new Exception(MainConfig.ClientCertificateError);
-
-      string cn = x509certificate.GetNameInfo(X509NameType.SimpleName, false);
-      string cacid = string.Empty;
-      bool valid = true;
-
-      if (string.IsNullOrEmpty(cn))
-        throw new Exception(MainConfig.ClientCertificateSimpleNameError);
-
-      if (cn.Contains("."))
-      {
-        string[] fields = cn.Split('.');
-
-        if (fields.Length > 0)
-        {
-          cacid = fields[fields.Length - 1];
-
-          foreach (char c in cacid.ToCharArray())
-          {
-            if (!Char.IsDigit(c))
-            {
-              valid = false;
-              break;
-            }
-          }
-        }
-      }
-
-      if (valid)
-      {
-        return cacid;
-      }
-      else
-      {
-        throw new Exception(string.Format(CultureInfo.CurrentCulture, MainConfig.ClientCertificateUnexpectedFormatForCACID, cn));
-      }
-    }
-#endif
-
-    private void ValidateClientCertificate(HttpContextBase ctx)
-    {
-      ActiveDirectoryAuthenticationEventArgs args = new ActiveDirectoryAuthenticationEventArgs();
-
-#if DEBUG
-      ActiveDirectoryLookupEvent(this, args);
-
-      User = args.User;
-      Authenticated = args.Authenticated;
-      CACID = args.CACID;
-#else
-      X509Certificate2 x509fromASPNET;
-
-      CACID = GetCACIDFromCN(ctx, out x509fromASPNET);
-
-      User = null;
-      Authenticated = false;
-
-      if (!String.IsNullOrEmpty(CACID))
-      {
-        X509Chain chain = new X509Chain();
-        chain.ChainPolicy.RevocationFlag = X509RevocationFlag.EntireChain;
-        chain.ChainPolicy.RevocationMode = X509RevocationMode.Online;
-        chain.ChainPolicy.UrlRetrievalTimeout = new TimeSpan(0, 0, 30);
-
-        if (chain.Build(x509fromASPNET))
-        {
-          ActiveDirectoryUser user = null;
-
-          try
-          {
-            args.CACID = CACID;
-
-            ActiveDirectoryLookupEvent(this, args);
-
-            if (args.User != null)
-              user = args.User;
-          }
-          catch (DirectoryServicesCOMException)
-          {
-            throw new Exception("A problem occurred trying to communicate with Active Directory");
-          }
-
-          if (user != null)
-          {
-            X509Certificate2 x509fromAD;
-
-            string cacidFromAD = GetCACIDFromCN(ctx, out x509fromAD);
-
-            if (CACID == cacidFromAD)
-            {
-              Authenticated = true;
-              User = user;
-            }
-          }
-        }
-      }
-#endif
-    }
-  }
-#endif
-  #endregion
-#endif
-  #endregion
-
-  #region SECURITY MANAGER
-  internal class AuthCookie
-  {
-    public string ID { get; set; }
-    public string AuthToken { get; set; }
-    public DateTime Expiration { get; set; }
-  }
-
-  public class User : IPrincipal
-  {
-    public string AuthenticationToken { get; internal set; }
-    public HttpCookie AuthenticationCookie { get; internal set; }
-    public string SessionId { get; internal set; }
-    public string IPAddress { get; internal set; }
-    public DateTime LogOnDate { get; internal set; }
-    public IIdentity Identity { get; internal set; }
-    public List<string> Roles { get; internal set; }
-
-    // A method to perform role checking against roles that were initially 
-    // tracked when the user was logged in.
-    internal Func<User, string, bool> CheckRoles { get; set; }
-    // During the security check if the action has designated roles then we'll 
-    // populate the action bindings of the method that we are operating on 
-    // behalf of. The CheckRoles method will then be able to use this if need 
-    // be.
-    //
-    // Later on down the road it may be useful to switch this to be the full 
-    // action parameter list rather than just the bindings.
-    public List<object> ActionBindings { get; internal set; }
-
-    public bool IsInRole(string role)
-    {
-      if (Roles != null)
-        return Roles.Contains(role);
-
-      return false;
-    }
-  }
-
-  public class Identity : IIdentity
-  {
-    public string AuthenticationType { get; internal set; }
-    public bool IsAuthenticated { get; internal set; }
-    public string Name { get; internal set; }
-  }
-
-#if OPENID
-  public class OpenAuthClaimsResponse
-  {
-    public string ClaimedIdentifier { get; internal set; }
-    public string FullName { get; internal set; }
-    public string Email { get; internal set; }
-  }
-#endif
-
-  public static class SecurityManager
-  {
-    private static List<User> GetUsers(HttpContextBase context)
-    {
-      List<User> users = null;
-
-      if (context.Application[MainConfig.SecurityManagerSessionName] != null)
-        users = context.Application[MainConfig.SecurityManagerSessionName] as List<User>;
-      else
-      {
-        context.Application.Lock();
-        context.Application[MainConfig.SecurityManagerSessionName] = users = new List<User>();
-        context.Application.UnLock();
-      }
-
-      return users;
-    }
-
-    private static string CreateAuthenticationToken()
-    {
-      return (Guid.NewGuid().ToString() + Guid.NewGuid().ToString()).Replace("-", string.Empty);
-    }
-
-#if OPENID
-    public static void LogonViaOpenAuth(HttpContextBase ctx, string identifier, Action<string> invalidLogon)
-    {
-      if (!Identifier.IsValid(identifier))
-      {
-        if (invalidLogon != null)
-          invalidLogon(MainConfig.OpenIDInvalidIdentifierError);
-      }
-      else
-      {
-        using (var openid = new OpenIdRelyingParty())
-        {
-          try
-          {
-            IAuthenticationRequest request = openid.CreateRequest(Identifier.Parse(identifier));
-
-            ctx.Session[MainConfig.OpenIdProviderUriSessionName] = request.Provider.Uri;
-
-            request.AddExtension(new ClaimsRequest
-            {
-              Email = DemandLevel.Require,
-              FullName = DemandLevel.Require,
-              Nickname = DemandLevel.Request
-            });
-
-            request.RedirectToProvider();
-          }
-          catch
-          {
-            throw;
-          }
-        }
-      }
-    }
-
-    public static void FinalizeLogonViaOpenAuth(HttpContextBase ctx, Action<OpenAuthClaimsResponse> authenticated, Action<string> cancelled, Action<string> failed)
-    {
-      using (var openid = new OpenIdRelyingParty())
-      {
-        IAuthenticationResponse response = openid.GetResponse();
-
-        if (response != null)
-        {
-          if (ctx.Session[MainConfig.OpenIdProviderUriSessionName] != null)
-          {
-            Uri providerUri = ctx.Session[MainConfig.OpenIdProviderUriSessionName] as Uri;
-
-            if (providerUri != response.Provider.Uri)
-              throw new Exception(MainConfig.OpenIdProviderUriMismatchError);
-          }
-          else
-            throw new Exception(MainConfig.OpenIdProviderUriMismatchError);
-
-          switch (response.Status)
-          {
-            case AuthenticationStatus.Authenticated:
-
-              ClaimsResponse claimsResponse = response.GetExtension<ClaimsResponse>();
-
-              if (claimsResponse != null)
-              {
-                if (string.IsNullOrEmpty(claimsResponse.Email))
-                  throw new Exception(MainConfig.OpenIDProviderClaimsResponseError);
-
-                OpenAuthClaimsResponse openAuthClaimsResponse = new OpenAuthClaimsResponse()
-                {
-                  Email = claimsResponse.Email,
-                  FullName = claimsResponse.FullName,
-                  ClaimedIdentifier = response.ClaimedIdentifier
-                };
-
-                ctx.Session[MainConfig.OpenIdClaimsResponseSessionName] = openAuthClaimsResponse;
-
-                if (authenticated != null)
-                  authenticated(openAuthClaimsResponse);
-              }
-              break;
-
-            case AuthenticationStatus.Canceled:
-              if (cancelled != null)
-                cancelled(MainConfig.OpenIDLoginCancelledByProviderError);
-              break;
-
-            case AuthenticationStatus.Failed:
-              if (failed != null)
-                failed(MainConfig.OpenIDLoginFailedError);
-              break;
-          }
-        }
-      }
-    }
-
-    public static OpenAuthClaimsResponse GetOpenAuthClaimsResponse(HttpContextBase ctx)
-    {
-      if (ctx.Session[MainConfig.OpenIdClaimsResponseSessionName] != null)
-        return ctx.Session[MainConfig.OpenIdClaimsResponseSessionName] as OpenAuthClaimsResponse;
-
-      return null;
-    }
-#endif
-
-    public static string LogOn(HttpContextBase ctx, string id)
-    {
-      return LogOn(ctx, id, null, null);
-    }
-
-    public static string LogOn(HttpContextBase ctx, string id, string[] roles, Func<User, string, bool> checkRoles)
-    {
-      if (string.IsNullOrEmpty(MainConfig.EncryptionKey))
-        throw new Exception(MainConfig.EncryptionKeyNotSpecifiedError);
-
-      List<User> users = GetUsers(ctx);
-
-      User u = users.FirstOrDefault(x => x.SessionId == ctx.Session.SessionID && x.Identity.Name == id);
-
-      if (u != null) return u.AuthenticationToken;
-
-      string authToken = CreateAuthenticationToken();
-      DateTime expiration = DateTime.Now.Add(TimeSpan.FromHours(MainConfig.AuthCookieExpiry));
-
-      // Get the frame before this one so we can obtain the method who called us so we can get the attribute
-      // for the action
-      StackFrame sf = new StackFrame(1);
-      MethodInfo callingMethod = (MethodInfo)sf.GetMethod();
-
-      HttpGetAttribute get = (HttpGetAttribute)callingMethod.GetCustomAttributes(false).FirstOrDefault(x => x is HttpGetAttribute);
-
-      HttpCookie auroraAuthCookie = new HttpCookie(MainConfig.AuroraAuthCookieName)
-      {
-        Expires = expiration,
-        HttpOnly = (get != null) ? get.HttpsOnly : true,
-        //Domain = string.Format(".{0}", (ctx.Request.Url.Host == "localhost" ? "local" : ctx.Request.Url.Host)),
-        Value = Encryption.Encrypt(JsonConvert.SerializeObject(new AuthCookie() { AuthToken = authToken, ID = id, Expiration = expiration }), MainConfig.EncryptionKey)
-      };
-
-      ctx.Response.Cookies.Add(auroraAuthCookie);
-
-      u = new User()
-      {
-        AuthenticationToken = authToken,
-        AuthenticationCookie = auroraAuthCookie,
-        SessionId = ctx.Session.SessionID,
-        IPAddress = ctx.IPAddress(),
-        LogOnDate = DateTime.Now,
-        Identity = new Identity() { AuthenticationType = MainConfig.AuroraAuthTypeName, IsAuthenticated = true, Name = id },
-        Roles = roles.ToList(),
-        CheckRoles = checkRoles,
-        ActionBindings = null
-      };
-
-      users.Add(u);
-
-      ctx.Session[MainConfig.CurrentUserSessionName] = u;
-      ctx.User = u;
-
-      return u.AuthenticationToken;
-    }
-
-    public static User GetLoggedOnUser(HttpContextBase ctx)
-    {
-      if (ctx.Session[MainConfig.CurrentUserSessionName] != null)
-        return ctx.Session[MainConfig.CurrentUserSessionName] as User;
-      else
-      {
-        AuthCookie cookie = GetAuthCookie(ctx);
-
-        if (cookie != null)
-        {
-          User u = GetUsers(ctx).FirstOrDefault(x => x.SessionId == ctx.Session.SessionID && x.Identity.Name == cookie.ID);
-
-          if (u != null)
-          {
-            ctx.Session[MainConfig.CurrentUserSessionName] = u;
-            return u;
-          }
-        }
-      }
-
-      return null;
-    }
-
-    private static AuthCookie GetAuthCookie(HttpContextBase ctx)
-    {
-      HttpCookie cookie = ctx.Request.Cookies[MainConfig.AuroraAuthCookieName];
-
-      if (cookie != null)
-        return JsonConvert.DeserializeObject<AuthCookie>(Encryption.Decrypt(cookie.Value, MainConfig.EncryptionKey));
-
-      return null;
-    }
-
-    public static bool LogOff(HttpContextBase ctx)
-    {
-      HttpCookie cookie = ctx.Request.Cookies[MainConfig.AuroraAuthCookieName];
-
-      if (cookie != null)
-      {
-        AuthCookie authCookie = GetAuthCookie(ctx);
-
-        List<User> users = GetUsers(ctx);
-
-        User u = users.FirstOrDefault(x => x.AuthenticationToken == authCookie.AuthToken);
-
-        if (u != null)
-        {
-          bool result = users.Remove(u);
-
-          if (result)
-          {
-            if (ctx.Session[MainConfig.CurrentUserSessionName] != null)
-              ctx.Session.Remove(MainConfig.CurrentUserSessionName);
-
-            ctx.User = null;
-          }
-
-          ctx.Response.Cookies.Remove(MainConfig.AuroraAuthCookieName);
-
-          return result;
-        }
-      }
-
-      return false;
-    }
-
-    //internal static bool IsAuthenticated(HttpContextBase ctx)
-    //{
-    //  return IsAuthenticated(ctx, null, null);
-    //}
-
-    internal static bool IsAuthenticated(HttpContextBase ctx, RouteInfo routeInfo, string authRoles)
-    {
-      AuthCookie authCookie = GetAuthCookie(ctx);
-
-      if (authCookie != null)
-      {
-        User u = GetUsers(ctx).FirstOrDefault(x => x.SessionId == ctx.Session.SessionID && x.Identity.Name == authCookie.ID);
-
-        if (u != null)
-        {
-          if (u.AuthenticationCookie.Expires < DateTime.Now) return false;
-
-          if (!string.IsNullOrEmpty(authRoles))
-          {
-            if (u.CheckRoles != null)
-            {
-              if (routeInfo != null)
-                u.ActionBindings = routeInfo.Bindings;
-
-              return u.CheckRoles(u, authRoles);
-            }
-            else
-            {
-              List<string> minimumRoles = authRoles.Split('|').ToList();
-
-              if (minimumRoles.Intersect(u.Roles).Count() > 0) return true;
-            }
-          }
-          else
-            return true;
-        }
-      }
-
-      return false;
-    }
-  }
-  #endregion
+  #region CORE WEB FRAMEWORK
 
   #region APPLICATION INTERNALS
   /// <summary>
@@ -3228,14 +1765,14 @@ namespace Aurora
     /// </summary>
     internal struct ActionInfo
     {
-      public string ControllerName;// { get; set; }
-      public Type ControllerType;// { get; set; }
-      public string ActionName;// { get; set; }
-      public MethodInfo ActionMethod;// { get; set; }
-      public Attribute Attribute;// { get; set; }
+      public string ControllerName;
+      public Type ControllerType;
+      public string ActionName;
+      public MethodInfo ActionMethod;
+      public Attribute Attribute;
     }
 
-    internal static List<Type> GetTypeList(HttpContextBase context, string sessionName, Type t)
+    internal static List<Type> GetTypeList(AuroraContext context, string sessionName, Type t)
     {
       List<Type> types = null;
 
@@ -3271,15 +1808,13 @@ namespace Aurora
             customError.OnError(errorMessage, rtle);
         }
 
-        context.Application.Lock();
         context.Application[sessionName] = types;
-        context.Application.UnLock();
       }
 
       return types;
     }
 
-    public static List<Type> AllControllers(HttpContextBase context)
+    public static List<Type> AllControllers(AuroraContext context)
     {
       if (context.Application[MainConfig.ControllersSessionName] != null)
       {
@@ -3289,15 +1824,13 @@ namespace Aurora
       {
         List<Type> controllers = GetTypeList(context, MainConfig.ControllersSessionName, typeof(Controller));
 
-        context.Application.Lock();
         context.Application[MainConfig.ControllersSessionName] = controllers;
-        context.Application.UnLock();
 
         return controllers;
       }
     }
 
-    public static List<Controller> AllControllerInstances(HttpContextBase context)
+    public static List<Controller> AllControllerInstances(AuroraContext context)
     {
       List<Controller> controllerInstances = null;
 
@@ -3305,9 +1838,7 @@ namespace Aurora
       {
         controllerInstances = new List<Controller>();
 
-        context.Application.Lock();
         context.Application[MainConfig.ControllerInstancesSessionName] = controllerInstances;
-        context.Application.UnLock();
       }
       else
         controllerInstances = context.Application[MainConfig.ControllerInstancesSessionName] as List<Controller>;
@@ -3315,12 +1846,13 @@ namespace Aurora
       return controllerInstances;
     }
 
-    public static List<Type> AllModels(HttpContextBase context)
+    public static List<Type> AllModels(AuroraContext context)
     {
       return GetTypeList(context, MainConfig.ModelsSessionName, typeof(Model));
     }
 
-    internal static IEnumerable<ActionInfo> GetAllActionInfos(HttpContextBase context)
+    //TODO: This methods name needs to be changed.
+    internal static IEnumerable<ActionInfo> GetAllActionInfos(AuroraContext context)
     {
       foreach (Type c in AllControllers(context))
       {
@@ -3357,26 +1889,26 @@ namespace Aurora
       }
     }
 
-    //public static List<ActionInfo> AllActionInfos(HttpContextBase context)
-    //{
-    //  List<ActionInfo> actionInfos = new List<ActionInfo>();
+    public static List<ActionInfo> AllActionInfos(AuroraContext context)
+    {
+      List<ActionInfo> actionInfos = new List<ActionInfo>();
 
-    //  if (context.Application[MainConfig.ActionInfosSessionName] != null)
-    //  {
-    //    actionInfos = context.Application[MainConfig.ActionInfosSessionName] as List<ActionInfo>;
-    //  }
-    //  else
-    //  {
-    //    foreach (ActionInfo ai in GetAllActionInfos(context))
-    //    {
-    //      actionInfos.Add(ai);
-    //    }
-    //  }
+      if (context.Application[MainConfig.ActionInfosSessionName] != null)
+      {
+        actionInfos = context.Application[MainConfig.ActionInfosSessionName] as List<ActionInfo>;
+      }
+      else
+      {
+        foreach (ActionInfo ai in GetAllActionInfos(context))
+        {
+          actionInfos.Add(ai);
+        }
+      }
 
-    //  return actionInfos;
-    //}
+      return actionInfos;
+    }
 
-    public static Dictionary<string, string> AllPartitionNames(HttpContextBase context)
+    public static Dictionary<string, string> AllPartitionNames(AuroraContext context)
     {
       Dictionary<string, string> partitionNames = new Dictionary<string, string>();
 
@@ -3393,7 +1925,26 @@ namespace Aurora
       return null;
     }
 
-    public static List<string> AllRoutableActionNames(HttpContextBase context, string controllerName)
+    public static string[] AllViewRoots(AuroraContext context)
+    {
+      Dictionary<string, string> partitionNames = AllPartitionNames(context);
+
+      List<string> partitionViewRoots = new List<string>();
+
+      if (partitionNames != null)
+      {
+        foreach (KeyValuePair<string, string> kvp in partitionNames)
+        {
+          partitionViewRoots.Add(context.MapPath("/" + kvp.Value));
+        }
+      }
+
+      partitionViewRoots.Add(context.MapPath(MainConfig.ViewRoot));
+
+      return partitionViewRoots.ToArray();
+    }
+
+    public static List<string> AllRoutableActionNames(AuroraContext context, string controllerName)
     {
       List<string> routableActionNames = new List<string>();
 
@@ -3407,7 +1958,7 @@ namespace Aurora
       return null;
     }
 
-    public static List<RouteInfo> AllRouteInfos(HttpContextBase context)
+    public static List<RouteInfo> AllRouteInfos(AuroraContext context)
     {
       List<RouteInfo> routes = null;
       List<ActionInfo> actionInfos = null;
@@ -3422,10 +1973,8 @@ namespace Aurora
         routes = new List<RouteInfo>();
         actionInfos = new List<ActionInfo>();
 
-        context.Application.Lock();
         context.Application[MainConfig.RoutesSessionName] = routes;
         context.Application[MainConfig.ActionInfosSessionName] = actionInfos;
-        context.Application.UnLock();
       }
 
       foreach (Type c in AllControllers(context))
@@ -3494,7 +2043,7 @@ namespace Aurora
       throw new ActionParameterTransformClassUnknownException(MainConfig.ActionParameterTransformClassUnknownError);
     }
 
-    public static void RemoveRouteInfo(HttpContextBase context, string alias)
+    public static void RemoveRouteInfo(AuroraContext context, string alias)
     {
       List<RouteInfo> routes = AllRouteInfos(context);
       List<RouteInfo> routeInfos = routes.Where(x => x.Dynamic == true && x.Alias == alias).ToList();
@@ -3506,13 +2055,11 @@ namespace Aurora
 
       if (routeInfos.Count > 0)
       {
-        context.Application.Lock();
         context.Application[MainConfig.RoutesSessionName] = routes;
-        context.Application.UnLock();
       }
     }
 
-    public static void AddRouteInfo(HttpContextBase context, string alias, Controller controller, MethodInfo action, string requestType, string frontParams)
+    public static void AddRouteInfo(AuroraContext context, string alias, Controller controller, MethodInfo action, string requestType, string frontParams)
     {
       List<RouteInfo> routes = context.Application[MainConfig.RoutesSessionName] as List<RouteInfo>;
 
@@ -3534,12 +2081,10 @@ namespace Aurora
         Dynamic = true
       });
 
-      context.Application.Lock();
       context.Application[MainConfig.RoutesSessionName] = routes;
-      context.Application.UnLock();
     }
 
-    public static FrontController GetFrontController(HttpContextBase ctx)
+    public static FrontController GetFrontController(AuroraContext ctx)
     {
       List<Type> frontController = GetTypeList(ctx, MainConfig.FrontControllerSessionName, typeof(FrontController));
 
@@ -3555,9 +2100,7 @@ namespace Aurora
         {
           FrontController fc = FrontController.CreateInstance(frontController[0], ctx);
 
-          ctx.Application.Lock();
           ctx.Application[MainConfig.FrontControllerInstanceSessionName] = fc;
-          ctx.Application.UnLock();
 
           return fc;
         }
@@ -3566,7 +2109,7 @@ namespace Aurora
       return null;
     }
 
-    public static CustomError GetCustomError(HttpContextBase context, bool useDefaultHandler)
+    public static CustomError GetCustomError(AuroraContext context, bool useDefaultHandler)
     {
       Type errorType = typeof(DefaultCustomError);
 
@@ -3585,7 +2128,1487 @@ namespace Aurora
         }
       }
 
-      return CustomError.CreateInstance(errorType, new AuroraViewEngine(context.Server.MapPath(MainConfig.ViewRoot), new ViewEngineHelper(context)), context);
+      return CustomError.CreateInstance(errorType, context);
+    }
+
+    public static IViewEngine GetViewEngine(AuroraContext context)
+    {
+      IViewEngine viewEngine;
+
+      if (context.Application[MainConfig.ViewEngineSessionName] != null)
+      {
+        viewEngine = context.Application[MainConfig.ViewEngineSessionName] as IViewEngine;
+
+        if (AuroraConfig.InDebugMode)
+        {
+          viewEngine.Refresh();
+        }
+      }
+      else
+      {
+        viewEngine = new AuroraViewEngine(context);
+
+        context.Application[MainConfig.ViewEngineSessionName] = viewEngine;
+      }
+
+      return viewEngine;
+    }
+
+    public static IRouteEngine GetRouteEngine(AuroraContext context)
+    {
+      IRouteEngine routeEngine;
+
+      if (!MainConfig.AuroraDebug && context.Application[MainConfig.RouteEngineSessionName] != null)
+      {
+        routeEngine = context.Application[MainConfig.RouteEngineSessionName] as IRouteEngine;
+      }
+      else
+      {
+        routeEngine = new AuroraRouteEngine(context);
+
+        context.Application[MainConfig.RouteEngineSessionName] = routeEngine;
+      }
+
+      return routeEngine;
+    }
+  }
+  #endregion
+
+  #region AURORA PUBLIC CONFIG
+  /// <summary>
+  /// Any miscellaneous properties and methods that can be used by applications will be in here.
+  /// </summary>
+  public static class AuroraConfig
+  {
+    /// <summary>
+    /// Returns true if either Aurora or the web application is in debug mode, false otherwise.
+    /// </summary>
+    public static bool InDebugMode
+    {
+      get
+      {
+        return (MainConfig.AuroraDebug || MainConfig.ASPNETDebug) ? true : false;
+      }
+    }
+  }
+  #endregion
+
+  #region AURORA CONTEXT
+  /// <summary>
+  /// A thin wrapper which is used to set the various Response.Cache options
+  /// </summary>
+  public class AuroraCachePolicy
+  {
+    public HttpCacheability CacheabilityOption { get; set; }
+    public DateTime Expires { get; set; }
+    public TimeSpan MaxAge { get; set; }
+    public bool ValidUntilExpires { get; set; }
+    public bool IgnoreParams { get; set; }
+    public bool NoStore { get; set; }
+  }
+
+  /// <summary>
+  /// The interface which defines a set of methods used to wrap the ASP.NET Session
+  /// </summary>
+  public interface IAuroraSessionStore
+  {
+    string SessionID { get; }
+
+    /// <summary>
+    /// Adds a new session key and data value to the store.
+    /// </summary>
+    /// <param name="key">The key</param>
+    /// <param name="value">The data</param>
+    void Add(string key, object value);
+
+    /// <summary>
+    /// Removes a key and it's data value from the store.
+    /// </summary>
+    /// <param name="key">The key</param>
+    void Remove(string key);
+
+    /// <summary>
+    /// Gets a value from the session store by looking for it's key name.
+    /// </summary>
+    /// <param name="key">The key</param>
+    /// <returns>The data associated with this key</returns>
+    object Get(string key);
+
+    /// <summary>
+    /// Gets a value from the session store by indexing on it's key name.
+    /// </summary>
+    /// <param name="key">The key</param>
+    /// <returns>The data associated with this key</returns>
+    object this[string key] { get; set; }
+  }
+
+  public class AuroraApplicationState : IAuroraSessionStore
+  {
+    public string SessionID
+    {
+      get { return string.Empty; }
+    }
+
+    private HttpApplicationStateBase AppState;
+
+    public AuroraApplicationState(HttpApplicationStateBase state)
+    {
+      AppState = state;
+    }
+
+    public void Add(string key, object value)
+    {
+      AppState.Lock();
+      AppState.Add(key, value);
+      AppState.UnLock();
+    }
+
+    public void Remove(string key)
+    {
+      AppState.Remove(key);
+    }
+
+    public object Get(string key)
+    {
+      return AppState[key];
+    }
+
+    public object this[string key]
+    {
+      get
+      {
+        string k = AppState.AllKeys.FirstOrDefault(x => x == key);
+
+        if (string.IsNullOrEmpty(k))
+          return null;
+
+        return AppState[key];
+      }
+      set
+      {
+        AppState.Lock();
+        AppState[key] = value;
+        AppState.UnLock();
+      }
+    }
+  }
+
+  public class AuroraSession : IAuroraSessionStore
+  {
+    public string SessionID
+    {
+      get { return Session.SessionID; }
+    }
+
+    private HttpSessionStateBase Session;
+
+    public AuroraSession(HttpSessionStateBase session)
+    {
+      Session = session;
+    }
+
+    public void Add(string key, object value)
+    {
+      Session.Add(key, value);
+    }
+
+    public void Remove(string key)
+    {
+      Session.Remove(key);
+    }
+
+    public object Get(string key)
+    {
+      return Session[key];
+    }
+
+    public object this[string key]
+    {
+      get
+      {
+        return Session[key];
+      }
+
+      set
+      {
+        Session[key] = value;
+      }
+    }
+  }
+
+  /// <summary>
+  /// A fake session store used for both Session and Application
+  /// </summary>
+  public class AuroraFakeSessionStore : IAuroraSessionStore
+  {
+    public string SessionID
+    {
+      get { return string.Empty; }
+    }
+
+    private Dictionary<string, object> Session;
+
+    public AuroraFakeSessionStore()
+    {
+      Session = new Dictionary<string, object>();
+    }
+
+    public void Add(string key, object value)
+    {
+      Session.Add(key, value);
+    }
+
+    public void Remove(string key)
+    {
+      if (Session.ContainsKey(key))
+        Session.Remove(key);
+    }
+
+    public object Get(string key)
+    {
+      if (Session.ContainsKey(key))
+        return Session[key];
+
+      return null;
+    }
+
+    public object this[string key]
+    {
+      get
+      {
+        if (Session.ContainsKey(key))
+          return Session[key];
+
+        return null;
+      }
+      set
+      {
+        Session[key] = value;
+      }
+    }
+  }
+
+  /// <summary>
+  /// The interface which defines what an Aurora Context will look like
+  /// </summary>
+  public interface IAuroraContext
+  {
+    HttpContextBase RawContext { get; set; }
+
+    X509Certificate2 RequestClientCertificate { get; set; }
+
+    IAuroraSessionStore Application { get; set; }
+    IAuroraSessionStore Session { get; set; }
+
+    NameValueCollection RequestHeaders { get; set; }
+    NameValueCollection Form { get; set; }
+    NameValueCollection QueryString { get; set; }
+
+    string IPAddress { get; }
+
+    bool IsSecureConnection { get; set; }
+
+    HttpCookieCollection RequestCookies { get; set; }
+    HttpCookieCollection ResponseCookies { get; set; }
+    NameValueCollection RequestServerVariables { get; set; }
+
+    IPrincipal User { get; set; }
+
+    string ApplicationPhysicalPath { get; set; }
+    string Path { get; set; }
+    string RequestType { get; set; }
+    Dictionary<string, string> RequestPayload { get; set; }
+
+    HttpPostedFileBase[] Files { get; set; }
+
+    Cache Cache { get; set; }
+
+    Stream ResponseFilter { get; set; }
+
+    string ResponseCharset { get; set; }
+    string ResponseContentType { get; set; }
+
+    string MapPath(string path);
+    void ValidateInput();
+    void RewritePath(string path);
+    void ResponseRedirect(string url);
+    void ResponseWrite(string text);
+    void ResponseBinaryWrite(byte[] bits);
+    void ResponseTransmitFile(string fileName);
+    void ResponseAddHeader(string name, string value);
+    void ResponseAppendHeader(string name, string value);
+    void ResponseClearContent();
+    void ResponseClearHeaders();
+    void ResponseSetCachePolicy(AuroraCachePolicy policy);
+    void ResponseSetNoCache();
+    void ResponseStatusCode(HttpStatusCode statusCode);
+    void ServerClearError();
+  }
+
+  /// <summary>
+  /// The AuroraContext wrapper around an HttpContext. Hopefully this can also
+  /// be used as a fake context by just using the default constructor and setting
+  /// the various bits. Perhaps we need some overloads here to make it a bit more
+  /// sensable. 
+  /// </summary>
+  public class AuroraContext : IAuroraContext
+  {
+    public HttpContextBase RawContext { get; set; }
+
+    public X509Certificate2 RequestClientCertificate { get; set; }
+
+    public IAuroraSessionStore Application { get; set; }
+    public IAuroraSessionStore Session { get; set; }
+    public NameValueCollection Form { get; set; }
+    public NameValueCollection QueryString { get; set; }
+
+    public HttpCookieCollection RequestCookies { get; set; }
+    public HttpCookieCollection ResponseCookies { get; set; }
+
+    public NameValueCollection RequestHeaders { get; set; }
+    public NameValueCollection RequestServerVariables
+    {
+      get
+      {
+        if (RawContext != null)
+        {
+          return RawContext.Request.ServerVariables;
+        }
+        else
+        {
+          return new NameValueCollection();
+        }
+      }
+
+      set
+      {
+        RequestServerVariables = value;
+      }
+    }
+
+    public Uri RequestUrl
+    {
+      get
+      {
+        if (RawContext != null)
+        {
+          return RawContext.Request.Url;
+        }
+        else
+        {
+          return null;
+        }
+      }
+
+      set
+      {
+        RequestUrl = value;
+      }
+    }
+
+    private IPrincipal _User;
+    public IPrincipal User
+    {
+      get
+      {
+        if (RawContext != null)
+        {
+          return RawContext.User;
+        }
+        else
+        {
+          return _User;
+        }
+      }
+
+      set
+      {
+        if (RawContext != null)
+        {
+          RawContext.User = value;
+        }
+        else
+        {
+          _User = value;
+        }
+      }
+    }
+
+    public string IPAddress
+    {
+      get
+      {
+        if (RawContext != null)
+        {
+          // This method is based on the following example at StackOverflow:
+          //
+          // http://stackoverflow.com/questions/735350/how-to-get-a-users-client-ip-address-in-asp-net
+          string ip = RawContext.Request.ServerVariables["HTTP_X_FORWARDED_FOR"];
+
+          if (string.IsNullOrEmpty(ip))
+            return RawContext.Request.ServerVariables["REMOTE_ADDR"];
+          else
+            return ip.Split(',')[0];
+        }
+        else
+        {
+          return "127.0.0.1";
+        }
+      }
+    }
+
+    public bool IsSecureConnection { get; set; }
+
+    public string ApplicationPhysicalPath { get; set; }
+    public string Path { get; set; }
+    public string RequestType { get; set; }
+
+    public Dictionary<string, string> RequestPayload { get; set; }
+
+    public HttpPostedFileBase[] Files { get; set; }
+
+    public Cache Cache { get; set; }
+
+    public Stream ResponseFilter
+    {
+      get
+      {
+        if (RawContext != null)
+        {
+          return RawContext.Response.Filter;
+        }
+        else
+        {
+          return null;
+        }
+      }
+
+      set
+      {
+        if (RawContext != null)
+        {
+          RawContext.Response.Filter = value;
+        }
+        else
+        {
+          ResponseFilter = value;
+        }
+      }
+    }
+
+    public string ResponseCharset
+    {
+      get
+      {
+        if (RawContext != null)
+        {
+          return RawContext.Response.Charset;
+        }
+        else
+        {
+          return ResponseCharset;
+        }
+      }
+
+      set
+      {
+        if (RawContext != null)
+        {
+          RawContext.Response.Charset = value;
+        }
+        else
+        {
+          ResponseCharset = value;
+
+        }
+      }
+    }
+
+    public string ResponseContentType
+    {
+      get
+      {
+        if (RawContext != null)
+        {
+          return RawContext.Response.ContentType;
+        }
+        else
+        {
+          return ResponseContentType;
+        }
+      }
+
+      set
+      {
+        if (RawContext != null)
+        {
+          RawContext.Response.ContentType = value;
+        }
+        else
+        {
+          ResponseContentType = value;
+        }
+      }
+    }
+
+    private void Init()
+    {
+      RawContext = null;
+      RequestClientCertificate = null;
+      Cache = new Cache();
+      User = null;
+      IsSecureConnection = false;
+      ApplicationPhysicalPath = string.Empty;
+      Path = "~/";
+      RequestType = "GET";
+      Form = new NameValueCollection();
+      QueryString = new NameValueCollection();
+      RequestPayload = new Dictionary<string, string>();
+      RequestCookies = new HttpCookieCollection();
+      ResponseCookies = new HttpCookieCollection();
+      RequestHeaders = new NameValueCollection();
+      RequestPayload = new Dictionary<string, string>();
+      Session = new AuroraFakeSessionStore();
+      Application = new AuroraFakeSessionStore();
+      Files = new HttpPostedFileBase[0];
+    }
+
+    public AuroraContext()
+    {
+      Init();
+    }
+
+    public AuroraContext(HttpContextBase ctx)
+      : this()
+    {
+      if (ctx != null)
+      {
+        #region WRAP THE HTTP CONTEXT
+        RawContext = ctx;
+
+        Cache = ctx.Cache;
+
+        if (ctx.Request.ClientCertificate != null)
+          RequestClientCertificate = new X509Certificate2(ctx.Request.ClientCertificate.Certificate);
+
+        Application = new AuroraApplicationState(ctx.Application);
+        Session = new AuroraSession(ctx.Session);
+
+        ApplicationPhysicalPath = ctx.Request.PhysicalApplicationPath;
+        Path = ctx.Request.Path;
+
+        RequestCookies = ctx.Request.Cookies;
+        ResponseCookies = ctx.Response.Cookies;
+
+        RequestType = ctx.Request.RequestType;
+
+        RequestHeaders = new NameValueCollection(ctx.Request.Headers);
+
+        IsSecureConnection = ctx.Request.IsSecureConnection;
+
+        for (int i = 0; i < ctx.Application.Count; i++)
+        {
+          Application[ctx.Application.Keys[i]] = ctx.Application.Contents[i];
+        }
+
+        for (int i = 0; i < ctx.Session.Count; i++)
+        {
+          Session[ctx.Session.Keys[i]] = ctx.Session.Contents[i];
+        }
+
+        ResponseFilter = ctx.Response.Filter;
+
+        if (ctx.Request.Files.Count > 0)
+        {
+          Files = new HttpPostedFileBase[ctx.Request.Files.Count];
+
+          ctx.Request.Files.CopyTo(Files, 0);
+        }
+
+        Form = new NameValueCollection(ctx.Request.Form);
+        QueryString = new NameValueCollection(ctx.Request.QueryString);
+
+        RequestPayload = new Dictionary<string, string>();
+
+        string payload = new StreamReader(RawContext.Request.InputStream).ReadToEnd();
+
+        if (!string.IsNullOrEmpty(payload))
+        {
+          RequestPayload = payload.Split(',').Select(x => x.Split('=')).ToDictionary(x => x[0], x => x[1]);
+        }
+        #endregion
+      }
+    }
+
+    public string MapPath(string path)
+    {
+      if (RawContext != null)
+      {
+        return RawContext.Server.MapPath(path);
+      }
+
+      return path;
+    }
+
+    public void ValidateInput()
+    {
+      if (RawContext != null)
+        RawContext.Request.ValidateInput();
+    }
+
+    public void RewritePath(string path)
+    {
+      if (RawContext != null)
+        RawContext.RewritePath(path);
+    }
+
+    public void ResponseRedirect(string url)
+    {
+      if (RawContext != null)
+        RawContext.Response.Redirect(url);
+    }
+
+    public void ResponseWrite(string text)
+    {
+      if (RawContext != null)
+        RawContext.Response.Write(text);
+    }
+
+    public void ResponseBinaryWrite(byte[] buffer)
+    {
+      if (RawContext != null)
+        RawContext.Response.BinaryWrite(buffer);
+    }
+
+    public void ResponseTransmitFile(string fileName)
+    {
+      if (RawContext != null)
+        RawContext.Response.TransmitFile(fileName);
+    }
+
+    public void ResponseAddHeader(string name, string value)
+    {
+      if (RawContext != null)
+        RawContext.Response.AddHeader(name, value);
+    }
+
+    public void ResponseAppendHeader(string name, string value)
+    {
+      if (RawContext != null)
+        RawContext.Response.AppendHeader(name, value);
+    }
+
+    public void ResponseClearContent()
+    {
+      if (RawContext != null)
+        RawContext.Response.ClearContent();
+    }
+
+    public void ResponseClearHeaders()
+    {
+      if (RawContext != null)
+        RawContext.Response.ClearHeaders();
+    }
+
+    public void ResponseSetCachePolicy(AuroraCachePolicy policy)
+    {
+      if (RawContext != null)
+      {
+        RawContext.Response.Cache.SetCacheability(policy.CacheabilityOption);
+        RawContext.Response.Cache.SetExpires(policy.Expires);
+        RawContext.Response.Cache.SetMaxAge(policy.MaxAge);
+        RawContext.Response.Cache.SetValidUntilExpires(policy.ValidUntilExpires);
+        RawContext.Response.Cache.VaryByParams.IgnoreParams = policy.IgnoreParams;
+      }
+    }
+
+    public void ResponseSetNoCache()
+    {
+      if (RawContext != null)
+      {
+        RawContext.Response.Cache.SetCacheability(HttpCacheability.NoCache);
+        RawContext.Response.Cache.SetNoStore();
+        RawContext.Response.Cache.SetExpires(DateTime.MinValue);
+      }
+    }
+
+    public void ResponseStatusCode(HttpStatusCode statusCode)
+    {
+      if (RawContext != null)
+        RawContext.Response.StatusCode = (int)statusCode;
+    }
+
+    public void ServerClearError()
+    {
+      if (RawContext != null)
+        RawContext.Server.ClearError();
+    }
+  }
+  #endregion
+
+  #region AURORA ENGINE
+  public sealed class AuroraEngine
+  {
+    private IRouteEngine routeEngine;
+    private IViewEngine viewEngine;
+    private AuroraContext context;
+    private BundleManager bundleManager;
+    private FrontController frontController;
+
+    public AuroraEngine(AuroraContext ctx)
+    {
+      if (ctx == null)
+        throw new ArgumentNullException("ctx");
+
+      context = ctx;
+
+      frontController = ApplicationInternals.GetFrontController(ctx);
+      bundleManager = new BundleManager(ctx);
+
+      if (!MainConfig.SupportedHttpVerbs.Contains(ctx.RequestType))
+        throw new Exception(string.Format(CultureInfo.CurrentCulture, MainConfig.HttpRequestTypeNotSupportedError, ctx.RequestType));
+
+      if (MainConfig.ValidateRequest)
+      {
+        context.ValidateInput();
+      }
+
+      string incomingPath = context.Path;
+      string path = string.Empty;
+
+      if (string.Equals(incomingPath, "/", StringComparison.Ordinal) ||
+          string.Equals(incomingPath, "/default.aspx", StringComparison.OrdinalIgnoreCase) ||
+          incomingPath == "~/")
+      {
+        path = MainConfig.DefaultRoute;
+      }
+      else
+      {
+        path = (context.Path.EndsWith("/", StringComparison.Ordinal)) ?
+          context.Path.Remove(context.Path.Length - 1) : context.Path;
+      }
+
+      context.RewritePath(path);
+
+      ProcessRequest(path);
+    }
+
+    private void ProcessRequest(string path)
+    {
+      HttpCookie authCookie = context.RequestCookies[MainConfig.AuroraAuthCookieName];
+
+      if (authCookie != null)
+      {
+        if (context.Session[MainConfig.CurrentUserSessionName] != null)
+        {
+          context.User = context.Session[MainConfig.CurrentUserSessionName] as User;
+        }
+      }
+
+      routeEngine = ApplicationInternals.GetRouteEngine(context);
+
+      try
+      {
+        IViewResult result = null;
+
+        if (IsRequestStatic(path))
+        {
+          result = ProcessStaticRequest(path);
+        }
+        else
+        {
+          viewEngine = ApplicationInternals.GetViewEngine(context);
+
+          result = ProcessDynamicRequest(path, routeEngine.FindRoute(path));
+        }
+
+        if (result == null)
+        {
+          throw new Exception(MainConfig.Http404Error);
+        }
+
+        result.Render();
+      }
+      catch (ThreadAbortException)
+      {
+        context.ServerClearError();
+      }
+      catch (Exception ex)
+      {
+        context.ServerClearError();
+
+        if (MainConfig.CustomErrorsSection.Mode == CustomErrorsMode.On)
+        {
+          // Check to see if there is a derived CustomError class otherwise look to see if there is a cusom error method on a controller
+          CustomError customError = ApplicationInternals.GetCustomError(context, false);
+
+          if (customError == null)
+          {
+            (new ErrorResult(context, ex)).Render();
+
+            context.ResponseStatusCode(HttpStatusCode.NotFound);
+          }
+          else
+          {
+            // The custom error class is for all controllers and all static content that may produce an error.
+            customError.OnError(ex.Message, ex).Render();
+          }
+        }
+        else
+        {
+          CustomError customError = ApplicationInternals.GetCustomError(context, true);
+          customError.OnError(ex.Message, ex).Render();
+        }
+      }
+    }
+
+    private bool IsRequestStatic(string path)
+    {
+      if (MainConfig.PathStaticFileRE.IsMatch(path))
+      {
+        // Front Controller Static route event
+        if (frontController != null)
+          frontController.RaiseEvent(RouteHandlerEventType.Static, path, null);
+
+        return true;
+      }
+
+      return false;
+    }
+
+    private IViewResult ProcessStaticRequest(string path)
+    {
+      IViewResult iar = null;
+
+      if (path.StartsWith("/" + MainConfig.PublicResourcesFolderName, StringComparison.Ordinal)
+          || path.EndsWith(".ico", StringComparison.Ordinal))
+      {
+        if (MainConfig.PathStaticFileRE.IsMatch(path))
+        {
+          string staticFilePath = context.MapPath(path);
+
+          if (File.Exists(staticFilePath) || bundleManager.Contains(Path.GetFileName(path)))
+          {
+            string protectedRoles = null;
+
+            if (StaticFileManager.IsProtected(context, staticFilePath, out protectedRoles))
+            {
+              if (!SecurityManager.IsAuthenticated(context, null, protectedRoles))
+                return iar;
+            }
+
+            return new PhysicalFileResult(context, staticFilePath);
+          }
+        }
+      }
+
+      return iar;
+    }
+
+    public IViewResult ProcessDynamicRequest(string path, RouteInfo routeInfo)
+    {
+      IViewResult result = null;
+
+      if (routeInfo != null && !routeInfo.IsFiltered)
+      {
+        if (frontController != null)
+        {
+          // Front Controller PostRoute determination event
+          frontController.RaiseEvent(RouteHandlerEventType.PostRoute, path, routeInfo);
+          // Front Controller PreAction event
+          frontController.RaiseEvent(RouteHandlerEventType.Pre, path, routeInfo);
+        }
+
+        // Execute Controller BeforeAction event
+        routeInfo.ControllerInstance.RaiseEvent(RouteHandlerEventType.Pre, path, routeInfo);
+
+        #region DO THE HEAVY LIFTING
+        RequestTypeAttribute reqAttrib = Attribute.GetCustomAttribute(routeInfo.Action, typeof(RequestTypeAttribute), false) as RequestTypeAttribute;
+        HttpGetAttribute get = routeInfo.Attribute as HttpGetAttribute;
+
+        routeInfo.ControllerInstance.CurrentRoute = routeInfo;
+
+        #region SECURITY CHECKING
+        if (reqAttrib.HttpsOnly && !context.IsSecureConnection) return result;
+
+        if (reqAttrib.SecurityType == ActionSecurity.Secure)
+        {
+          if (!SecurityManager.IsAuthenticated(context, routeInfo, reqAttrib.Roles))
+          {
+            if (frontController != null)
+              frontController.RaiseEvent(RouteHandlerEventType.FailedSecurity, path, routeInfo);
+
+            if (!string.IsNullOrEmpty(reqAttrib.RedirectWithoutAuthorizationTo))
+              return new RedirectResult(context, reqAttrib.RedirectWithoutAuthorizationTo);
+            else
+              throw new Exception(MainConfig.RedirectWithoutAuthorizationToError);
+          }
+
+          if (frontController != null)
+            frontController.RaiseEvent(RouteHandlerEventType.PassedSecurity, path, routeInfo);
+        }
+        #endregion
+
+        if (get != null)
+        {
+          #region AJAX GET REQUEST WITH JSON RESULT
+          if (routeInfo.Action.ReturnType == typeof(JsonResult))
+          {
+            if (context.QueryString[MainConfig.AntiForgeryTokenName] != null)
+            {
+              if (!AntiForgeryToken.VerifyToken(context))
+                throw new AntiForgeryTokenMissingException(MainConfig.JsonAntiForgeryTokenMissing);
+            }
+          }
+          #endregion
+
+          #region HTTP GET CACHE BYPASS
+          if (get.Cache)
+          {
+            // if we have a cached view result for this request we will return it and skip invocation of the action
+            if (context.Cache[path] != null)
+            {
+              if (frontController != null)
+                frontController.RaiseEvent(RouteHandlerEventType.CachedViewResult, path, routeInfo);
+
+              CachedViewResult vr = (context.Cache[path] as CachedViewResult);
+
+              vr.ViewResult.Refresh(context, get);
+
+              return vr.ViewResult;
+            }
+          }
+          #endregion
+        }
+
+        #region ANTI FORGERY TOKEN VERIFICATION
+        if ((context.RequestType == "POST" && (routeInfo.Attribute as HttpPostAttribute).RequireAntiForgeryToken ||
+            context.RequestType == "PUT" && (routeInfo.Attribute as HttpPutAttribute).RequireAntiForgeryToken ||
+            context.RequestType == "DELETE" && (routeInfo.Attribute as HttpDeleteAttribute).RequireAntiForgeryToken))
+        {
+          string antiForgeryToken = (routeInfo.Payload == null) ?
+            context.Form[MainConfig.AntiForgeryTokenName] : routeInfo.Payload[MainConfig.AntiForgeryTokenName];
+
+          if (!string.IsNullOrEmpty(antiForgeryToken))
+          {
+            if (!AntiForgeryToken.VerifyToken(context, antiForgeryToken))
+              throw new Exception(MainConfig.AntiForgeryTokenVerificationFailedError);
+          }
+          else
+            throw new Exception(MainConfig.AntiForgeryTokenMissingError);
+        }
+        #endregion
+
+        #region REFINE ACTION PARAMS
+        routeInfo.ActionParameters = DetermineAndProcessSanitizeAttributes(routeInfo);
+        routeInfo.ActionParameterTransforms = DetermineActionParameterTransforms(routeInfo);
+
+        if (routeInfo.ActionParameterTransforms != null && routeInfo.ActionParameterTransforms.Count > 0)
+          routeInfo.ActionParameters = ProcessActionParameterTransforms(routeInfo, routeInfo.ActionParameterTransforms);
+        #endregion
+
+        result = InvokeAction(routeInfo);
+
+        #region VIEW CACHING
+        if (get != null && get.Cache)
+        {
+          context.Cache.Add(
+              path,
+              new CachedViewResult() { ViewResult = result as ViewResult },
+              null,
+              get.DateExpiry,
+              System.Web.Caching.Cache.NoSlidingExpiration,
+              CacheItemPriority.Normal,
+              null);
+        }
+        #endregion
+
+        #endregion
+
+        // Front Controller PostAction event
+        if (frontController != null)
+          frontController.RaiseEvent(RouteHandlerEventType.Post, path, routeInfo);
+
+        // Execute Controller AfterAction
+        routeInfo.ControllerInstance.RaiseEvent(RouteHandlerEventType.Post, path, routeInfo);
+      }
+
+      return result;
+    }
+
+    private IViewResult InvokeAction(RouteInfo routeInfo)
+    {
+      if (routeInfo != null)
+      {
+        IViewResult result = null;
+
+        if (routeInfo.Bindings != null)
+        {
+          foreach (object i in routeInfo.Bindings)
+          {
+            if (i.GetType().GetInterface(typeof(IBoundActionObject).Name) != null)
+            {
+              MethodInfo boundActionObject = i.GetType().GetMethod("ExecuteBeforeAction");
+
+              if (boundActionObject != null)
+                boundActionObject.Invoke(i, new object[] { context });
+            }
+          }
+        }
+
+        if (!routeInfo.IsFiltered)
+        {
+          if (routeInfo.Dynamic && context.Session[MainConfig.FromRedirectOnlySessionFlag] == null)
+            return null;
+
+          #region CHECK TO SEE IF WE HAVE ACTION FILTERS AND MODIFY THE ACTION PARAMETERS ACCORDINGLY
+          List<ActionFilterAttribute> filters = routeInfo.Action.GetCustomAttributes(false).Where(x => x.GetType().BaseType == typeof(ActionFilterAttribute)).Cast<ActionFilterAttribute>().ToList();
+
+          if (filters.Count() > 0)
+          {
+            List<IActionFilterResult> filterResults = new List<IActionFilterResult>();
+
+            // Look for ActionFilter attributes then execute their OnFilter method
+            foreach (ActionFilterAttribute af in filters)
+            {
+              af.Controller = routeInfo.ControllerInstance;
+              af.OnFilter(routeInfo);
+
+              if (af.FilterResult != null)
+                filterResults.Add(af.FilterResult);
+            }
+
+            if (filterResults.Count() > 0)
+            {
+              var filteredMethodParams = routeInfo.Action.GetParameters().Where(x => x.GetType().GetInterfaces().FirstOrDefault(i => i.UnderlyingSystemType == typeof(IActionFilterResult)) != null);
+
+              if (filteredMethodParams != null)
+                routeInfo.ActionParameters = filterResults.ToArray().Concat(routeInfo.ActionParameters).ToArray();
+            }
+          }
+          #endregion
+
+          object _result = routeInfo.Action.Invoke(routeInfo.ControllerInstance, routeInfo.ActionParameters);
+
+          if (context.Session[MainConfig.FromRedirectOnlySessionFlag] != null)
+            context.Session.Remove(MainConfig.FromRedirectOnlySessionFlag);
+
+          result = (routeInfo.Action.ReturnType.GetInterfaces().Contains(typeof(IViewResult))) ? (IViewResult)_result : new VoidResult();
+        }
+
+        return result;
+      }
+
+      return null;
+    }
+
+    private static object[] DetermineAndProcessSanitizeAttributes(RouteInfo routeInfo)
+    {
+      ParameterInfo[] actionParms = routeInfo.Action.GetParameters();
+
+      object[] processedParams = new object[routeInfo.ActionParameters.Length];
+
+      routeInfo.ActionParameters.CopyTo(processedParams, 0);
+
+      for (int i = 0; i < actionParms.Length; i++)
+      {
+        if (actionParms[i].ParameterType == typeof(string))
+        {
+          SanitizeAttribute sanitize = (SanitizeAttribute)actionParms[i].GetCustomAttributes(false).FirstOrDefault(x => x is SanitizeAttribute);
+
+          if (sanitize != null)
+            sanitize.Sanitize(processedParams[i].ToString());
+        }
+      }
+
+      return processedParams;
+    }
+
+    private static List<ActionParamTransformInfo> DetermineActionParameterTransforms(RouteInfo routeInfo)
+    {
+      Type[] actionParameterTypes = routeInfo.ActionParameters.Select(x => (x != null) ? x.GetType() : null).ToArray();
+
+      List<ActionParamTransformInfo> actionParameterTransforms = new List<ActionParamTransformInfo>();
+
+      for (int i = 0; i < routeInfo.Action.GetParameters().Count(); i++)
+      {
+        ParameterInfo pi = routeInfo.Action.GetParameters()[i];
+
+        ActionParamTransformAttribute apt = (ActionParamTransformAttribute)pi.GetCustomAttributes(typeof(ActionParamTransformAttribute), false).FirstOrDefault();
+
+        if (apt != null)
+        {
+          // The ActionParamTransform name corresponds to a class that implements the IActionParamTransform interface
+
+          if (routeInfo.ActionParameterTransforms == null)
+            routeInfo.ActionParameterTransforms = new List<ActionParamTransformInfo>();
+
+          // Look up class
+          Type actionParamTransformClassType = ApplicationInternals.GetActionTransformClassType(apt);
+
+          if (actionParamTransformClassType != null)
+          {
+            // Call Transform method, take results and use that instead of the incoming param
+            MethodInfo transformMethod = actionParamTransformClassType.GetMethod("Transform");
+
+            if (transformMethod != null)
+            {
+              Type transformedParamType = transformMethod.ReturnType;
+
+              actionParameterTypes[i] = transformedParamType;
+
+              actionParameterTransforms.Add(new ActionParamTransformInfo()
+              {
+                TransformClassType = actionParamTransformClassType,
+                TransformMethod = transformMethod,
+                IndexIntoParamList = i
+              });
+            }
+          }
+        }
+      }
+
+      if (actionParameterTransforms.Count() > 0) return actionParameterTransforms;
+
+      return null;
+    }
+
+    private static object[] ProcessActionParameterTransforms(RouteInfo routeInfo, List<ActionParamTransformInfo> actionParamTransformInfos)
+    {
+      if (actionParamTransformInfos != null)
+      {
+        object[] processedParams = new object[routeInfo.ActionParameters.Length];
+
+        routeInfo.ActionParameters.CopyTo(processedParams, 0);
+
+        foreach (ActionParamTransformInfo apti in actionParamTransformInfos)
+        {
+          // Instantiate the class, the constructor will receive any bound action objects that the params method received.
+          object actionParamTransformClassInstance = Activator.CreateInstance(apti.TransformClassType, routeInfo.Bindings.ToArray());
+
+          Type transformMethodParameterType = apti.TransformMethod.GetParameters()[0].ParameterType;
+          Type incomingParameterType = processedParams[apti.IndexIntoParamList].GetType();
+
+          if (transformMethodParameterType != incomingParameterType)
+          {
+            // Why am I doing this here? Why am I converting the result to a string? I can't remember. ARGH!
+
+            //if (transformMethodParameterType == typeof(string) || incomingParameterType == typeof(Int64))
+            //{
+            processedParams[apti.IndexIntoParamList] = processedParams[apti.IndexIntoParamList].ToString();
+            //}
+            //else
+            //  throw new ArgumentException();
+          }
+
+          object transformedParam = apti.TransformMethod.Invoke(actionParamTransformClassInstance, new object[] { processedParams[apti.IndexIntoParamList] });
+
+          if (transformedParam != null)
+          {
+            processedParams[apti.IndexIntoParamList] = transformedParam;
+          }
+        }
+
+        return processedParams;
+      }
+
+      return null;
+    }
+  }
+  #endregion
+
+  #region AURORA ROUTE ENGINE
+  internal interface IRouteEngine
+  {
+    RouteInfo FindRoute(string path);
+  }
+
+  public class RouteInfo
+  {
+    public AuroraContext Context { get; internal set; }
+    public List<object> Bindings { get; internal set; }
+    public string RequestType { get; internal set; }
+    public string Alias { get; internal set; }
+    public Dictionary<string, string> Payload { get; internal set; }
+
+    #region INTERNAL PROPS
+    internal Type ControllerType { get; set; }
+    internal Controller ControllerInstance { get; set; }
+    internal MethodInfo Action { get; set; }
+    internal string ControllerName { get; set; }
+    internal string ActionName { get; set; }
+    internal string FrontLoadedParams { get; set; }
+    internal object[] ActionParameters { get; set; }
+    internal bool IsFiltered { get; set; }
+    internal bool Dynamic { get; set; }
+    internal bool FromRedirectOnlyInfo { get; set; }
+    internal List<ActionParamTransformInfo> ActionParameterTransforms { get; set; }
+    internal RequestTypeAttribute Attribute { get; set; }
+    #endregion
+  }
+
+  internal class PostedFormInfo
+  {
+    private AuroraContext context;
+
+    public Type DataType { get; private set; }
+    public object DataTypeInstance { get; private set; }
+
+    private void FormProcessor(Type m)
+    {
+      if (m != null)
+      {
+        PropertyInfo[] props = m.GetProperties();
+
+        if (props.Count() == 0)
+          throw new Exception(MainConfig.PostedFormActionIncorrectNumberOfParametersError);
+
+        DataType = m;
+        DataTypeInstance = Activator.CreateInstance(DataType);
+
+        foreach (PropertyInfo p in Model.GetPropertiesWithExclusions<Model>(m, true))
+        {
+          // We need to convert the form value to a datatype 
+
+          if (p.PropertyType == typeof(int))
+          {
+            if (context.Form[p.Name].IsInt32())
+              p.SetValue(DataTypeInstance, Convert.ToInt32(context.Form[p.Name], CultureInfo.InvariantCulture), null);
+          }
+          else if (p.PropertyType == typeof(string))
+          {
+            string value = context.Form[p.Name];
+
+            SanitizeAttribute sanitize = (SanitizeAttribute)p.GetCustomAttributes(false).FirstOrDefault(x => x is SanitizeAttribute);
+
+            if (sanitize != null)
+              sanitize.Sanitize(value);
+
+            p.SetValue(DataTypeInstance, value, null);
+          }
+          else if (p.PropertyType == typeof(bool))
+          {
+            if (context.Form[p.Name].IsBool())
+              p.SetValue(DataTypeInstance, Convert.ToBoolean(context.Form[p.Name], CultureInfo.InvariantCulture), null);
+          }
+          else if (p.PropertyType == typeof(DateTime?))
+          {
+            DateTime? dt = null;
+
+            context.Form[p.Name].IsDate(out dt);
+
+            p.SetValue(DataTypeInstance, dt, null);
+          }
+          //else if (p.PropertyType == typeof(List<HttpPostedFileBase>))
+          //{
+          //List<HttpPostedFileBase> fileList = (List<HttpPostedFileBase>)Activator.CreateInstance(p.PropertyType);
+
+            //foreach (string file in context.Files)
+          //{
+          //  fileList.Add(context.Files[file] as HttpPostedFileBase);
+          //}
+
+            //p.SetValue(DataTypeInstance, fileList, null);
+          //}
+          else if (p.PropertyType == typeof(HttpPostedFile))
+          {
+            if (context.Files.Length > 0)
+              p.SetValue(DataTypeInstance, context.Files[0], null);
+          }
+        }
+      }
+    }
+
+    public PostedFormInfo(AuroraContext ctx, Type m)
+    {
+      context = ctx;
+
+      FormProcessor(m);
+    }
+  }
+
+  internal class AuroraRouteEngine : IRouteEngine
+  {
+    private AuroraContext context;
+
+    public AuroraRouteEngine(AuroraContext ctx)
+    {
+      context = ctx;
+    }
+
+    #region PARAM GETTERS
+    private static object[] GetFrontParams(RouteInfo routeInfo)
+    {
+      return !string.IsNullOrEmpty(routeInfo.FrontLoadedParams) ? routeInfo.FrontLoadedParams.Split('/') : new object[] { };
+    }
+
+    private static object[] GetBoundParams(RouteInfo routeInfo)
+    {
+      return (routeInfo.Bindings != null) ? routeInfo.Bindings.ToArray() : new object[] { };
+    }
+
+    private object[] GetURLParams(string path, string alias)
+    {
+      string[] urlStringParams = path.Replace(alias, string.Empty).Split('/').Where(x => !string.IsNullOrEmpty(x)).Select(x => HttpUtility.UrlEncode(x)).ToArray();
+
+      if (urlStringParams != null)
+        return urlStringParams.ToObjectArray();
+
+      return new object[] { };
+    }
+
+    private object[] GetFormParams()
+    {
+      if (context.RequestType == "POST")
+      {
+        if (context.Form.Count > 0)
+        {
+          PostedFormInfo postedFormInfo;
+          Type postedFormModel = Model.DetermineModelFromPostedForm(context);
+
+          if (postedFormModel != null)
+          {
+            postedFormInfo = new PostedFormInfo(context, postedFormModel);
+
+            if (postedFormInfo.DataType != null)
+            {
+              ((Model)postedFormInfo.DataTypeInstance).Validate(context, (Model)postedFormInfo.DataTypeInstance);
+
+              return new object[] { postedFormInfo.DataTypeInstance };
+            }
+          }
+          else
+          {
+            NameValueCollection form = new NameValueCollection(context.Form);
+
+            if (form[MainConfig.AntiForgeryTokenName] != null)
+              form.Remove(MainConfig.AntiForgeryTokenName);
+
+            string[] formValues = new string[form.AllKeys.Length];
+
+            for (int i = 0; i < form.AllKeys.Length; i++)
+            {
+              formValues[i] = form.Get(i);
+            }
+
+            return formValues.ToObjectArray();
+          }
+        }
+      }
+
+      return new object[] { };
+    }
+
+    private object[] GetPutDeleteParams(RouteInfo routeInfo)
+    {
+      if (routeInfo.RequestType == "PUT" || routeInfo.RequestType == "DELETE")
+      {
+        routeInfo.Payload = context.RequestPayload;
+      }
+
+      if (routeInfo.Payload != null && routeInfo.Payload.Count() > 0)
+        return new object[] { routeInfo.Payload };
+
+      return new object[] { };
+    }
+
+    private object[] GetFileParams()
+    {
+      if (context.Files.Length > 0)
+      {
+        return context.Files;
+      }
+
+      return new object[] { };
+    }
+    #endregion
+
+    public RouteInfo FindRoute(string path)
+    {
+      //
+      // Actions map like this: 
+      //
+      //	ActionName(action_filter_results, bound_parameters, front_params, url_parameters, form_parameters / (HTTP Put/Delete) payload, files)
+      //
+      bool fromRedirectOnlyFlag = false;
+
+      List<RouteInfo> routeInfos = ApplicationInternals.AllRouteInfos(context);
+
+      if (routeInfos == null)
+        return null;
+
+      if (context.Session[MainConfig.FromRedirectOnlySessionFlag] != null)
+      {
+        fromRedirectOnlyFlag = (bool)context.Session[MainConfig.FromRedirectOnlySessionFlag];
+      }
+
+      string alias = routeInfos.OrderByDescending(y => y.Alias)
+                               .Where(x => path.StartsWith(x.Alias, StringComparison.Ordinal))
+                               .Select(x => x.Alias).FirstOrDefault();
+
+      if (!MainConfig.PathTokenRE.IsMatch(path)) return null;
+
+      List<RouteInfo> routeSlice = routeInfos.Where(x => x.Alias == alias && x.RequestType == context.RequestType).ToList();
+
+      if (routeSlice.Count() == 0) return null;
+
+      object[] urlParams = GetURLParams(path, alias);
+      object[] formParams = GetFormParams();
+      object[] fileParams = GetFileParams();
+
+      foreach (RouteInfo routeInfo in routeSlice)
+      {
+        object[] boundParams = GetBoundParams(routeInfo);
+        object[] frontParams = GetFrontParams(routeInfo);
+        object[] putDeleteParams = GetPutDeleteParams(routeInfo);
+
+        List<object> actionParametersList = new List<object>();
+
+        actionParametersList.AddRange(boundParams);
+        actionParametersList.AddRange(frontParams);
+        actionParametersList.AddRange(urlParams);
+        actionParametersList.AddRange(formParams);
+        actionParametersList.AddRange(putDeleteParams);
+        actionParametersList.AddRange(fileParams);
+
+        object[] actionParameters = actionParametersList.ToArray();
+
+        if (fromRedirectOnlyFlag && !routeInfo.FromRedirectOnlyInfo) continue;
+
+        if (actionParameters.Count() < routeInfo.Action.GetParameters().Count()) continue;
+
+        Type[] actionParameterTypes = actionParameters.Select(x => (x != null) ? x.GetType() : null).ToArray();
+        Type[] methodParamTypes = routeInfo.Action.GetParameters().Select(x => x.ParameterType).ToArray();
+
+        if (methodParamTypes.Count() < actionParameters.Count()) continue;
+
+        var filteredMethodParams = methodParamTypes.Where(x => x.GetInterfaces().FirstOrDefault(i => i.UnderlyingSystemType == typeof(IActionFilterResult)) != null);
+
+        if (filteredMethodParams != null && filteredMethodParams.Count() > 0)
+          methodParamTypes = methodParamTypes.Except(filteredMethodParams).ToArray();
+
+        List<Type> matches = new List<Type>();
+        ParameterInfo[] methodParameterInfos = routeInfo.Action.GetParameters();
+
+        for (int x = 0; x < methodParamTypes.Length; x++)
+        {
+          if ((methodParamTypes[x].FullName == actionParameterTypes[x].FullName) ||
+              (actionParameterTypes[x].GetInterface(methodParamTypes[x].FullName) != null) ||
+              (methodParameterInfos[x].GetCustomAttributes(typeof(ActionParamTransformAttribute), false).FirstOrDefault() != null))
+          {
+            matches.Add(actionParameterTypes[x]);
+          }
+        }
+
+        if (matches.Count() == methodParamTypes.Count())
+        {
+          routeInfo.ActionParameters = actionParameters;
+
+          return routeInfo;
+        }
+      }
+
+      return null;
     }
   }
   #endregion
@@ -3593,7 +3616,7 @@ namespace Aurora
   #region ACTION BINDER
   public interface IBoundActionObject
   {
-    void ExecuteBeforeAction(HttpContextBase ctx);
+    void ExecuteBeforeAction(AuroraContext ctx);
   }
 
   internal class ActionBinding
@@ -3643,10 +3666,10 @@ namespace Aurora
 
   public class ActionBinder
   {
-    private HttpContextBase context;
+    private AuroraContext context;
     internal Dictionary<string, List<ActionBinding>> bindings { get; private set; }
 
-    public ActionBinder(HttpContextBase ctx)
+    public ActionBinder(AuroraContext ctx)
     {
       if (ctx == null)
         throw new ArgumentNullException("ctx", MainConfig.HttpContextNullError);
@@ -3661,9 +3684,7 @@ namespace Aurora
       {
         bindings = new Dictionary<string, List<ActionBinding>>();
 
-        ctx.Application.Lock();
         ctx.Application[MainConfig.ActionBinderSessionName] = bindings;
-        ctx.Application.UnLock();
       }
     }
 
@@ -3860,6 +3881,360 @@ namespace Aurora
   }
   #endregion
 
+  #region CONTROLLERS
+  #region ACTION HANDLER
+  internal enum RouteHandlerEventType
+  {
+    Pre,
+    Post,
+    PreRoute,
+    PostRoute,
+    Static,
+    CachedViewResult,
+    PassedSecurity,
+    FailedSecurity
+  }
+
+  public class RouteHandlerEventArgs : EventArgs
+  {
+    public string Path { get; set; }
+    public RouteInfo RouteInfo { get; internal set; }
+
+    public RouteHandlerEventArgs(string path, RouteInfo routeInfo)
+    {
+      Path = path;
+      RouteInfo = routeInfo;
+    }
+  }
+  #endregion
+
+  #region FRONT CONTROLLER
+  public abstract class FrontController
+  {
+    // I'm still undecided about how much power I want to give this class.
+
+    public AuroraContext Context { get; private set; }
+
+    protected virtual void OnInit() { }
+
+    public event EventHandler<RouteHandlerEventArgs> PreActionEvent = (sender, args) => { };
+    public event EventHandler<RouteHandlerEventArgs> PostActionEvent = (sender, args) => { };
+    public event EventHandler<RouteHandlerEventArgs> StaticRouteEvent = (sender, args) => { };
+    public event EventHandler<RouteHandlerEventArgs> CachedViewResultEvent = (sender, args) => { };
+    public event EventHandler<RouteHandlerEventArgs> PreRouteDeterminationEvent = (sender, args) => { };
+    public event EventHandler<RouteHandlerEventArgs> PostRouteDeterminationEvent = (sender, args) => { };
+    public event EventHandler<RouteHandlerEventArgs> PassedSecurityEvent = (sender, args) => { };
+    public event EventHandler<RouteHandlerEventArgs> FailedSecurityEvent = (sender, args) => { };
+
+    internal static FrontController CreateInstance(Type t, AuroraContext context)
+    {
+      if (t.BaseType == typeof(FrontController))
+      {
+        FrontController fc = (FrontController)Activator.CreateInstance(t);
+
+        fc.Context = context;
+        fc.OnInit();
+
+        return fc;
+      }
+
+      return null;
+    }
+
+    public void AddRoute(string alias, string controllerName, string actionName, string requestType, string frontParams)
+    {
+      Controller controller = ApplicationInternals.AllControllerInstances(Context).FirstOrDefault(x => x.GetType().Name == controllerName);
+      MethodInfo actionMethod = GetType().GetMethods().FirstOrDefault(x => x.Name == actionName);
+
+      if (actionMethod != null && controller != null)
+        ApplicationInternals.AddRouteInfo(Context, alias, controller, actionMethod, requestType, frontParams);
+    }
+
+    public void RemoveRoute(string alias)
+    {
+      ApplicationInternals.RemoveRouteInfo(Context, alias);
+    }
+
+    internal void RaiseEvent(RouteHandlerEventType type, string path, RouteInfo routeInfo)
+    {
+      RouteHandlerEventArgs args = new RouteHandlerEventArgs(path, routeInfo);
+
+      switch (type)
+      {
+        case RouteHandlerEventType.Pre:
+          PreActionEvent(this, args);
+          break;
+
+        case RouteHandlerEventType.Post:
+          PostActionEvent(this, args);
+          break;
+
+        case RouteHandlerEventType.PreRoute:
+          PreRouteDeterminationEvent(this, args);
+          break;
+
+        case RouteHandlerEventType.PostRoute:
+          PostRouteDeterminationEvent(this, args);
+          break;
+
+        case RouteHandlerEventType.Static:
+          StaticRouteEvent(this, args);
+          break;
+
+        case RouteHandlerEventType.CachedViewResult:
+          CachedViewResultEvent(this, args);
+          break;
+
+        case RouteHandlerEventType.PassedSecurity:
+          PassedSecurityEvent(this, args);
+          break;
+
+        case RouteHandlerEventType.FailedSecurity:
+          FailedSecurityEvent(this, args);
+          break;
+      }
+    }
+  }
+  #endregion
+
+  #region APPLICATION CONTROLLER
+  public abstract class Controller
+  {
+    public AuroraContext Context { get; internal set; }
+    internal RouteInfo CurrentRoute { get; set; }
+    private string PartitionName;
+    private IViewEngine viewEngine;
+    protected Dictionary<string, string> ViewTags { get; private set; }
+    protected Dictionary<string, Dictionary<string, string>> FragTags { get; private set; }
+    protected NameValueCollection Form { get; private set; }
+    protected NameValueCollection QueryString { get; private set; }
+
+    public event EventHandler<RouteHandlerEventArgs> PreActionEvent = (sender, args) => { };
+    public event EventHandler<RouteHandlerEventArgs> PostActionEvent = (sender, args) => { };
+
+    protected Controller()
+    {
+      ViewTags = new Dictionary<string, string>();
+      FragTags = new Dictionary<string, Dictionary<string, string>>();
+
+      PartitionName = GetPartitionName();
+    }
+
+    protected virtual void OnInit() { }
+
+    internal void RaiseEvent(RouteHandlerEventType type, string path, RouteInfo routeInfo)
+    {
+      RouteHandlerEventArgs args = new RouteHandlerEventArgs(path, routeInfo);
+
+      switch (type)
+      {
+        case RouteHandlerEventType.Pre:
+          PreActionEvent(this, args);
+          break;
+
+        case RouteHandlerEventType.Post:
+          PostActionEvent(this, args);
+          break;
+      }
+    }
+
+    internal static Controller CreateInstance(Type t, AuroraContext context)
+    {
+      if (t.BaseType == typeof(Controller))
+      {
+        Controller controller = (Controller)Activator.CreateInstance(t);
+
+        controller.viewEngine = ApplicationInternals.GetViewEngine(context);
+
+        controller.Refresh(context);
+        controller.OnInit();
+
+        return controller;
+      }
+
+      return null;
+    }
+
+    internal void Refresh(AuroraContext context)
+    {
+      Context = context;
+
+      QueryString = (context.QueryString == null) ? new NameValueCollection() : new NameValueCollection(context.QueryString);
+      Form = (context.Form == null) ? new NameValueCollection() : new NameValueCollection(context.Form);
+      ClearViewTags();
+
+      if (Form.AllKeys.Contains(MainConfig.AntiForgeryTokenName))
+        Form.Remove(MainConfig.AntiForgeryTokenName);
+    }
+
+    #region MISC
+    public void ClearViewTags()
+    {
+      ViewTags = new Dictionary<string, string>();
+      FragTags = new Dictionary<string, Dictionary<string, string>>();
+    }
+
+    public string CreateAntiForgeryToken()
+    {
+      return AntiForgeryToken.Create(Context, AntiForgeryTokenType.Raw);
+    }
+
+    private string GetPartitionName()
+    {
+      string partitionName = null;
+
+      PartitionAttribute partitionAttrib = (PartitionAttribute)this.GetType().GetCustomAttributes(false).FirstOrDefault(x => x.GetType() == typeof(PartitionAttribute));
+
+      if (partitionAttrib != null)
+        partitionName = partitionAttrib.Name;
+
+      return partitionName;
+    }
+    #endregion
+
+    #region ADD / REMOVE ROUTE
+    public void AddRoute(string alias, string actionName, string requestType)
+    {
+      AddRoute(alias, actionName, requestType, null);
+    }
+
+    public void AddRoute(string alias, string actionName, string requestType, string frontParams)
+    {
+      MethodInfo actionMethod = GetType().GetMethods().FirstOrDefault(x => x.Name == actionName);
+
+      if (actionMethod != null)
+        ApplicationInternals.AddRouteInfo(Context, alias, this, actionMethod, requestType, frontParams);
+    }
+
+    public void RemoveRoute(string alias)
+    {
+      ApplicationInternals.RemoveRouteInfo(Context, alias);
+    }
+    #endregion
+
+    #region REDIRECT
+    public void RedirectOnlyToAlias(string alias)
+    {
+      Context.Session[MainConfig.FromRedirectOnlySessionFlag] = alias;
+
+      RedirectToAlias(alias);
+    }
+
+    public void RedirectOnlyToAction(string controller, string action)
+    {
+      Context.Session[MainConfig.FromRedirectOnlySessionFlag] = string.Format(CultureInfo.InvariantCulture, "/{0}/{1}", controller, action);
+
+      RedirectToAction(controller, action);
+    }
+
+    public void RedirectToAlias(string alias)
+    {
+      Context.ResponseRedirect(alias);
+    }
+
+    public void RedirectToAlias(string alias, params string[] parameters)
+    {
+      Context.ResponseRedirect(string.Format(CultureInfo.InvariantCulture, "{0}/{1}", alias, string.Join("/", parameters)));
+    }
+
+    public void RedirectToAction(string action)
+    {
+      RedirectToAction(GetType().Name, action);
+    }
+
+    public void RedirectToAction(string action, params string[] parameters)
+    {
+      RedirectToAction(GetType().Name, action, parameters);
+    }
+
+    public void RedirectToAction(string controller, string action)
+    {
+      Context.ResponseRedirect(string.Format(CultureInfo.InvariantCulture, "/{0}/{1}", controller, action));
+    }
+
+    public void RedirectToAction(string controller, string action, params string[] parameters)
+    {
+      Context.ResponseRedirect(string.Format(CultureInfo.InvariantCulture, "/{0}/{1}/{2}", controller, action, string.Join("/", parameters)));
+    }
+    #endregion
+
+    #region RENDER FRAGMENT
+    public string RenderFragment(string fragmentName)
+    {
+      Dictionary<string, string> fragTags = null;
+
+      if (FragTags.ContainsKey(fragmentName))
+        fragTags = FragTags[fragmentName];
+
+      return RenderFragment(fragmentName, fragTags);
+    }
+
+    public string RenderFragment(string fragmentName, Dictionary<string, string> fragTags)
+    {
+      return viewEngine.LoadView(PartitionName, this.GetType().Name, fragmentName, fragTags);
+    }
+    #endregion
+
+    #region VIEW
+    public ViewResult View()
+    {
+      return View(false);
+    }
+
+    public ViewResult View(bool clearViewTags)
+    {
+      return View(CurrentRoute.ControllerName, CurrentRoute.ActionName, clearViewTags);
+    }
+
+    public ViewResult View(string name)
+    {
+      return View(name, false);
+    }
+
+    public ViewResult View(string name, bool clearViewTags)
+    {
+      return View(CurrentRoute.ControllerName, name, clearViewTags);
+    }
+
+    public ViewResult View(string controllerName, string actionName, bool clearViewTags)
+    {
+      RequestTypeAttribute reqAttrib = (RequestTypeAttribute)CurrentRoute.Action.GetCustomAttributes(false).FirstOrDefault(x => x is RequestTypeAttribute);
+
+      ViewResult vr = new ViewResult(Context, viewEngine, PartitionName, controllerName, actionName, reqAttrib, ViewTags);
+
+      if (clearViewTags)
+        ClearViewTags();
+
+      return vr;
+    }
+
+    public JsonResult View(object jsonData)
+    {
+      return new JsonResult(Context, jsonData);
+    }
+
+    public VirtualFileResult View(string fileName, byte[] fileBytes, string contentType)
+    {
+      return new VirtualFileResult(Context, fileName, fileBytes, contentType);
+    }
+
+    public PartialResult Partial(string partialName)
+    {
+      return Partial(partialName, false);
+    }
+
+    public PartialResult Partial(string partialName, bool clearViewTags)
+    {
+      if (clearViewTags)
+        ClearViewTags();
+
+      return new PartialResult(Context, viewEngine, PartitionName, this.GetType().Name, partialName, ViewTags);
+    }
+    #endregion
+  }
+  #endregion
+  #endregion
+
   #region MODEL BASE
   /// <summary>
   /// Represents a posted form model or a view model used by the Html helpers or custom code.
@@ -3984,7 +4359,7 @@ namespace Aurora
       return result;
     }
 
-    internal void Validate(HttpContextBase context, Model instance)
+    internal void Validate(AuroraContext context, Model instance)
     {
       List<bool> results = new List<bool>();
 
@@ -4004,7 +4379,7 @@ namespace Aurora
 
         if (requiredAttribute != null)
         {
-          if (context.Request.Form.AllKeys.FirstOrDefault(x => x == pi.Name) != null)
+          if (context.Form.AllKeys.FirstOrDefault(x => x == pi.Name) != null)
           {
             // Required works great for something like a string where it's default value will be null if it's not set explicitly.
             // we have to get a little bit smarter about this and check the incoming form to see if we have a match for 
@@ -4086,9 +4461,9 @@ namespace Aurora
     /// </summary>
     /// <param name="context">HttpContextBase</param>
     /// <returns>The type of model</returns>
-    internal static Type DetermineModelFromPostedForm(HttpContextBase context)
+    internal static Type DetermineModelFromPostedForm(AuroraContext context)
     {
-      string[] formKeys = context.Request.Form.AllKeys.Where(x => x != MainConfig.AntiForgeryTokenName).ToArray();
+      string[] formKeys = context.Form.AllKeys.Where(x => x != MainConfig.AntiForgeryTokenName).ToArray();
 
       if (formKeys.Length > 0)
       {
@@ -4114,2237 +4489,1095 @@ namespace Aurora
   }
   #endregion
 
-  #region CONTROLLERS
-  #region ACTION HANDLER
-  internal enum RouteHandlerEventType
+  #region VIEW ENGINE / RESULTS / HTML HELPERS
+
+  #region VIEW RESULTS
+  public interface IViewResult
   {
-    Pre,
-    Post,
-    PreRoute,
-    PostRoute,
-    Static,
-    CachedViewResult,
-    PassedSecurity,
-    FailedSecurity
+    void Render();
   }
 
-  public class RouteHandlerEventArgs : EventArgs
-  {
-    public string Path { get; set; }
-    public RouteInfo RouteInfo { get; internal set; }
-
-    public RouteHandlerEventArgs(string path, RouteInfo routeInfo)
-    {
-      Path = path;
-      RouteInfo = routeInfo;
-    }
-  }
-  #endregion
-
-  #region FRONT CONTROLLER
-  public abstract class FrontController
-  {
-    // I'm still undecided about how much power I want to give this class.
-
-    public HttpContextBase Context { get; private set; }
-
-    protected virtual void OnInit() { }
-
-    public event EventHandler<RouteHandlerEventArgs> PreActionEvent = (sender, args) => { };
-    public event EventHandler<RouteHandlerEventArgs> PostActionEvent = (sender, args) => { };
-    public event EventHandler<RouteHandlerEventArgs> StaticRouteEvent = (sender, args) => { };
-    public event EventHandler<RouteHandlerEventArgs> CachedViewResultEvent = (sender, args) => { };
-    public event EventHandler<RouteHandlerEventArgs> PreRouteDeterminationEvent = (sender, args) => { };
-    public event EventHandler<RouteHandlerEventArgs> PostRouteDeterminationEvent = (sender, args) => { };
-    public event EventHandler<RouteHandlerEventArgs> PassedSecurityEvent = (sender, args) => { };
-    public event EventHandler<RouteHandlerEventArgs> FailedSecurityEvent = (sender, args) => { };
-
-    internal static FrontController CreateInstance(Type t, HttpContextBase context)
-    {
-      if (t.BaseType == typeof(FrontController))
-      {
-        FrontController fc = (FrontController)Activator.CreateInstance(t);
-
-        fc.Context = context;
-        fc.OnInit();
-
-        return fc;
-      }
-
-      return null;
-    }
-
-    public void AddRoute(string alias, string controllerName, string actionName, string requestType, string frontParams)
-    {
-      Controller controller = ApplicationInternals.AllControllerInstances(Context).FirstOrDefault(x => x.GetType().Name == controllerName);
-      MethodInfo actionMethod = GetType().GetMethods().FirstOrDefault(x => x.Name == actionName);
-
-      if (actionMethod != null && controller != null)
-        ApplicationInternals.AddRouteInfo(Context, alias, controller, actionMethod, requestType, frontParams);
-    }
-
-    public void RemoveRoute(string alias)
-    {
-      ApplicationInternals.RemoveRouteInfo(Context, alias);
-    }
-
-    internal void RaiseEvent(RouteHandlerEventType type, string path, RouteInfo routeInfo)
-    {
-      RouteHandlerEventArgs args = new RouteHandlerEventArgs(path, routeInfo);
-
-      switch (type)
-      {
-        case RouteHandlerEventType.Pre:
-          PreActionEvent(this, args);
-          break;
-
-        case RouteHandlerEventType.Post:
-          PostActionEvent(this, args);
-          break;
-
-        case RouteHandlerEventType.PreRoute:
-          PreRouteDeterminationEvent(this, args);
-          break;
-
-        case RouteHandlerEventType.PostRoute:
-          PostRouteDeterminationEvent(this, args);
-          break;
-
-        case RouteHandlerEventType.Static:
-          StaticRouteEvent(this, args);
-          break;
-
-        case RouteHandlerEventType.CachedViewResult:
-          CachedViewResultEvent(this, args);
-          break;
-
-        case RouteHandlerEventType.PassedSecurity:
-          PassedSecurityEvent(this, args);
-          break;
-
-        case RouteHandlerEventType.FailedSecurity:
-          FailedSecurityEvent(this, args);
-          break;
-      }
-    }
-  }
-  #endregion
-
-  #region APPLICATION CONTROLLER
-  public abstract class Controller
-  {
-    public HttpContextBase Context { get; internal set; }
-    internal RouteInfo CurrentRoute { get; set; }
-    private string PartitionName;
-    private IViewEngine ViewEngine;
-    protected Dictionary<string, string> ViewTags { get; private set; }
-    protected Dictionary<string, Dictionary<string, string>> FragTags { get; private set; }
-    protected NameValueCollection Form { get; private set; }
-    protected NameValueCollection QueryString { get; private set; }
-
-    public event EventHandler<RouteHandlerEventArgs> PreActionEvent = (sender, args) => { };
-    public event EventHandler<RouteHandlerEventArgs> PostActionEvent = (sender, args) => { };
-
-    protected Controller()
-    {
-      ViewTags = new Dictionary<string, string>();
-      FragTags = new Dictionary<string, Dictionary<string, string>>();
-
-      PartitionName = GetPartitionName();
-    }
-
-    protected virtual void OnInit() { }
-
-    internal void RaiseEvent(RouteHandlerEventType type, string path, RouteInfo routeInfo)
-    {
-      RouteHandlerEventArgs args = new RouteHandlerEventArgs(path, routeInfo);
-
-      switch (type)
-      {
-        case RouteHandlerEventType.Pre:
-          PreActionEvent(this, args);
-          break;
-
-        case RouteHandlerEventType.Post:
-          PostActionEvent(this, args);
-          break;
-      }
-    }
-
-    internal static Controller CreateInstance(Type t, HttpContextBase context)
-    {
-      if (t.BaseType == typeof(Controller))
-      {
-        Controller controller = (Controller)Activator.CreateInstance(t);
-
-        controller.ViewEngine = new AuroraViewEngine(context.Server.MapPath(MainConfig.ViewRoot), new ViewEngineHelper(context));
-
-        controller.Refresh(context);
-        controller.OnInit();
-
-        return controller;
-      }
-
-      return null;
-    }
-
-    internal void Refresh(HttpContextBase context)
-    {
-      Context = context;
-
-      QueryString = (context.Request.QueryString == null) ? new NameValueCollection() : new NameValueCollection(context.Request.QueryString);
-      Form = (context.Request.Form == null) ? new NameValueCollection() : new NameValueCollection(context.Request.Form);
-      ClearViewTags();
-
-      if (Form.AllKeys.Contains(MainConfig.AntiForgeryTokenName))
-        Form.Remove(MainConfig.AntiForgeryTokenName);
-    }
-
-    #region MISC
-    public void ClearViewTags()
-    {
-      ViewTags = new Dictionary<string, string>();
-      FragTags = new Dictionary<string, Dictionary<string, string>>();
-    }
-
-    public string CreateAntiForgeryToken()
-    {
-      return AntiForgeryToken.Create(Context, AntiForgeryTokenType.Raw);
-    }
-
-    private string GetPartitionName()
-    {
-      string partitionName = null;
-
-      PartitionAttribute partitionAttrib = (PartitionAttribute)this.GetType().GetCustomAttributes(false).FirstOrDefault(x => x.GetType() == typeof(PartitionAttribute));
-
-      if (partitionAttrib != null)
-        partitionName = partitionAttrib.Name;
-
-      return partitionName;
-    }
-    #endregion
-
-    #region ADD / REMOVE ROUTE
-    public void AddRoute(string alias, string actionName, string requestType)
-    {
-      AddRoute(alias, actionName, requestType, null);
-    }
-
-    public void AddRoute(string alias, string actionName, string requestType, string frontParams)
-    {
-      MethodInfo actionMethod = GetType().GetMethods().FirstOrDefault(x => x.Name == actionName);
-
-      if (actionMethod != null)
-        ApplicationInternals.AddRouteInfo(Context, alias, this, actionMethod, requestType, frontParams);
-    }
-
-    public void RemoveRoute(string alias)
-    {
-      ApplicationInternals.RemoveRouteInfo(Context, alias);
-    }
-    #endregion
-
-    #region REDIRECT
-    public void RedirectOnlyToAlias(string alias)
-    {
-      Context.Session[MainConfig.FromRedirectOnlySessionFlag] = alias;
-
-      RedirectToAlias(alias);
-    }
-
-    public void RedirectOnlyToAction(string controller, string action)
-    {
-      Context.Session[MainConfig.FromRedirectOnlySessionFlag] = string.Format(CultureInfo.InvariantCulture, "/{0}/{1}", controller, action);
-
-      RedirectToAction(controller, action);
-    }
-
-    public void RedirectToAlias(string alias)
-    {
-      Context.Response.Redirect(alias);
-    }
-
-    public void RedirectToAlias(string alias, params string[] parameters)
-    {
-      Context.Response.Redirect(string.Format(CultureInfo.InvariantCulture, "{0}/{1}", alias, string.Join("/", parameters)));
-    }
-
-    public void RedirectToAction(string action)
-    {
-      RedirectToAction(GetType().Name, action);
-    }
-
-    public void RedirectToAction(string action, params string[] parameters)
-    {
-      RedirectToAction(GetType().Name, action, parameters);
-    }
-
-    public void RedirectToAction(string controller, string action)
-    {
-      Context.Response.Redirect(string.Format(CultureInfo.InvariantCulture, "/{0}/{1}", controller, action));
-    }
-
-    public void RedirectToAction(string controller, string action, params string[] parameters)
-    {
-      Context.Response.Redirect(string.Format(CultureInfo.InvariantCulture, "/{0}/{1}/{2}", controller, action, string.Join("/", parameters)));
-    }
-    #endregion
-
-    #region RENDER FRAGMENT
-    public string RenderFragment(string fragmentName)
-    {
-      Dictionary<string, string> fragTags = null;
-
-      if (FragTags.ContainsKey(fragmentName))
-        fragTags = FragTags[fragmentName];
-
-      return RenderFragment(fragmentName, fragTags);
-    }
-
-    public string RenderFragment(string fragmentName, Dictionary<string, string> fragTags)
-    {
-      return ViewEngine.LoadView(PartitionName, this.GetType().Name, fragmentName, false, fragTags);
-    }
-    #endregion
-
-    #region VIEW
-    public ViewResult View()
-    {
-      return View(false);
-    }
-
-    public ViewResult View(bool clearViewTags)
-    {
-      return View(CurrentRoute.ControllerName, CurrentRoute.ActionName, clearViewTags);
-    }
-
-    public ViewResult View(string name)
-    {
-      return View(name, false);
-    }
-
-    public ViewResult View(string name, bool clearViewTags)
-    {
-      return View(CurrentRoute.ControllerName, name, clearViewTags);
-    }
-
-    public ViewResult View(string controllerName, string actionName, bool clearViewTags)
-    {
-      RequestTypeAttribute reqAttrib = (RequestTypeAttribute)CurrentRoute.Action.GetCustomAttributes(false).FirstOrDefault(x => x is RequestTypeAttribute);
-
-      ViewResult vr = new ViewResult(Context, ViewEngine, PartitionName, controllerName, actionName, reqAttrib, ViewTags);
-
-      if (clearViewTags)
-        ClearViewTags();
-
-      return vr;
-    }
-
-    public JsonResult View(object jsonData)
-    {
-      return new JsonResult(Context, jsonData);
-    }
-
-    public VirtualFileResult View(string fileName, byte[] fileBytes, string contentType)
-    {
-      return new VirtualFileResult(Context, fileName, fileBytes, contentType);
-    }
-
-    public PartialResult Partial(string partialName)
-    {
-      return Partial(partialName, false);
-    }
-
-    public PartialResult Partial(string partialName, bool clearViewTags)
-    {
-      if (clearViewTags)
-        ClearViewTags();
-
-      return new PartialResult(Context, ViewEngine, PartitionName, this.GetType().Name, partialName, ViewTags);
-    }
-    #endregion
-  }
-  #endregion
-  #endregion
-
-  #region ENCRYPTION
-  public static class Encryption
-  {
-    private static byte[] GetPassphraseHash(string passphrase, int size)
-    {
-      byte[] phash;
-
-      using (SHA1CryptoServiceProvider hashsha1 = new SHA1CryptoServiceProvider())
-      {
-        phash = hashsha1.ComputeHash(ASCIIEncoding.ASCII.GetBytes(passphrase));
-        Array.Resize(ref phash, size);
-      }
-
-      return phash;
-    }
-
-    public static string Encrypt(string original)
-    {
-      return Encrypt(original, MainConfig.EncryptionKey);
-    }
-
-    public static string Decrypt(string encrypted)
-    {
-      return Decrypt(encrypted, MainConfig.EncryptionKey);
-    }
-
-    public static string Encrypt(string original, string key)
-    {
-      string encrypted = string.Empty;
-
-      using (TripleDESCryptoServiceProvider des = new TripleDESCryptoServiceProvider())
-      {
-        des.Key = GetPassphraseHash(key, des.KeySize / 8);
-        des.IV = GetPassphraseHash(key, des.BlockSize / 8);
-        des.Padding = PaddingMode.PKCS7;
-        des.Mode = CipherMode.ECB;
-
-        byte[] buff = ASCIIEncoding.ASCII.GetBytes(original);
-        encrypted = Convert.ToBase64String(des.CreateEncryptor().TransformFinalBlock(buff, 0, buff.Length));
-      }
-
-      return encrypted;
-    }
-
-    public static string Decrypt(string encrypted, string key)
-    {
-      string decrypted = string.Empty;
-
-      using (TripleDESCryptoServiceProvider des = new TripleDESCryptoServiceProvider())
-      {
-        des.Key = GetPassphraseHash(key, des.KeySize / 8);
-        des.IV = GetPassphraseHash(key, des.BlockSize / 8);
-        des.Padding = PaddingMode.PKCS7;
-        des.Mode = CipherMode.ECB;
-
-        byte[] buff = Convert.FromBase64String(encrypted);
-        decrypted = ASCIIEncoding.ASCII.GetString(des.CreateDecryptor().TransformFinalBlock(buff, 0, buff.Length));
-      }
-
-      return decrypted;
-    }
-  }
-  #endregion
-
-  #region EXTENSION & MISCELLANEOUS METHODS
-  /// <summary>
-  /// Various extension methods are contained in here. They are used to perform data
-  /// type casting, retrieve attributes and other simple stuff.
-  /// </summary>
-  public static class ExtensionMethods
-  {
-    public static object[] ToObjectArray(this string[] parms)
-    {
-      DateTime? dt = null;
-
-      if (parms != null)
-      {
-        object[] _parms = new object[parms.Length];
-
-        for (int i = 0; i < parms.Length; i++)
-        {
-          #region INT32 OR 64
-          if (parms[i].IsInt32())
-          {
-            _parms[i] = Convert.ToInt32(parms[i], CultureInfo.InvariantCulture);
-          }
-          else if (parms[i].IsLong())
-          {
-            _parms[i] = Convert.ToInt64(parms[i], CultureInfo.InvariantCulture);
-          }
-          #endregion
-          #region DOUBLE
-          else if (parms[i].IsDouble())
-          {
-            _parms[i] = Convert.ToDouble(parms[i], CultureInfo.InvariantCulture);
-          }
-          #endregion
-          #region BOOLEAN
-          else if (parms[i].ToLowerInvariant() == "true" ||
-                  parms[i].ToLowerInvariant() == "false" ||
-                  parms[i].ToLowerInvariant() == "on" || // HTML checkbox value
-                  parms[i].ToLowerInvariant() == "off" || // HTML checkbox value
-                  parms[i].ToLowerInvariant() == "checked") // HTML checkbox value
-          {
-            if (parms[i].ToLowerInvariant() == "on" || parms[i].ToLowerInvariant() == "checked")
-              parms[i] = "true";
-            else if (parms[i].ToLowerInvariant() == "off")
-              parms[i] = "false";
-
-            _parms[i] = Convert.ToBoolean(parms[i], CultureInfo.InvariantCulture);
-          }
-          #endregion
-          #region DATETIME
-          else if (parms[i].IsDate(out dt))
-          {
-            _parms[i] = dt.Value;
-          }
-          #endregion
-          #region DEFAULT
-          else
-            _parms[i] = parms[i];
-          #endregion
-        }
-
-        return _parms;
-      }
-
-      return null;
-    }
-
-    // This method is based on the following example at StackOverflow:
-    //
-    // http://stackoverflow.com/questions/735350/how-to-get-a-users-client-ip-address-in-asp-net
-    public static string IPAddress(this HttpContextBase ctx)
-    {
-      if (ctx == null)
-        throw new ArgumentNullException("ctx", MainConfig.HttpContextNullError);
-
-      string ip = ctx.Request.ServerVariables["HTTP_X_FORWARDED_FOR"];
-
-      if (string.IsNullOrEmpty(ip))
-        return ctx.Request.ServerVariables["REMOTE_ADDR"];
-      else
-        return ip.Split(',')[0];
-    }
-
-    public static string NewLinesToBR(this string value)
-    {
-      if (string.IsNullOrEmpty(value))
-        throw new ArgumentNullException("value");
-
-      return value.Trim().Replace("\n", "<br />");
-    }
-
-    public static string StripHtml(this string value)
-    {
-      if (string.IsNullOrEmpty(value))
-        throw new ArgumentNullException("value");
-
-      HtmlDocument htmlDoc = new HtmlDocument();
-      htmlDoc.LoadHtml(value);
-
-      if (htmlDoc == null) return value;
-
-      StringBuilder sanitizedString = new StringBuilder();
-
-      foreach (var node in htmlDoc.DocumentNode.ChildNodes)
-      {
-        sanitizedString.Append(node.InnerText);
-      }
-
-      return sanitizedString.ToString();
-    }
-
-    public static bool InRange(this int value, int min, int max)
-    {
-      return value <= max && value >= min;
-    }
-
-    public static bool InRange(this long value, int min, int max)
-    {
-      return value <= max && value >= min;
-    }
-
-    public static string ToJson<T>(this IEnumerable<T> type) where T : Model
-    {
-      return JsonConvert.SerializeObject(type);
-    }
-
-    public static bool IsDate(this string value, out DateTime? dt)
-    {
-      DateTime x;
-      dt = null;
-
-      if (DateTime.TryParse(value, out x))
-      {
-        dt = x;
-
-        return true;
-      }
-
-      return false;
-    }
-
-    public static bool IsLong(this string value)
-    {
-      long x = 0;
-
-      return long.TryParse(value, out x);
-    }
-
-    public static bool IsInt32(this string value)
-    {
-      int x = 0;
-
-      return int.TryParse(value, out x);
-    }
-
-    public static bool IsInt64(this string value)
-    {
-      long x = 0;
-
-      if (Int64.TryParse(value, out x))
-        return true;
-
-      return false;
-    }
-
-    public static bool IsDouble(this string value)
-    {
-      double x = 0;
-
-      return double.TryParse(value, out x);
-    }
-
-    public static bool IsBool(this string value)
-    {
-      bool x = false;
-
-      return bool.TryParse(value, out x);
-    }
-
-    //public static List<T> ModifyForEach<T>(this List<T> l, Func<T, T> a)
-    //{
-    //  List<T> newList = new List<T>();
-
-    //  foreach (T t in l)
-    //  {
-    //    newList.Add(a(t));
-    //  }
-
-    //  return newList;
-    //}
-
-    public static string GetMetadata(this Enum obj)
-    {
-      if (obj != null)
-      {
-        MetadataAttribute mda = (MetadataAttribute)obj.GetType().GetField(obj.ToString()).GetCustomAttributes(false).FirstOrDefault(x => x is MetadataAttribute);
-
-        if (mda != null)
-          return mda.Metadata;
-      }
-
-      return null;
-    }
-
-    public static string GetDescriptiveName(this Enum obj)
-    {
-      if (obj != null)
-      {
-        DescriptiveNameAttribute dna = (DescriptiveNameAttribute)obj.GetType().GetField(obj.ToString()).GetCustomAttributes(false).FirstOrDefault(x => x is DescriptiveNameAttribute);
-
-        if (dna != null)
-          return dna.Name;
-      }
-
-      return null;
-    }
-
-    public static string GetUniqueId(this Enum obj)
-    {
-      if (obj == null)
-        throw new ArgumentNullException("obj");
-
-      UniqueIdAttribute uid = (UniqueIdAttribute)obj.GetType().GetField(obj.ToString()).GetCustomAttributes(false).FirstOrDefault(x => x is UniqueIdAttribute);
-
-      if (uid != null)
-      {
-        uid.GenerateID(string.Format(CultureInfo.InvariantCulture, "{0}.{1}", obj.GetType().Name, obj.ToString()));
-
-        return uid.Id;
-      }
-
-      return null;
-    }
-
-    // This code was adapted to work with FileInfo/DirectoryInfo but was originally from the following question on SO:
-    //
-    // http://stackoverflow.com/questions/929276/how-to-recursively-list-all-the-files-in-a-directory-in-c
-    public static IEnumerable<FileInfo> GetAllFiles(this DirectoryInfo dirInfo)
-    {
-      string path = dirInfo.FullName;
-
-      Queue<string> queue = new Queue<string>();
-      queue.Enqueue(path);
-      while (queue.Count > 0)
-      {
-        path = queue.Dequeue();
-        try
-        {
-          foreach (string subDir in Directory.GetDirectories(path))
-          {
-            queue.Enqueue(subDir);
-          }
-        }
-        catch (Exception ex)
-        {
-          Console.Error.WriteLine(ex);
-        }
-
-        FileInfo[] fileInfos = null;
-        try
-        {
-          fileInfos = new DirectoryInfo(path).GetFiles();
-        }
-        catch
-        {
-          throw;
-        }
-        if (fileInfos != null)
-        {
-          for (int i = 0; i < fileInfos.Length; i++)
-          {
-            yield return fileInfos[i];
-          }
-        }
-      }
-    }
-  }
-  #endregion
-
-  #region BUNDLE MANAGER
-  /// <summary>
-  /// The Bundle class takes Javascript or CSS files and combines and minifies them.
-  /// The minification uses a ported copy of JSMin to minify the javascript and css
-  /// files. No variable/function shortening is performed. Comments are removed and
-  /// new lines are removed. 
-  /// </summary>
-  public class BundleManager
-  {
-    internal class BundleInfo
-    {
-      public FileInfo FileInfo { get; set; }
-      public string RelativePath { get; set; }
-      public string BundleName { get; set; }
-    }
-
-    private static string[] allowedExts = { ".js", ".css" };
-
-    private Dictionary<string, string> bundles;
-    private List<BundleInfo> bundleInfos;
-    private HttpContextBase context;
-
-    public BundleManager(HttpContextBase ctx)
-    {
-      if (ctx == null)
-        throw new ArgumentNullException("ctx");
-
-      context = ctx;
-
-      if (context.Application[MainConfig.BundleManagerSessionName] != null &&
-          context.Application[MainConfig.BundleManagerInfoSessionName] != null)
-      {
-        bundles = context.Application[MainConfig.BundleManagerSessionName] as Dictionary<string, string>;
-        bundleInfos = context.Application[MainConfig.BundleManagerInfoSessionName] as List<BundleInfo>;
-      }
-      else
-      {
-        context.Application.Lock();
-        context.Application[MainConfig.BundleManagerSessionName] = bundles = new Dictionary<string, string>();
-        context.Application[MainConfig.BundleManagerInfoSessionName] = bundleInfos = new List<BundleInfo>();
-        context.Application.UnLock();
-      }
-    }
-
-    public string this[string bundle]
-    {
-      get
-      {
-        if (bundles.ContainsKey(bundle))
-          return bundles[bundle];
-
-        return null;
-      }
-    }
-
-    public bool Contains(string key)
-    {
-      return bundles.ContainsKey(key);
-    }
-
-    public void AddDirectory(string dirPath, string fileExtension, string bundleName)
-    {
-      DirectoryInfo di = new DirectoryInfo(context.Server.MapPath(dirPath));
-
-      var files = di.GetAllFiles().Where(x => x.Extension == fileExtension);
-
-      foreach (FileInfo file in files)
-        bundleInfos.Add(new BundleInfo() { BundleName = bundleName, FileInfo = file });
-
-      ProcessFiles(files, bundleName);
-    }
-
-    public void AddFiles(string[] paths, string bundleName)
-    {
-      if (paths == null)
-        throw new ArgumentNullException("paths");
-
-      List<FileInfo> files = new List<FileInfo>();
-
-      foreach (string path in paths)
-      {
-        if (allowedExts.Where(x => Path.GetExtension(path) == x) == null)
-          throw new Exception(MainConfig.BundleNameError);
-
-        string fullPath = context.Server.MapPath(path);
-
-        if (File.Exists(fullPath))
-        {
-          FileInfo fi = new FileInfo(context.Server.MapPath(path));
-
-          files.Add(fi);
-
-          bundleInfos.Add(new BundleInfo()
-          {
-            BundleName = bundleName,
-            FileInfo = fi,
-            RelativePath = path
-          });
-        }
-      }
-
-      ProcessFiles(files, bundleName);
-    }
-
-    public List<string> GetBundleFileList(string bundle)
-    {
-      var binfos = bundleInfos
-                      .Where(x => x.BundleName == bundle)
-                      .Select(x => x.RelativePath);
-
-      if (binfos != null)
-        return binfos.ToList();
-
-      return null;
-    }
-
-    private void ProcessFiles(IEnumerable<FileInfo> files, string bundleName)
-    {
-      StringBuilder bundleResult = new StringBuilder();
-
-      foreach (FileInfo f in files)
-      {
-        using (StreamReader sr = new StreamReader(f.OpenRead()))
-        {
-          bundleResult.AppendLine();
-          bundleResult.AppendLine(sr.ReadToEnd());
-          bundleResult.AppendLine();
-        }
-      }
-
-      if (!string.IsNullOrEmpty(bundleResult.ToString()))
-      {
-        bool css = bundleName.EndsWith(".css", StringComparison.Ordinal);
-
-        using (Minify mini = new Minify(bundleResult.ToString(), css, false))
-        {
-          bundles[bundleName] = mini.Result;
-        }
-      }
-    }
-
-    internal void RegenerateBundle(string bundleName)
-    {
-      var files = bundleInfos.Where(x => x.BundleName == bundleName).Select(x => x.FileInfo);
-
-      if (files != null)
-        ProcessFiles(files, bundleName);
-    }
-  }
-  #endregion
-
-  #region JAVASCRIPT / CSS MINIFY
-  // Minify is based on a quick port of jsmin.c to C#. I made a few changes so 
-  // that it would work with CSS files as well.
-  //
-  // jsmin.c was written by Douglas Crockford, original license and information
-  // below.
-  //
-  // Find the C source code for jsmin.c here:
-  //  https://github.com/douglascrockford/JSMin/blob/master/jsmin.c
-
-  /* jsmin.c
-     2011-09-30
-
-  Copyright (c) 2002 Douglas Crockford  (www.crockford.com)
-
-  Permission is hereby granted, free of charge, to any person obtaining a copy of
-  this software and associated documentation files (the "Software"), to deal in
-  the Software without restriction, including without limitation the rights to
-  use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-  of the Software, and to permit persons to whom the Software is furnished to do
-  so, subject to the following conditions:
-
-  The above copyright notice and this permission notice shall be included in all
-  copies or substantial portions of the Software.
-
-  The Software shall be used for Good, not Evil.
-
-  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-  SOFTWARE.
-  */
-  public class Minify : IDisposable
-  {
-    private const int EOF = -1;
-
-    private bool pack;
-    private bool css;
-
-    private int theA;
-    private int theB;
-    private int theLookahead = EOF;
-
-    private StringReader reader;
-    private StringBuilder result { get; set; }
-
-    public string Result
-    {
-      get
-      {
-        if (pack)
-          return Regex.Replace(result.ToString().Trim(), "(\n|\r)+", " ");
-
-        return result.ToString().Trim();
-      }
-    }
-
-    public Minify(string text, bool css, bool pack)
-    {
-      result = new StringBuilder();
-
-      this.css = css;
-      this.pack = pack;
-
-      reader = new StringReader(text);
-
-      Go();
-    }
-
-    public void Dispose()
-    {
-      Dispose(true);
-
-      GC.SuppressFinalize(this);
-    }
-
-    protected virtual void Dispose(bool disposing)
-    {
-      if (disposing)
-      {
-        if (reader != null)
-        {
-          reader.Dispose();
-          reader = null;
-        }
-      }
-    }
-
-
-    private bool IsAlphanum(char c)
-    {
-      int charCode = (int)c;
-
-      if (css)
-        if (charCode == '.') return true;
-
-      return (charCode >= 'a' && charCode <= 'z' ||
-              charCode >= '0' && charCode <= '9' ||
-              charCode >= 'A' && charCode <= 'Z' ||
-              charCode == '_' ||
-              charCode == '$' ||
-              charCode == '\\' ||
-              charCode == '#' ||
-              charCode > 126);
-    }
-
-    private int Get()
-    {
-      int c = theLookahead;
-      theLookahead = EOF;
-      if (c == EOF)
-      {
-        c = reader.Read();
-      }
-      if (c >= ' ' || c == '\n' || c == EOF)
-      {
-        return c;
-      }
-      if (c == '\r')
-      {
-        return '\n';
-      }
-      return ' ';
-    }
-
-    private int Peek()
-    {
-      theLookahead = Get();
-      return theLookahead;
-    }
-
-    private int Next()
-    {
-      int c = Get();
-      if (c == '/')
-      {
-        switch (Peek())
-        {
-          case '/':
-            for (; ; )
-            {
-              c = Get();
-              if (c <= '\n')
-              {
-                return c;
-              }
-            }
-          case '*':
-            Get();
-            for (; ; )
-            {
-              switch (Get())
-              {
-                case '*':
-                  if (Peek() == '/')
-                  {
-                    Get();
-                    return ' ';
-                  }
-                  break;
-                case EOF:
-                  throw new Exception("Error: Minify Unterminated comment.");
-              }
-            }
-          default:
-            return c;
-        }
-      }
-      return c;
-    }
-
-    private void Action(int d)
-    {
-      switch (d)
-      {
-        case 1:
-          result.Append((char)theA);
-          goto case 2;
-        case 2:
-          theA = theB;
-          if (theA == '\'' || theA == '"' || theA == '`')
-          {
-            for (; ; )
-            {
-              result.Append((char)theA);
-              theA = Get();
-              if (theA == theB)
-              {
-                break;
-              }
-              if (theA == '\\')
-              {
-                result.Append((char)theA);
-                theA = Get();
-              }
-              if (theA == EOF)
-              {
-                throw new Exception("Error: Minify unterminated string literal.");
-              }
-            }
-          }
-          goto case 3;
-        case 3:
-          theB = Next();
-          if (theB == '/' && (theA == '(' || theA == ',' || theA == '=' ||
-                              theA == ':' || theA == '[' || theA == '!' ||
-                              theA == '&' || theA == '|' || theA == '?' ||
-                              theA == '{' || theA == '}' || theA == ';' ||
-                              theA == '\n'))
-          {
-            result.Append((char)theA);
-            result.Append((char)theB);
-            for (; ; )
-            {
-              theA = Get();
-              if (theA == '[')
-              {
-                for (; ; )
-                {
-                  result.Append((char)theA);
-                  theA = Get();
-                  if (theA == ']')
-                  {
-                    break;
-                  }
-                  if (theA == '\\')
-                  {
-                    result.Append((char)theA);
-                    theA = Get();
-                  }
-                  if (theA == EOF)
-                  {
-                    throw new Exception("Error: Minify unterminated set in Regular Expression literal.");
-                  }
-                }
-              }
-              else if (theA == '/')
-              {
-                break;
-              }
-              else if (theA == '\\')
-              {
-                result.Append((char)theA);
-                theA = Get();
-              }
-              if (theA == EOF)
-              {
-                throw new Exception("Error: Minify unterminated Regular Expression literal.");
-              }
-              result.Append((char)theA);
-            }
-            theB = Next();
-          }
-          break;
-      }
-    }
-
-    private void Go()
-    {
-      if (Peek() == 0xEF)
-      {
-        Get();
-        Get();
-        Get();
-      }
-      theA = '\n';
-      Action(3);
-      while (theA != EOF)
-      {
-        switch (theA)
-        {
-          case ' ':
-            if (IsAlphanum((char)theB))
-            {
-              Action(1);
-            }
-            else
-            {
-              Action(2);
-            }
-            break;
-          case '\n':
-            switch (theB)
-            {
-              case '{':
-              case '[':
-              case '(':
-              case '+':
-              case '-':
-                Action(1);
-                break;
-              case ' ':
-                Action(3);
-                break;
-              default:
-                if (IsAlphanum((char)theB))
-                {
-                  Action(1);
-                }
-                else
-                {
-                  Action(2);
-                }
-                break;
-            }
-            break;
-          default:
-            switch (theB)
-            {
-              case ' ':
-                if (IsAlphanum((char)theA))
-                {
-                  Action(1);
-                  break;
-                }
-                Action(3);
-                break;
-              case '\n':
-                switch (theA)
-                {
-                  case '}':
-                  case ']':
-                  case ')':
-                  case '+':
-                  case '-':
-                  case '"':
-                  case '\'':
-                  case '`':
-                    Action(1);
-                    break;
-                  default:
-                    if (IsAlphanum((char)theA))
-                    {
-                      Action(1);
-                    }
-                    else
-                    {
-                      Action(3);
-                    }
-                    break;
-                }
-                break;
-              default:
-                Action(1);
-                break;
-            }
-            break;
-        }
-      }
-    }
-  }
-  #endregion
-
-  #region ACTION PARAM TRANSFORM
-  public interface IActionParamTransform<T, V>
-  {
-    T Transform(V value);
-  }
-
-  [AttributeUsage(AttributeTargets.Parameter)]
-  public sealed class ActionParamTransformAttribute : Attribute
-  {
-    public string TransformName { get; private set; }
-
-    public ActionParamTransformAttribute(string transformName)
-    {
-      TransformName = transformName;
-    }
-  }
-
-  internal class ActionParamTransformInfo
-  {
-    public Type TransformClassType { get; set; }
-    public MethodInfo TransformMethod { get; set; }
-    public int IndexIntoParamList { get; set; }
-  }
-  #endregion
-
-  #region STATIC FILE MANAGER
-  public static class StaticFileManager
-  {
-    private static Dictionary<string, string> GetProtectedFilesList(HttpContextBase context)
-    {
-      Dictionary<string, string> protectedFiles = null;
-
-      if (context.Application[MainConfig.StaticFileManagerSessionName] != null)
-      {
-        protectedFiles = context.Application[MainConfig.StaticFileManagerSessionName] as Dictionary<string, string>;
-      }
-      else
-      {
-        protectedFiles = new Dictionary<string, string>();
-
-        context.Application.Lock();
-        context.Application[MainConfig.StaticFileManagerSessionName] = protectedFiles;
-        context.Application.UnLock();
-      }
-
-      return protectedFiles;
-    }
-
-    public static void ProtectFile(HttpContextBase ctx, string path, string roles)
-    {
-      Dictionary<string, string> protectedFiles = GetProtectedFilesList(ctx);
-
-      if (!protectedFiles.ContainsKey(path))
-        protectedFiles[path] = roles;
-    }
-
-    public static void UnprotectFile(HttpContextBase ctx, string path)
-    {
-      Dictionary<string, string> protectedFiles = GetProtectedFilesList(ctx);
-
-      if (!protectedFiles.ContainsKey(path))
-        protectedFiles.Remove(path);
-    }
-
-    internal static bool IsProtected(HttpContextBase ctx, string path, out string roles)
-    {
-      Dictionary<string, string> protectedFiles = GetProtectedFilesList(ctx);
-
-      if (protectedFiles.ContainsKey(path))
-      {
-        roles = protectedFiles[path];
-
-        return true;
-      }
-
-      roles = null;
-
-      return false;
-    }
-  }
-  #endregion
-
-  #region AURORA ROUTE MANAGER
   internal class CachedViewResult
   {
     public ViewResult ViewResult { get; set; }
     public string View { get; set; }
   }
 
-  internal interface IRouteManager
+  internal static class ResponseHeader
   {
-    IViewResult HandleRoute();
-    void Refresh(HttpContextBase ctx);
-  }
-
-  public class RouteInfo
-  {
-    public HttpContextBase Context { get; internal set; }
-    public List<object> Bindings { get; internal set; }
-    public string RequestType { get; internal set; }
-    public string Alias { get; internal set; }
-    public Dictionary<string, string> Payload { get; internal set; }
-
-    internal Type ControllerType { get; set; }
-    internal Controller ControllerInstance { get; set; }
-    internal MethodInfo Action { get; set; }
-    internal string ControllerName { get; set; }
-    internal string ActionName { get; set; }
-    internal string FrontLoadedParams { get; set; }
-    internal object[] ActionParameters { get; set; }
-    internal bool IsFiltered { get; set; }
-    internal bool Dynamic { get; set; }
-    internal bool FromRedirectOnlyInfo { get; set; }
-    internal List<ActionParamTransformInfo> ActionParameterTransforms { get; set; }
-    internal RequestTypeAttribute Attribute { get; set; }
-  }
-
-  internal class PostedFormInfo
-  {
-    private HttpContextBase context;
-
-    public Type DataType { get; private set; }
-    public object DataTypeInstance { get; private set; }
-
-    private void FormProcessor(Type m)
+    public static void AddEncodingHeaders(AuroraContext context)
     {
-      if (m != null)
+      string acceptsEncoding = context.RequestHeaders["Accept-Encoding"];
+
+      if (!string.IsNullOrEmpty(acceptsEncoding))
       {
-        PropertyInfo[] props = m.GetProperties();
-
-        if (props.Count() == 0)
-          throw new Exception(MainConfig.PostedFormActionIncorrectNumberOfParametersError);
-
-        DataType = m;
-        DataTypeInstance = Activator.CreateInstance(DataType);
-
-        foreach (PropertyInfo p in Model.GetPropertiesWithExclusions<Model>(m, true))
+        if (acceptsEncoding.Contains("deflate"))
         {
-          // We need to convert the form value to a datatype 
-
-          if (p.PropertyType == typeof(int))
-          {
-            if (context.Request.Form[p.Name].IsInt32())
-              p.SetValue(DataTypeInstance, Convert.ToInt32(context.Request.Form[p.Name], CultureInfo.InvariantCulture), null);
-          }
-          else if (p.PropertyType == typeof(string))
-          {
-            string value = context.Request.Form[p.Name];
-
-            SanitizeAttribute sanitize = (SanitizeAttribute)p.GetCustomAttributes(false).FirstOrDefault(x => x is SanitizeAttribute);
-
-            if (sanitize != null)
-              sanitize.Sanitize(value);
-
-            p.SetValue(DataTypeInstance, value, null);
-          }
-          else if (p.PropertyType == typeof(bool))
-          {
-            if (context.Request.Form[p.Name].IsBool())
-              p.SetValue(DataTypeInstance, Convert.ToBoolean(context.Request.Form[p.Name], CultureInfo.InvariantCulture), null);
-          }
-          else if (p.PropertyType == typeof(DateTime?))
-          {
-            DateTime? dt = null;
-
-            context.Request.Form[p.Name].IsDate(out dt);
-
-            p.SetValue(DataTypeInstance, dt, null);
-          }
-          else if (p.PropertyType == typeof(List<HttpPostedFileBase>))
-          {
-            List<HttpPostedFileBase> fileList = (List<HttpPostedFileBase>)Activator.CreateInstance(p.PropertyType);
-
-            foreach (string file in context.Request.Files)
-            {
-              fileList.Add(context.Request.Files[file] as HttpPostedFileBase);
-            }
-
-            p.SetValue(DataTypeInstance, fileList, null);
-          }
-          else if (p.PropertyType == typeof(HttpPostedFile))
-          {
-            if (context.Request.Files.Count > 0)
-              p.SetValue(DataTypeInstance, context.Request.Files[0], null);
-          }
+          context.ResponseFilter = new DeflateStream(context.ResponseFilter, CompressionMode.Compress);
+          context.ResponseAppendHeader("Content-Encoding", "deflate");
+        }
+        else if (acceptsEncoding.Contains("gzip"))
+        {
+          context.ResponseFilter = new GZipStream(context.ResponseFilter, CompressionMode.Compress);
+          context.ResponseAppendHeader("Content-Encoding", "gzip");
         }
       }
     }
 
-    public PostedFormInfo(HttpContextBase ctx, Type m)
+    public static void SetContentType(AuroraContext context, string contentType)
+    {
+      context.ResponseClearHeaders();
+      context.ResponseClearContent();
+      context.ResponseCharset = "utf-8";
+      context.ResponseContentType = contentType;
+    }
+  }
+
+  /// <summary>
+  /// The VirtualFileResult is intended to be used anywhere you want to return the file as a byte array.
+  /// This could be from a database, built on the fly using a memory stream or some other way. Virtual 
+  /// files are files that most likely don't live on your file system inside your application directory.
+  /// </summary>
+  public class VirtualFileResult : IViewResult
+  {
+    private AuroraContext context;
+    private string fileName;
+    private string fileContentType;
+    private byte[] fileBytes;
+
+    public VirtualFileResult(AuroraContext ctx, string name, byte[] bytes, string contentType)
     {
       context = ctx;
+      fileName = name;
+      fileBytes = bytes;
+      fileContentType = contentType;
+    }
 
-      FormProcessor(m);
+    public void Render()
+    {
+      ResponseHeader.SetContentType(context, fileContentType);
+      ResponseHeader.AddEncodingHeaders(context);
+
+      context.ResponseAddHeader("content-disposition", "attachment;filename=\"" + fileName + "\"");
+      context.ResponseBinaryWrite(fileBytes);
     }
   }
 
-  internal class AuroraRouteManager : IRouteManager
+  /// <summary>
+  /// The PhysicalFileResult is intended to be used anywhere you'd like to return a real file that lives
+  /// inside your application directory.
+  /// </summary>
+  public class PhysicalFileResult : IViewResult
   {
-    #region PRIVATE MEMBER VARIABLES
-    private HttpContextBase context;
-    private BundleManager bundleManager;
+    private AuroraContext context;
+    private string filePath;
+    private string contentType;
+    private TimeSpan expiry;
 
-    private List<RouteInfo> routeInfos;
-
-    private string currentPath;
-
-    private string[] urlStringParams;
-
-    private bool fromRedirectOnlyFlag = false;
-
-    private FrontController frontController;
-    #endregion
-
-    public AuroraRouteManager(HttpContextBase ctx)
-    {
-      bundleManager = new BundleManager(ctx);
-      frontController = ApplicationInternals.GetFrontController(ctx);
-
-      Refresh(ctx);
-    }
-
-    public void Refresh(HttpContextBase ctx)
+    public PhysicalFileResult(AuroraContext ctx, string file)
     {
       context = ctx;
+      filePath = file;
+      contentType = string.Empty;
 
-      if (MainConfig.ValidateRequest)
-        context.Request.ValidateInput();
+      string extension = Path.GetExtension(file);
 
-      string incomingPath = context.Request.Path;
-
-      if (string.Equals(incomingPath, "/", StringComparison.Ordinal) ||
-          string.Equals(incomingPath, "/default.aspx", StringComparison.OrdinalIgnoreCase) || incomingPath == "~/")
-        currentPath = MainConfig.DefaultRoute;
-      else
-        currentPath = (context.Request.Path.EndsWith("/", StringComparison.Ordinal)) ?
-          context.Request.Path.Remove(context.Request.Path.Length - 1) : context.Request.Path;
-
-      //if (MainConfig.ApplicationMountPoint.Length > 0)
-      //  path = path.Replace(MainConfig.ApplicationMountPoint, string.Empty);
-
-      context.RewritePath(currentPath);
-    }
-
-    #region PARAM GETTERS
-    private static object[] GetFrontParams(RouteInfo routeInfo)
-    {
-      return !string.IsNullOrEmpty(routeInfo.FrontLoadedParams) ? routeInfo.FrontLoadedParams.Split('/') : new object[] { };
-    }
-
-    private static object[] GetBoundParams(RouteInfo routeInfo)
-    {
-      return (routeInfo.Bindings != null) ? routeInfo.Bindings.ToArray() : new object[] { };
-    }
-
-    private object[] GetURLParams(string alias)
-    {
-      urlStringParams = currentPath.Replace(alias, string.Empty).Split('/').Where(x => !string.IsNullOrEmpty(x)).Select(x => HttpUtility.UrlEncode(x)).ToArray();
-
-      if (urlStringParams != null)
-        return urlStringParams.ToObjectArray();
-
-      return new object[] { };
-    }
-
-    private object[] GetFormParams()
-    {
-      if (context.Request.RequestType == "POST")
+      if (!string.IsNullOrEmpty(extension) && MainConfig.MimeTypes.ContainsKey(extension))
       {
-        if (context.Request.Form.Count > 0)
+        contentType = MainConfig.MimeTypes[extension];
+      }
+
+      int minutesBeforeExpiration = MainConfig.StaticContentCacheExpiry;
+
+      if (!(minutesBeforeExpiration > 0))
+        minutesBeforeExpiration = 15;
+
+      expiry = new TimeSpan(0, minutesBeforeExpiration, 0);
+    }
+
+    public void Render()
+    {
+      ResponseHeader.SetContentType(context, contentType);
+      ResponseHeader.AddEncodingHeaders(context);
+
+      if (!MainConfig.DisableStaticFileCaching)
+      {
+        context.ResponseSetCachePolicy(new AuroraCachePolicy()
         {
-          PostedFormInfo postedFormInfo;
-          Type postedFormModel = Model.DetermineModelFromPostedForm(context);
+          CacheabilityOption = HttpCacheability.Public,
+          Expires = DateTime.Now.Add(expiry),
+          MaxAge = expiry,
+          ValidUntilExpires = true,
+          IgnoreParams = true
+        });
+      }
 
-          if (postedFormModel != null)
+      if (filePath.EndsWith(".css", StringComparison.Ordinal) ||
+          filePath.EndsWith(".js", StringComparison.Ordinal) && !AuroraConfig.InDebugMode)
+      {
+        BundleManager bm = new BundleManager(context);
+
+        string fileName = Path.GetFileName(filePath);
+
+        if (bm.Contains(fileName))
+        {
+          if (MainConfig.DisableStaticFileCaching)
+            bm.RegenerateBundle(fileName);
+
+          context.ResponseWrite(bm[fileName]);
+        }
+        else
+        {
+          bool css = filePath.EndsWith(".css", StringComparison.Ordinal);
+
+          using (Minify mini = new Minify(File.ReadAllText(filePath), css, false))
           {
-            postedFormInfo = new PostedFormInfo(context, postedFormModel);
-
-            if (postedFormInfo.DataType != null)
-            {
-              ((Model)postedFormInfo.DataTypeInstance).Validate(context, (Model)postedFormInfo.DataTypeInstance);
-
-              return new object[] { postedFormInfo.DataTypeInstance };
-            }
-          }
-          else
-          {
-            NameValueCollection form = new NameValueCollection(context.Request.Form);
-
-            if (form[MainConfig.AntiForgeryTokenName] != null)
-              form.Remove(MainConfig.AntiForgeryTokenName);
-
-            string[] formValues = new string[form.AllKeys.Length];
-
-            for (int i = 0; i < form.AllKeys.Length; i++)
-            {
-              formValues[i] = form.Get(i);
-            }
-
-            return formValues.ToObjectArray();
+            context.ResponseWrite(mini.Result);
           }
         }
-      }
-
-      return new object[] { };
-    }
-
-    private object[] GetPutDeleteParams(RouteInfo routeInfo)
-    {
-      if (routeInfo.RequestType == "PUT" || routeInfo.RequestType == "DELETE")
-      {
-        string payload = new StreamReader(context.Request.InputStream).ReadToEnd();
-
-        if (!string.IsNullOrEmpty(payload))
-        {
-          routeInfo.Payload = payload.Split(',')
-                                     .Select(x => x.Split('='))
-                                     .ToDictionary(x => x[0], x => x[1]);
-        }
-      }
-
-      if (routeInfo.Payload != null && routeInfo.Payload.Count() > 0)
-        return new object[] { routeInfo.Payload };
-
-      return new object[] { };
-    }
-
-    private object[] GetFileParams()
-    {
-      if (context.Request.Files.Count > 0)
-      {
-        HttpPostedFileBase[] files = new HttpPostedFileBase[context.Request.Files.Count];
-        context.Request.Files.CopyTo(files, 0);
-
-        return files;
-      }
-
-      return new object[] { };
-    }
-    #endregion
-
-    private static object[] DetermineAndProcessSanitizeAttributes(RouteInfo routeInfo)
-    {
-      ParameterInfo[] actionParms = routeInfo.Action.GetParameters();
-
-      object[] processedParams = new object[routeInfo.ActionParameters.Length];
-
-      routeInfo.ActionParameters.CopyTo(processedParams, 0);
-
-      for (int i = 0; i < actionParms.Length; i++)
-      {
-        if (actionParms[i].ParameterType == typeof(string))
-        {
-          SanitizeAttribute sanitize = (SanitizeAttribute)actionParms[i].GetCustomAttributes(false).FirstOrDefault(x => x is SanitizeAttribute);
-
-          if (sanitize != null)
-            sanitize.Sanitize(processedParams[i].ToString());
-        }
-      }
-
-      return processedParams;
-    }
-
-    private static List<ActionParamTransformInfo> DetermineActionParameterTransforms(RouteInfo routeInfo)
-    {
-      Type[] actionParameterTypes = routeInfo.ActionParameters.Select(x => (x != null) ? x.GetType() : null).ToArray();
-
-      List<ActionParamTransformInfo> actionParameterTransforms = new List<ActionParamTransformInfo>();
-
-      for (int i = 0; i < routeInfo.Action.GetParameters().Count(); i++)
-      {
-        ParameterInfo pi = routeInfo.Action.GetParameters()[i];
-
-        ActionParamTransformAttribute apt = (ActionParamTransformAttribute)pi.GetCustomAttributes(typeof(ActionParamTransformAttribute), false).FirstOrDefault();
-
-        if (apt != null)
-        {
-          // The ActionParamTransform name corresponds to a class that implements the IActionParamTransform interface
-
-          if (routeInfo.ActionParameterTransforms == null)
-            routeInfo.ActionParameterTransforms = new List<ActionParamTransformInfo>();
-
-          // Look up class
-          Type actionParamTransformClassType = ApplicationInternals.GetActionTransformClassType(apt);
-
-          if (actionParamTransformClassType != null)
-          {
-            // Call Transform method, take results and use that instead of the incoming param
-            MethodInfo transformMethod = actionParamTransformClassType.GetMethod("Transform");
-
-            if (transformMethod != null)
-            {
-              Type transformedParamType = transformMethod.ReturnType;
-
-              actionParameterTypes[i] = transformedParamType;
-
-              actionParameterTransforms.Add(new ActionParamTransformInfo()
-              {
-                TransformClassType = actionParamTransformClassType,
-                TransformMethod = transformMethod,
-                IndexIntoParamList = i
-              });
-            }
-          }
-        }
-      }
-
-      if (actionParameterTransforms.Count() > 0) return actionParameterTransforms;
-
-      return null;
-    }
-
-    private static object[] ProcessActionParameterTransforms(RouteInfo routeInfo, List<ActionParamTransformInfo> actionParamTransformInfos)
-    {
-      if (actionParamTransformInfos != null)
-      {
-        object[] processedParams = new object[routeInfo.ActionParameters.Length];
-
-        routeInfo.ActionParameters.CopyTo(processedParams, 0);
-
-        foreach (ActionParamTransformInfo apti in actionParamTransformInfos)
-        {
-          // Instantiate the class, the constructor will receive any bound action objects that the params method received.
-          object actionParamTransformClassInstance = Activator.CreateInstance(apti.TransformClassType, routeInfo.Bindings.ToArray());
-
-          Type transformMethodParameterType = apti.TransformMethod.GetParameters()[0].ParameterType;
-          Type incomingParameterType = processedParams[apti.IndexIntoParamList].GetType();
-
-          if (transformMethodParameterType != incomingParameterType)
-          {
-            // Why am I doing this here? Why am I converting the result to a string? I can't remember. ARGH!
-
-            //if (transformMethodParameterType == typeof(string) || incomingParameterType == typeof(Int64))
-            //{
-            processedParams[apti.IndexIntoParamList] = processedParams[apti.IndexIntoParamList].ToString();
-            //}
-            //else
-            //  throw new ArgumentException();
-          }
-
-          object transformedParam = apti.TransformMethod.Invoke(actionParamTransformClassInstance, new object[] { processedParams[apti.IndexIntoParamList] });
-
-          if (transformedParam != null)
-          {
-            processedParams[apti.IndexIntoParamList] = transformedParam;
-          }
-        }
-
-        return processedParams;
-      }
-
-      return null;
-    }
-
-    private RouteInfo FindRoute(string path, string alias)
-    {
-      //
-      // Actions map like this: 
-      //
-      //	ActionName(action_filter_results, bound_parameters, front_params, url_parameters, form_parameters / (HTTP Put/Delete) payload, files)
-      //
-
-      if (!MainConfig.PathTokenRE.IsMatch(path)) return null;
-
-      List<RouteInfo> routeSlice = routeInfos.Where(x => x.Alias == alias && x.RequestType == context.Request.RequestType).ToList();
-
-      if (routeSlice.Count() == 0) return null;
-
-      object[] urlParams = GetURLParams(alias);
-      object[] formParams = GetFormParams();
-      object[] fileParams = GetFileParams();
-
-      foreach (RouteInfo routeInfo in routeSlice)
-      {
-        object[] boundParams = GetBoundParams(routeInfo);
-        object[] frontParams = GetFrontParams(routeInfo);
-        object[] putDeleteParams = GetPutDeleteParams(routeInfo);
-
-        List<object> actionParametersList = new List<object>();
-
-        actionParametersList.AddRange(boundParams);
-        actionParametersList.AddRange(frontParams);
-        actionParametersList.AddRange(urlParams);
-        actionParametersList.AddRange(formParams);
-        actionParametersList.AddRange(putDeleteParams);
-        actionParametersList.AddRange(fileParams);
-
-        object[] actionParameters = actionParametersList.ToArray();
-
-        if (fromRedirectOnlyFlag && !routeInfo.FromRedirectOnlyInfo) continue;
-
-        if (actionParameters.Count() < routeInfo.Action.GetParameters().Count()) continue;
-
-        Type[] actionParameterTypes = actionParameters.Select(x => (x != null) ? x.GetType() : null).ToArray();
-        Type[] methodParamTypes = routeInfo.Action.GetParameters().Select(x => x.ParameterType).ToArray();
-
-        if (methodParamTypes.Count() < actionParameters.Count()) continue;
-
-        var filteredMethodParams = methodParamTypes.Where(x => x.GetInterfaces().FirstOrDefault(i => i.UnderlyingSystemType == typeof(IActionFilterResult)) != null);
-
-        if (filteredMethodParams != null && filteredMethodParams.Count() > 0)
-          methodParamTypes = methodParamTypes.Except(filteredMethodParams).ToArray();
-
-        List<Type> matches = new List<Type>();
-        ParameterInfo[] methodParameterInfos = routeInfo.Action.GetParameters();
-
-        for (int x = 0; x < methodParamTypes.Length; x++)
-        {
-          if ((methodParamTypes[x].FullName == actionParameterTypes[x].FullName) ||
-              (actionParameterTypes[x].GetInterface(methodParamTypes[x].FullName) != null) ||
-              (methodParameterInfos[x].GetCustomAttributes(typeof(ActionParamTransformAttribute), false).FirstOrDefault() != null))
-          {
-            matches.Add(actionParameterTypes[x]);
-          }
-        }
-
-        if (matches.Count() == methodParamTypes.Count())
-        {
-          routeInfo.ActionParameters = actionParameters;
-
-          return routeInfo;
-        }
-      }
-
-      return null;
-    }
-
-    public IViewResult HandleRoute()
-    {
-      IViewResult iar = null;
-
-      // Front Controller PreRoute determination event
-      if (frontController != null)
-        frontController.RaiseEvent(RouteHandlerEventType.PreRoute, currentPath, null);
-
-      if (MainConfig.PathStaticFileRE.IsMatch(currentPath))
-      {
-        // Front Controller Static route event
-        if (frontController != null)
-          frontController.RaiseEvent(RouteHandlerEventType.Static, currentPath, null);
-
-        iar = ExecuteStaticRoute();
       }
       else
-      {
-        routeInfos = ApplicationInternals.AllRouteInfos(context);
+        context.ResponseTransmitFile(filePath);
+    }
+  }
 
-        string alias =
-          routeInfos.OrderByDescending(y => y.Alias).Where(x => currentPath.StartsWith(x.Alias, StringComparison.Ordinal)).Select(x => x.Alias).FirstOrDefault();
+  public class ViewResult : IViewResult
+  {
+    private AuroraContext context;
+    private IViewEngine viewEngine;
+    private string partitionName;
+    private string controllerName;
+    private string viewName;
+    private string view;
+    private Dictionary<string, string> tags;
 
-        RouteInfo routeInfo = FindRoute(currentPath, alias);
+    private RequestTypeAttribute requestAttribute;
 
-        if (routeInfo != null)
-        {
-          if (frontController != null)
-          {
-            // Front Controller PostRoute determination event
-            frontController.RaiseEvent(RouteHandlerEventType.PostRoute, currentPath, routeInfo);
-            // Front Controller PreAction event
-            frontController.RaiseEvent(RouteHandlerEventType.Pre, currentPath, routeInfo);
-          }
-
-          // Execute Controller BeforeAction event
-          routeInfo.ControllerInstance.RaiseEvent(RouteHandlerEventType.Pre, currentPath, routeInfo);
-
-          // Go invoke the route
-          iar = ProcessDynamicRoute(routeInfo);
-
-          // Front Controller PostAction event
-          if (frontController != null)
-            frontController.RaiseEvent(RouteHandlerEventType.Post, currentPath, routeInfo);
-
-          // Execute Controller AfterAction
-          routeInfo.ControllerInstance.RaiseEvent(RouteHandlerEventType.Post, currentPath, routeInfo);
-        }
-      }
-
-      return iar;
+    public ViewResult(AuroraContext ctx, IViewEngine ve, string pName, string cName, string vName, RequestTypeAttribute attrib, Dictionary<string, string> vTags)
+    {
+      context = ctx;
+      viewEngine = ve;
+      requestAttribute = attrib;
+      partitionName = pName;
+      controllerName = cName;
+      viewName = vName;
+      tags = vTags;
+      view = string.Empty;
     }
 
-    private IViewResult ExecuteStaticRoute()
+    internal ViewResult(AuroraContext ctx, string view)
     {
-      IViewResult iar = null;
+      // This constructor is used by the DefaultCustomError class to 
+      // by pass the load view code in the Render method if the web application
+      // does not specify the Error view.
 
-      if (currentPath.StartsWith("/" + MainConfig.PublicResourcesFolderName, StringComparison.Ordinal) || currentPath.EndsWith(".ico", StringComparison.Ordinal))
-      {
-        if (MainConfig.PathStaticFileRE.IsMatch(currentPath))
-        {
-          string staticFilePath = context.Server.MapPath(currentPath);
-
-          if (File.Exists(staticFilePath) || bundleManager.Contains(Path.GetFileName(currentPath)))
-          {
-            string protectedRoles = null;
-
-            if (StaticFileManager.IsProtected(context, staticFilePath, out protectedRoles))
-            {
-              if (!SecurityManager.IsAuthenticated(context, null, protectedRoles))
-                return iar;
-            }
-
-            return new PhysicalFileResult(context, staticFilePath);
-          }
-        }
-      }
-
-      return iar;
+      context = ctx;
+      this.view = view;
     }
 
-    private IViewResult ProcessDynamicRoute(RouteInfo routeInfo)
+    public void Refresh(AuroraContext ctx, RequestTypeAttribute attrib)
     {
-      IViewResult result = null;
+      context = ctx;
+      requestAttribute = attrib;
+    }
 
-      if (routeInfo != null && !routeInfo.IsFiltered)
+    public void Render()
+    {
+      ResponseHeader.SetContentType(context, "text/html");
+
+      if (string.IsNullOrEmpty(view))
       {
-        RequestTypeAttribute reqAttrib = Attribute.GetCustomAttribute(routeInfo.Action, typeof(RequestTypeAttribute), false) as RequestTypeAttribute;
-        HttpGetAttribute get = routeInfo.Attribute as HttpGetAttribute;
-        //string cachedViewName = string.Empty;
+        #region LOAD THE VIEW
+        HttpGetAttribute get = null;
+        CachedViewResult cachedViewResult = null;
 
-        routeInfo.ControllerInstance.CurrentRoute = routeInfo;
+        if (requestAttribute is HttpGetAttribute)
+          get = (requestAttribute as HttpGetAttribute);
 
-        #region SECURITY CHECKING
-        if (reqAttrib.HttpsOnly && !context.Request.IsSecureConnection) return result;
-
-        if (reqAttrib.SecurityType == ActionSecurity.Secure)
+        if (get != null && get.Cache)
         {
-          if (!SecurityManager.IsAuthenticated(context, routeInfo, reqAttrib.Roles))
+          if (context.Cache[context.Path] != null)
           {
-            if (frontController != null)
-              frontController.RaiseEvent(RouteHandlerEventType.FailedSecurity, currentPath, routeInfo);
+            cachedViewResult = context.Cache[context.Path] as CachedViewResult;
 
-            if (!string.IsNullOrEmpty(reqAttrib.RedirectWithoutAuthorizationTo))
-              return new RedirectResult(context, reqAttrib.RedirectWithoutAuthorizationTo);
-            else
-              throw new Exception(MainConfig.RedirectWithoutAuthorizationToError);
+            view = cachedViewResult.View;
           }
-
-          if (frontController != null)
-            frontController.RaiseEvent(RouteHandlerEventType.PassedSecurity, currentPath, routeInfo);
         }
-        #endregion
+
+        if (string.IsNullOrEmpty(view))
+        {
+          view = viewEngine.LoadView(partitionName, controllerName, viewName, tags);
+        }
 
         if (get != null)
         {
-          #region AJAX GET REQUEST WITH JSON RESULT
-          if (routeInfo.Action.ReturnType == typeof(JsonResult))
-          {
-            if (context.Request.QueryString[MainConfig.AntiForgeryTokenName] != null)
-            {
-              if (!AntiForgeryToken.VerifyToken(context))
-                throw new AntiForgeryTokenMissingException(MainConfig.JsonAntiForgeryTokenMissing);
-            }
-          }
-          #endregion
+          string refresh = get.Refresh;
 
-          #region HTTP GET CACHE BYPASS
+          if (!string.IsNullOrEmpty(refresh))
+            context.ResponseAddHeader("Refresh", refresh);
+
+          #region ADD (OR NOT) HTTP CACHE HEADERS TO THE REQUEST
           if (get.Cache)
           {
-            // if we have a cached view result for this request we will return it and skip invocation of the action
-            if (context.Cache[currentPath] != null)
+            context.ResponseSetCachePolicy(new AuroraCachePolicy()
             {
-              if (frontController != null)
-                frontController.RaiseEvent(RouteHandlerEventType.CachedViewResult, currentPath, routeInfo);
+              CacheabilityOption = get.CacheabilityOption,
+              Expires = get.DateExpiry,
+              MaxAge = get.Expires,
+              ValidUntilExpires = true,
+              IgnoreParams = true
+            });
 
-              CachedViewResult vr = (context.Cache[currentPath] as CachedViewResult);
-
-              vr.ViewResult.Refresh(context, get);
-
-              return vr.ViewResult;
-            }
+            if (cachedViewResult != null && string.IsNullOrEmpty(cachedViewResult.View))
+              cachedViewResult.View = view;
+          }
+          else
+          {
+            context.ResponseSetNoCache();
           }
           #endregion
         }
+        #endregion
+      }
 
-        #region ANTI FORGERY TOKEN VERIFICATION
-        if ((context.Request.RequestType == "POST" && (routeInfo.Attribute as HttpPostAttribute).RequireAntiForgeryToken ||
-            context.Request.RequestType == "PUT" && (routeInfo.Attribute as HttpPutAttribute).RequireAntiForgeryToken ||
-            context.Request.RequestType == "DELETE" && (routeInfo.Attribute as HttpDeleteAttribute).RequireAntiForgeryToken))
+      ResponseHeader.AddEncodingHeaders(context);
+
+      context.ResponseWrite(view);
+    }
+  }
+
+  public class PartialResult : IViewResult
+  {
+    private AuroraContext context;
+    private IViewEngine viewEngine;
+    private string partitionName;
+    private string controllerName;
+    private string fragmentName;
+    private Dictionary<string, string> tags;
+
+    public PartialResult(AuroraContext ctx, IViewEngine ve, string pName, string cName, string fName, Dictionary<string, string> vTags)
+    {
+      context = ctx;
+      viewEngine = ve;
+      partitionName = pName;
+      controllerName = cName;
+      fragmentName = fName;
+      tags = vTags;
+    }
+
+    public void Render()
+    {
+      ResponseHeader.SetContentType(context, "text/html");
+
+      context.ResponseWrite(viewEngine.LoadView(partitionName, controllerName, fragmentName, tags));
+    }
+  }
+
+  public class JsonResult : IViewResult
+  {
+    private AuroraContext context;
+    private object data;
+
+    public JsonResult(AuroraContext ctx, object d)
+    {
+      context = ctx;
+      data = d;
+    }
+
+    public void Render()
+    {
+      try
+      {
+        string json = JsonConvert.SerializeObject(data);
+
+        ResponseHeader.SetContentType(context, "text/html");
+        ResponseHeader.AddEncodingHeaders(context);
+
+        context.ResponseWrite(json);
+      }
+      catch
+      {
+        throw;
+      }
+    }
+  }
+
+  public class ErrorResult : IViewResult
+  {
+    private AuroraContext context;
+    private Exception exception;
+
+    public ErrorResult(AuroraContext ctx, Exception e)
+    {
+      context = ctx;
+      exception = e;
+    }
+
+    public void Render()
+    {
+      string message = string.Empty;
+
+      if (exception.InnerException != null)
+        message = exception.InnerException.Message;
+      else
+        message = exception.Message;
+
+      ResponseHeader.SetContentType(context, "text/html");
+
+      ResponseHeader.AddEncodingHeaders(context);
+
+      //context.Response.StatusDescription = message;
+      context.ResponseWrite(string.Format(CultureInfo.CurrentCulture, "{0} - {1}", message, context.Path));
+    }
+  }
+
+  /// <summary>
+  /// A VoidResult is a mechanism which basically says we don't want to do any processing
+  /// to this view. This means the action had a void return type and it's responsible for
+  /// writing out any response to the response stream.
+  /// </summary>
+  internal class VoidResult : IViewResult
+  {
+    public void Render() { }
+  }
+
+  public class RedirectResult : IViewResult
+  {
+    private AuroraContext context;
+    private string location;
+
+    public RedirectResult(AuroraContext ctx, string loc)
+    {
+      context = ctx;
+      location = loc;
+    }
+
+    public void Render()
+    {
+      context.ResponseRedirect(location);
+    }
+  }
+  #endregion
+
+  #region VIEW ENGINE
+
+  #region VIEW TEMPLATE
+  internal enum ViewTemplateType
+  {
+    Fragment,
+    Shared,
+    Action
+  }
+
+  internal class ViewTemplate
+  {
+    public string Name { get; set; }
+    public string FullName { get; set; }
+    public string Partition { get; set; }
+    public string Controller { get; set; }
+    public string Path { get; set; }
+    public string Template { get; set; }
+    public ViewTemplateType TemplateType { get; set; }
+  }
+  #endregion
+
+  #region VIEW
+  internal class View
+  {
+    public string Name { get; set; }
+    public string FullName { get; set; }
+    public string Render { get; set; }
+    public string Template { get; set; }
+  }
+  #endregion
+
+  #region VIEW TEMPLATE LOADER
+  internal interface IViewTemplateLoader
+  {
+    List<ViewTemplate> Load(string[] viewRoots);
+  }
+
+  internal sealed class ViewTemplateLoader : IViewTemplateLoader
+  {
+    private string physicalApplicationRoot;
+    private string sharedHint = @"shared\";
+    private string fragmentsHint = @"fragments\";
+    private static Regex commentBlockRE = new Regex(@"\@\@(?<block>[\s\w\p{P}\p{S}]+?)\@\@");
+
+    public ViewTemplateLoader(string applicationRoot)
+    {
+      if (string.IsNullOrEmpty(applicationRoot))
+        throw new ArgumentNullException("applicationRoot");
+
+      physicalApplicationRoot = applicationRoot;
+    }
+
+    public List<ViewTemplate> Load(string[] viewRoots)
+    {
+      List<ViewTemplate> templates = new List<ViewTemplate>();
+
+      foreach (string viewRoot in viewRoots)
+      {
+        if (Directory.Exists(viewRoot))
         {
-          string antiForgeryToken = (routeInfo.Payload == null) ?
-            context.Request.Form[MainConfig.AntiForgeryTokenName] : routeInfo.Payload[MainConfig.AntiForgeryTokenName];
+          DirectoryInfo rootDir = new DirectoryInfo(viewRoot);
 
-          if (!string.IsNullOrEmpty(antiForgeryToken))
+          foreach (FileInfo fi in rootDir.GetAllFiles().Where(x => x.Extension == ".html"))
           {
-            if (!AntiForgeryToken.VerifyToken(context, antiForgeryToken))
-              throw new Exception(MainConfig.AntiForgeryTokenVerificationFailedError);
+            using (StreamReader sr = new StreamReader(fi.OpenRead()))
+            {
+              string templateName = fi.Name.Replace(fi.Extension, string.Empty);
+              string templateKeyName = fi.FullName.Replace(rootDir.Parent.FullName, string.Empty)
+                                                  .Replace(physicalApplicationRoot, string.Empty)
+                                                  .Replace(fi.Extension, string.Empty)
+                                                  .Replace("\\", "/").TrimStart('/');
+
+              #region STRIP COMMENT SECTIONS
+              StringBuilder templateBuilder = new StringBuilder(sr.ReadToEnd());
+
+              MatchCollection comments = commentBlockRE.Matches(templateBuilder.ToString());
+
+              if (comments.Count > 0)
+              {
+                foreach (Match comment in comments)
+                {
+                  templateBuilder.Replace(comment.Value, string.Empty);
+                }
+              }
+              #endregion
+
+              ViewTemplateType templateType = ViewTemplateType.Action;
+
+              if (fi.FullName.ToLower().Contains(sharedHint))
+              {
+                templateType = ViewTemplateType.Shared;
+              }
+              else if (fi.FullName.ToLower().Contains(fragmentsHint))
+              {
+                templateType = ViewTemplateType.Fragment;
+              }
+
+              string partition = null;
+              string controller = null;
+
+              if (templateType == ViewTemplateType.Action)
+              {
+                string[] keyParts = templateKeyName.Split('/');
+
+                if (keyParts.Length > 2)
+                {
+                  partition = keyParts[0];
+                  controller = keyParts[1];
+                }
+                else
+                {
+                  partition = null;
+                  controller = keyParts[0];
+                }
+              }
+
+              templates.Add(new ViewTemplate()
+                {
+                  Partition = partition,
+                  Controller = controller,
+                  FullName = templateKeyName,
+                  Name = templateName,
+                  Path = fi.FullName,
+                  Template = templateBuilder.ToString(),
+                  TemplateType = templateType
+                });
+            }
           }
-          else
-            throw new Exception(MainConfig.AntiForgeryTokenMissingError);
         }
-        #endregion
+      }
 
-        #region REFINE ACTION PARAMS
-        routeInfo.ActionParameters = DetermineAndProcessSanitizeAttributes(routeInfo);
-        routeInfo.ActionParameterTransforms = DetermineActionParameterTransforms(routeInfo);
+      if (templates.Count > 0)
+        return templates;
 
-        if (routeInfo.ActionParameterTransforms != null && routeInfo.ActionParameterTransforms.Count > 0)
-          routeInfo.ActionParameters = ProcessActionParameterTransforms(routeInfo, routeInfo.ActionParameterTransforms);
-        #endregion
+      return null;
+    }
+  }
+  #endregion
 
-        result = InvokeAction(routeInfo);
+  #region VIEW COMPILER
 
-        #region VIEW CACHING
-        if (get != null && get.Cache)
+  public class BundleFileLinkHandlerEventArgs : EventArgs
+  {
+    public bool DebugMode { get; set; }
+    public string BundleName { get; set; }
+    public string BundleLinks { get; set; }
+    public List<string> BundleFileList { get; set; }
+
+    public BundleFileLinkHandlerEventArgs(string bundleName, bool debugMode)
+    {
+      BundleName = bundleName;
+      BundleFileList = null;
+      DebugMode = debugMode;
+    }
+  }
+
+  public class AntiForgeryRequestHandlerEventArgs : EventArgs
+  {
+    public AntiForgeryTokenType TokenType { get; internal set; }
+    public string AntiForgeryToken { get; set; }
+
+    public AntiForgeryRequestHandlerEventArgs(AntiForgeryTokenType tokenType)
+    {
+      TokenType = tokenType;
+    }
+  }
+
+  internal interface IViewCompiler
+  {
+    List<View> CompileAll();
+    View Compile(string partitionName, string controllerName, string viewName);
+    View Render(View view, Dictionary<string, string> tags);
+
+    event EventHandler<AntiForgeryRequestHandlerEventArgs> AntiForgeryRequestEvent;
+    event EventHandler<BundleFileLinkHandlerEventArgs> BundleFileLinkEvent;
+  }
+
+  internal class ViewCompiler : IViewCompiler
+  {
+    private List<ViewTemplate> viewTemplates;
+    private static Markdown Markdown = new Markdown();
+    private Dictionary<string, List<string>> templateKeyNames;
+    private static Regex directiveTokenRE = new Regex(@"(\%\%(?<directive>[a-zA-Z0-9]+)=(?<value>(\S|\.)+)\%\%)");
+    private static Regex headBlockRE = new Regex(@"\[\[(?<block>[\s\w\p{P}\p{S}]+)\]\]");
+    private static Regex tagRE = new Regex(@"{({|\||\!)([\w]+)(}|\!|\|)}");
+    private static string tagFormatPattern = @"({{({{|\||\!){0}(\||\!|}})}})";
+    private static string tagEncodingHint = "{|";
+    private static string markdownEncodingHint = "{!";
+    private static string unencodedTagHint = "{{";
+    private static string viewDirective = "%%View%%";
+    private static string headDirective = "%%Head%%";
+    private static string antiForgeryToken = "%%AntiForgeryToken%%";
+    private static string jsonAntiForgeryToken = "%%JsonAntiForgeryToken%%";
+
+    private List<View> compiledViews;
+
+    public event EventHandler<AntiForgeryRequestHandlerEventArgs> AntiForgeryRequestEvent;
+    public event EventHandler<BundleFileLinkHandlerEventArgs> BundleFileLinkEvent;
+
+    public ViewCompiler()
+    {
+      templateKeyNames = new Dictionary<string, List<string>>();
+      compiledViews = new List<View>();
+    }
+
+    public void SetTemplates(List<ViewTemplate> templates)
+    {
+      if (templates == null)
+        throw new ArgumentNullException("templates");
+
+      viewTemplates = templates;
+    }
+
+    private StringBuilder ProcessDirectives(string partitionName, string controllerName, StringBuilder rawView)
+    {
+      MatchCollection dirMatches = directiveTokenRE.Matches(rawView.ToString());
+      StringBuilder pageContent = new StringBuilder();
+      StringBuilder directive = new StringBuilder();
+      StringBuilder value = new StringBuilder();
+
+      #region PROCESS DIRECTIVES
+      foreach (Match match in dirMatches)
+      {
+        directive.Length = 0;
+        directive.Insert(0, match.Groups["directive"].Value);
+
+        value.Length = 0;
+        value.Insert(0, match.Groups["value"].Value);
+
+        string pageName = DetermineKeyName(partitionName, controllerName, value.ToString());
+
+        if (!string.IsNullOrEmpty(pageName))
         {
-          context.Cache.Add(
-              currentPath,
-              new CachedViewResult() { ViewResult = result as ViewResult },
-              null,
-              get.DateExpiry,
-              System.Web.Caching.Cache.NoSlidingExpiration,
-              CacheItemPriority.Normal,
-              null);
+          string template = viewTemplates.FirstOrDefault(x => x.FullName == pageName).Template;
+
+          switch (directive.ToString())
+          {
+            case "Master":
+              pageContent = new StringBuilder(template);
+              rawView.Replace(match.Groups[0].Value, string.Empty);
+              pageContent.Replace(viewDirective, rawView.ToString());
+              break;
+
+            case "Partial":
+              StringBuilder partialContent = new StringBuilder(template);
+              rawView.Replace(match.Groups[0].Value, partialContent.ToString());
+              break;
+          }
         }
-        #endregion
+        else
+        {
+          if (directive.ToString() == "Bundle" && BundleFileLinkEvent != null)
+          {
+            string bundleName = value.ToString();
+
+            if (!string.IsNullOrEmpty(bundleName))
+            {
+              StringBuilder htmlTagBuilder = new StringBuilder();
+
+              BundleFileLinkHandlerEventArgs args =
+                new BundleFileLinkHandlerEventArgs(bundleName, AuroraConfig.InDebugMode);
+
+              BundleFileLinkEvent(this, args);
+
+              if (!string.IsNullOrEmpty(args.BundleLinks))
+              {
+                htmlTagBuilder.AppendLine(args.BundleLinks);
+              }
+
+              rawView.Replace(match.Groups[0].Value, htmlTagBuilder.ToString());
+            }
+          }
+        }
+      }
+      #endregion
+
+      // If during the process of building the view we have more directives to process
+      // we'll recursively call ProcessDirectives to take care of them
+      if (directiveTokenRE.Matches(pageContent.ToString()).Count > 0)
+        ProcessDirectives(partitionName, controllerName, pageContent);
+
+      #region PROCESS HEAD SUBSTITUTIONS AFTER ALL TEMPLATES HAVE BEEN COMPILED
+      MatchCollection heads = headBlockRE.Matches(pageContent.ToString());
+
+      if (heads.Count > 0)
+      {
+        StringBuilder headSubstitutions = new StringBuilder();
+
+        foreach (Match head in heads)
+        {
+          headSubstitutions.Append(Regex.Replace(head.Groups["block"].Value, @"^(\s+)", string.Empty, RegexOptions.Multiline));
+          pageContent.Replace(head.Value, string.Empty);
+        }
+
+        pageContent.Replace(headDirective, headSubstitutions.ToString());
+      }
+
+      pageContent.Replace(headDirective, string.Empty);
+      #endregion
+
+      return pageContent;
+    }
+
+    public string DetermineKeyName(string partitionName, string controllerName, string viewName)
+    {
+      List<string> keyTypes = null;
+
+      string lookupKeyName = string.Empty;
+
+      if (string.IsNullOrEmpty(partitionName))
+      {
+        partitionName = "Views";
+      }
+
+      if (string.IsNullOrEmpty(controllerName))
+      {
+        controllerName = "Shared";
+      }
+
+      if (!string.IsNullOrEmpty(partitionName))
+        lookupKeyName = string.Format(CultureInfo.InvariantCulture, "{0}/{1}/{2}", partitionName, controllerName, viewName);
+      else
+        lookupKeyName = string.Format(CultureInfo.InvariantCulture, "{0}/{1}", controllerName, viewName);
+
+      if (!templateKeyNames.ContainsKey(lookupKeyName))
+      {
+        keyTypes = new List<string>();
+
+        // Preference is given to the controller scope first, global scope is last
+
+        if (!string.IsNullOrEmpty(partitionName))
+        {
+          // partitionRootScopeSharedKeyName
+          keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "{0}/Views/Shared/{1}", partitionName, viewName));
+          // partitionRootScopeFragmentsKeyName
+          keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "{0}/Views/Fragments/{1}", partitionName, viewName));
+          // partitionControllerScopeActionKeyName
+          keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "{0}/{1}/{2}", partitionName, controllerName, viewName));
+          // partitionControllerScopeSharedKeyName
+          keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "{0}/{1}/Shared/{2}", partitionName, controllerName, viewName));
+          // partitionControllerScopeFragmentKeyName
+          keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "{0}/{1}/Fragments/{2}", partitionName, controllerName, viewName));
+        }
+        else
+        {
+          // controllerScopeActionKeyName
+          keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "{0}/{1}", controllerName, viewName));
+          // controllerScopeSharedKeyName
+          keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "{0}/Shared/{1}", controllerName, viewName));
+          // controllerScopeFragmentKeyName
+          keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "{0}/Fragments/{1}", controllerName, viewName));
+        }
+
+        // globalScopeSharedKeyName
+        keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "Shared/{0}", viewName));
+        // globalScopeFragmentKeyName
+        keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "Fragments/{0}", viewName));
+
+        templateKeyNames[lookupKeyName] = keyTypes;
+      }
+      else
+      {
+        keyTypes = templateKeyNames[lookupKeyName];
+      }
+
+      string result = keyTypes.FirstOrDefault(x =>
+          (viewTemplates.FirstOrDefault(y => y.FullName == x) != null));
+
+      if (string.IsNullOrEmpty(result))
+      {
+        if (controllerName == "Shared")
+        {
+          result = DetermineKeyName(partitionName, "Fragments", viewName);
+        }
+        else
+        {
+          result = DetermineKeyName(partitionName, "Shared", viewName);
+        }
       }
 
       return result;
     }
 
-    private IViewResult InvokeAction(RouteInfo routeInfo)
+    public View Compile(string partitionName, string controllerName, string viewName)
     {
-      if (routeInfo != null)
-      {
-        IViewResult result = null;
+      string keyName = DetermineKeyName(partitionName, controllerName, viewName);
 
-        if (routeInfo.Bindings != null)
+      if (!string.IsNullOrEmpty(keyName))
+      {
+        ViewTemplate viewTemplate = viewTemplates.FirstOrDefault(x => x.FullName == keyName);
+
+        if (viewTemplate != null)
         {
-          foreach (object i in routeInfo.Bindings)
+          StringBuilder rawView = new StringBuilder(viewTemplate.Template);
+          StringBuilder compiledView = new StringBuilder();
+
+          if (!keyName.ToLower().Contains("fragments/"))
+            compiledView = ProcessDirectives(partitionName, controllerName, rawView);
+
+          if (string.IsNullOrEmpty(compiledView.ToString()))
+            compiledView = rawView;
+
+          compiledView.Replace(compiledView.ToString(), Regex.Replace(compiledView.ToString(), @"^\s*$\n", string.Empty, RegexOptions.Multiline));
+
+          View view = new View()
           {
-            if (i.GetType().GetInterface(typeof(IBoundActionObject).Name) != null)
-            {
-              MethodInfo boundActionObject = i.GetType().GetMethod("ExecuteBeforeAction");
+            FullName = keyName,
+            Name = viewName,
+            Template = compiledView.ToString(),
+            Render = string.Empty
+          };
 
-              if (boundActionObject != null)
-                boundActionObject.Invoke(i, new object[] { context });
-            }
-          }
-        }
+          compiledViews.Add(view);
 
-        if (!routeInfo.IsFiltered)
-        {
-          if (routeInfo.Dynamic && context.Session[MainConfig.FromRedirectOnlySessionFlag] == null)
-            return null;
-
-          #region CHECK TO SEE IF WE HAVE ACTION FILTERS AND MODIFY THE ACTION PARAMETERS ACCORDINGLY
-          List<ActionFilterAttribute> filters = routeInfo.Action.GetCustomAttributes(false).Where(x => x.GetType().BaseType == typeof(ActionFilterAttribute)).Cast<ActionFilterAttribute>().ToList();
-
-          if (filters.Count() > 0)
-          {
-            List<IActionFilterResult> filterResults = new List<IActionFilterResult>();
-
-            // Look for ActionFilter attributes then execute their OnFilter method
-            foreach (ActionFilterAttribute af in filters)
-            {
-              af.Controller = routeInfo.ControllerInstance;
-              af.OnFilter(routeInfo);
-
-              if (af.FilterResult != null)
-                filterResults.Add(af.FilterResult);
-            }
-
-            if (filterResults.Count() > 0)
-            {
-              var filteredMethodParams = routeInfo.Action.GetParameters().Where(x => x.GetType().GetInterfaces().FirstOrDefault(i => i.UnderlyingSystemType == typeof(IActionFilterResult)) != null);
-
-              if (filteredMethodParams != null)
-                routeInfo.ActionParameters = filterResults.ToArray().Concat(routeInfo.ActionParameters).ToArray();
-            }
-          }
-          #endregion
-
-          object _result = routeInfo.Action.Invoke(routeInfo.ControllerInstance, routeInfo.ActionParameters);
-
-          if (context.Session[MainConfig.FromRedirectOnlySessionFlag] != null)
-            context.Session.Remove(MainConfig.FromRedirectOnlySessionFlag);
-
-          result = (routeInfo.Action.ReturnType.GetInterfaces().Contains(typeof(IViewResult))) ? (IViewResult)_result : new VoidResult();
-        }
-
-        return result;
-      }
-
-      return null;
-    }
-  }
-  #endregion
-
-  #region AURORA ENGINE
-  public sealed class AuroraEngine
-  {
-    public AuroraEngine(HttpContextBase ctx)
-    {
-      IRouteManager routeManager = null;
-
-      if (ctx == null)
-        throw new ArgumentNullException("ctx");
-
-      HttpCookie authCookie = ctx.Request.Cookies[MainConfig.AuroraAuthCookieName];
-
-      if (authCookie != null)
-      {
-        if (ctx.Session[MainConfig.CurrentUserSessionName] != null)
-        {
-          ctx.User = ctx.Session[MainConfig.CurrentUserSessionName] as User;
+          return view;
         }
       }
 
-      if (!MainConfig.SupportedHttpVerbs.Contains(ctx.Request.RequestType))
-        throw new Exception(string.Format(CultureInfo.CurrentCulture, MainConfig.HttpRequestTypeNotSupportedError, ctx.Request.RequestType));
+      throw new FileNotFoundException(string.Format(CultureInfo.CurrentCulture, "Cannot find view : {0}", viewName));
+    }
 
-      if ((!MainConfig.AuroraDebug) && (ctx.Application[MainConfig.RouteManagerSessionName] != null))
+    public List<View> CompileAll()
+    {
+      foreach (ViewTemplate vt in viewTemplates)
       {
-        routeManager = (IRouteManager)ctx.Application[MainConfig.RouteManagerSessionName];
-        routeManager.Refresh(ctx);
-      }
-      else
-      {
-        #region USER DECLARABLED ROUTE MANAGER INSTANTIATION (COMMENTED OUT)
-        //string assemblyName = Assembly.GetExecutingAssembly().GetName().Name;
-        //string routeManagerName = MainConfig.RouteManager;
-
-        //if (!MainConfig.SupportedRouteManagers.Contains(routeManagerName))
-        //  throw new Exception(MainConfig.RouteManagerNotSupportedException);
-
-        //Type rm = Assembly.GetExecutingAssembly().GetTypes().FirstOrDefault(x => x.Name == MainConfig.RouteManager);
-
-        //if (rm == null)
-        //  throw new Exception(MainConfig.RouteManagerNotSupportedException);
-
-        //routeManager = (IRouteManager)Activator.CreateInstance(rm, new object[] { ctx });
-        #endregion
-
-        routeManager = new AuroraRouteManager(ctx);
-
-        ctx.Application.Lock();
-        ctx.Application[MainConfig.RouteManagerSessionName] = routeManager;
-        ctx.Application.UnLock();
-      }
-
-      try
-      {
-        IViewResult result = routeManager.HandleRoute();
-
-        if (result == null)
+        if (vt.TemplateType == ViewTemplateType.Action)
         {
-          throw new Exception(MainConfig.Http404Error);
-        }
-
-        result.Render();
-      }
-      catch (Exception e)
-      {
-        if (!(e is ThreadAbortException))
-        {
-          if (MainConfig.CustomErrorsSection.Mode == CustomErrorsMode.On)
-          {
-            // Check to see if there is a derived CustomError class otherwise look to see if there is a cusom error method on a controller
-            CustomError customError = ApplicationInternals.GetCustomError(ctx, false);
-
-            if (customError == null)
-            {
-              (new ErrorResult(ctx, e)).Render();
-
-              ctx.Response.StatusCode = (int)HttpStatusCode.NotFound;
-            }
-            else
-            {
-              // The custom error class is for all controllers and all static content that may produce an error.
-              customError.OnError(e.Message, e).Render();
-            }
-          }
-          else
-          {
-            CustomError customError = ApplicationInternals.GetCustomError(ctx, true);
-            customError.OnError(e.Message, e).Render();
-          }
-        }
-      }
-
-      ctx.Server.ClearError();
-    }
-  }
-  #endregion
-
-  #region CUSTOM ERROR
-  public abstract class CustomError
-  {
-    public Exception Exception { get; private set; }
-    public HttpContextBase Context { get; private set; }
-    public IViewEngine ViewEngine { get; private set; }
-
-    public Dictionary<string, string> ViewTags { get; private set; }
-
-    protected CustomError()
-    {
-      ViewTags = new Dictionary<string, string>();
-    }
-
-    internal static CustomError CreateInstance(Type t, IViewEngine viewEngine, HttpContextBase context)
-    {
-      if (t.BaseType == typeof(CustomError))
-      {
-        CustomError ce = (CustomError)Activator.CreateInstance(t);
-
-        ce.Context = context;
-        ce.ViewEngine = viewEngine;
-
-        return ce;
-      }
-
-      return null;
-    }
-
-    public abstract ViewResult OnError(string message, Exception exception);
-
-    public string RenderFragment(string fragmentName, Dictionary<string, string> tags)
-    {
-      return ViewEngine.LoadView(null, this.GetType().Name, fragmentName, false, tags);
-    }
-
-    public string RenderFragment(string fragmentName)
-    {
-      return RenderFragment(fragmentName, null);
-    }
-
-    public ViewResult View()
-    {
-      return View(MainConfig.SharedFolderName, "Error");
-    }
-
-    internal ViewResult View(string view)
-    {
-      return new ViewResult(Context, view);
-    }
-
-    internal ViewResult View(string controller, string name)
-    {
-      return new ViewResult(Context, ViewEngine, null, controller, name, null, ViewTags);
-    }
-  }
-
-  #region DEFAULT CUSTOM ERROR IMPLEMENTATION
-  public class DefaultCustomError : CustomError
-  {
-    public override ViewResult OnError(string message, Exception exception)
-    {
-      string error = string.Empty;
-      string stackTrace = string.Empty;
-
-      if (exception != null)
-      {
-        string msg = string.Empty;
-
-        if ((exception.InnerException != null && exception.InnerException is TargetParameterCountException) ||
-            (exception != null && exception is TargetParameterCountException))
-        {
-          msg = MainConfig.Http404Error;
+          Compile(vt.Partition, vt.Controller, vt.Name);
         }
         else
         {
-          if (exception.InnerException != null)
-            msg = exception.InnerException.Message;
-          else
-            msg = exception.Message;
+          compiledViews.Add(new View()
+            {
+              FullName = vt.FullName,
+              Name = vt.Name,
+              Template = vt.Template,
+              Render = string.Empty
+            });
         }
+      }
 
-        error = String.Format(CultureInfo.CurrentCulture, "<i>{0}</i><br/><br/>Path: {1}", msg, Context.Request.Path);
+      if (compiledViews.Count > 0)
+        return compiledViews;
 
-#if DEBUG
-        StringBuilder stacktraceBuilder = new StringBuilder();
+      return null;
+    }
 
-        var trace = new System.Diagnostics.StackTrace((exception.InnerException != null) ? exception.InnerException : exception, true);
+    private StringBuilder ReplaceAntiForgeryTokens(StringBuilder view, string token, AntiForgeryTokenType type)
+    {
+      var tokens = Regex.Matches(view.ToString(), token)
+                        .Cast<Match>()
+                        .Select(m => new { Start = m.Index, End = m.Length })
+                        .Reverse();
 
-        if (trace.FrameCount > 0)
+      foreach (var t in tokens)
+      {
+        AntiForgeryRequestHandlerEventArgs args = new AntiForgeryRequestHandlerEventArgs(type);
+
+        AntiForgeryRequestEvent(this, args);
+
+        if (string.IsNullOrEmpty(args.AntiForgeryToken))
+          throw new ArgumentException("AntiForgeryToken cannot be null or empty.");
+
+        view.Replace(token, args.AntiForgeryToken, t.Start, t.End);
+      }
+
+      return view;
+    }
+
+    public View Render(View view, Dictionary<string, string> tags)
+    {
+      if (view == null)
+        throw new ArgumentNullException("view");
+
+      StringBuilder compiledView = new StringBuilder(view.Template);
+
+      //if (renderFinal && keyName.Contains("Fragments"))
+      //  throw new FileNotFoundException(string.Format(CultureInfo.CurrentCulture, "Cannot find view : {0}", viewName));
+
+      if (AntiForgeryRequestEvent != null)
+      {
+        compiledView = ReplaceAntiForgeryTokens(compiledView, antiForgeryToken, AntiForgeryTokenType.Form);
+        compiledView = ReplaceAntiForgeryTokens(compiledView, jsonAntiForgeryToken, AntiForgeryTokenType.Json);
+      }
+
+      if (tags != null)
+      {
+        StringBuilder tagSB = new StringBuilder();
+
+        foreach (KeyValuePair<string, string> tag in tags)
         {
-          foreach (StackFrame sf in trace.GetFrames())
-          {
-            if (!string.IsNullOrEmpty(sf.GetFileName()))
-              stacktraceBuilder.AppendFormat("method: {0} file: {1}<br />", sf.GetMethod().Name, Path.GetFileName(sf.GetFileName()));
-          }
+          tagSB.Length = 0;
+          tagSB.Insert(0, string.Format(CultureInfo.InvariantCulture, tagFormatPattern, tag.Key));
 
-          if (stacktraceBuilder.ToString().Length > 0)
+          Regex tempTagRE = new Regex(tagSB.ToString());
+
+          MatchCollection tagMatches = tempTagRE.Matches(compiledView.ToString());
+
+          if (tagMatches != null)
           {
-            stackTrace = stacktraceBuilder.ToString();
+            foreach (Match m in tagMatches)
+            {
+              if (m.Value.StartsWith(unencodedTagHint, StringComparison.Ordinal))
+              {
+                compiledView.Replace(m.Value, tag.Value.Trim());
+              }
+              else if (m.Value.StartsWith(tagEncodingHint, StringComparison.Ordinal))
+              {
+                compiledView.Replace(m.Value, HttpUtility.HtmlEncode(tag.Value.Trim()));
+              }
+              else if (m.Value.StartsWith(markdownEncodingHint, StringComparison.Ordinal))
+              {
+                compiledView.Replace(m.Value, Markdown.Transform(tag.Value.Trim()));
+              }
+            }
           }
         }
-#endif
-      }
-      else if (!string.IsNullOrEmpty(message))
-      {
-        error = message;
-      }
-      else
-      {
-        error = "An error occurred.";
+
+        MatchCollection leftoverMatches = tagRE.Matches(compiledView.ToString());
+
+        if (leftoverMatches != null)
+        {
+          foreach (Match match in leftoverMatches)
+          {
+            compiledView.Replace(match.Value, string.Empty);
+          }
+        }
       }
 
-      string sharedViewRoot = string.Format(CultureInfo.CurrentCulture, @"{0}\{1}", Context.Server.MapPath(MainConfig.ViewRoot), MainConfig.SharedFolderName);
-      string errorViewPath = string.Format(CultureInfo.CurrentCulture, @"{0}\Error.html", sharedViewRoot);
-#if DEBUG
-      string stackTraceView = @"<br/><br/>The problem occurred at:<br /><br /><pre><span>{0}</span></pre>";
-#endif
+      view.Render = compiledView.ToString();
 
-      if (!File.Exists(errorViewPath))
-      {
-        string view = @"<!DOCTYPE html PUBLIC ""-//W3C//DTD XHTML 1.0 Transitional//EN"" ""http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd""><html xmlns=""http://www.w3.org/1999/xhtml""><head><title>Error</title></head><body>{0}{1}</body></html>";
-
-#if DEBUG
-        stackTraceView = string.Format(CultureInfo.CurrentCulture, stackTraceView, stackTrace);
-        view = string.Format(CultureInfo.CurrentCulture, view, error, stackTraceView);
-#else
-        view = string.Format(CultureInfo.CurrentCulture, view, error, string.Empty);
-#endif
-
-        return View(view);
-      }
-      else
-      {
-        ViewTags["error"] = error;
-#if DEBUG
-        ViewTags["stacktrace"] = string.Format(CultureInfo.CurrentCulture, stackTraceView, stackTrace);
-#endif
-
-        return View();
-      }
+      return view;
     }
   }
   #endregion
+
+  #region VIEW ENGINE
+  public interface IViewEngine
+  {
+    void Refresh();
+    string LoadView(string partitionName, string controllerName, string viewName, Dictionary<string, string> tags);
+  }
+
+  internal class AuroraViewEngine : IViewEngine
+  {
+    private AuroraContext context;
+
+    private List<ViewTemplate> viewTemplates;
+    private List<View> compiledViews;
+
+    private ViewTemplateLoader viewTemplateLoader;
+    private ViewCompiler viewCompiler;
+
+    private static string cssIncludeTag = @"<link href=""{0}"" rel=""stylesheet"" type=""text/css"" />";
+    private static string jsIncludeTag = @"<script src=""{0}"" type=""text/javascript""></script>";
+
+    private event EventHandler<AntiForgeryRequestHandlerEventArgs> AntiForgeryRequestEvent
+    {
+      add
+      {
+        lock (this) { viewCompiler.AntiForgeryRequestEvent += value; }
+      }
+
+      remove
+      {
+        lock (this) { viewCompiler.AntiForgeryRequestEvent -= value; }
+      }
+    }
+
+    private event EventHandler<BundleFileLinkHandlerEventArgs> BundleFileLinkEvent
+    {
+      add
+      {
+        lock (this) { viewCompiler.BundleFileLinkEvent += value; }
+      }
+
+      remove
+      {
+        lock (this) { viewCompiler.BundleFileLinkEvent -= value; }
+      }
+    }
+
+    public AuroraViewEngine(AuroraContext ctx)
+    {
+      if (ctx == null)
+        throw new ArgumentNullException("ctx");
+
+      context = ctx;
+      string appRoot = ctx.ApplicationPhysicalPath;
+
+      viewCompiler = new ViewCompiler();
+
+      AntiForgeryRequestEvent += new EventHandler<AntiForgeryRequestHandlerEventArgs>(AntiForgeryTokenRequestHandler);
+      BundleFileLinkEvent += new EventHandler<BundleFileLinkHandlerEventArgs>(BundleFileLinkHandler);
+
+      viewTemplateLoader = new ViewTemplateLoader(appRoot);
+
+      compiledViews = new List<View>();
+      viewTemplates = new List<ViewTemplate>();
+
+      Refresh();
+    }
+
+    public void Refresh()
+    {
+      string[] viewRoots = ApplicationInternals.AllViewRoots(context);
+
+      if (!(viewRoots.Count() >= 1))
+        throw new ArgumentException("At least one view root is required to load view templates from.");
+
+      viewTemplates = viewTemplateLoader.Load(viewRoots);
+
+      if (viewTemplates.Count() > 0)
+      {
+        viewCompiler.SetTemplates(viewTemplates);
+
+        if (!(compiledViews.Count() > 0))
+        {
+          compiledViews = viewCompiler.CompileAll();
+        }
+        else
+        {
+          string[] vt = viewTemplates.Select(x => x.FullName).ToArray();
+          string[] cv = compiledViews.Select(x => x.FullName).ToArray();
+
+          var diffs = vt.Except(cv);
+
+          if (diffs.Count() > 0)
+          {
+            List<View> extraCompiledViews = new List<View>();
+
+            foreach (string tempName in diffs)
+            {
+              ViewTemplate v = viewTemplates.FirstOrDefault(x => x.FullName == tempName);
+
+              extraCompiledViews.Add(viewCompiler.Compile(v.Partition, v.Controller, v.Name));
+            }
+
+            compiledViews.InsertRange(0, extraCompiledViews);
+          }
+        }
+      }
+    }
+
+    private void AntiForgeryTokenRequestHandler(object sender, AntiForgeryRequestHandlerEventArgs args)
+    {
+      args.AntiForgeryToken = AntiForgeryToken.Create(context, args.TokenType);
+    }
+
+    private string ProcessBundleLink(string bundlePath)
+    {
+      string tag = string.Empty;
+      string extension = Path.GetExtension(bundlePath);
+      bool isAPath = bundlePath.Contains('/') ? true : false;
+
+      string modifiedBundlePath = bundlePath;
+
+      if (!isAPath)
+        modifiedBundlePath = string.Format(CultureInfo.InvariantCulture, "/{0}/{1}/{2}", MainConfig.PublicResourcesFolderName, extension.TrimStart('.'), bundlePath);
+
+      switch (extension)
+      {
+        case ".css":
+          tag = string.Format(CultureInfo.InvariantCulture, cssIncludeTag, modifiedBundlePath);
+          break;
+
+        case ".js":
+          tag = string.Format(CultureInfo.InvariantCulture, jsIncludeTag, modifiedBundlePath);
+          break;
+      }
+
+      return tag;
+    }
+
+    private void BundleFileLinkHandler(object sender, BundleFileLinkHandlerEventArgs args)
+    {
+      BundleManager bundleManager = new BundleManager(context);
+
+      StringBuilder fileLinkBuilder = new StringBuilder();
+
+      if (AuroraConfig.InDebugMode)
+      {
+        List<string> bundleFileList = bundleManager.GetBundleFileList(args.BundleName);
+
+        foreach (string bundlePath in bundleFileList)
+        {
+          fileLinkBuilder.Append(ProcessBundleLink(bundlePath));
+        }
+      }
+      else
+      {
+        fileLinkBuilder.Append(ProcessBundleLink(args.BundleName));
+      }
+
+      args.BundleLinks = fileLinkBuilder.ToString();
+    }
+
+    public string LoadView(string partitionName, string controllerName, string viewName, Dictionary<string, string> tags)
+    {
+      string keyName = viewCompiler.DetermineKeyName(partitionName, controllerName, viewName);
+
+      View compiledView = compiledViews.FirstOrDefault(x => x.FullName == keyName);
+
+      if (compiledView != null)
+      {
+        View renderedView = viewCompiler.Render(compiledView, tags);
+
+        if (renderedView != null)
+        {
+          return renderedView.Render;
+        }
+      }
+
+      return null;
+    }
+  }
+  #endregion
+
   #endregion
 
   #region HTML HELPERS
@@ -6439,23 +5672,15 @@ namespace Aurora
     Existing
   }
 
-  //public enum RowOperation
-  //{
-  //  AddClass
-  // There may be some other stuff we could do with a row... ?!?
-  //}
-
   public class RowTransform<T> where T : Model
   {
     private List<T> Models;
     private Func<T, string> Func;
-    //private RowOperation Op;
 
-    public RowTransform(List<T> models, /*RowOperation op,*/ Func<T, string> func)
+    public RowTransform(List<T> models, Func<T, string> func)
     {
       Models = models;
       Func = func;
-      //Op = op;
     }
 
     public string Result(int index)
@@ -6898,358 +6123,1511 @@ namespace Aurora
   #endregion
   #endregion
 
-  #region VIEW RESULTS
-  public interface IViewResult
+  #endregion
+
+  #region ACTION PARAM TRANSFORM
+  public interface IActionParamTransform<T, V>
   {
-    void Render();
+    T Transform(V value);
   }
 
-  internal static class ResponseHeader
+  [AttributeUsage(AttributeTargets.Parameter)]
+  public sealed class ActionParamTransformAttribute : Attribute
   {
-    public static void AddEncodingHeaders(HttpContextBase context)
-    {
-      string acceptsEncoding = context.Request.Headers["Accept-Encoding"];
+    public string TransformName { get; private set; }
 
-      if (!string.IsNullOrEmpty(acceptsEncoding))
+    public ActionParamTransformAttribute(string transformName)
+    {
+      TransformName = transformName;
+    }
+  }
+
+  internal class ActionParamTransformInfo
+  {
+    public Type TransformClassType { get; set; }
+    public MethodInfo TransformMethod { get; set; }
+    public int IndexIntoParamList { get; set; }
+  }
+  #endregion
+
+  #endregion
+
+  #region EXCEPTIONS
+  [Serializable()]
+  public class PluginException : Exception, ISerializable
+  {
+    public PluginException(string message)
+      : base(message)
+    {
+    }
+
+    public PluginException(string message, Exception innerException)
+      : base(message, innerException)
+    {
+    }
+
+    public PluginException()
+      : base(MainConfig.AntiForgeryTokenMissingError)
+    {
+    }
+
+    protected PluginException(SerializationInfo info, StreamingContext context)
+      : base(info, context)
+    {
+    }
+  }
+
+  [Serializable()]
+  public class AntiForgeryTokenMissingException : Exception, ISerializable
+  {
+    public AntiForgeryTokenMissingException(string message)
+      : base(message)
+    {
+    }
+
+    public AntiForgeryTokenMissingException(string message, Exception innerException)
+      : base(message, innerException)
+    {
+    }
+
+    public AntiForgeryTokenMissingException()
+      : base(MainConfig.AntiForgeryTokenMissingError)
+    {
+    }
+
+    protected AntiForgeryTokenMissingException(SerializationInfo info, StreamingContext context)
+      : base(info, context)
+    {
+    }
+  }
+
+  [Serializable()]
+  public class ActionParameterTransformClassUnknownException : Exception, ISerializable
+  {
+    public ActionParameterTransformClassUnknownException(string message)
+      : base(message)
+    {
+    }
+
+    public ActionParameterTransformClassUnknownException(string message, Exception innerException)
+      : base(message, innerException)
+    {
+    }
+
+    public ActionParameterTransformClassUnknownException()
+      : base(MainConfig.ActionParameterTransformClassUnknownError)
+    {
+    }
+
+    protected ActionParameterTransformClassUnknownException(SerializationInfo info, StreamingContext context)
+      : base(info, context)
+    {
+    }
+  }
+  #endregion
+
+  #region ATTRIBUTES
+  public enum ActionSecurity
+  {
+    Secure,
+    None	// dummy value for RequestTypeAttribute.SecurityType default
+  }
+
+  public enum DescriptiveNameOperation
+  {
+    SplitCamelCase,
+    None
+  }
+
+  #region APP PARTITION
+  [AttributeUsage(AttributeTargets.Class)]
+  public sealed class PartitionAttribute : Attribute
+  {
+    public string Name { get; private set; }
+
+    public PartitionAttribute(string name)
+    {
+      Name = name;
+    }
+  }
+  #endregion
+
+  #region MISCELLANEOUS
+  [AttributeUsage(AttributeTargets.All)]
+  public sealed class MetadataAttribute : Attribute
+  {
+    public string Metadata { get; private set; }
+
+    public MetadataAttribute(string metadata)
+    {
+      Metadata = metadata;
+    }
+  }
+
+  [AttributeUsage(AttributeTargets.All)]
+  public sealed class DescriptiveNameAttribute : Attribute
+  {
+    public string Name { get; private set; }
+
+    public DescriptiveNameOperation Op { get; private set; }
+
+    public DescriptiveNameAttribute(string name)
+    {
+      Name = name;
+      Op = DescriptiveNameOperation.None;
+    }
+
+    public DescriptiveNameAttribute(DescriptiveNameOperation op)
+    {
+      Name = string.Empty; // Name comes from property name
+
+      Op = op; // We'll perform an operation on the property name like put spacing between camel case names, then title case the name.
+    }
+
+    public string PerformOperation(string name)
+    {
+      // This regex comes from this StackOverflow question answer:
+      //
+      // http://stackoverflow.com/questions/155303/net-how-can-you-split-a-caps-delimited-string-into-an-array
+      if (Op == DescriptiveNameOperation.SplitCamelCase)
+        return Regex.Replace(name, @"([a-z](?=[A-Z])|[A-Z](?=[A-Z][a-z]))", "$1 ");
+
+      return null;
+    }
+  }
+
+  [AttributeUsage(AttributeTargets.Parameter | AttributeTargets.Property)]
+  public sealed class SanitizeAttribute : Attribute
+  {
+    public bool StripHtml { get; set; }
+    public bool HtmlEncode { get; set; }
+
+    public SanitizeAttribute()
+    {
+      StripHtml = true;
+      HtmlEncode = true;
+    }
+
+    public string Sanitize(string value)
+    {
+      if (StripHtml)
+        value = value.StripHtml();
+
+      if (HtmlEncode)
+        value = HttpUtility.HtmlEncode(value);
+
+      return value;
+    }
+  }
+
+  [AttributeUsage(AttributeTargets.Property)]
+  public sealed class HiddenAttribute : Attribute
+  {
+  }
+
+  [AttributeUsage(AttributeTargets.Property)]
+  internal sealed class ExcludeFromBindingAttribute : Attribute
+  {
+  }
+  #endregion
+
+  #region HTTP REQUEST
+  public abstract class RequestTypeAttribute : Attribute
+  {
+    public ActionSecurity SecurityType { get; set; }
+    public string RouteAlias { get; set; }
+    public string Roles { get; set; }
+    public bool HttpsOnly { get; set; }
+    public string RedirectWithoutAuthorizationTo { get; set; }
+    public string RequestType { get; private set; }
+
+    protected RequestTypeAttribute(string requestType)
+    {
+      SecurityType = ActionSecurity.None;
+      RequestType = requestType;
+    }
+  }
+
+  [AttributeUsage(AttributeTargets.Method)]
+  public sealed class FromRedirectOnlyAttribute : RequestTypeAttribute
+  {
+    public FromRedirectOnlyAttribute(string routeAlias)
+      : base("GET")
+    {
+      RouteAlias = routeAlias;
+    }
+  }
+
+  [AttributeUsage(AttributeTargets.Method)]
+  public sealed class HttpGetAttribute : RequestTypeAttribute
+  {
+    public HttpCacheability CacheabilityOption { get; set; }
+    public bool Cache { get; set; }
+    public int Duration { get; set; } // in minutes
+    public string Refresh { get; set; }
+
+    internal TimeSpan Expires { get; set; }
+    internal DateTime DateExpiry { get; set; }
+
+    public HttpGetAttribute()
+      : base("GET")
+    {
+      Init();
+    }
+
+    public HttpGetAttribute(string routeAlias)
+      : base("GET")
+    {
+      RouteAlias = routeAlias;
+
+      Init();
+    }
+
+    public HttpGetAttribute(ActionSecurity sec) : this(string.Empty, sec) { }
+
+    public HttpGetAttribute(string routeAlias, ActionSecurity sec)
+      : base("GET")
+    {
+      SecurityType = sec;
+      RouteAlias = routeAlias;
+
+      Init();
+    }
+
+    private void Init()
+    {
+      CacheabilityOption = HttpCacheability.Public;
+      Duration = 15;
+      Expires = new TimeSpan(0, 15, 0);
+      DateExpiry = DateTime.Now.Add(new TimeSpan(0, 15, 0));
+    }
+  }
+
+  [AttributeUsage(AttributeTargets.Method)]
+  public sealed class HttpPostAttribute : RequestTypeAttribute
+  {
+    public bool RequireAntiForgeryToken { get; set; }
+
+    public HttpPostAttribute() : base("POST") { }
+
+    public HttpPostAttribute(string routeAlias)
+      : base("POST")
+    {
+      RouteAlias = routeAlias;
+      RequireAntiForgeryToken = true;
+    }
+
+    public HttpPostAttribute(ActionSecurity sec)
+      : this(string.Empty, sec)
+    {
+    }
+
+    public HttpPostAttribute(string routeAlias, ActionSecurity sec)
+      : base("POST")
+    {
+      SecurityType = sec;
+      RouteAlias = routeAlias;
+    }
+  }
+
+  [AttributeUsage(AttributeTargets.Method)]
+  public sealed class HttpPutAttribute : RequestTypeAttribute
+  {
+    public bool RequireAntiForgeryToken { get; set; }
+
+    public HttpPutAttribute() : base("PUT") { }
+
+    public HttpPutAttribute(string routeAlias)
+      : base("PUT")
+    {
+      RouteAlias = routeAlias;
+      RequireAntiForgeryToken = true;
+    }
+
+    public HttpPutAttribute(ActionSecurity sec)
+      : this(string.Empty, sec)
+    {
+    }
+
+    public HttpPutAttribute(string routeAlias, ActionSecurity sec)
+      : base("PUT")
+    {
+      SecurityType = sec;
+      RouteAlias = routeAlias;
+    }
+  }
+
+  [AttributeUsage(AttributeTargets.Method)]
+  public sealed class HttpDeleteAttribute : RequestTypeAttribute
+  {
+    public bool RequireAntiForgeryToken { get; set; }
+    public HttpDeleteAttribute() : base("DELETE") { }
+
+    public HttpDeleteAttribute(string routeAlias)
+      : base("DELETE")
+    {
+      RouteAlias = routeAlias;
+      RequireAntiForgeryToken = true;
+    }
+
+    public HttpDeleteAttribute(ActionSecurity sec)
+      : this(string.Empty, sec)
+    {
+    }
+
+    public HttpDeleteAttribute(string routeAlias, ActionSecurity sec)
+      : base("DELETE")
+    {
+      SecurityType = sec;
+      RouteAlias = routeAlias;
+    }
+  }
+  #endregion
+
+  #region MODEL
+
+  #region STRING FORMAT
+  [AttributeUsage(AttributeTargets.Property)]
+  public sealed class StringFormatAttribute : Attribute
+  {
+    public string Format { get; set; }
+
+    public StringFormatAttribute(string format)
+    {
+      Format = format;
+    }
+  }
+  #endregion
+
+  #region DATE FORMAT
+  [AttributeUsage(AttributeTargets.Property)]
+  public sealed class DateFormatAttribute : Attribute
+  {
+    public string Format { get; set; }
+
+    public DateFormatAttribute(string format)
+    {
+      Format = format;
+    }
+  }
+  #endregion
+
+  #region MODEL VALIDATION
+  public abstract class ModelValidationBaseAttribute : Attribute
+  {
+    public string ErrorMessage { get; set; }
+
+    protected ModelValidationBaseAttribute(string errorMessage)
+    {
+      ErrorMessage = errorMessage;
+    }
+  }
+
+  [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field)]
+  public sealed class RequiredAttribute : ModelValidationBaseAttribute
+  {
+    public RequiredAttribute(string errorMessage)
+      : base(errorMessage)
+    {
+    }
+  }
+
+  [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field)]
+  public sealed class RequiredLengthAttribute : ModelValidationBaseAttribute
+  {
+    public int Length { get; private set; }
+
+    public RequiredLengthAttribute(int length, string errorMessage)
+      : base(errorMessage)
+    {
+      Length = length;
+    }
+  }
+
+  [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field)]
+  public sealed class RegularExpressionAttribute : ModelValidationBaseAttribute
+  {
+    public Regex Pattern { get; set; }
+
+    public RegularExpressionAttribute(string pattern, string errorMessage)
+      : base(errorMessage)
+    {
+      Pattern = new Regex(pattern);
+    }
+  }
+
+  [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field)]
+  public sealed class RangeAttribute : ModelValidationBaseAttribute
+  {
+    public int Min { get; private set; }
+    public int Max { get; private set; }
+
+    public RangeAttribute(int min, int max, string errorMessage)
+      : base(errorMessage)
+    {
+      Min = min;
+      Max = max;
+    }
+  }
+  #endregion
+
+  #endregion
+
+  #region UNIQUE ID
+  [AttributeUsage(AttributeTargets.Field)]
+  public sealed class UniqueIdAttribute : Attribute
+  {
+    internal string Id { get; set; }
+
+    public UniqueIdAttribute() { }
+
+    internal void GenerateID(string name)
+    {
+      HttpContext ctx = HttpContext.Current;
+      Dictionary<string, string> uids = null;
+
+      if (ctx.Session[MainConfig.UniquedIDSessionName] != null)
       {
-        if (acceptsEncoding.Contains("deflate"))
-        {
-          context.Response.Filter = new DeflateStream(context.Response.Filter, CompressionMode.Compress);
-          context.Response.AppendHeader("Content-Encoding", "deflate");
-        }
-        else if (acceptsEncoding.Contains("gzip"))
-        {
-          context.Response.Filter = new GZipStream(context.Response.Filter, CompressionMode.Compress);
-          context.Response.AppendHeader("Content-Encoding", "gzip");
-        }
+        uids = ctx.Session[MainConfig.UniquedIDSessionName] as Dictionary<string, string>;
+      }
+      else
+      {
+        ctx.Session[MainConfig.UniquedIDSessionName] = uids = new Dictionary<string, string>();
+      }
+
+      if (!uids.ContainsKey(name))
+      {
+        Id = NewUID();
+        uids[name] = Id;
+      }
+      else
+      {
+        Id = uids[name];
       }
     }
 
-    public static void SetContentType(HttpContextBase context, string contentType)
+    private static string NewUID()
     {
-      context.Response.ClearHeaders();
-      context.Response.ClearContent();
-      context.Response.Charset = "utf-8";
-      context.Response.ContentType = contentType;
+      return Guid.NewGuid().ToString().Replace("-", "").Substring(0, 16);
     }
   }
+  #endregion
 
+  #region ACTION FILTER
   /// <summary>
-  /// The VirtualFileResult is intended to be used anywhere you want to return the file as a byte array.
-  /// This could be from a database, built on the fly using a memory stream or some other way. Virtual 
-  /// files are files that most likely don't live on your file system inside your application directory.
+  /// This empty interface is used to identify a filter result that will be passed
+  /// to an action after the filter is invoked.
   /// </summary>
-  public class VirtualFileResult : IViewResult
+  public interface IActionFilterResult
   {
-    private HttpContextBase context;
-    private string fileName;
-    private string fileContentType;
-    private byte[] fileBytes;
+    //FIXME: Warning	224	CA1040 : Microsoft.Design : Define a custom attribute to replace 'IActionFilterResult'.
+  }
 
-    public VirtualFileResult(HttpContextBase ctx, string name, byte[] bytes, string contentType)
+  //[AttributeUsage(AttributeTargets.Parameter)]
+  //public class ActionFilterResultAttribute : Attribute 
+  //{ 
+  //  This will be used when I implement the fix for the warning listed in IActionFilterResult
+  //}
+
+  [AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
+  public abstract class ActionFilterAttribute : Attribute
+  {
+    internal Controller Controller { get; set; }
+
+    public IActionFilterResult FilterResult { get; set; }
+
+    public abstract void OnFilter(RouteInfo routeInfo);
+
+    public void RedirectToAlias(string alias)
     {
-      context = ctx;
-      fileName = name;
-      fileBytes = bytes;
-      fileContentType = contentType;
+      Controller.RedirectToAlias(alias);
     }
 
-    public void Render()
+    public void RedirectOnlyToAlias(string alias)
     {
-      ResponseHeader.SetContentType(context, fileContentType);
-      ResponseHeader.AddEncodingHeaders(context);
+      Controller.RedirectOnlyToAlias(alias);
+    }
 
-      context.Response.AddHeader("content-disposition", "attachment;filename=\"" + fileName + "\"");
-      context.Response.BinaryWrite(fileBytes);
+    public void RedirectToAction(string controllerName, string actionName)
+    {
+      Controller.RedirectToAction(controllerName, actionName);
+    }
+
+    public void RedirectOnlyToAction(string controllerName, string actionName)
+    {
+      Controller.RedirectOnlyToAction(controllerName, actionName);
+    }
+  }
+  #endregion
+  #endregion
+
+  #region STATIC FILE MANAGER
+  public static class StaticFileManager
+  {
+    private static Dictionary<string, string> GetProtectedFilesList(AuroraContext context)
+    {
+      Dictionary<string, string> protectedFiles = null;
+
+      if (context.Application[MainConfig.StaticFileManagerSessionName] != null)
+      {
+        protectedFiles = context.Application[MainConfig.StaticFileManagerSessionName] as Dictionary<string, string>;
+      }
+      else
+      {
+        protectedFiles = new Dictionary<string, string>();
+
+        context.Application[MainConfig.StaticFileManagerSessionName] = protectedFiles;
+      }
+
+      return protectedFiles;
+    }
+
+    public static void ProtectFile(AuroraContext ctx, string path, string roles)
+    {
+      Dictionary<string, string> protectedFiles = GetProtectedFilesList(ctx);
+
+      if (!protectedFiles.ContainsKey(path))
+        protectedFiles[path] = roles;
+    }
+
+    public static void UnprotectFile(AuroraContext ctx, string path)
+    {
+      Dictionary<string, string> protectedFiles = GetProtectedFilesList(ctx);
+
+      if (!protectedFiles.ContainsKey(path))
+        protectedFiles.Remove(path);
+    }
+
+    internal static bool IsProtected(AuroraContext ctx, string path, out string roles)
+    {
+      Dictionary<string, string> protectedFiles = GetProtectedFilesList(ctx);
+
+      if (protectedFiles.ContainsKey(path))
+      {
+        roles = protectedFiles[path];
+
+        return true;
+      }
+
+      roles = null;
+
+      return false;
+    }
+  }
+  #endregion
+
+  #region CUSTOM ERROR HANDLING
+  public abstract class CustomError
+  {
+    public Exception Exception { get; private set; }
+    public AuroraContext Context { get; private set; }
+    public IViewEngine ViewEngine { get; private set; }
+
+    public Dictionary<string, string> ViewTags { get; private set; }
+
+    protected CustomError()
+    {
+      ViewTags = new Dictionary<string, string>();
+    }
+
+    internal static CustomError CreateInstance(Type t, AuroraContext context)
+    {
+      if (t.BaseType == typeof(CustomError))
+      {
+        CustomError ce = (CustomError)Activator.CreateInstance(t);
+
+        ce.Context = context;
+        ce.ViewEngine = ApplicationInternals.GetViewEngine(context);
+
+        return ce;
+      }
+
+      return null;
+    }
+
+    public abstract ViewResult OnError(string message, Exception exception);
+
+    public string RenderFragment(string fragmentName, Dictionary<string, string> tags)
+    {
+      return ViewEngine.LoadView(null, /*this.GetType().Name*/ "Shared", fragmentName, tags);
+    }
+
+    public string RenderFragment(string fragmentName)
+    {
+      return RenderFragment(fragmentName, null);
+    }
+
+    public string RenderGlobalFragment(string fragmentName, Dictionary<string, string> tags)
+    {
+      return ViewEngine.LoadView(MainConfig.ViewsFolderName, MainConfig.FragmentsFolderName, fragmentName, tags);
+    }
+
+    public string RenderGlobalFragment(string fragmentName)
+    {
+      return RenderGlobalFragment(fragmentName, null);
+    }
+
+    public ViewResult View()
+    {
+      return View(null, "Error");
+    }
+
+    internal ViewResult View(string view)
+    {
+      return new ViewResult(Context, view);
+    }
+
+    internal ViewResult View(string controller, string name)
+    {
+      return new ViewResult(Context, ViewEngine, null, controller, name, null, ViewTags);
     }
   }
 
-  /// <summary>
-  /// The PhysicalFileResult is intended to be used anywhere you'd like to return a real file that lives
-  /// inside your application directory.
-  /// </summary>
-  public class PhysicalFileResult : IViewResult
+  #region DEFAULT CUSTOM ERROR IMPLEMENTATION
+  public class DefaultCustomError : CustomError
   {
-    private HttpContextBase context;
-    private string filePath;
-    private string contentType;
-
-    public PhysicalFileResult(HttpContextBase ctx, string file)
+    public override ViewResult OnError(string message, Exception exception)
     {
-      context = ctx;
-      filePath = file;
-      contentType = string.Empty;
+      string error = string.Empty;
+      string stackTrace = string.Empty;
 
-      string extension = Path.GetExtension(file);
-
-      if (!string.IsNullOrEmpty(extension) && MainConfig.MimeTypes.ContainsKey(extension))
+      if (exception != null)
       {
-        contentType = MainConfig.MimeTypes[extension];
-      }
-    }
+        string msg = string.Empty;
 
-    public void Render()
-    {
-      int minutesBeforeExpiration = MainConfig.StaticContentCacheExpiry;
-
-      if (!(minutesBeforeExpiration > 0))
-        minutesBeforeExpiration = 15;
-
-      TimeSpan expiry = new TimeSpan(0, minutesBeforeExpiration, 0);
-
-      ResponseHeader.SetContentType(context, contentType);
-      ResponseHeader.AddEncodingHeaders(context);
-
-      if (!MainConfig.DisableStaticFileCaching)
-      {
-        context.Response.Cache.SetCacheability(HttpCacheability.Public);
-        context.Response.Cache.SetExpires(DateTime.Now.Add(expiry));
-        context.Response.Cache.SetMaxAge(expiry);
-        context.Response.Cache.SetValidUntilExpires(true);
-        context.Response.Cache.VaryByParams.IgnoreParams = true;
-      }
-
-      if (filePath.EndsWith(".css", StringComparison.Ordinal) ||
-          filePath.EndsWith(".js", StringComparison.Ordinal) && !AuroraConfig.InDebugMode)
-      {
-        BundleManager bm = new BundleManager(context);
-
-        string fileName = Path.GetFileName(filePath);
-
-        if (bm.Contains(fileName))
+        if ((exception.InnerException != null && exception.InnerException is TargetParameterCountException) ||
+            (exception != null && exception is TargetParameterCountException))
         {
-          if (MainConfig.DisableStaticFileCaching)
-            bm.RegenerateBundle(fileName);
-
-          context.Response.Write(bm[fileName]);
+          msg = MainConfig.Http404Error;
         }
         else
         {
-          bool css = filePath.EndsWith(".css", StringComparison.Ordinal);
+          if (exception.InnerException != null)
+            msg = exception.InnerException.Message;
+          else
+            msg = exception.Message;
+        }
 
-          using (Minify mini = new Minify(File.ReadAllText(filePath), css, false))
+        error = String.Format(CultureInfo.CurrentCulture, "<i>{0}</i><br/><br/>Path: {1}", msg, Context.Path);
+
+#if DEBUG
+        StringBuilder stacktraceBuilder = new StringBuilder();
+
+        var trace = new System.Diagnostics.StackTrace((exception.InnerException != null) ? exception.InnerException : exception, true);
+
+        if (trace.FrameCount > 0)
+        {
+          foreach (StackFrame sf in trace.GetFrames())
           {
-            context.Response.Write(mini.Result);
+            if (!string.IsNullOrEmpty(sf.GetFileName()))
+              stacktraceBuilder.AppendFormat("method: {0} file: {1}<br />", sf.GetMethod().Name, Path.GetFileName(sf.GetFileName()));
+          }
+
+          if (stacktraceBuilder.ToString().Length > 0)
+          {
+            stackTrace = stacktraceBuilder.ToString();
+          }
+        }
+#endif
+      }
+      else if (!string.IsNullOrEmpty(message))
+      {
+        error = message;
+      }
+      else
+      {
+        error = "An error occurred.";
+      }
+
+      string sharedViewRoot = string.Format(CultureInfo.CurrentCulture, @"{0}\{1}", Context.MapPath(MainConfig.ViewRoot), MainConfig.SharedFolderName);
+      string errorViewPath = string.Format(CultureInfo.CurrentCulture, @"{0}\Error.html", sharedViewRoot);
+#if DEBUG
+      string stackTraceView = @"<p>The problem occurred at:<p><pre><span>{0}</span></pre></p></p>";
+#endif
+
+      if (!File.Exists(errorViewPath))
+      {
+        string view = @"<!DOCTYPE html PUBLIC ""-//W3C//DTD XHTML 1.0 Transitional//EN"" ""http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd""><html xmlns=""http://www.w3.org/1999/xhtml""><head><title>Error</title></head><body>{0}{1}</body></html>";
+
+#if DEBUG
+        stackTraceView = string.Format(CultureInfo.CurrentCulture, stackTraceView, stackTrace);
+        view = string.Format(CultureInfo.CurrentCulture, view, error, stackTraceView);
+#else
+        view = string.Format(CultureInfo.CurrentCulture, view, error, string.Empty);
+#endif
+
+        return View(view);
+      }
+      else
+      {
+        ViewTags["error"] = error;
+#if DEBUG
+        ViewTags["stacktrace"] = string.Format(CultureInfo.CurrentCulture, stackTraceView, stackTrace);
+#endif
+
+        return View();
+      }
+    }
+  }
+  #endregion
+  #endregion
+
+  #region SECURITY & AUTHENTICATION
+
+  #region ACTIVE DIRECTORY
+  /// <summary>
+  /// This provides some basic Active Directory lookup methods for user accounts.  
+  /// </summary>
+#if ACTIVEDIRECTORY
+  public class ActiveDirectoryUser
+  {
+    public string FirstName { get; internal set; }
+    public string LastName { get; internal set; }
+    public string DisplayName { get; internal set; }
+    public string UserName { get; internal set; }
+    public string UserPrincipalName { get; internal set; }
+    public string PrimaryEmailAddress { get; internal set; }
+    public string PhoneNumber { get; internal set; }
+    public string Path { get; internal set; }
+    public X509Certificate2 ClientCertificate { get; internal set; }
+  }
+
+  internal enum ActiveDirectorySearchType
+  {
+    [Metadata("(&(objectClass=user)(userPrincipalName={0}))")]
+    UPN,
+
+    [Metadata("(&(objectClass=user)(proxyAddresses=smtp:{0}))")]
+    EMAIL,
+
+    [Metadata("(&(objectClass=user)(samAccountName={0}))")]
+    USERNAME
+  }
+
+  public static class ActiveDirectory
+  {
+    internal static ActiveDirectoryUser LookupUser(ActiveDirectorySearchType searchType, string data, bool global)
+    {
+      if (string.IsNullOrEmpty(searchType.GetMetadata()))
+        throw new ArgumentNullException("searchType", MainConfig.ADSearchCriteriaIsNullOrEmptyError);
+
+      if (MainConfig.ActiveDirectorySearchInfos.Length > 0)
+      {
+        for (int i = 0; i < MainConfig.ActiveDirectorySearchInfos.Length; i++)
+        {
+          try
+          {
+            return LookupUser(searchType, data, global,
+              MainConfig.ActiveDirectorySearchInfos[i][0],  //Domain
+              MainConfig.ActiveDirectorySearchInfos[i][1],  //SearchRoot
+              MainConfig.ActiveDirectorySearchInfos[i][2],  //UserName
+              MainConfig.ActiveDirectorySearchInfos[i][3]); //Password
+          }
+          catch
+          {
+            if (i < MainConfig.ActiveDirectorySearchInfos.Length - 1)
+              continue;
+            else
+              throw;
           }
         }
       }
       else
-        context.Response.TransmitFile(filePath);
-    }
-  }
-
-  public class ViewResult : IViewResult
-  {
-    private HttpContextBase context;
-    private IViewEngine viewEngine;
-    private string partitionName;
-    private string controllerName;
-    private string viewName;
-    private string view;
-    private Dictionary<string, string> tags;
-
-    private RequestTypeAttribute requestAttribute;
-
-    public ViewResult(HttpContextBase ctx, IViewEngine ve, string pName, string cName, string vName, RequestTypeAttribute attrib, Dictionary<string, string> vTags)
-    {
-      context = ctx;
-      viewEngine = ve;
-      requestAttribute = attrib;
-      partitionName = pName;
-      controllerName = cName;
-      viewName = vName;
-      tags = vTags;
-      view = string.Empty;
-    }
-
-    internal ViewResult(HttpContextBase ctx, string view)
-    {
-      // This constructor is used by the DefaultCustomError class to 
-      // by pass the load view code in the Render method if the web application
-      // does not specify the Error view.
-
-      context = ctx;
-      this.view = view;
-    }
-
-    public void Refresh(HttpContextBase ctx, RequestTypeAttribute attrib)
-    {
-      context = ctx;
-      requestAttribute = attrib;
-    }
-
-    public void Render()
-    {
-      ResponseHeader.SetContentType(context, "text/html");
-
-      if (string.IsNullOrEmpty(view))
       {
-        #region LOAD THE VIEW
-        HttpGetAttribute get = null;
-        //string cachedViewName = string.Empty;
-        CachedViewResult cachedViewResult = null;
+        if (string.IsNullOrEmpty(MainConfig.ADSearchUser) || string.IsNullOrEmpty(MainConfig.ADSearchPW))
+          throw new Exception(MainConfig.ADUserOrPWError);
 
-        if (requestAttribute is HttpGetAttribute)
-          get = (requestAttribute as HttpGetAttribute);
+        if (string.IsNullOrEmpty(MainConfig.ADSearchRoot))
+          throw new Exception(MainConfig.ADSearchRootIsNullOrEmpty);
 
-        if (get != null && get.Cache)
-        {
-          if (context.Cache[context.Request.Path] != null)
-          {
-            cachedViewResult = context.Cache[context.Request.Path] as CachedViewResult;
+        if (string.IsNullOrEmpty(MainConfig.ADSearchDomain))
+          throw new Exception(MainConfig.ADSearchDomainIsNullorEmpty);
 
-            view = cachedViewResult.View;
-          }
-        }
-
-        if (string.IsNullOrEmpty(view))
-          view = viewEngine.LoadView(partitionName, controllerName, viewName, true, tags);
-
-        if (get != null)
-        {
-          string refresh = get.Refresh;
-
-          if (!string.IsNullOrEmpty(refresh))
-            context.Response.AddHeader("Refresh", refresh);
-
-          #region ADD (OR NOT) HTTP CACHE HEADERS TO THE REQUEST
-          if (get.Cache)
-          {
-            context.Response.Cache.SetCacheability(get.CacheabilityOption);
-            context.Response.Cache.SetExpires(get.DateExpiry);
-            context.Response.Cache.SetMaxAge(get.Expires);
-            context.Response.Cache.SetValidUntilExpires(true);
-            context.Response.Cache.VaryByParams.IgnoreParams = true;
-
-            if (cachedViewResult != null && string.IsNullOrEmpty(cachedViewResult.View))
-              cachedViewResult.View = view;
-          }
-          else
-          {
-            context.Response.Cache.SetCacheability(HttpCacheability.NoCache);
-            context.Response.Cache.SetNoStore();
-            context.Response.Cache.SetExpires(DateTime.MinValue);
-          }
-          #endregion
-        }
-        #endregion
+        return LookupUser(searchType, data, global,
+            MainConfig.ADSearchDomain,
+            MainConfig.ADSearchRoot,
+            MainConfig.ADSearchUser,
+            MainConfig.ADSearchPW);
       }
 
-      ResponseHeader.AddEncodingHeaders(context);
-
-      context.Response.Write(view);
-    }
-  }
-
-  public class PartialResult : IViewResult
-  {
-    private HttpContextBase context;
-    private IViewEngine viewEngine;
-    private string partitionName;
-    private string controllerName;
-    private string fragmentName;
-    private Dictionary<string, string> tags;
-
-    public PartialResult(HttpContextBase ctx, IViewEngine ve, string pName, string cName, string fName, Dictionary<string, string> vTags)
-    {
-      context = ctx;
-      viewEngine = ve;
-      partitionName = pName;
-      controllerName = cName;
-      fragmentName = fName;
-      tags = vTags;
+      return null;
     }
 
-    public void Render()
+    internal static ActiveDirectoryUser LookupUser(ActiveDirectorySearchType searchType, string data, bool global, string adSearchDomain, string adSearchRoot, string adSearchUser, string adSearchPW)
     {
-      ResponseHeader.SetContentType(context, "text/html");
+      ActiveDirectoryUser user = null;
 
-      context.Response.Write(viewEngine.LoadView(partitionName, controllerName, fragmentName, false, tags));
-    }
-  }
+      if (string.IsNullOrEmpty(data))
+        throw new ArgumentNullException("data", MainConfig.ActiveDirectorySearchCriteriaNullOrEmpty);
 
-  public class JsonResult : IViewResult
-  {
-    private HttpContextBase context;
-    private object data;
-
-    public JsonResult(HttpContextBase ctx, object d)
-    {
-      context = ctx;
-      data = d;
-    }
-
-    public void Render()
-    {
       try
       {
-        string json = JsonConvert.SerializeObject(data);
+        using (DirectoryEntry searchRootDE = new DirectoryEntry())
+        {
+          searchRootDE.AuthenticationType = AuthenticationTypes.Secure | AuthenticationTypes.Sealing | AuthenticationTypes.Signing;
+          searchRootDE.Username = adSearchUser;
+          searchRootDE.Password = adSearchPW;
+          searchRootDE.Path = (global) ? string.Format(CultureInfo.InvariantCulture, "GC://{0}", adSearchDomain) : adSearchRoot;
 
-        ResponseHeader.SetContentType(context, "text/html");
-        ResponseHeader.AddEncodingHeaders(context);
+          SearchResult result = null;
 
-        context.Response.Write(json);
+          try
+          {
+            using (DirectorySearcher searcher = new DirectorySearcher())
+            {
+              searcher.SearchRoot = searchRootDE;
+              searcher.Filter = string.Format(CultureInfo.InvariantCulture, searchType.GetMetadata(), data);
+
+              result = searcher.FindOne();
+            }
+          }
+          catch (DirectoryServicesCOMException)
+          {
+            // If there was a problem contacting the domain controller then lets try another one.
+
+            DomainControllerCollection dcc = DomainController.FindAll(new DirectoryContext(DirectoryContextType.Domain, adSearchDomain));
+            List<DomainController> domainControllers = (from DomainController dc in dcc select dc).ToList();
+
+            for (int i = 0; i < domainControllers.Count(); i++)
+            {
+              DomainController dc = domainControllers[i];
+
+              try
+              {
+                using (DirectorySearcher searcher = dc.GetDirectorySearcher())
+                {
+                  searcher.SearchRoot = searchRootDE;
+                  searcher.Filter = string.Format(CultureInfo.InvariantCulture, searchType.GetMetadata(), data);
+
+                  result = searcher.FindOne();
+                }
+
+                if (result != null)
+                  break;
+              }
+              catch (DirectoryServicesCOMException)
+              {
+                // Forget about this exception and move to the next domain controller
+              }
+            }
+          }
+
+          if (result != null)
+            user = GetUser(result.GetDirectoryEntry());
+        }
       }
-      catch
+      catch (DirectoryServicesCOMException)
       {
         throw;
       }
+
+      return user;
+    }
+
+    #region LOOKUP BY USERNAME
+    public static ActiveDirectoryUser LookupUserByUserName(string userName)
+    {
+      return LookupUser(ActiveDirectorySearchType.USERNAME, userName, false);
+    }
+
+    public static ActiveDirectoryUser LookupUserByUserName(string userName, string adSearchUser, string adSearchPW)
+    {
+      return LookupUser(ActiveDirectorySearchType.USERNAME, userName, false, adSearchUser, adSearchPW, null, null);
+    }
+
+    public static ActiveDirectoryUser LookupUserByUserName(string userName, bool global)
+    {
+      return LookupUser(ActiveDirectorySearchType.USERNAME, userName, global);
+    }
+
+    public static ActiveDirectoryUser LookupUserByUserName(string userName, bool global, string adSearchUser, string adSearchPW)
+    {
+      return LookupUser(ActiveDirectorySearchType.USERNAME, userName, global, adSearchUser, adSearchPW, null, null);
+    }
+
+    public static ActiveDirectoryUser LookupUserByUserName(string userName, bool global, string adSearchUser, string adSearchPW, string adSearchRoot, string adSearchDomain)
+    {
+      return LookupUser(ActiveDirectorySearchType.USERNAME, userName, global, adSearchUser, adSearchPW, adSearchRoot, adSearchDomain);
+    }
+    #endregion
+
+    #region LOOKUP USER BY UPN
+    public static ActiveDirectoryUser LookupUserByUpn(string upn)
+    {
+      return LookupUser(ActiveDirectorySearchType.UPN, upn, false);
+    }
+
+    public static ActiveDirectoryUser LookupUserByUpn(string upn, string adSearchUser, string adSearchPW)
+    {
+      return LookupUser(ActiveDirectorySearchType.UPN, upn, false, adSearchUser, adSearchPW, null, null);
+    }
+
+    public static ActiveDirectoryUser LookupUserByUpn(string upn, bool global)
+    {
+      return LookupUser(ActiveDirectorySearchType.UPN, upn, global);
+    }
+
+    public static ActiveDirectoryUser LookupUserByUpn(string upn, bool global, string adSearchUser, string adSearchPW)
+    {
+      return LookupUser(ActiveDirectorySearchType.UPN, upn, global, adSearchUser, adSearchPW, null, null);
+    }
+
+    public static ActiveDirectoryUser LookupUserByUpn(string upn, bool global, string adSearchUser, string adSearchPW, string adSearchRoot, string adSearchDomain)
+    {
+      return LookupUser(ActiveDirectorySearchType.UPN, upn, global, adSearchUser, adSearchPW, adSearchRoot, adSearchDomain);
+    }
+    #endregion
+
+    #region LOOKUP USER BY EMAIL ADDRESS
+    public static ActiveDirectoryUser LookupUserByEmailAddress(string email)
+    {
+      return LookupUser(ActiveDirectorySearchType.EMAIL, email, false);
+    }
+
+    public static ActiveDirectoryUser LookupUserByEmailAddress(string email, string adSearchUser, string adSearchPW)
+    {
+      return LookupUser(ActiveDirectorySearchType.EMAIL, email, false, adSearchUser, adSearchPW, null, null);
+    }
+
+    public static ActiveDirectoryUser LookupUserByEmailAddress(string email, bool global)
+    {
+      return LookupUser(ActiveDirectorySearchType.EMAIL, email, global);
+    }
+
+    public static ActiveDirectoryUser LookupUserByEmailAddress(string email, bool global, string adSearchUser, string adSearchPW)
+    {
+      return LookupUser(ActiveDirectorySearchType.EMAIL, email, global, adSearchUser, adSearchPW, null, null);
+    }
+
+    public static ActiveDirectoryUser LookupUserByEmailAddress(string email, bool global, string adSearchUser, string adSearchPW, string adSearchRoot, string adSearchDomain)
+    {
+      return LookupUser(ActiveDirectorySearchType.EMAIL, email, global, adSearchUser, adSearchPW, adSearchRoot, adSearchDomain);
+    }
+    #endregion
+
+    private static ActiveDirectoryUser GetUser(DirectoryEntry de)
+    {
+      return new ActiveDirectoryUser()
+      {
+        FirstName = de.Properties["givenName"].Value.ToString(),
+        LastName = de.Properties["sn"].Value.ToString(),
+        UserPrincipalName = (de.Properties["userPrincipalName"].Value != null) ?
+              de.Properties["userPrincipalName"].Value.ToString() : null,
+        DisplayName = de.Properties["displayName"].Value.ToString(),
+        UserName = (de.Properties["samAccountName"].Value != null) ? de.Properties["samAccountName"].Value.ToString() : null,
+        PrimaryEmailAddress = GetPrimarySMTP(de) ?? string.Empty,
+        PhoneNumber = de.Properties["telephoneNumber"].Value.ToString(),
+        Path = de.Path,
+        ClientCertificate = de.Properties.Contains("userSMIMECertificate") ?
+                new X509Certificate2(de.Properties["userSMIMECertificate"].Value as byte[]) ?? null :
+                new X509Certificate2(de.Properties["userCertificate"].Value as byte[]) ?? null
+      };
+    }
+
+    private static List<string> GetProxyAddresses(DirectoryEntry user)
+    {
+      List<string> addresses = new List<string>();
+
+      if (user.Properties.Contains("proxyAddresses"))
+      {
+        foreach (string addr in user.Properties["proxyAddresses"])
+        {
+          addresses.Add(Regex.Replace(addr, @"\s+", string.Empty, RegexOptions.IgnoreCase).Trim());
+        }
+      }
+
+      return addresses;
+    }
+
+    private static string GetPrimarySMTP(DirectoryEntry user)
+    {
+      foreach (string p in GetProxyAddresses(user))
+      {
+        if (p.StartsWith("SMTP:", StringComparison.Ordinal)) return p.Replace("SMTP:", string.Empty).ToLowerInvariant();
+      }
+
+      return null;
     }
   }
 
-  public class ErrorResult : IViewResult
+  #region CAC AUTHENTICATION
+#if CAC_AUTHENTICATION
+  public class ActiveDirectoryAuthenticationEventArgs : EventArgs
   {
-    private HttpContextBase context;
-    private Exception exception;
+    public ActiveDirectoryUser User { get; set; }
+    public bool Authenticated { get; set; }
+    public string CACID { get; set; }
+  }
 
-    public ErrorResult(HttpContextBase ctx, Exception e)
+  public class ActiveDirectoryAuthentication : IBoundActionObject
+  {
+    public ActiveDirectoryUser User { get; private set; }
+    public bool Authenticated { get; private set; }
+    public string CACID { get; private set; }
+
+    private event EventHandler<ActiveDirectoryAuthenticationEventArgs> ActiveDirectoryLookupEvent = (sender, args) => { };
+
+    public ActiveDirectoryAuthentication(EventHandler<ActiveDirectoryAuthenticationEventArgs> activeDirectoryLookupHandler)
     {
-      context = ctx;
-      exception = e;
+      ActiveDirectoryLookupEvent += activeDirectoryLookupHandler;
     }
 
-    public void Render()
+    public void ExecuteBeforeAction(AuroraContext ctx)
     {
-      string message = string.Empty;
+      ValidateClientCertificate(ctx);
+    }
 
-      if (exception.InnerException != null)
-        message = exception.InnerException.Message;
+#if !DEBUG
+    private static string GetCACIDFromCN(AuroraContext ctx, out X509Certificate2 x509certificate)
+    {
+      x509certificate = ctx.RequestClientCertificate;
+
+      if (x509certificate == null)
+        throw new Exception(MainConfig.ClientCertificateError);
+
+      string cn = x509certificate.GetNameInfo(X509NameType.SimpleName, false);
+      string cacid = string.Empty;
+      bool valid = true;
+
+      if (string.IsNullOrEmpty(cn))
+        throw new Exception(MainConfig.ClientCertificateSimpleNameError);
+
+      if (cn.Contains("."))
+      {
+        string[] fields = cn.Split('.');
+
+        if (fields.Length > 0)
+        {
+          cacid = fields[fields.Length - 1];
+
+          foreach (char c in cacid.ToCharArray())
+          {
+            if (!Char.IsDigit(c))
+            {
+              valid = false;
+              break;
+            }
+          }
+        }
+      }
+
+      if (valid)
+      {
+        return cacid;
+      }
       else
-        message = exception.Message;
+      {
+        throw new Exception(string.Format(CultureInfo.CurrentCulture, MainConfig.ClientCertificateUnexpectedFormatForCACID, cn));
+      }
+    }
+#endif
 
-      ResponseHeader.SetContentType(context, "text/html");
+    private void ValidateClientCertificate(AuroraContext ctx)
+    {
+      ActiveDirectoryAuthenticationEventArgs args = new ActiveDirectoryAuthenticationEventArgs();
 
-      ResponseHeader.AddEncodingHeaders(context);
+#if DEBUG
+      ActiveDirectoryLookupEvent(this, args);
 
-      context.Response.StatusDescription = message;
-      context.Response.Write(string.Format(CultureInfo.CurrentCulture, "{0} - {1}", message, context.Request.Path));
+      User = args.User;
+      Authenticated = args.Authenticated;
+      CACID = args.CACID;
+#else
+      X509Certificate2 x509fromASPNET;
+
+      CACID = GetCACIDFromCN(ctx, out x509fromASPNET);
+
+      User = null;
+      Authenticated = false;
+
+      if (!String.IsNullOrEmpty(CACID))
+      {
+        X509Chain chain = new X509Chain();
+        chain.ChainPolicy.RevocationFlag = X509RevocationFlag.EntireChain;
+        chain.ChainPolicy.RevocationMode = X509RevocationMode.Online;
+        chain.ChainPolicy.UrlRetrievalTimeout = new TimeSpan(0, 0, 30);
+
+        if (chain.Build(x509fromASPNET))
+        {
+          ActiveDirectoryUser user = null;
+
+          try
+          {
+            args.CACID = CACID;
+
+            ActiveDirectoryLookupEvent(this, args);
+
+            if (args.User != null)
+              user = args.User;
+          }
+          catch (DirectoryServicesCOMException)
+          {
+            throw new Exception("A problem occurred trying to communicate with Active Directory");
+          }
+
+          if (user != null)
+          {
+            X509Certificate2 x509fromAD;
+
+            string cacidFromAD = GetCACIDFromCN(ctx, out x509fromAD);
+
+            if (CACID == cacidFromAD)
+            {
+              Authenticated = true;
+              User = user;
+            }
+          }
+        }
+      }
+#endif
+    }
+  }
+#endif
+  #endregion
+#endif
+  #endregion
+
+  #region SECURITY MANAGER
+  internal class AuthCookie
+  {
+    public string ID { get; set; }
+    public string AuthToken { get; set; }
+    public DateTime Expiration { get; set; }
+  }
+
+  public class User : IPrincipal
+  {
+    public string AuthenticationToken { get; internal set; }
+    public HttpCookie AuthenticationCookie { get; internal set; }
+    public string SessionId { get; internal set; }
+    public string IPAddress { get; internal set; }
+    public DateTime LogOnDate { get; internal set; }
+    public IIdentity Identity { get; internal set; }
+    public List<string> Roles { get; internal set; }
+
+    // A method to perform role checking against roles that were initially 
+    // tracked when the user was logged in.
+    internal Func<User, string, bool> CheckRoles { get; set; }
+    // During the security check if the action has designated roles then we'll 
+    // populate the action bindings of the method that we are operating on 
+    // behalf of. The CheckRoles method will then be able to use this if need 
+    // be.
+    //
+    // Later on down the road it may be useful to switch this to be the full 
+    // action parameter list rather than just the bindings.
+    public List<object> ActionBindings { get; internal set; }
+
+    public bool IsInRole(string role)
+    {
+      if (Roles != null)
+        return Roles.Contains(role);
+
+      return false;
     }
   }
 
-  /// <summary>
-  /// A VoidResult is a mechanism which basically says we don't want to do any processing
-  /// to this view. This means the action had a void return type and it's responsible for
-  /// writing out any response to the response stream.
-  /// </summary>
-  internal class VoidResult : IViewResult
+  public class Identity : IIdentity
   {
-    public void Render() { }
+    public string AuthenticationType { get; internal set; }
+    public bool IsAuthenticated { get; internal set; }
+    public string Name { get; internal set; }
   }
 
-  public class RedirectResult : IViewResult
+#if OPENID
+  public class OpenAuthClaimsResponse
   {
-    private HttpContextBase context;
-    private string location;
+    public string ClaimedIdentifier { get; internal set; }
+    public string FullName { get; internal set; }
+    public string Email { get; internal set; }
+  }
+#endif
 
-    public RedirectResult(HttpContextBase ctx, string loc)
+  public static class SecurityManager
+  {
+    private static List<User> GetUsers(AuroraContext context)
     {
-      context = ctx;
-      location = loc;
+      List<User> users = null;
+
+      if (context.Application[MainConfig.SecurityManagerSessionName] != null)
+      {
+        users = context.Application[MainConfig.SecurityManagerSessionName] as List<User>;
+      }
+      else
+      {
+        context.Application[MainConfig.SecurityManagerSessionName] = users = new List<User>();
+      }
+
+      return users;
     }
 
-    public void Render()
+    private static string CreateAuthenticationToken()
     {
-      context.Response.Redirect(location);
+      return (Guid.NewGuid().ToString() + Guid.NewGuid().ToString()).Replace("-", string.Empty);
+    }
+
+#if OPENID
+    public static void LogonViaOpenAuth(HttpContextBase ctx, string identifier, Action<string> invalidLogon)
+    {
+      if (!Identifier.IsValid(identifier))
+      {
+        if (invalidLogon != null)
+          invalidLogon(MainConfig.OpenIDInvalidIdentifierError);
+      }
+      else
+      {
+        using (var openid = new OpenIdRelyingParty())
+        {
+          try
+          {
+            IAuthenticationRequest request = openid.CreateRequest(Identifier.Parse(identifier));
+
+            ctx.Session[MainConfig.OpenIdProviderUriSessionName] = request.Provider.Uri;
+
+            request.AddExtension(new ClaimsRequest
+            {
+              Email = DemandLevel.Require,
+              FullName = DemandLevel.Require,
+              Nickname = DemandLevel.Request
+            });
+
+            request.RedirectToProvider();
+          }
+          catch
+          {
+            throw;
+          }
+        }
+      }
+    }
+
+    public static void FinalizeLogonViaOpenAuth(HttpContextBase ctx, Action<OpenAuthClaimsResponse> authenticated, Action<string> cancelled, Action<string> failed)
+    {
+      using (var openid = new OpenIdRelyingParty())
+      {
+        IAuthenticationResponse response = openid.GetResponse();
+
+        if (response != null)
+        {
+          if (ctx.Session[MainConfig.OpenIdProviderUriSessionName] != null)
+          {
+            Uri providerUri = ctx.Session[MainConfig.OpenIdProviderUriSessionName] as Uri;
+
+            if (providerUri != response.Provider.Uri)
+              throw new Exception(MainConfig.OpenIdProviderUriMismatchError);
+          }
+          else
+            throw new Exception(MainConfig.OpenIdProviderUriMismatchError);
+
+          switch (response.Status)
+          {
+            case AuthenticationStatus.Authenticated:
+
+              ClaimsResponse claimsResponse = response.GetExtension<ClaimsResponse>();
+
+              if (claimsResponse != null)
+              {
+                if (string.IsNullOrEmpty(claimsResponse.Email))
+                  throw new Exception(MainConfig.OpenIDProviderClaimsResponseError);
+
+                OpenAuthClaimsResponse openAuthClaimsResponse = new OpenAuthClaimsResponse()
+                {
+                  Email = claimsResponse.Email,
+                  FullName = claimsResponse.FullName,
+                  ClaimedIdentifier = response.ClaimedIdentifier
+                };
+
+                ctx.Session[MainConfig.OpenIdClaimsResponseSessionName] = openAuthClaimsResponse;
+
+                if (authenticated != null)
+                  authenticated(openAuthClaimsResponse);
+              }
+              break;
+
+            case AuthenticationStatus.Canceled:
+              if (cancelled != null)
+                cancelled(MainConfig.OpenIDLoginCancelledByProviderError);
+              break;
+
+            case AuthenticationStatus.Failed:
+              if (failed != null)
+                failed(MainConfig.OpenIDLoginFailedError);
+              break;
+          }
+        }
+      }
+    }
+
+    public static OpenAuthClaimsResponse GetOpenAuthClaimsResponse(HttpContextBase ctx)
+    {
+      if (ctx.Session[MainConfig.OpenIdClaimsResponseSessionName] != null)
+        return ctx.Session[MainConfig.OpenIdClaimsResponseSessionName] as OpenAuthClaimsResponse;
+
+      return null;
+    }
+#endif
+
+    public static string LogOn(AuroraContext ctx, string id)
+    {
+      return LogOn(ctx, id, null, null);
+    }
+
+    public static string LogOn(AuroraContext ctx, string id, string[] roles, Func<User, string, bool> checkRoles)
+    {
+      if (string.IsNullOrEmpty(MainConfig.EncryptionKey))
+        throw new Exception(MainConfig.EncryptionKeyNotSpecifiedError);
+
+      List<User> users = GetUsers(ctx);
+
+      User u = users.FirstOrDefault(x => x.SessionId == ctx.Session.SessionID && x.Identity.Name == id);
+
+      if (u != null) return u.AuthenticationToken;
+
+      string authToken = CreateAuthenticationToken();
+      DateTime expiration = DateTime.Now.Add(TimeSpan.FromHours(MainConfig.AuthCookieExpiry));
+
+      // Get the frame before this one so we can obtain the method who called us so we can get the attribute
+      // for the action
+      StackFrame sf = new StackFrame(1);
+      MethodInfo callingMethod = (MethodInfo)sf.GetMethod();
+
+      HttpGetAttribute get = (HttpGetAttribute)callingMethod.GetCustomAttributes(false).FirstOrDefault(x => x is HttpGetAttribute);
+
+      HttpCookie auroraAuthCookie = new HttpCookie(MainConfig.AuroraAuthCookieName)
+      {
+        Expires = expiration,
+        HttpOnly = (get != null) ? get.HttpsOnly : true,
+        //Domain = string.Format(".{0}", (ctx.Request.Url.Host == "localhost" ? "local" : ctx.Request.Url.Host)),
+        Value = Encryption.Encrypt(JsonConvert.SerializeObject(new AuthCookie() { AuthToken = authToken, ID = id, Expiration = expiration }), MainConfig.EncryptionKey)
+      };
+
+      ctx.ResponseCookies.Add(auroraAuthCookie);
+
+      u = new User()
+      {
+        AuthenticationToken = authToken,
+        AuthenticationCookie = auroraAuthCookie,
+        SessionId = ctx.Session.SessionID,
+        IPAddress = ctx.IPAddress,
+        LogOnDate = DateTime.Now,
+        Identity = new Identity() { AuthenticationType = MainConfig.AuroraAuthTypeName, IsAuthenticated = true, Name = id },
+        Roles = roles.ToList(),
+        CheckRoles = checkRoles,
+        ActionBindings = null
+      };
+
+      users.Add(u);
+
+      ctx.Session[MainConfig.CurrentUserSessionName] = u;
+      ctx.User = u;
+
+      return u.AuthenticationToken;
+    }
+
+    public static User GetLoggedOnUser(AuroraContext ctx)
+    {
+      if (ctx.Session[MainConfig.CurrentUserSessionName] != null)
+        return ctx.Session[MainConfig.CurrentUserSessionName] as User;
+      else
+      {
+        AuthCookie cookie = GetAuthCookie(ctx);
+
+        if (cookie != null)
+        {
+          User u = GetUsers(ctx).FirstOrDefault(x => x.SessionId == ctx.Session.SessionID && x.Identity.Name == cookie.ID);
+
+          if (u != null)
+          {
+            ctx.Session[MainConfig.CurrentUserSessionName] = u;
+            return u;
+          }
+        }
+      }
+
+      return null;
+    }
+
+    private static AuthCookie GetAuthCookie(AuroraContext ctx)
+    {
+      HttpCookie cookie = ctx.RequestCookies[MainConfig.AuroraAuthCookieName];
+
+      if (cookie != null)
+        return JsonConvert.DeserializeObject<AuthCookie>(Encryption.Decrypt(cookie.Value, MainConfig.EncryptionKey));
+
+      return null;
+    }
+
+    public static bool LogOff(AuroraContext ctx)
+    {
+      HttpCookie cookie = ctx.RequestCookies[MainConfig.AuroraAuthCookieName];
+
+      if (cookie != null)
+      {
+        AuthCookie authCookie = GetAuthCookie(ctx);
+
+        List<User> users = GetUsers(ctx);
+
+        User u = users.FirstOrDefault(x => x.AuthenticationToken == authCookie.AuthToken);
+
+        if (u != null)
+        {
+          bool result = users.Remove(u);
+
+          if (result)
+          {
+            if (ctx.Session[MainConfig.CurrentUserSessionName] != null)
+              ctx.Session.Remove(MainConfig.CurrentUserSessionName);
+
+            ctx.User = null;
+          }
+
+          ctx.ResponseCookies.Remove(MainConfig.AuroraAuthCookieName);
+
+          return result;
+        }
+      }
+
+      return false;
+    }
+
+    //internal static bool IsAuthenticated(HttpContextBase ctx)
+    //{
+    //  return IsAuthenticated(ctx, null, null);
+    //}
+
+    internal static bool IsAuthenticated(AuroraContext ctx, RouteInfo routeInfo, string authRoles)
+    {
+      AuthCookie authCookie = GetAuthCookie(ctx);
+
+      if (authCookie != null)
+      {
+        User u = GetUsers(ctx).FirstOrDefault(x => x.SessionId == ctx.Session.SessionID && x.Identity.Name == authCookie.ID);
+
+        if (u != null)
+        {
+          if (u.AuthenticationCookie.Expires < DateTime.Now) return false;
+
+          if (!string.IsNullOrEmpty(authRoles))
+          {
+            if (u.CheckRoles != null)
+            {
+              if (routeInfo != null)
+                u.ActionBindings = routeInfo.Bindings;
+
+              return u.CheckRoles(u, authRoles);
+            }
+            else
+            {
+              List<string> minimumRoles = authRoles.Split('|').ToList();
+
+              if (minimumRoles.Intersect(u.Roles).Count() > 0) return true;
+            }
+          }
+          else
+            return true;
+        }
+      }
+
+      return false;
     }
   }
   #endregion
@@ -7264,7 +7642,7 @@ namespace Aurora
 
   internal static class AntiForgeryToken
   {
-    private static List<string> GetTokens(HttpContextBase context)
+    private static List<string> GetTokens(AuroraContext context)
     {
       List<string> tokens = null;
 
@@ -7276,15 +7654,13 @@ namespace Aurora
       {
         tokens = new List<string>();
 
-        context.Application.Lock();
         context.Application[MainConfig.AntiForgeryTokenSessionName] = tokens;
-        context.Application.UnLock();
       }
 
       return tokens;
     }
 
-    private static string CreateUniqueToken(HttpContextBase context)
+    private static string CreateUniqueToken(AuroraContext context)
     {
       List<string> tokens = GetTokens(context);
 
@@ -7296,7 +7672,7 @@ namespace Aurora
       return token;
     }
 
-    public static string Create(HttpContextBase context, AntiForgeryTokenType type)
+    public static string Create(AuroraContext context, AntiForgeryTokenType type)
     {
       List<string> tokens = GetTokens(context);
       string token = CreateUniqueToken(context);
@@ -7322,35 +7698,33 @@ namespace Aurora
       return renderToken;
     }
 
-    //public static void RemoveToken(HttpContextBase context)
-    //{
-    //  if (context.Request.Form.AllKeys.Contains(MainConfig.AntiForgeryTokenName))
-    //  {
-    //    string token = context.Request.Form[MainConfig.AntiForgeryTokenName];
+    public static void RemoveToken(AuroraContext context)
+    {
+      if (context.Form.AllKeys.Contains(MainConfig.AntiForgeryTokenName))
+      {
+        string token = context.Form[MainConfig.AntiForgeryTokenName];
 
-    //    List<string> tokens = GetTokens(context);
+        List<string> tokens = GetTokens(context);
 
-    //    if (tokens.Contains(token))
-    //    {
-    //      tokens.Remove(token);
+        if (tokens.Contains(token))
+        {
+          tokens.Remove(token);
 
-    //      context.Application.Lock();
-    //      context.Application[MainConfig.AntiForgeryTokenSessionName] = tokens;
-    //      context.Application.UnLock();
-    //    }
-    //  }
-    //}
+          context.Application[MainConfig.AntiForgeryTokenSessionName] = tokens;
+        }
+      }
+    }
 
-    public static bool VerifyToken(HttpContextBase context, string token)
+    public static bool VerifyToken(AuroraContext context, string token)
     {
       return GetTokens(context).Contains(token);
     }
 
-    public static bool VerifyToken(HttpContextBase context)
+    public static bool VerifyToken(AuroraContext context)
     {
-      if (context.Request.Form.AllKeys.Contains(MainConfig.AntiForgeryTokenName))
+      if (context.Form.AllKeys.Contains(MainConfig.AntiForgeryTokenName))
       {
-        string token = context.Request.Form[MainConfig.AntiForgeryTokenName];
+        string token = context.Form[MainConfig.AntiForgeryTokenName];
 
         return GetTokens(context).Contains(token);
       }
@@ -7360,539 +7734,520 @@ namespace Aurora
   }
   #endregion
 
-  #region VIEW ENGINE
-  public interface IViewEngine
+  #endregion
+
+  #region BUNDLING AND MINIFYING
+
+  #region BUNDLE MANAGER
+  /// <summary>
+  /// The Bundle class takes Javascript or CSS files and combines and minifies them.
+  /// The minification uses a ported copy of JSMin to minify the javascript and css
+  /// files. No variable/function shortening is performed. Comments are removed and
+  /// new lines are removed. 
+  /// </summary>
+  public class BundleManager
   {
-    string LoadView(string partitionName, string controllerName, string viewName, bool renderFinal, Dictionary<string, string> tags);
-  }
-
-  internal interface IViewEngineHelper
-  {
-    string ApplicationRoot { get; }
-    BundleManager BundleManager { get; }
-    ViewTemplateInfo TemplateInfo { get; set; }
-
-    string NewAntiForgeryToken(AntiForgeryTokenType type);
-
-    IEnumerable<string> GetPartitionViewRoots();
-  }
-
-  internal class ViewTemplateInfo
-  {
-    public Dictionary<string, List<string>> TemplateKeyNames { get; set; }
-    //public Dictionary<string, string> PartitionNames { get; set; }
-    public Dictionary<string, StringBuilder> RawTemplates { get; set; }
-    public Dictionary<string, string> CompiledViews { get; set; }
-
-    public bool FromCache { get; set; }
-
-    public ViewTemplateInfo()
+    internal class BundleInfo
     {
-      RawTemplates = new Dictionary<string, StringBuilder>();
-      CompiledViews = new Dictionary<string, string>();
-      //PartitionNames = new Dictionary<string, string>();
-      TemplateKeyNames = new Dictionary<string, List<string>>();
-
-      FromCache = false;
+      public FileInfo FileInfo { get; set; }
+      public string RelativePath { get; set; }
+      public string BundleName { get; set; }
     }
-  }
 
-  internal class ViewEngineHelper : IViewEngineHelper
-  {
-    private HttpContextBase context;
-    private ViewTemplateInfo templateInfo;
-    public BundleManager BundleManager { get; private set; }
+    private static string[] allowedExts = { ".js", ".css" };
 
-    public string ApplicationRoot { get; private set; }
+    private Dictionary<string, string> bundles;
+    private List<BundleInfo> bundleInfos;
+    private AuroraContext context;
 
-    public ViewEngineHelper(HttpContextBase ctx)
+    public BundleManager(AuroraContext ctx)
     {
-      context = ctx;
-      ApplicationRoot = context.Server.MapPath("~/");
-      BundleManager = new BundleManager(ctx);
+      if (ctx == null)
+        throw new ArgumentNullException("ctx");
 
-      if (context.Application[MainConfig.TemplatesSessionName] != null)
+      context = ctx;
+
+      if (context.Application[MainConfig.BundleManagerSessionName] != null &&
+          context.Application[MainConfig.BundleManagerInfoSessionName] != null)
       {
-        templateInfo = context.Application[MainConfig.TemplatesSessionName] as ViewTemplateInfo;
+        bundles = context.Application[MainConfig.BundleManagerSessionName] as Dictionary<string, string>;
+        bundleInfos = context.Application[MainConfig.BundleManagerInfoSessionName] as List<BundleInfo>;
       }
       else
       {
-        templateInfo = new ViewTemplateInfo();
+        context.Application[MainConfig.BundleManagerSessionName] = bundles = new Dictionary<string, string>();
+        context.Application[MainConfig.BundleManagerInfoSessionName] = bundleInfos = new List<BundleInfo>();
       }
     }
 
-    public ViewTemplateInfo TemplateInfo
+    public string this[string bundle]
     {
       get
       {
-        return templateInfo;
-      }
+        if (bundles.ContainsKey(bundle))
+          return bundles[bundle];
 
-      set
-      {
-        templateInfo = value;
-
-        context.Application.Lock();
-        context.Application[MainConfig.TemplatesSessionName] = templateInfo;
-        context.Application.UnLock();
+        return null;
       }
     }
 
-    public string NewAntiForgeryToken(AntiForgeryTokenType type)
+    public bool Contains(string key)
     {
-      return AntiForgeryToken.Create(context, type);
+      return bundles.ContainsKey(key);
     }
 
-    public IEnumerable<string> GetPartitionViewRoots()
+    public void AddDirectory(string dirPath, string fileExtension, string bundleName)
     {
-      Dictionary<string, string> partitionNames = ApplicationInternals.AllPartitionNames(context);
+      DirectoryInfo di = new DirectoryInfo(context.MapPath(dirPath));
 
-      if (partitionNames != null)
+      var files = di.GetAllFiles().Where(x => x.Extension == fileExtension);
+
+      foreach (FileInfo file in files)
+        bundleInfos.Add(new BundleInfo() { BundleName = bundleName, FileInfo = file });
+
+      ProcessFiles(files, bundleName);
+    }
+
+    public void AddFiles(string[] paths, string bundleName)
+    {
+      if (paths == null)
+        throw new ArgumentNullException("paths");
+
+      if (bundleInfos.FirstOrDefault(x => x.BundleName == bundleName) == null)
       {
-        foreach (KeyValuePair<string, string> kvp in partitionNames)
+        List<FileInfo> files = new List<FileInfo>();
+
+        foreach (string path in paths)
         {
-          yield return context.Server.MapPath("/" + kvp.Value);
+          if (allowedExts.Where(x => Path.GetExtension(path) == x) == null)
+            throw new Exception(MainConfig.BundleNameError);
+
+          string fullPath = context.MapPath(path);
+
+          if (File.Exists(fullPath))
+          {
+            FileInfo fi = new FileInfo(context.MapPath(path));
+
+            files.Add(fi);
+
+            bundleInfos.Add(new BundleInfo()
+            {
+              BundleName = bundleName,
+              FileInfo = fi,
+              RelativePath = path
+            });
+          }
+        }
+
+        ProcessFiles(files, bundleName);
+      }
+    }
+
+    public List<string> GetBundleFileList(string bundle)
+    {
+      var binfos = bundleInfos
+                      .Where(x => x.BundleName == bundle)
+                      .Select(x => x.RelativePath);
+
+      if (binfos != null)
+        return binfos.ToList();
+
+      return null;
+    }
+
+    private void ProcessFiles(IEnumerable<FileInfo> files, string bundleName)
+    {
+      StringBuilder bundleResult = new StringBuilder();
+
+      foreach (FileInfo f in files)
+      {
+        using (StreamReader sr = new StreamReader(f.OpenRead()))
+        {
+          bundleResult.AppendLine();
+          bundleResult.AppendLine(sr.ReadToEnd());
+          bundleResult.AppendLine();
         }
       }
+
+      if (!string.IsNullOrEmpty(bundleResult.ToString()))
+      {
+        bool css = bundleName.EndsWith(".css", StringComparison.Ordinal);
+
+        using (Minify mini = new Minify(bundleResult.ToString(), css, false))
+        {
+          bundles[bundleName] = mini.Result;
+        }
+      }
+    }
+
+    internal void RegenerateBundle(string bundleName)
+    {
+      var files = bundleInfos.Where(x => x.BundleName == bundleName).Select(x => x.FileInfo);
+
+      if (files != null)
+        ProcessFiles(files, bundleName);
     }
   }
+  #endregion
 
-  /// <summary>
-  /// The overall idea of this view engine is to keep it all simple. The views are 
-  /// clean (no C# code in them) and the special directives are few and far between 
-  /// so that the HTML is not overwhelmed with view specific context. There are a 
-  /// limited set of directives and dynamic data is replaced by tags that map to the
-  /// controllers ViewTags dictionary.
-  /// </summary>
-  internal class AuroraViewEngine : IViewEngine
+  #region JAVASCRIPT / CSS MINIFY
+  // Minify is based on a quick port of jsmin.c to C#. I made a few changes so 
+  // that it would work with CSS files as well.
+  //
+  // jsmin.c was written by Douglas Crockford, original license and information
+  // below.
+  //
+  // Find the C source code for jsmin.c here:
+  //  https://github.com/douglascrockford/JSMin/blob/master/jsmin.c
+  //
+  // jsmin.c
+  //   2011-09-30
+  //
+  // Copyright (c) 2002 Douglas Crockford  (www.crockford.com)
+  //
+  // Permission is hereby granted, free of charge, to any person obtaining a copy of
+  // this software and associated documentation files (the "Software"), to deal in
+  // the Software without restriction, including without limitation the rights to
+  // use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+  // of the Software, and to permit persons to whom the Software is furnished to do
+  // so, subject to the following conditions:
+  //
+  // The above copyright notice and this permission notice shall be included in all
+  // copies or substantial portions of the Software.
+  //
+  // The Software shall be used for Good, not Evil.
+  //
+  // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  // AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  // SOFTWARE.
+  public class Minify : IDisposable
   {
-    private readonly IViewEngineHelper viewEngineHelper;
-    private string viewRoot;
-    private static Markdown Markdown = new Markdown();
-    private static Regex directiveTokenRE = new Regex(@"(\%\%(?<directive>[a-zA-Z0-9]+)=(?<value>(\S|\.)+)\%\%)");
-    private static Regex headBlockRE = new Regex(@"\[\[(?<block>[\s\w\p{P}\p{S}]+)\]\]");
-    private static Regex commentBlockRE = new Regex(@"\@\@(?<block>[\s\w\p{P}\p{S}]+?)\@\@");
-    private static Regex tagRE = new Regex(@"{({|\||\!)([\w]+)(}|\!|\|)}");
-    private static string tagFormatPattern = @"({{({{|\||\!){0}(\||\!|}})}})";
-    private static string cssIncludeTag = @"<link href=""{0}"" rel=""stylesheet"" type=""text/css"" />";
-    private static string jsIncludeTag = @"<script src=""{0}"" type=""text/javascript""></script>";
-    private static string tagEncodingHint = "{|";
-    private static string markdownEncodingHint = "{!";
-    private static string unencodedTagHint = "{{";
-    private static string antiForgeryToken = string.Format(CultureInfo.InvariantCulture, "%%{0}%%", MainConfig.AntiForgeryTokenName);
-    private static string jsonAntiForgeryToken = string.Format(CultureInfo.InvariantCulture, "%%{0}%%", MainConfig.JsonAntiForgeryTokenName);
-    private static string viewDirective = "%%View%%";
-    private static string headDirective = "%%Head%%";
-    private static List<string> partitionViewRoots;
-    private ViewTemplateInfo templateInfo;
+    private const int EOF = -1;
 
-    public AuroraViewEngine(string vr, IViewEngineHelper helper)
+    private bool pack;
+    private bool css;
+
+    private int theA;
+    private int theB;
+    private int theLookahead = EOF;
+
+    private StringReader reader;
+    private StringBuilder result { get; set; }
+
+    public string Result
     {
-      viewRoot = vr;
-      viewEngineHelper = helper;
-      partitionViewRoots = viewEngineHelper.GetPartitionViewRoots().ToList();
+      get
+      {
+        if (pack)
+          return Regex.Replace(result.ToString().Trim(), "(\n|\r)+", " ");
 
-      if (!Directory.Exists(viewRoot))
-        throw new DirectoryNotFoundException(string.Format(CultureInfo.CurrentCulture, MainConfig.ViewRootDoesNotExistError, viewRoot));
-
-      Refresh();
+        return result.ToString().Trim();
+      }
     }
 
-    // When a request is made all templates are loaded and cached if Aurora is not 
-    // in debug mode. If Aurora is in debug mode then views are reloaded with each
-    // request. I probably should only be loading the views that need to be loaded 
-    // per the request but I opted to load all views up front so they could be 
-    // cached. So preference to performance is given to release mode rathern than
-    // debug.
-    private void Refresh()
+    public Minify(string text, bool css, bool pack)
     {
-      if (templateInfo == null || MainConfig.DisableStaticFileCaching)
-      {
-        templateInfo = new ViewTemplateInfo();
-        templateInfo.FromCache = false;
-      }
-      else
-      {
-        templateInfo = viewEngineHelper.TemplateInfo;
-        templateInfo.FromCache = true;
-      }
+      result = new StringBuilder();
 
-      if (!templateInfo.FromCache)
-      {
-        templateInfo.RawTemplates = LoadTemplates(new DirectoryInfo(viewRoot).GetAllFiles());
+      this.css = css;
+      this.pack = pack;
 
-        if (partitionViewRoots.Count() > 0)
+      reader = new StringReader(text);
+
+      Go();
+    }
+
+    public void Dispose()
+    {
+      Dispose(true);
+
+      GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+      if (disposing)
+      {
+        if (reader != null)
         {
-          foreach (string partitionViewRoot in partitionViewRoots)
-          {
-            templateInfo.RawTemplates =
-              templateInfo.RawTemplates
-                .Concat(LoadTemplates(new DirectoryInfo(partitionViewRoot).GetAllFiles()))
-                .ToDictionary(i => i.Key, i => i.Value);
-          }
+          reader.Dispose();
+          reader = null;
         }
-
-        viewEngineHelper.TemplateInfo = templateInfo;
       }
     }
 
-    private Dictionary<string, StringBuilder> LoadTemplates(IEnumerable<FileInfo> files)
+
+    private bool IsAlphanum(char c)
     {
-      Dictionary<string, StringBuilder> templates = new Dictionary<string, StringBuilder>();
+      int charCode = (int)c;
 
-      foreach (FileInfo fi in files.Where(x => x.Extension == ".html"))
+      if (css)
+        if (charCode == '.') return true;
+
+      return (charCode >= 'a' && charCode <= 'z' ||
+              charCode >= '0' && charCode <= '9' ||
+              charCode >= 'A' && charCode <= 'Z' ||
+              charCode == '_' ||
+              charCode == '$' ||
+              charCode == '\\' ||
+              charCode == '#' ||
+              charCode > 126);
+    }
+
+    private int Get()
+    {
+      int c = theLookahead;
+      theLookahead = EOF;
+      if (c == EOF)
       {
-        using (StreamReader sr = new StreamReader(fi.OpenRead()))
+        c = reader.Read();
+      }
+      if (c >= ' ' || c == '\n' || c == EOF)
+      {
+        return c;
+      }
+      if (c == '\r')
+      {
+        return '\n';
+      }
+      return ' ';
+    }
+
+    private int Peek()
+    {
+      theLookahead = Get();
+      return theLookahead;
+    }
+
+    private int Next()
+    {
+      int c = Get();
+      if (c == '/')
+      {
+        switch (Peek())
         {
-          //string templateName = fi.Name.Replace(fi.Extension, string.Empty);
-          string templateKeyName = fi.FullName.Replace(viewRoot, string.Empty)
-                                              .Replace(viewEngineHelper.ApplicationRoot, string.Empty)
-                                              .Replace(fi.Extension, string.Empty)
-                                              .Replace("\\", "/").TrimStart('/');
-
-          #region STRIP COMMENT SECTIONS
-          StringBuilder templateBuilder = new StringBuilder(sr.ReadToEnd());
-
-          MatchCollection comments = commentBlockRE.Matches(templateBuilder.ToString());
-
-          if (comments.Count > 0)
-          {
-            foreach (Match comment in comments)
+          case '/':
+            for (; ; )
             {
-              templateBuilder.Replace(comment.Value, string.Empty);
+              c = Get();
+              if (c <= '\n')
+              {
+                return c;
+              }
+            }
+          case '*':
+            Get();
+            for (; ; )
+            {
+              switch (Get())
+              {
+                case '*':
+                  if (Peek() == '/')
+                  {
+                    Get();
+                    return ' ';
+                  }
+                  break;
+                case EOF:
+                  throw new Exception("Error: Minify Unterminated comment.");
+              }
+            }
+          default:
+            return c;
+        }
+      }
+      return c;
+    }
+
+    private void Action(int d)
+    {
+      switch (d)
+      {
+        case 1:
+          result.Append((char)theA);
+          goto case 2;
+        case 2:
+          theA = theB;
+          if (theA == '\'' || theA == '"' || theA == '`')
+          {
+            for (; ; )
+            {
+              result.Append((char)theA);
+              theA = Get();
+              if (theA == theB)
+              {
+                break;
+              }
+              if (theA == '\\')
+              {
+                result.Append((char)theA);
+                theA = Get();
+              }
+              if (theA == EOF)
+              {
+                throw new Exception("Error: Minify unterminated string literal.");
+              }
             }
           }
-          #endregion
-
-          templates.Add(templateKeyName, templateBuilder);
-        }
+          goto case 3;
+        case 3:
+          theB = Next();
+          if (theB == '/' && (theA == '(' || theA == ',' || theA == '=' ||
+                              theA == ':' || theA == '[' || theA == '!' ||
+                              theA == '&' || theA == '|' || theA == '?' ||
+                              theA == '{' || theA == '}' || theA == ';' ||
+                              theA == '\n'))
+          {
+            result.Append((char)theA);
+            result.Append((char)theB);
+            for (; ; )
+            {
+              theA = Get();
+              if (theA == '[')
+              {
+                for (; ; )
+                {
+                  result.Append((char)theA);
+                  theA = Get();
+                  if (theA == ']')
+                  {
+                    break;
+                  }
+                  if (theA == '\\')
+                  {
+                    result.Append((char)theA);
+                    theA = Get();
+                  }
+                  if (theA == EOF)
+                  {
+                    throw new Exception("Error: Minify unterminated set in Regular Expression literal.");
+                  }
+                }
+              }
+              else if (theA == '/')
+              {
+                break;
+              }
+              else if (theA == '\\')
+              {
+                result.Append((char)theA);
+                theA = Get();
+              }
+              if (theA == EOF)
+              {
+                throw new Exception("Error: Minify unterminated Regular Expression literal.");
+              }
+              result.Append((char)theA);
+            }
+            theB = Next();
+          }
+          break;
       }
-
-      return templates;
     }
 
-    private StringBuilder ProcessDirectives(string partitionName, string controllerName, string viewKeyName, Dictionary<string, StringBuilder> rawTemplates, StringBuilder rawView)
+    private void Go()
     {
-      MatchCollection dirMatches = directiveTokenRE.Matches(rawView.ToString());
-      StringBuilder pageContent = new StringBuilder();
-      StringBuilder directive = new StringBuilder();
-      StringBuilder value = new StringBuilder();
-
-      #region PROCESS KEY=VALUE DIRECTIVES (MASTER AND PARTIAL VIEWS)
-      foreach (Match match in dirMatches)
+      if (Peek() == 0xEF)
       {
-        directive.Length = 0;
-        directive.Insert(0, match.Groups["directive"].Value);
-
-        value.Length = 0;
-        value.Insert(0, match.Groups["value"].Value);
-
-        string pageName = DetermineKeyName(partitionName, controllerName, value.ToString());
-
-        if (!string.IsNullOrEmpty(pageName))
+        Get();
+        Get();
+        Get();
+      }
+      theA = '\n';
+      Action(3);
+      while (theA != EOF)
+      {
+        switch (theA)
         {
-          string template = rawTemplates[pageName].ToString();
-
-          switch (directive.ToString())
-          {
-            case "Master":
-              pageContent = new StringBuilder(template);
-              rawView.Replace(match.Groups[0].Value, string.Empty);
-              pageContent.Replace(viewDirective, rawView.ToString());
-              break;
-
-            case "Partial":
-              StringBuilder partialContent = new StringBuilder(template);
-              rawView.Replace(match.Groups[0].Value, partialContent.ToString());
-              break;
-          }
-        }
-        else
-        {
-          if (directive.ToString() == "Bundle")
-          {
-            string bundleName = value.ToString();
-            StringBuilder htmlTagBuilder = new StringBuilder();
-
-            if (AuroraConfig.InDebugMode)
+          case ' ':
+            if (IsAlphanum((char)theB))
             {
-              var bundleFileList = viewEngineHelper.BundleManager.GetBundleFileList(bundleName);
-
-              foreach (string bundlePath in bundleFileList)
-              {
-                htmlTagBuilder.AppendLine(ProcessBundlePath(bundlePath));
-              }
+              Action(1);
             }
             else
             {
-              htmlTagBuilder.AppendLine(ProcessBundlePath(bundleName));
+              Action(2);
             }
-
-            rawView.Replace(match.Groups[0].Value, htmlTagBuilder.ToString());
-          }
-        }
-      }
-      #endregion
-
-      // If during the process of building the view we have more directives to process
-      // we'll recursively call ProcessDirectives to take care of them
-      if (directiveTokenRE.Matches(pageContent.ToString()).Count > 0)
-        ProcessDirectives(partitionName, controllerName, viewKeyName, rawTemplates, pageContent);
-
-      #region PROCESS HEAD SUBSTITUTIONS AFTER ALL TEMPLATES HAVE BEEN COMPILED
-      MatchCollection heads = headBlockRE.Matches(pageContent.ToString());
-
-      if (heads.Count > 0)
-      {
-        StringBuilder headSubstitutions = new StringBuilder();
-
-        foreach (Match head in heads)
-        {
-          headSubstitutions.Append(Regex.Replace(head.Groups["block"].Value, @"^(\s+)", string.Empty, RegexOptions.Multiline));
-          pageContent.Replace(head.Value, string.Empty);
-        }
-
-        pageContent.Replace(headDirective, headSubstitutions.ToString());
-      }
-
-      pageContent.Replace(headDirective, string.Empty);
-      #endregion
-
-      return pageContent;
-    }
-
-    private static string ProcessBundlePath(string bundlePath)
-    {
-      string tag = string.Empty;
-      string extension = Path.GetExtension(bundlePath);
-      bool isAPath = bundlePath.Contains('/') ? true : false;
-
-      if (!isAPath)
-        bundlePath = string.Format(CultureInfo.InvariantCulture, "/{0}/{1}/{2}", MainConfig.PublicResourcesFolderName, extension.TrimStart('.'), bundlePath);
-
-      switch (extension)
-      {
-        case ".css":
-          tag = string.Format(CultureInfo.InvariantCulture, cssIncludeTag, bundlePath);
-          break;
-
-        case ".js":
-          tag = string.Format(CultureInfo.InvariantCulture, jsIncludeTag, bundlePath);
-          break;
-      }
-
-      return tag;
-    }
-
-    private StringBuilder ReplaceAntiForgeryTokens(StringBuilder view, string token, AntiForgeryTokenType type)
-    {
-      var tokens = Regex.Matches(view.ToString(), token).Cast<Match>().Select(m => new { Start = m.Index, End = m.Length }).Reverse();
-
-      foreach (var t in tokens)
-        view.Replace(token, viewEngineHelper.NewAntiForgeryToken(type), t.Start, t.End);
-
-      return view;
-    }
-
-    private void Compile(string partitionName, string controllerName, string viewKeyName, Dictionary<string, StringBuilder> rawTemplates, Dictionary<string, string> compiledViews, Dictionary<string, string> tags, bool fragments)
-    {
-      StringBuilder rawView = new StringBuilder(rawTemplates[viewKeyName].ToString());
-      StringBuilder compiledView = new StringBuilder();
-
-      if (!fragments)
-        compiledView = ProcessDirectives(partitionName, controllerName, viewKeyName, rawTemplates, rawView);
-
-      if (string.IsNullOrEmpty(compiledView.ToString()))
-        compiledView = rawView;
-
-      compiledView = ReplaceAntiForgeryTokens(compiledView, antiForgeryToken, AntiForgeryTokenType.Form);
-      compiledView = ReplaceAntiForgeryTokens(compiledView, jsonAntiForgeryToken, AntiForgeryTokenType.Json);
-
-      compiledView.Replace(compiledView.ToString(), Regex.Replace(compiledView.ToString(), @"^\s*$\n", string.Empty, RegexOptions.Multiline));
-
-      if (tags != null)
-      {
-        StringBuilder tagSB = new StringBuilder();
-
-        foreach (KeyValuePair<string, string> tag in tags)
-        {
-          tagSB.Length = 0;
-          tagSB.Insert(0, string.Format(CultureInfo.InvariantCulture, tagFormatPattern, tag.Key));
-
-          Regex tempTagRE = new Regex(tagSB.ToString());
-
-          MatchCollection tagMatches = tempTagRE.Matches(compiledView.ToString());
-
-          if (tagMatches != null)
-          {
-            foreach (Match m in tagMatches)
+            break;
+          case '\n':
+            switch (theB)
             {
-              if (m.Value.StartsWith(unencodedTagHint, StringComparison.Ordinal))
-              {
-                compiledView.Replace(m.Value, tag.Value.Trim());
-              }
-              else if (m.Value.StartsWith(tagEncodingHint, StringComparison.Ordinal))
-              {
-                compiledView.Replace(m.Value, HttpUtility.HtmlEncode(tag.Value.Trim()));
-              }
-              else if (m.Value.StartsWith(markdownEncodingHint, StringComparison.Ordinal))
-              {
-                compiledView.Replace(m.Value, Markdown.Transform(tag.Value.Trim()));
-              }
+              case '{':
+              case '[':
+              case '(':
+              case '+':
+              case '-':
+                Action(1);
+                break;
+              case ' ':
+                Action(3);
+                break;
+              default:
+                if (IsAlphanum((char)theB))
+                {
+                  Action(1);
+                }
+                else
+                {
+                  Action(2);
+                }
+                break;
             }
-          }
-        }
-
-        MatchCollection leftoverMatches = tagRE.Matches(compiledView.ToString());
-
-        if (leftoverMatches != null)
-        {
-          foreach (Match match in leftoverMatches)
-          {
-            compiledView.Replace(match.Value, string.Empty);
-          }
+            break;
+          default:
+            switch (theB)
+            {
+              case ' ':
+                if (IsAlphanum((char)theA))
+                {
+                  Action(1);
+                  break;
+                }
+                Action(3);
+                break;
+              case '\n':
+                switch (theA)
+                {
+                  case '}':
+                  case ']':
+                  case ')':
+                  case '+':
+                  case '-':
+                  case '"':
+                  case '\'':
+                  case '`':
+                    Action(1);
+                    break;
+                  default:
+                    if (IsAlphanum((char)theA))
+                    {
+                      Action(1);
+                    }
+                    else
+                    {
+                      Action(3);
+                    }
+                    break;
+                }
+                break;
+              default:
+                Action(1);
+                break;
+            }
+            break;
         }
       }
-
-      compiledViews[viewKeyName] = compiledView.ToString();
-    }
-
-    private string DetermineKeyName(string partitionName, string controllerName, string viewName)
-    {
-      List<string> keyTypes = null;
-
-      string lookupKeyName = string.Empty;
-
-      if (!string.IsNullOrEmpty(partitionName))
-        lookupKeyName = string.Format(CultureInfo.InvariantCulture, "{0}/{1}/{2}", partitionName, controllerName, viewName);
-      else
-        lookupKeyName = string.Format(CultureInfo.InvariantCulture, "{0}/{1}", controllerName, viewName);
-
-      if (!templateInfo.TemplateKeyNames.ContainsKey(lookupKeyName))
-      {
-        keyTypes = new List<string>();
-
-        // Preference is given to the controller scope first, global scope is last
-
-        if (!string.IsNullOrEmpty(partitionName))
-        {
-          // partitionRootScopeSharedKeyName
-          keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "{0}/{1}/{2}/{3}", partitionName, MainConfig.ViewsFolderName, MainConfig.SharedFolderName, viewName));
-          // partitionRootScopeFragmentsKeyName
-          keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "{0}/{1}/{2}/{3}", partitionName, MainConfig.ViewsFolderName, MainConfig.FragmentsFolderName, viewName));
-          // partitionControllerScopeActionKeyName
-          keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "{0}/{1}/{2}/{3}", partitionName, controllerName, MainConfig.ViewsFolderName, viewName));
-          // partitionControllerScopeSharedKeyName
-          keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "{0}/{1}/{2}/{3}/{4}", partitionName, controllerName, MainConfig.ViewsFolderName, MainConfig.SharedFolderName, viewName));
-          // partitionControllerScopeFragmentKeyName
-          keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "{0}/{1}/{2}/{3}/{4}", partitionName, controllerName, MainConfig.ViewsFolderName, MainConfig.FragmentsFolderName, viewName));
-        }
-        else
-        {
-          // controllerScopeActionKeyName
-          keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "{0}/{1}", controllerName, viewName));
-          // controllerScopeSharedKeyName
-          keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "{0}/{1}/{2}", controllerName, MainConfig.SharedFolderName, viewName));
-          // controllerScopeFragmentKeyName
-          keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "{0}/{1}/{2}", controllerName, MainConfig.FragmentsFolderName, viewName));
-        }
-
-        // globalScopeSharedKeyName
-        keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "{0}/{1}", MainConfig.SharedFolderName, viewName));
-        // globalScopeFragmentKeyName
-        keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "{0}/{1}", MainConfig.FragmentsFolderName, viewName));
-
-        templateInfo.TemplateKeyNames[lookupKeyName] = keyTypes;
-      }
-      else
-      {
-        keyTypes = templateInfo.TemplateKeyNames[lookupKeyName];
-      }
-
-      return keyTypes.FirstOrDefault(x => templateInfo.RawTemplates.ContainsKey(x));
-    }
-
-    /// <summary>
-    /// Loads, compiles and then returns the view
-    /// </summary>
-    /// <param name="partitionName">The partition name</param>
-    /// <param name="controllerName">The controller name</param>
-    /// <param name="viewName">The view name</param>
-    /// <param name="renderFinal">Determines if this is a partial view or a full view</param>
-    /// <param name="tags">The tags dictionary that will be used to replace tags in the view with dynamic data</param>
-    /// <returns>The compiled view</returns>
-    public string LoadView(string partitionName, string controllerName, string viewName, bool renderFinal, Dictionary<string, string> tags)
-    {
-      if (MainConfig.DisableStaticFileCaching)
-        Refresh();
-
-      string keyName = DetermineKeyName(partitionName, controllerName, viewName);
-
-      if (renderFinal && keyName.Contains("Fragments"))
-        throw new FileNotFoundException(string.Format(CultureInfo.CurrentCulture, MainConfig.CannotFindViewError, viewName));
-
-      if (!string.IsNullOrEmpty(keyName))
-      {
-        Compile(partitionName, controllerName, keyName, templateInfo.RawTemplates, templateInfo.CompiledViews, tags,
-            keyName.Contains(MainConfig.FragmentsFolderName) ? true : false);
-
-        if (templateInfo.CompiledViews.ContainsKey(keyName))
-          return templateInfo.CompiledViews[keyName];
-      }
-
-      throw new FileNotFoundException(string.Format(CultureInfo.CurrentCulture, MainConfig.CannotFindViewError, viewName));
     }
   }
   #endregion
 
-  #region HTTP HANDLER
-  public sealed class AuroraHandler : IHttpHandler, IRequiresSessionState
-  {
-    public bool IsReusable
-    {
-      get
-      {
-        return false;
-      }
-    }
-
-    public void ProcessRequest(HttpContext context)
-    {
-      new AuroraEngine(new HttpContextWrapper(context));
-    }
-  }
-  #endregion
-
-  #region HTTP MODULE
-  public sealed class AuroraModule : IHttpModule
-  {
-    public void Dispose() { }
-
-    public void Init(HttpApplication context)
-    {
-      if (context == null)
-        throw new ArgumentNullException("context");
-
-      PagesSection pageSection = new PagesSection();
-      pageSection.ValidateRequest = MainConfig.ValidateRequest;
-
-      context.Error += new EventHandler(app_Error);
-    }
-
-    private void app_Error(object sender, EventArgs e)
-    {
-      HttpContext context = HttpContext.Current;
-      Exception ex = context.Server.GetLastError();
-      CustomError customError = ApplicationInternals.GetCustomError(new HttpContextWrapper(context), false);
-
-      customError.OnError(null, ex).Render();
-      context.Server.ClearError();
-    }
-  }
   #endregion
 
   #region PLUGIN MANAGEMENT
-#if PLUGIN
   public enum PluginDevelopmentStatus
   {
     PreAlpha,
@@ -7991,7 +8346,7 @@ namespace Aurora
               throw new PluginException(string.Format(CultureInfo.CurrentCulture, MainConfig.AssemblyContainsNoPluginsError, fi.Name));
             }
           }
-          catch(Exception ex)
+          catch (Exception ex)
           {
             if (ex is BadImageFormatException || ex is ReflectionTypeLoadException)
             {
@@ -8024,6 +8379,401 @@ namespace Aurora
       }
     }
   }
-#endif
+  #endregion
+
+  #region EXTENSION METHODS / ENCRYPTION
+
+  #region EXTENSION METHODS
+  /// <summary>
+  /// Various extension methods are contained in here. They are used to perform data
+  /// type casting, retrieve attributes and other simple stuff.
+  /// </summary>
+  public static class ExtensionMethods
+  {
+    public static object[] ToObjectArray(this string[] parms)
+    {
+      DateTime? dt = null;
+
+      if (parms != null)
+      {
+        object[] _parms = new object[parms.Length];
+
+        for (int i = 0; i < parms.Length; i++)
+        {
+          #region INT32 OR 64
+          if (parms[i].IsInt32())
+          {
+            _parms[i] = Convert.ToInt32(parms[i], CultureInfo.InvariantCulture);
+          }
+          else if (parms[i].IsLong())
+          {
+            _parms[i] = Convert.ToInt64(parms[i], CultureInfo.InvariantCulture);
+          }
+          #endregion
+          #region DOUBLE
+          else if (parms[i].IsDouble())
+          {
+            _parms[i] = Convert.ToDouble(parms[i], CultureInfo.InvariantCulture);
+          }
+          #endregion
+          #region BOOLEAN
+          else if (parms[i].ToLowerInvariant() == "true" ||
+                  parms[i].ToLowerInvariant() == "false" ||
+                  parms[i].ToLowerInvariant() == "on" || // HTML checkbox value
+                  parms[i].ToLowerInvariant() == "off" || // HTML checkbox value
+                  parms[i].ToLowerInvariant() == "checked") // HTML checkbox value
+          {
+            if (parms[i].ToLowerInvariant() == "on" || parms[i].ToLowerInvariant() == "checked")
+              parms[i] = "true";
+            else if (parms[i].ToLowerInvariant() == "off")
+              parms[i] = "false";
+
+            _parms[i] = Convert.ToBoolean(parms[i], CultureInfo.InvariantCulture);
+          }
+          #endregion
+          #region DATETIME
+          else if (parms[i].IsDate(out dt))
+          {
+            _parms[i] = dt.Value;
+          }
+          #endregion
+          #region DEFAULT
+          else
+            _parms[i] = parms[i];
+          #endregion
+        }
+
+        return _parms;
+      }
+
+      return null;
+    }
+
+    //// This method is based on the following example at StackOverflow:
+    ////
+    //// http://stackoverflow.com/questions/735350/how-to-get-a-users-client-ip-address-in-asp-net
+    //public static string IPAddress(this HttpContextBase ctx)
+    //{
+    //  if (ctx == null)
+    //    throw new ArgumentNullException("ctx", MainConfig.HttpContextNullError);
+
+    //  string ip = ctx.Request.ServerVariables["HTTP_X_FORWARDED_FOR"];
+
+    //  if (string.IsNullOrEmpty(ip))
+    //    return ctx.Request.ServerVariables["REMOTE_ADDR"];
+    //  else
+    //    return ip.Split(',')[0];
+    //}
+
+    public static string NewLinesToBR(this string value)
+    {
+      if (string.IsNullOrEmpty(value))
+        throw new ArgumentNullException("value");
+
+      return value.Trim().Replace("\n", "<br />");
+    }
+
+    public static string StripHtml(this string value)
+    {
+      if (string.IsNullOrEmpty(value))
+        throw new ArgumentNullException("value");
+
+      HtmlDocument htmlDoc = new HtmlDocument();
+      htmlDoc.LoadHtml(value);
+
+      if (htmlDoc == null) return value;
+
+      StringBuilder sanitizedString = new StringBuilder();
+
+      foreach (var node in htmlDoc.DocumentNode.ChildNodes)
+      {
+        sanitizedString.Append(node.InnerText);
+      }
+
+      return sanitizedString.ToString();
+    }
+
+    public static bool InRange(this int value, int min, int max)
+    {
+      return value <= max && value >= min;
+    }
+
+    public static bool InRange(this long value, int min, int max)
+    {
+      return value <= max && value >= min;
+    }
+
+    public static string ToJson<T>(this IEnumerable<T> type) where T : Model
+    {
+      return JsonConvert.SerializeObject(type);
+    }
+
+    public static bool IsDate(this string value, out DateTime? dt)
+    {
+      DateTime x;
+      dt = null;
+
+      if (DateTime.TryParse(value, out x))
+      {
+        dt = x;
+
+        return true;
+      }
+
+      return false;
+    }
+
+    public static bool IsLong(this string value)
+    {
+      long x = 0;
+
+      return long.TryParse(value, out x);
+    }
+
+    public static bool IsInt32(this string value)
+    {
+      int x = 0;
+
+      return int.TryParse(value, out x);
+    }
+
+    public static bool IsInt64(this string value)
+    {
+      long x = 0;
+
+      if (Int64.TryParse(value, out x))
+        return true;
+
+      return false;
+    }
+
+    public static bool IsDouble(this string value)
+    {
+      double x = 0;
+
+      return double.TryParse(value, out x);
+    }
+
+    public static bool IsBool(this string value)
+    {
+      bool x = false;
+
+      return bool.TryParse(value, out x);
+    }
+
+    //public static List<T> ModifyForEach<T>(this List<T> l, Func<T, T> a)
+    //{
+    //  List<T> newList = new List<T>();
+
+    //  foreach (T t in l)
+    //  {
+    //    newList.Add(a(t));
+    //  }
+
+    //  return newList;
+    //}
+
+    public static string GetMetadata(this Enum obj)
+    {
+      if (obj != null)
+      {
+        MetadataAttribute mda = (MetadataAttribute)obj.GetType().GetField(obj.ToString()).GetCustomAttributes(false).FirstOrDefault(x => x is MetadataAttribute);
+
+        if (mda != null)
+          return mda.Metadata;
+      }
+
+      return null;
+    }
+
+    public static string GetDescriptiveName(this Enum obj)
+    {
+      if (obj != null)
+      {
+        DescriptiveNameAttribute dna = (DescriptiveNameAttribute)obj.GetType().GetField(obj.ToString()).GetCustomAttributes(false).FirstOrDefault(x => x is DescriptiveNameAttribute);
+
+        if (dna != null)
+          return dna.Name;
+      }
+
+      return null;
+    }
+
+    public static string GetUniqueId(this Enum obj)
+    {
+      if (obj == null)
+        throw new ArgumentNullException("obj");
+
+      UniqueIdAttribute uid = (UniqueIdAttribute)obj.GetType().GetField(obj.ToString()).GetCustomAttributes(false).FirstOrDefault(x => x is UniqueIdAttribute);
+
+      if (uid != null)
+      {
+        uid.GenerateID(string.Format(CultureInfo.InvariantCulture, "{0}.{1}", obj.GetType().Name, obj.ToString()));
+
+        return uid.Id;
+      }
+
+      return null;
+    }
+
+    // This code was adapted to work with FileInfo/DirectoryInfo but was originally from the following question on SO:
+    //
+    // http://stackoverflow.com/questions/929276/how-to-recursively-list-all-the-files-in-a-directory-in-c
+    public static IEnumerable<FileInfo> GetAllFiles(this DirectoryInfo dirInfo)
+    {
+      string path = dirInfo.FullName;
+
+      Queue<string> queue = new Queue<string>();
+      queue.Enqueue(path);
+      while (queue.Count > 0)
+      {
+        path = queue.Dequeue();
+        try
+        {
+          foreach (string subDir in Directory.GetDirectories(path))
+          {
+            queue.Enqueue(subDir);
+          }
+        }
+        catch (Exception ex)
+        {
+          Console.Error.WriteLine(ex);
+        }
+
+        FileInfo[] fileInfos = null;
+        try
+        {
+          fileInfos = new DirectoryInfo(path).GetFiles();
+        }
+        catch
+        {
+          throw;
+        }
+        if (fileInfos != null)
+        {
+          for (int i = 0; i < fileInfos.Length; i++)
+          {
+            yield return fileInfos[i];
+          }
+        }
+      }
+    }
+  }
+  #endregion
+
+  #region ENCRYPTION
+  public static class Encryption
+  {
+    private static byte[] GetPassphraseHash(string passphrase, int size)
+    {
+      byte[] phash;
+
+      using (SHA1CryptoServiceProvider hashsha1 = new SHA1CryptoServiceProvider())
+      {
+        phash = hashsha1.ComputeHash(ASCIIEncoding.ASCII.GetBytes(passphrase));
+        Array.Resize(ref phash, size);
+      }
+
+      return phash;
+    }
+
+    public static string Encrypt(string original)
+    {
+      return Encrypt(original, MainConfig.EncryptionKey);
+    }
+
+    public static string Decrypt(string encrypted)
+    {
+      return Decrypt(encrypted, MainConfig.EncryptionKey);
+    }
+
+    public static string Encrypt(string original, string key)
+    {
+      string encrypted = string.Empty;
+
+      using (TripleDESCryptoServiceProvider des = new TripleDESCryptoServiceProvider())
+      {
+        des.Key = GetPassphraseHash(key, des.KeySize / 8);
+        des.IV = GetPassphraseHash(key, des.BlockSize / 8);
+        des.Padding = PaddingMode.PKCS7;
+        des.Mode = CipherMode.ECB;
+
+        byte[] buff = ASCIIEncoding.ASCII.GetBytes(original);
+        encrypted = Convert.ToBase64String(des.CreateEncryptor().TransformFinalBlock(buff, 0, buff.Length));
+      }
+
+      return encrypted;
+    }
+
+    public static string Decrypt(string encrypted, string key)
+    {
+      string decrypted = string.Empty;
+
+      using (TripleDESCryptoServiceProvider des = new TripleDESCryptoServiceProvider())
+      {
+        des.Key = GetPassphraseHash(key, des.KeySize / 8);
+        des.IV = GetPassphraseHash(key, des.BlockSize / 8);
+        des.Padding = PaddingMode.PKCS7;
+        des.Mode = CipherMode.ECB;
+
+        byte[] buff = Convert.FromBase64String(encrypted);
+        decrypted = ASCIIEncoding.ASCII.GetString(des.CreateDecryptor().TransformFinalBlock(buff, 0, buff.Length));
+      }
+
+      return decrypted;
+    }
+  }
+  #endregion
+
+  #endregion
+
+  #region ASP.NET HOOKS - IHTTPHANDLER / IHTTPMODULE
+
+  #region HTTP HANDLER
+  public sealed class AuroraHandler : IHttpHandler, IRequiresSessionState
+  {
+    public bool IsReusable
+    {
+      get
+      {
+        return false;
+      }
+    }
+
+    public void ProcessRequest(HttpContext context)
+    {
+      new AuroraEngine(new AuroraContext(new HttpContextWrapper(context)));
+    }
+  }
+  #endregion
+
+  #region HTTP MODULE
+  public sealed class AuroraModule : IHttpModule
+  {
+    public void Dispose() { }
+
+    public void Init(HttpApplication context)
+    {
+      if (context == null)
+        throw new ArgumentNullException("context");
+
+      PagesSection pageSection = new PagesSection();
+      pageSection.ValidateRequest = MainConfig.ValidateRequest;
+
+      context.Error += new EventHandler(app_Error);
+    }
+
+    private void app_Error(object sender, EventArgs e)
+    {
+      HttpContext context = HttpContext.Current;
+      Exception ex = context.Server.GetLastError();
+      CustomError customError = ApplicationInternals.GetCustomError(new AuroraContext(new HttpContextWrapper(context)), false);
+
+      customError.OnError(null, ex).Render();
+      context.Server.ClearError();
+    }
+  }
+  #endregion
+
   #endregion
 }
