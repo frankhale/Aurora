@@ -50,8 +50,9 @@ Changelog:
 - Aurora now uses a naive wrapped HttpContext. The context only exposes what
   the framework actually needs. This is one of the changes that will make unit
   testing much simpler.
-- The RouteEngine now only finds routes. The AuroraEngine is responsible for 
-  enforcing the business rules of routing. 
+- The RouteEngine's job has been relegated to finding routes. 
+- The AuroraEngine is now responsible for route invocation and the rules 
+  governing it.
 - The ViewEngine has got a major face lift as far as it's code goes. This was
   glued in today and I'm sure there are some outstanding issues and I've got
   some band-aids in place (rough edges and crap) that needs to be taken care of.
