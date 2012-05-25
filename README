@@ -4,7 +4,7 @@ NOTE: See source code comments for usage.
 
 Frank Hale <frankhale@gmail.com>
 
-Date: 23 May 2012
+Date: 24 May 2012
 
 --------------------
 --- Feature List ---
@@ -33,8 +33,16 @@ Date: 23 May 2012
   against an Active Directory user. Typically for use in client certificate
   authentication.
 - Bundling/Minifying of Javascript and CSS.
+- Plugin support (can be used by apps but is not integrated at all into the
+  framework pipeline.)
  
 Changelog:
+
+24 May 2012
+
+- Fixed regressions in the refactoring of the view engine. Things may not be
+  totally perfect yet but they are better than yesterdays commit. =)
+- A little code cleanup.
 
 23 May 2012
 

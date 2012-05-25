@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 23 May 2012
+// Updated On: 24 May 2012
 //
 // Contact Info:
 //
@@ -37,6 +37,8 @@
 //   against an Active Directory user. Typically for use in client certificate
 //   authentication.
 // - Bundling/Minifying of Javascript and CSS.
+// - Plugin support (can be used by apps but is not integrated at all into the
+//   framework pipeline.)
 //
 // ---------------
 // -- RATIONALE --
@@ -44,9 +46,8 @@
 //
 // -- What is this?
 //
-// Aurora is a simple framework that aims to have modern features but have a 
-// small code footprint. What you get is a tight MVC framework that just does
-// enough to get the job done.
+// Aurora is an MVC web framework that aims to have modern features but have a 
+// small code footprint. 
 //
 // -- Why develop yet another web framework on top of ASP.NET?
 //
@@ -58,16 +59,16 @@
 //
 // As with all things there is more than one way to skin a cat and my view of 
 // how a framework should work might be quite a bit different from yours. If you 
-// find something amazingly stupid please let me know so I can fix it.
+// find something amazingly stupid in here please let me know so I can fix it.
 //
 // Patches are welcome!
 //
 // -- Why is all the code in a single file?
 //
-// The great thing about this framework in my opinion is that it's
-// self contained in just a single file. Everything is in here, there is no 
-// hidden magic and if you want to know what's going on just look below. No need
-// to wade through file after file to figure out how the thing works. A big turn
+// The great thing about this framework in my opinion is that it's self 
+// contained in just a single file. Everything is in here, there is no hidden 
+// magic and if you want to know what's going on just look below. No need to 
+// wade through file after file to figure out how the thing works. A big turn
 // off when looking at somebody elses code (in my opinion) is shuffling through 
 // the files to figure how all of it is put together. 
 //
@@ -77,21 +78,11 @@
 // descriptive commentary throughout to describe the classes, how they work and 
 // why they are there.
 //
-// I have not provided XML documentation comments (yet?). This is really because
-// I want to encourage others to look at the code, plus, I want to provide a 
-// closer relationship with the code and it's comments. I think they both go 
-// together and they should be taken as a whole not just one by itself. If you 
-// want to know the why or how then look below rather than just looking at one
-// side of the puzzle through Visual Studio intellisense.
-//
 // -- Conventions used in this file:
 //
 // Regions are heavily (ab)used and are the logical separator between sections
 // of code. Also comments that are intended to be documentation are constrained
-// to 80 columns. Transitional comments (short lived that is) are not. The 
-// documentation section will be the definitive source for the how to use the 
-// framework. Comments on the code level will go into why I am doing or my 
-// mindset at the time of writing.
+// to 80 columns. Transitional comments (short lived that is) are not. 
 //
 
 #region LICENSE - GPL version 3 <http://www.gnu.org/licenses/gpl-3.0.html>
@@ -115,7 +106,7 @@
 //
 #endregion
 
-#region DOCUMENTATION
+#region DOCUMENTATION (TODO: NEEDS SOME LOVE AGAIN!)
 // ----------------
 // --- Building ---
 // ----------------
@@ -1316,6 +1307,12 @@ using Newtonsoft.Json;
 using MarkdownSharp;
 
 #if TEST
+//
+// Aurora will be getting built in support for TDD using Nunit. What that means
+// will be defined later but suffice it to say that writing tests will be as 
+// seamless and simple as possible to encourage TDD design principles within
+// Aurora applications.
+// 
 using NUnit.Framework;
 #endif
 
@@ -1329,6 +1326,7 @@ using DotNetOpenAuth.OpenId;
 using DotNetOpenAuth.OpenId.Extensions.SimpleRegistration;
 using DotNetOpenAuth.OpenId.RelyingParty;
 #endif
+
 #endregion
 
 #region ASSEMBLY INFORMATION
@@ -1339,14 +1337,15 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyCopyright("(GNU GPLv3) Copyleft © 2011-2012")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("0.99.69.0")]
+[assembly: AssemblyVersion("0.99.70.0")]
 #endregion
 
 #region TODO (MAYBE)
+//TODO: Figure out how the Plugin infrastructure will be integrated into the framework pipeline (if at all). 
 //TODO: Continue the documentation rewrite/revision
 //TODO: Upload NuGet package to NuGet.org Package Gallery
 //TODO: Add more events to the FrontController class, decide how much power it'll ultimately have
-//TODO: RouteManager: Add model validation checking to the form parameters if they are being placed directly in the action parameter list rather than in a model
+//TODO: Routing: Add model validation checking to the form parameters if they are being placed directly in the action parameter list rather than in a model
 //TODO: HTMLHelpers: All of the areas where I'm using these Func<> lambda (craziness!) params to add name=value pairs to HTML tags need to have complimentary methods that also use a dictionary. The infrastructure has been put in place in the base HTML helper but not used yet.
 //TODO: Add HTTP Patch verb support (need to research this more!)
 //TODO: If we are adding bound parameters during the OnInit() method execution then we should have a method overload that infers the name of the current controller.
@@ -1400,6 +1399,7 @@ namespace Aurora
         {
           base.BaseRemoveAt(index);
         }
+
         this.BaseAdd(index, value);
       }
     }
@@ -1473,6 +1473,7 @@ namespace Aurora
         {
           base.BaseRemoveAt(index);
         }
+
         this.BaseAdd(index, value);
       }
     }
@@ -1700,6 +1701,7 @@ namespace Aurora
     public static string JsonAntiForgeryTokenMissing = "An AntiForgry token is required on all Json requests";
     public static string AntiForgeryTokenMissingError = "An AntiForgery token is required on all forms unless RequireAntiForgeryToken is set to false in the [HttpPost] attribute";
     public static string AntiForgeryTokenVerificationFailedError = "AntiForgery token verification failed";
+    public static string AntiForgeryTokenNullOrEmptyError = "AntiForgery token cannot be null or empty.";
     public static string AuroraAuthCookieName = "AuroraAuthCookie";
     public static string AuroraAuthTypeName = "AuroraAuth";
     public static string ViewsFolderName = "Views";
@@ -1777,7 +1779,9 @@ namespace Aurora
       List<Type> types = null;
 
       if (context.Application[sessionName] != null)
+      {
         types = context.Application[sessionName] as List<Type>;
+      }
       else
       {
         try
@@ -1805,7 +1809,9 @@ namespace Aurora
           CustomError customError = GetCustomError(context, false);
 
           if (customError != null)
+          {
             customError.OnError(errorMessage, rtle);
+          }
         }
 
         context.Application[sessionName] = types;
@@ -1841,7 +1847,9 @@ namespace Aurora
         context.Application[MainConfig.ControllerInstancesSessionName] = controllerInstances;
       }
       else
+      {
         controllerInstances = context.Application[MainConfig.ControllerInstancesSessionName] as List<Controller>;
+      }
 
       return controllerInstances;
     }
@@ -1917,10 +1925,15 @@ namespace Aurora
         PartitionAttribute partitionAttrib = (PartitionAttribute)c.GetCustomAttributes(false).FirstOrDefault(x => x.GetType() == typeof(PartitionAttribute));
 
         if (partitionAttrib != null)
+        {
           partitionNames[c.Name] = partitionAttrib.Name;
+        }
       }
 
-      if (partitionNames.Count() > 0) return partitionNames;
+      if (partitionNames.Count() > 0)
+      {
+        return partitionNames;
+      }
 
       return null;
     }
@@ -1953,7 +1966,10 @@ namespace Aurora
         routableActionNames.Add(ai.ActionMethod.Name);
       }
 
-      if (routableActionNames.Count() > 0) return routableActionNames;
+      if (routableActionNames.Count() > 0)
+      {
+        return routableActionNames;
+      }
 
       return null;
     }
@@ -1999,7 +2015,9 @@ namespace Aurora
                   x.Action.Name == ai.ActionMethod.Name &&
                   x.Action.GetParameters().Count() == ai.ActionMethod.GetParameters().Count()
               ) != null)
+            {
               continue;
+            }
 
             RouteInfo routeInfo = new RouteInfo()
             {
@@ -2038,7 +2056,10 @@ namespace Aurora
                                        from type in assembly.GetTypes().Where(x => x.GetInterface(typeof(IActionParamTransform<,>).Name) != null && x.Name == apt.TransformName)
                                        select type).FirstOrDefault();
 
-      if (actionTransformClassType != null) return actionTransformClassType;
+      if (actionTransformClassType != null)
+      { 
+        return actionTransformClassType; 
+      }
 
       throw new ActionParameterTransformClassUnknownException(MainConfig.ActionParameterTransformClassUnknownError);
     }
@@ -2064,7 +2085,9 @@ namespace Aurora
       List<RouteInfo> routes = context.Application[MainConfig.RoutesSessionName] as List<RouteInfo>;
 
       if (routes == null)
+      {
         routes = new List<RouteInfo>();
+      }
 
       routes.Add(new RouteInfo()
       {
@@ -2091,11 +2114,15 @@ namespace Aurora
       if (frontController != null && frontController.Count > 0)
       {
         if (frontController.Count > 1)
+        {
           throw new Exception(MainConfig.OnlyOneFrontControllerClassPerApplicationError);
+        }
 
         // Check to see if we already have an instance created otherwise create one
         if (ctx.Application[MainConfig.FrontControllerInstanceSessionName] != null)
+        {
           return ctx.Application[MainConfig.FrontControllerInstanceSessionName] as FrontController;
+        }
         else
         {
           FrontController fc = FrontController.CreateInstance(frontController[0], ctx);
@@ -2141,7 +2168,7 @@ namespace Aurora
 
         if (AuroraConfig.InDebugMode)
         {
-          viewEngine.Refresh();
+          viewEngine.Refresh(context);
         }
       }
       else
@@ -2161,6 +2188,8 @@ namespace Aurora
       if (!MainConfig.AuroraDebug && context.Application[MainConfig.RouteEngineSessionName] != null)
       {
         routeEngine = context.Application[MainConfig.RouteEngineSessionName] as IRouteEngine;
+
+        routeEngine.Refresh(context);
       }
       else
       {
@@ -2280,7 +2309,9 @@ namespace Aurora
         string k = AppState.AllKeys.FirstOrDefault(x => x == key);
 
         if (string.IsNullOrEmpty(k))
+        {
           return null;
+        }
 
         return AppState[key];
       }
@@ -2361,13 +2392,17 @@ namespace Aurora
     public void Remove(string key)
     {
       if (Session.ContainsKey(key))
+      {
         Session.Remove(key);
+      }
     }
 
     public object Get(string key)
     {
       if (Session.ContainsKey(key))
+      {
         return Session[key];
+      }
 
       return null;
     }
@@ -2377,7 +2412,9 @@ namespace Aurora
       get
       {
         if (Session.ContainsKey(key))
+        {
           return Session[key];
+        }
 
         return null;
       }
@@ -2546,9 +2583,13 @@ namespace Aurora
           string ip = RawContext.Request.ServerVariables["HTTP_X_FORWARDED_FOR"];
 
           if (string.IsNullOrEmpty(ip))
+          {
             return RawContext.Request.ServerVariables["REMOTE_ADDR"];
+          }
           else
+          {
             return ip.Split(',')[0];
+          }
         }
         else
         {
@@ -2689,7 +2730,9 @@ namespace Aurora
         Cache = ctx.Cache;
 
         if (ctx.Request.ClientCertificate != null)
+        {
           RequestClientCertificate = new X509Certificate2(ctx.Request.ClientCertificate.Certificate);
+        }
 
         Application = new AuroraApplicationState(ctx.Application);
         Session = new AuroraSession(ctx.Session);
@@ -2753,61 +2796,81 @@ namespace Aurora
     public void ValidateInput()
     {
       if (RawContext != null)
+      {
         RawContext.Request.ValidateInput();
+      }
     }
 
     public void RewritePath(string path)
     {
       if (RawContext != null)
+      {
         RawContext.RewritePath(path);
+      }
     }
 
     public void ResponseRedirect(string url)
     {
       if (RawContext != null)
+      {
         RawContext.Response.Redirect(url);
+      }
     }
 
     public void ResponseWrite(string text)
     {
       if (RawContext != null)
+      {
         RawContext.Response.Write(text);
+      }
     }
 
     public void ResponseBinaryWrite(byte[] buffer)
     {
       if (RawContext != null)
+      {
         RawContext.Response.BinaryWrite(buffer);
+      }
     }
 
     public void ResponseTransmitFile(string fileName)
     {
       if (RawContext != null)
+      {
         RawContext.Response.TransmitFile(fileName);
+      }
     }
 
     public void ResponseAddHeader(string name, string value)
     {
       if (RawContext != null)
+      {
         RawContext.Response.AddHeader(name, value);
+      }
     }
 
     public void ResponseAppendHeader(string name, string value)
     {
       if (RawContext != null)
+      {
         RawContext.Response.AppendHeader(name, value);
+      }
     }
 
     public void ResponseClearContent()
     {
       if (RawContext != null)
+      {
         RawContext.Response.ClearContent();
+      }
     }
 
     public void ResponseClearHeaders()
     {
       if (RawContext != null)
+      {
         RawContext.Response.ClearHeaders();
+      }
     }
 
     public void ResponseSetCachePolicy(AuroraCachePolicy policy)
@@ -2835,13 +2898,17 @@ namespace Aurora
     public void ResponseStatusCode(HttpStatusCode statusCode)
     {
       if (RawContext != null)
+      {
         RawContext.Response.StatusCode = (int)statusCode;
+      }
     }
 
     public void ServerClearError()
     {
       if (RawContext != null)
+      {
         RawContext.Server.ClearError();
+      }
     }
   }
   #endregion
@@ -2858,7 +2925,9 @@ namespace Aurora
     public AuroraEngine(AuroraContext ctx)
     {
       if (ctx == null)
+      {
         throw new ArgumentNullException("ctx");
+      }
 
       context = ctx;
 
@@ -2866,7 +2935,9 @@ namespace Aurora
       bundleManager = new BundleManager(ctx);
 
       if (!MainConfig.SupportedHttpVerbs.Contains(ctx.RequestType))
+      {
         throw new Exception(string.Format(CultureInfo.CurrentCulture, MainConfig.HttpRequestTypeNotSupportedError, ctx.RequestType));
+      }
 
       if (MainConfig.ValidateRequest)
       {
@@ -2968,7 +3039,9 @@ namespace Aurora
       {
         // Front Controller Static route event
         if (frontController != null)
+        {
           frontController.RaiseEvent(RouteHandlerEventType.Static, path, null);
+        }
 
         return true;
       }
@@ -2994,7 +3067,9 @@ namespace Aurora
             if (StaticFileManager.IsProtected(context, staticFilePath, out protectedRoles))
             {
               if (!SecurityManager.IsAuthenticated(context, null, protectedRoles))
+              {
                 return iar;
+              }
             }
 
             return new PhysicalFileResult(context, staticFilePath);
@@ -3029,23 +3104,34 @@ namespace Aurora
         routeInfo.ControllerInstance.CurrentRoute = routeInfo;
 
         #region SECURITY CHECKING
-        if (reqAttrib.HttpsOnly && !context.IsSecureConnection) return result;
+        if (reqAttrib.HttpsOnly && !context.IsSecureConnection)
+        {
+          return result;
+        }
 
         if (reqAttrib.SecurityType == ActionSecurity.Secure)
         {
           if (!SecurityManager.IsAuthenticated(context, routeInfo, reqAttrib.Roles))
           {
             if (frontController != null)
+            {
               frontController.RaiseEvent(RouteHandlerEventType.FailedSecurity, path, routeInfo);
+            }
 
             if (!string.IsNullOrEmpty(reqAttrib.RedirectWithoutAuthorizationTo))
+            {
               return new RedirectResult(context, reqAttrib.RedirectWithoutAuthorizationTo);
+            }
             else
+            {
               throw new Exception(MainConfig.RedirectWithoutAuthorizationToError);
+            }
           }
 
           if (frontController != null)
+          {
             frontController.RaiseEvent(RouteHandlerEventType.PassedSecurity, path, routeInfo);
+          }
         }
         #endregion
 
@@ -3057,7 +3143,9 @@ namespace Aurora
             if (context.QueryString[MainConfig.AntiForgeryTokenName] != null)
             {
               if (!AntiForgeryToken.VerifyToken(context))
+              {
                 throw new AntiForgeryTokenMissingException(MainConfig.JsonAntiForgeryTokenMissing);
+              }
             }
           }
           #endregion
@@ -3069,7 +3157,9 @@ namespace Aurora
             if (context.Cache[path] != null)
             {
               if (frontController != null)
+              {
                 frontController.RaiseEvent(RouteHandlerEventType.CachedViewResult, path, routeInfo);
+              }
 
               CachedViewResult vr = (context.Cache[path] as CachedViewResult);
 
@@ -3092,10 +3182,14 @@ namespace Aurora
           if (!string.IsNullOrEmpty(antiForgeryToken))
           {
             if (!AntiForgeryToken.VerifyToken(context, antiForgeryToken))
+            {
               throw new Exception(MainConfig.AntiForgeryTokenVerificationFailedError);
+            }
           }
           else
+          {
             throw new Exception(MainConfig.AntiForgeryTokenMissingError);
+          }
         }
         #endregion
 
@@ -3104,7 +3198,9 @@ namespace Aurora
         routeInfo.ActionParameterTransforms = DetermineActionParameterTransforms(routeInfo);
 
         if (routeInfo.ActionParameterTransforms != null && routeInfo.ActionParameterTransforms.Count > 0)
+        {
           routeInfo.ActionParameters = ProcessActionParameterTransforms(routeInfo, routeInfo.ActionParameterTransforms);
+        }
         #endregion
 
         result = InvokeAction(routeInfo);
@@ -3127,7 +3223,9 @@ namespace Aurora
 
         // Front Controller PostAction event
         if (frontController != null)
+        {
           frontController.RaiseEvent(RouteHandlerEventType.Post, path, routeInfo);
+        }
 
         // Execute Controller AfterAction
         routeInfo.ControllerInstance.RaiseEvent(RouteHandlerEventType.Post, path, routeInfo);
@@ -3151,7 +3249,9 @@ namespace Aurora
               MethodInfo boundActionObject = i.GetType().GetMethod("ExecuteBeforeAction");
 
               if (boundActionObject != null)
+              {
                 boundActionObject.Invoke(i, new object[] { context });
+              }
             }
           }
         }
@@ -3159,7 +3259,9 @@ namespace Aurora
         if (!routeInfo.IsFiltered)
         {
           if (routeInfo.Dynamic && context.Session[MainConfig.FromRedirectOnlySessionFlag] == null)
+          {
             return null;
+          }
 
           #region CHECK TO SEE IF WE HAVE ACTION FILTERS AND MODIFY THE ACTION PARAMETERS ACCORDINGLY
           List<ActionFilterAttribute> filters = routeInfo.Action.GetCustomAttributes(false).Where(x => x.GetType().BaseType == typeof(ActionFilterAttribute)).Cast<ActionFilterAttribute>().ToList();
@@ -3175,7 +3277,9 @@ namespace Aurora
               af.OnFilter(routeInfo);
 
               if (af.FilterResult != null)
+              {
                 filterResults.Add(af.FilterResult);
+              }
             }
 
             if (filterResults.Count() > 0)
@@ -3183,7 +3287,9 @@ namespace Aurora
               var filteredMethodParams = routeInfo.Action.GetParameters().Where(x => x.GetType().GetInterfaces().FirstOrDefault(i => i.UnderlyingSystemType == typeof(IActionFilterResult)) != null);
 
               if (filteredMethodParams != null)
+              {
                 routeInfo.ActionParameters = filterResults.ToArray().Concat(routeInfo.ActionParameters).ToArray();
+              }
             }
           }
           #endregion
@@ -3191,7 +3297,9 @@ namespace Aurora
           object _result = routeInfo.Action.Invoke(routeInfo.ControllerInstance, routeInfo.ActionParameters);
 
           if (context.Session[MainConfig.FromRedirectOnlySessionFlag] != null)
+          {
             context.Session.Remove(MainConfig.FromRedirectOnlySessionFlag);
+          }
 
           result = (routeInfo.Action.ReturnType.GetInterfaces().Contains(typeof(IViewResult))) ? (IViewResult)_result : new VoidResult();
         }
@@ -3217,7 +3325,9 @@ namespace Aurora
           SanitizeAttribute sanitize = (SanitizeAttribute)actionParms[i].GetCustomAttributes(false).FirstOrDefault(x => x is SanitizeAttribute);
 
           if (sanitize != null)
+          {
             sanitize.Sanitize(processedParams[i].ToString());
+          }
         }
       }
 
@@ -3241,7 +3351,9 @@ namespace Aurora
           // The ActionParamTransform name corresponds to a class that implements the IActionParamTransform interface
 
           if (routeInfo.ActionParameterTransforms == null)
+          {
             routeInfo.ActionParameterTransforms = new List<ActionParamTransformInfo>();
+          }
 
           // Look up class
           Type actionParamTransformClassType = ApplicationInternals.GetActionTransformClassType(apt);
@@ -3268,7 +3380,10 @@ namespace Aurora
         }
       }
 
-      if (actionParameterTransforms.Count() > 0) return actionParameterTransforms;
+      if (actionParameterTransforms.Count() > 0)
+      {
+        return actionParameterTransforms;
+      }
 
       return null;
     }
@@ -3320,6 +3435,7 @@ namespace Aurora
   #region AURORA ROUTE ENGINE
   internal interface IRouteEngine
   {
+    void Refresh(AuroraContext ctx);
     RouteInfo FindRoute(string path);
   }
 
@@ -3361,7 +3477,9 @@ namespace Aurora
         PropertyInfo[] props = m.GetProperties();
 
         if (props.Count() == 0)
+        {
           throw new Exception(MainConfig.PostedFormActionIncorrectNumberOfParametersError);
+        }
 
         DataType = m;
         DataTypeInstance = Activator.CreateInstance(DataType);
@@ -3373,7 +3491,9 @@ namespace Aurora
           if (p.PropertyType == typeof(int))
           {
             if (context.Form[p.Name].IsInt32())
+            {
               p.SetValue(DataTypeInstance, Convert.ToInt32(context.Form[p.Name], CultureInfo.InvariantCulture), null);
+            }
           }
           else if (p.PropertyType == typeof(string))
           {
@@ -3382,14 +3502,18 @@ namespace Aurora
             SanitizeAttribute sanitize = (SanitizeAttribute)p.GetCustomAttributes(false).FirstOrDefault(x => x is SanitizeAttribute);
 
             if (sanitize != null)
+            {
               sanitize.Sanitize(value);
+            }
 
             p.SetValue(DataTypeInstance, value, null);
           }
           else if (p.PropertyType == typeof(bool))
           {
             if (context.Form[p.Name].IsBool())
+            {
               p.SetValue(DataTypeInstance, Convert.ToBoolean(context.Form[p.Name], CultureInfo.InvariantCulture), null);
+            }
           }
           else if (p.PropertyType == typeof(DateTime?))
           {
@@ -3413,7 +3537,9 @@ namespace Aurora
           else if (p.PropertyType == typeof(HttpPostedFile))
           {
             if (context.Files.Length > 0)
+            {
               p.SetValue(DataTypeInstance, context.Files[0], null);
+            }
           }
         }
       }
@@ -3436,6 +3562,11 @@ namespace Aurora
       context = ctx;
     }
 
+    public void Refresh(AuroraContext ctx)
+    {
+      context = ctx;
+    }
+
     #region PARAM GETTERS
     private static object[] GetFrontParams(RouteInfo routeInfo)
     {
@@ -3452,7 +3583,9 @@ namespace Aurora
       string[] urlStringParams = path.Replace(alias, string.Empty).Split('/').Where(x => !string.IsNullOrEmpty(x)).Select(x => HttpUtility.UrlEncode(x)).ToArray();
 
       if (urlStringParams != null)
+      {
         return urlStringParams.ToObjectArray();
+      }
 
       return new object[] { };
     }
@@ -3482,7 +3615,9 @@ namespace Aurora
             NameValueCollection form = new NameValueCollection(context.Form);
 
             if (form[MainConfig.AntiForgeryTokenName] != null)
+            {
               form.Remove(MainConfig.AntiForgeryTokenName);
+            }
 
             string[] formValues = new string[form.AllKeys.Length];
 
@@ -3507,7 +3642,9 @@ namespace Aurora
       }
 
       if (routeInfo.Payload != null && routeInfo.Payload.Count() > 0)
+      {
         return new object[] { routeInfo.Payload };
+      }
 
       return new object[] { };
     }
@@ -3535,7 +3672,9 @@ namespace Aurora
       List<RouteInfo> routeInfos = ApplicationInternals.AllRouteInfos(context);
 
       if (routeInfos == null)
+      {
         return null;
+      }
 
       if (context.Session[MainConfig.FromRedirectOnlySessionFlag] != null)
       {
@@ -3546,11 +3685,17 @@ namespace Aurora
                                .Where(x => path.StartsWith(x.Alias, StringComparison.Ordinal))
                                .Select(x => x.Alias).FirstOrDefault();
 
-      if (!MainConfig.PathTokenRE.IsMatch(path)) return null;
+      if (!MainConfig.PathTokenRE.IsMatch(path))
+      {
+        return null;
+      }
 
       List<RouteInfo> routeSlice = routeInfos.Where(x => x.Alias == alias && x.RequestType == context.RequestType).ToList();
 
-      if (routeSlice.Count() == 0) return null;
+      if (routeSlice.Count() == 0)
+      {
+        return null;
+      }
 
       object[] urlParams = GetURLParams(path, alias);
       object[] formParams = GetFormParams();
@@ -3573,19 +3718,30 @@ namespace Aurora
 
         object[] actionParameters = actionParametersList.ToArray();
 
-        if (fromRedirectOnlyFlag && !routeInfo.FromRedirectOnlyInfo) continue;
+        if (fromRedirectOnlyFlag && !routeInfo.FromRedirectOnlyInfo)
+        {
+          continue;
+        }
 
-        if (actionParameters.Count() < routeInfo.Action.GetParameters().Count()) continue;
+        if (actionParameters.Count() < routeInfo.Action.GetParameters().Count())
+        {
+          continue;
+        }
 
         Type[] actionParameterTypes = actionParameters.Select(x => (x != null) ? x.GetType() : null).ToArray();
         Type[] methodParamTypes = routeInfo.Action.GetParameters().Select(x => x.ParameterType).ToArray();
 
-        if (methodParamTypes.Count() < actionParameters.Count()) continue;
+        if (methodParamTypes.Count() < actionParameters.Count())
+        {
+          continue;
+        }
 
         var filteredMethodParams = methodParamTypes.Where(x => x.GetInterfaces().FirstOrDefault(i => i.UnderlyingSystemType == typeof(IActionFilterResult)) != null);
 
         if (filteredMethodParams != null && filteredMethodParams.Count() > 0)
+        {
           methodParamTypes = methodParamTypes.Except(filteredMethodParams).ToArray();
+        }
 
         List<Type> matches = new List<Type>();
         ParameterInfo[] methodParameterInfos = routeInfo.Action.GetParameters();
@@ -3645,13 +3801,17 @@ namespace Aurora
     public void AddAction(string actionName)
     {
       if (ActionNames.FirstOrDefault(x => x == actionName) == null)
+      {
         ActionNames.Add(actionName);
+      }
     }
 
     public void AddBindInstance(object bindInstance)
     {
       if (BindInstances.FirstOrDefault(x => x == bindInstance) == null)
+      {
         BindInstances.Add(bindInstance);
+      }
     }
 
     public void RemoveBindInstance(string actionName, object bindInstance)
@@ -3672,14 +3832,18 @@ namespace Aurora
     public ActionBinder(AuroraContext ctx)
     {
       if (ctx == null)
+      {
         throw new ArgumentNullException("ctx", MainConfig.HttpContextNullError);
+      }
 
       this.context = ctx;
 
       bindings = new Dictionary<string, List<ActionBinding>>();
 
       if (ctx.Application[MainConfig.ActionBinderSessionName] != null)
+      {
         bindings = ctx.Application[MainConfig.ActionBinderSessionName] as Dictionary<string, List<ActionBinding>>;
+      }
       else
       {
         bindings = new Dictionary<string, List<ActionBinding>>();
@@ -3691,10 +3855,14 @@ namespace Aurora
     public void AddForAllActions(string controllerName, object bindInstance)
     {
       if (string.IsNullOrEmpty(controllerName))
+      {
         throw new ArgumentException(MainConfig.ActionBinderNullOrEmptyControllerNameError);
+      }
 
       if (bindInstance == null)
+      {
         throw new ArgumentNullException("bindInstance", MainConfig.ActionBinderBindingInstanceNullOrEmptyError);
+      }
 
       AddForAllActions(controllerName, new object[] { bindInstance });
     }
@@ -3702,23 +3870,35 @@ namespace Aurora
     public void AddForAllActions(string controllerName, object[] bindInstances)
     {
       if (string.IsNullOrEmpty(controllerName))
+      {
         throw new ArgumentException(MainConfig.ActionBinderNullOrEmptyControllerNameError);
+      }
 
       if (bindInstances == null)
+      {
         throw new ArgumentNullException("bindInstances", MainConfig.ActionBinderBindingInstanceNullOrEmptyError);
+      }
 
       if (bindInstances.Count() == 0)
+      {
         throw new ArgumentException(MainConfig.ActionBinderBindingInstanceNullOrEmptyError);
+      }
 
       foreach (string actionName in ApplicationInternals.AllRoutableActionNames(context, controllerName))
+      {
         foreach (object o in bindInstances)
+        {
           Add(controllerName, actionName, o);
+        }
+      }
     }
 
     public void AddForAllControllers(object bindInstance)
     {
       if (bindInstance == null)
+      {
         throw new ArgumentNullException("bindInstance", MainConfig.ActionBinderBindingInstanceNullOrEmptyError);
+      }
 
       AddForAllControllers(new object[] { bindInstance });
     }
@@ -3726,82 +3906,128 @@ namespace Aurora
     public void AddForAllControllers(object[] bindInstances)
     {
       if (bindInstances == null)
+      {
         throw new ArgumentNullException("bindInstances", MainConfig.ActionBinderBindingInstanceNullOrEmptyError);
+      }
 
       if (bindInstances.Count() == 0)
+      {
         throw new ArgumentException(MainConfig.ActionBinderBindingInstanceNullOrEmptyError);
+      }
 
       foreach (Type controller in ApplicationInternals.AllControllers(context))
+      {
         foreach (string actionName in ApplicationInternals.AllRoutableActionNames(context, controller.Name))
+        {
           foreach (object o in bindInstances)
+          {
             Add(controller.Name, actionName, o);
+          }
+        }
+      }
     }
 
     public void Add(string controllerName, string[] actionNames, object bindInstance)
     {
       if (string.IsNullOrEmpty(controllerName))
+      {
         throw new ArgumentException(MainConfig.ActionBinderNullOrEmptyControllerNameError);
+      }
 
       if (actionNames == null)
+      {
         throw new ArgumentNullException("actionNames", MainConfig.ActionBinderActionNameNullorEmptyError);
+      }
 
       if (actionNames.Count() == 0)
+      {
         throw new ArgumentException(MainConfig.ActionBinderActionNameNullorEmptyError);
+      }
 
       if (bindInstance == null)
+      {
         throw new ArgumentNullException("bindInstance", MainConfig.ActionBinderBindingInstanceNullOrEmptyError);
+      }
 
       foreach (string a in actionNames)
+      {
         Add(controllerName, a, bindInstance);
+      }
     }
 
     public void Add(string controllerName, string[] actionNames, object[] bindInstances)
     {
       if (string.IsNullOrEmpty(controllerName))
+      {
         throw new ArgumentException(MainConfig.ActionBinderNullOrEmptyControllerNameError);
+      }
 
       if (actionNames == null)
+      {
         throw new ArgumentNullException("actionNames", MainConfig.ActionBinderActionNameNullorEmptyError);
+      }
 
       if (actionNames.Count() == 0)
+      {
         throw new ArgumentException(MainConfig.ActionBinderActionNameNullorEmptyError);
+      }
 
       if (bindInstances == null)
+      {
         throw new ArgumentNullException("bindInstances", MainConfig.ActionBinderBindingInstanceNullOrEmptyError);
+      }
 
       foreach (string a in actionNames)
+      {
         foreach (object o in bindInstances)
+        {
           Add(controllerName, a, o);
+        }
+      }
     }
 
     public void Add(string controllerName, string actionName, object[] bindInstances)
     {
       if (string.IsNullOrEmpty(controllerName))
+      {
         throw new ArgumentException(MainConfig.ActionBinderNullOrEmptyControllerNameError);
+      }
 
       if (string.IsNullOrEmpty(actionName))
+      {
         throw new ArgumentException(MainConfig.ActionBinderActionNameNullorEmptyError);
+      }
 
       if (bindInstances == null)
+      {
         throw new ArgumentNullException("bindInstances", MainConfig.ActionBinderBindingInstanceNullOrEmptyError);
+      }
 
       if (bindInstances != null)
       {
         foreach (object o in bindInstances)
+        {
           Add(controllerName, actionName, o);
+        }
       }
     }
 
     public void Add(string controllerName, string actionName, object bindInstance)
     {
       if (string.IsNullOrEmpty(controllerName))
+      {
         throw new ArgumentException(MainConfig.ActionBinderNullOrEmptyControllerNameError);
+      }
 
       if (string.IsNullOrEmpty(actionName))
+      {
         throw new ArgumentException(MainConfig.ActionBinderActionNameNullorEmptyError);
+      }
 
       if (bindInstance == null)
+      {
         throw new ArgumentNullException("bindInstance", MainConfig.ActionBinderBindingInstanceNullOrEmptyError);
+      }
 
       List<ActionBinding> binding = (bindings.ContainsKey(controllerName)) ? bindings[controllerName] : null;
 
@@ -3836,13 +4062,19 @@ namespace Aurora
     public void RemoveInstanceFromAction(string controllerName, string actionName, object bindInstance)
     {
       if (string.IsNullOrEmpty(controllerName))
+      {
         throw new ArgumentException(MainConfig.ActionBinderNullOrEmptyControllerNameError);
+      }
 
       if (string.IsNullOrEmpty(actionName))
+      {
         throw new ArgumentException(MainConfig.ActionBinderActionNameNullorEmptyError);
+      }
 
       if (bindInstance == null)
+      {
         throw new ArgumentNullException("bindInstance", MainConfig.ActionBinderBindingInstanceNullOrEmptyError);
+      }
 
       List<ActionBinding> binding = bindings[controllerName];
 
@@ -3851,17 +4083,23 @@ namespace Aurora
         ActionBinding ab = binding.FirstOrDefault(x => x.ActionNames.FirstOrDefault(y => y == actionName) != null);
 
         if (ab != null)
+        {
           ab.RemoveBindInstance(actionName, binding);
+        }
       }
     }
 
     internal List<object> GetBindings(string controllerName, string actionName)
     {
       if (string.IsNullOrEmpty(controllerName))
+      {
         throw new ArgumentException(MainConfig.ActionBinderNullOrEmptyControllerNameError);
+      }
 
       if (string.IsNullOrEmpty(actionName))
+      {
         throw new ArgumentException(MainConfig.ActionBinderActionNameNullorEmptyError);
+      }
 
       if (bindings.ContainsKey(controllerName))
       {
@@ -3872,7 +4110,9 @@ namespace Aurora
           ActionBinding ab = actionBindings.FirstOrDefault(x => x.ActionNames.FirstOrDefault(y => y == actionName) != null);
 
           if (ab != null)
+          {
             return ab.BindInstances;
+          }
         }
       }
 
@@ -3947,7 +4187,9 @@ namespace Aurora
       MethodInfo actionMethod = GetType().GetMethods().FirstOrDefault(x => x.Name == actionName);
 
       if (actionMethod != null && controller != null)
+      {
         ApplicationInternals.AddRouteInfo(Context, alias, controller, actionMethod, requestType, frontParams);
+      }
     }
 
     public void RemoveRoute(string alias)
@@ -4064,7 +4306,9 @@ namespace Aurora
       ClearViewTags();
 
       if (Form.AllKeys.Contains(MainConfig.AntiForgeryTokenName))
+      {
         Form.Remove(MainConfig.AntiForgeryTokenName);
+      }
     }
 
     #region MISC
@@ -4086,7 +4330,9 @@ namespace Aurora
       PartitionAttribute partitionAttrib = (PartitionAttribute)this.GetType().GetCustomAttributes(false).FirstOrDefault(x => x.GetType() == typeof(PartitionAttribute));
 
       if (partitionAttrib != null)
+      {
         partitionName = partitionAttrib.Name;
+      }
 
       return partitionName;
     }
@@ -4103,7 +4349,9 @@ namespace Aurora
       MethodInfo actionMethod = GetType().GetMethods().FirstOrDefault(x => x.Name == actionName);
 
       if (actionMethod != null)
+      {
         ApplicationInternals.AddRouteInfo(Context, alias, this, actionMethod, requestType, frontParams);
+      }
     }
 
     public void RemoveRoute(string alias)
@@ -4164,7 +4412,9 @@ namespace Aurora
       Dictionary<string, string> fragTags = null;
 
       if (FragTags.ContainsKey(fragmentName))
+      {
         fragTags = FragTags[fragmentName];
+      }
 
       return RenderFragment(fragmentName, fragTags);
     }
@@ -4203,7 +4453,9 @@ namespace Aurora
       ViewResult vr = new ViewResult(Context, viewEngine, PartitionName, controllerName, actionName, reqAttrib, ViewTags);
 
       if (clearViewTags)
+      {
         ClearViewTags();
+      }
 
       return vr;
     }
@@ -4226,7 +4478,9 @@ namespace Aurora
     public PartialResult Partial(string partialName, bool clearViewTags)
     {
       if (clearViewTags)
+      {
         ClearViewTags();
+      }
 
       return new PartialResult(Context, viewEngine, PartitionName, this.GetType().Name, partialName, ViewTags);
     }
@@ -4480,7 +4734,9 @@ namespace Aurora
           // of the form variables to see what we are dealing with and then try to map it to a specific type.
 
           if (props.Intersect(formKeys).Count() == props.Union(formKeys).Count())
+          {
             return m;
+          }
         }
       }
 
@@ -4590,7 +4846,9 @@ namespace Aurora
       int minutesBeforeExpiration = MainConfig.StaticContentCacheExpiry;
 
       if (!(minutesBeforeExpiration > 0))
+      {
         minutesBeforeExpiration = 15;
+      }
 
       expiry = new TimeSpan(0, minutesBeforeExpiration, 0);
     }
@@ -4622,7 +4880,9 @@ namespace Aurora
         if (bm.Contains(fileName))
         {
           if (MainConfig.DisableStaticFileCaching)
+          {
             bm.RegenerateBundle(fileName);
+          }
 
           context.ResponseWrite(bm[fileName]);
         }
@@ -4692,7 +4952,11 @@ namespace Aurora
         CachedViewResult cachedViewResult = null;
 
         if (requestAttribute is HttpGetAttribute)
+        {
           get = (requestAttribute as HttpGetAttribute);
+        }
+
+        //FIXME: If the page is secure we need to make sure we are only serving the cached copy for logged in users
 
         if (get != null && get.Cache)
         {
@@ -4714,7 +4978,9 @@ namespace Aurora
           string refresh = get.Refresh;
 
           if (!string.IsNullOrEmpty(refresh))
+          {
             context.ResponseAddHeader("Refresh", refresh);
+          }
 
           #region ADD (OR NOT) HTTP CACHE HEADERS TO THE REQUEST
           if (get.Cache)
@@ -4729,7 +4995,9 @@ namespace Aurora
             });
 
             if (cachedViewResult != null && string.IsNullOrEmpty(cachedViewResult.View))
+            {
               cachedViewResult.View = view;
+            }
           }
           else
           {
@@ -4818,9 +5086,13 @@ namespace Aurora
       string message = string.Empty;
 
       if (exception.InnerException != null)
+      {
         message = exception.InnerException.Message;
+      }
       else
+      {
         message = exception.Message;
+      }
 
       ResponseHeader.SetContentType(context, "text/html");
 
@@ -4888,6 +5160,7 @@ namespace Aurora
     public string FullName { get; set; }
     public string Render { get; set; }
     public string Template { get; set; }
+    public string CompiledTemplate { get; set; }
   }
   #endregion
 
@@ -4907,7 +5180,9 @@ namespace Aurora
     public ViewTemplateLoader(string applicationRoot)
     {
       if (string.IsNullOrEmpty(applicationRoot))
+      {
         throw new ArgumentNullException("applicationRoot");
+      }
 
       physicalApplicationRoot = applicationRoot;
     }
@@ -4960,7 +5235,8 @@ namespace Aurora
               string partition = null;
               string controller = null;
 
-              if (templateType == ViewTemplateType.Action)
+              if (templateType == ViewTemplateType.Action ||
+                  templateType == ViewTemplateType.Shared)
               {
                 string[] keyParts = templateKeyName.Split('/');
 
@@ -4992,7 +5268,9 @@ namespace Aurora
       }
 
       if (templates.Count > 0)
+      {
         return templates;
+      }
 
       return null;
     }
@@ -5068,7 +5346,9 @@ namespace Aurora
     public void SetTemplates(List<ViewTemplate> templates)
     {
       if (templates == null)
+      {
         throw new ArgumentNullException("templates");
+      }
 
       viewTemplates = templates;
     }
@@ -5089,8 +5369,13 @@ namespace Aurora
         value.Length = 0;
         value.Insert(0, match.Groups["value"].Value);
 
-        string pageName = DetermineKeyName(partitionName, controllerName, value.ToString());
+        string pageName = string.Empty;
 
+        if (!MainConfig.PathStaticFileRE.IsMatch(value.ToString()))
+        {
+          pageName = DetermineKeyName(partitionName, controllerName, value.ToString());
+        }
+        
         if (!string.IsNullOrEmpty(pageName))
         {
           string template = viewTemplates.FirstOrDefault(x => x.FullName == pageName).Template;
@@ -5139,7 +5424,9 @@ namespace Aurora
       // If during the process of building the view we have more directives to process
       // we'll recursively call ProcessDirectives to take care of them
       if (directiveTokenRE.Matches(pageContent.ToString()).Count > 0)
+      {
         ProcessDirectives(partitionName, controllerName, pageContent);
+      }
 
       #region PROCESS HEAD SUBSTITUTIONS AFTER ALL TEMPLATES HAVE BEEN COMPILED
       MatchCollection heads = headBlockRE.Matches(pageContent.ToString());
@@ -5166,7 +5453,6 @@ namespace Aurora
     public string DetermineKeyName(string partitionName, string controllerName, string viewName)
     {
       List<string> keyTypes = null;
-
       string lookupKeyName = string.Empty;
 
       if (string.IsNullOrEmpty(partitionName))
@@ -5180,9 +5466,13 @@ namespace Aurora
       }
 
       if (!string.IsNullOrEmpty(partitionName))
+      {
         lookupKeyName = string.Format(CultureInfo.InvariantCulture, "{0}/{1}/{2}", partitionName, controllerName, viewName);
+      }
       else
+      {
         lookupKeyName = string.Format(CultureInfo.InvariantCulture, "{0}/{1}", controllerName, viewName);
+      }
 
       if (!templateKeyNames.ContainsKey(lookupKeyName))
       {
@@ -5225,22 +5515,16 @@ namespace Aurora
         keyTypes = templateKeyNames[lookupKeyName];
       }
 
-      string result = keyTypes.FirstOrDefault(x =>
-          (viewTemplates.FirstOrDefault(y => y.FullName == x) != null));
+      var viewTemplateNames = viewTemplates.Select(x => x.FullName);
 
-      if (string.IsNullOrEmpty(result))
+      string result = keyTypes.Intersect(viewTemplateNames).FirstOrDefault();
+
+      if (!string.IsNullOrEmpty(result))
       {
-        if (controllerName == "Shared")
-        {
-          result = DetermineKeyName(partitionName, "Fragments", viewName);
-        }
-        else
-        {
-          result = DetermineKeyName(partitionName, "Shared", viewName);
-        }
+        return result;
       }
 
-      return result;
+      return null;
     }
 
     public View Compile(string partitionName, string controllerName, string viewName)
@@ -5256,11 +5540,15 @@ namespace Aurora
           StringBuilder rawView = new StringBuilder(viewTemplate.Template);
           StringBuilder compiledView = new StringBuilder();
 
-          if (!keyName.ToLower().Contains("fragments/"))
+          if (viewTemplate.TemplateType != ViewTemplateType.Fragment)
+          {
             compiledView = ProcessDirectives(partitionName, controllerName, rawView);
+          }
 
           if (string.IsNullOrEmpty(compiledView.ToString()))
+          {
             compiledView = rawView;
+          }
 
           compiledView.Replace(compiledView.ToString(), Regex.Replace(compiledView.ToString(), @"^\s*$\n", string.Empty, RegexOptions.Multiline));
 
@@ -5268,12 +5556,11 @@ namespace Aurora
           {
             FullName = keyName,
             Name = viewName,
-            Template = compiledView.ToString(),
+            Template = viewTemplate.Template,
+            CompiledTemplate = compiledView.ToString(),
             Render = string.Empty
           };
-
-          compiledViews.Add(view);
-
+          
           return view;
         }
       }
@@ -5285,9 +5572,10 @@ namespace Aurora
     {
       foreach (ViewTemplate vt in viewTemplates)
       {
-        if (vt.TemplateType == ViewTemplateType.Action)
+        if (vt.TemplateType == ViewTemplateType.Action || 
+            vt.TemplateType == ViewTemplateType.Shared)
         {
-          Compile(vt.Partition, vt.Controller, vt.Name);
+          compiledViews.Add(Compile(vt.Partition, vt.Controller, vt.Name));
         }
         else
         {
@@ -5295,14 +5583,17 @@ namespace Aurora
             {
               FullName = vt.FullName,
               Name = vt.Name,
+              CompiledTemplate = vt.Template,
               Template = vt.Template,
-              Render = string.Empty
+              Render = string.Empty,
             });
         }
       }
 
       if (compiledViews.Count > 0)
+      {
         return compiledViews;
+      }
 
       return null;
     }
@@ -5321,7 +5612,9 @@ namespace Aurora
         AntiForgeryRequestEvent(this, args);
 
         if (string.IsNullOrEmpty(args.AntiForgeryToken))
-          throw new ArgumentException("AntiForgeryToken cannot be null or empty.");
+        {
+          throw new ArgumentException(MainConfig.AntiForgeryTokenNullOrEmptyError);
+        }
 
         view.Replace(token, args.AntiForgeryToken, t.Start, t.End);
       }
@@ -5332,9 +5625,11 @@ namespace Aurora
     public View Render(View view, Dictionary<string, string> tags)
     {
       if (view == null)
+      {
         throw new ArgumentNullException("view");
+      }
 
-      StringBuilder compiledView = new StringBuilder(view.Template);
+      StringBuilder compiledView = new StringBuilder(view.CompiledTemplate);
 
       //if (renderFinal && keyName.Contains("Fragments"))
       //  throw new FileNotFoundException(string.Format(CultureInfo.CurrentCulture, "Cannot find view : {0}", viewName));
@@ -5362,17 +5657,20 @@ namespace Aurora
           {
             foreach (Match m in tagMatches)
             {
-              if (m.Value.StartsWith(unencodedTagHint, StringComparison.Ordinal))
+              if (!string.IsNullOrEmpty(tag.Value))
               {
-                compiledView.Replace(m.Value, tag.Value.Trim());
-              }
-              else if (m.Value.StartsWith(tagEncodingHint, StringComparison.Ordinal))
-              {
-                compiledView.Replace(m.Value, HttpUtility.HtmlEncode(tag.Value.Trim()));
-              }
-              else if (m.Value.StartsWith(markdownEncodingHint, StringComparison.Ordinal))
-              {
-                compiledView.Replace(m.Value, Markdown.Transform(tag.Value.Trim()));
+                if (m.Value.StartsWith(unencodedTagHint, StringComparison.Ordinal))
+                {
+                  compiledView.Replace(m.Value, tag.Value.Trim());
+                }
+                else if (m.Value.StartsWith(tagEncodingHint, StringComparison.Ordinal))
+                {
+                  compiledView.Replace(m.Value, HttpUtility.HtmlEncode(tag.Value.Trim()));
+                }
+                else if (m.Value.StartsWith(markdownEncodingHint, StringComparison.Ordinal))
+                {
+                  compiledView.Replace(m.Value, Markdown.Transform(tag.Value.Trim()));
+                }
               }
             }
           }
@@ -5399,7 +5697,7 @@ namespace Aurora
   #region VIEW ENGINE
   public interface IViewEngine
   {
-    void Refresh();
+    void Refresh(AuroraContext ctx);
     string LoadView(string partitionName, string controllerName, string viewName, Dictionary<string, string> tags);
   }
 
@@ -5445,9 +5743,10 @@ namespace Aurora
     public AuroraViewEngine(AuroraContext ctx)
     {
       if (ctx == null)
+      {
         throw new ArgumentNullException("ctx");
+      }
 
-      context = ctx;
       string appRoot = ctx.ApplicationPhysicalPath;
 
       viewCompiler = new ViewCompiler();
@@ -5460,15 +5759,19 @@ namespace Aurora
       compiledViews = new List<View>();
       viewTemplates = new List<ViewTemplate>();
 
-      Refresh();
+      Refresh(ctx);
     }
 
-    public void Refresh()
+    public void Refresh(AuroraContext ctx)
     {
+      context = ctx;
+
       string[] viewRoots = ApplicationInternals.AllViewRoots(context);
 
       if (!(viewRoots.Count() >= 1))
+      {
         throw new ArgumentException("At least one view root is required to load view templates from.");
+      }
 
       viewTemplates = viewTemplateLoader.Load(viewRoots);
 
@@ -5482,25 +5785,47 @@ namespace Aurora
         }
         else
         {
-          string[] vt = viewTemplates.Select(x => x.FullName).ToArray();
-          string[] cv = compiledViews.Select(x => x.FullName).ToArray();
-
-          var diffs = vt.Except(cv);
-
-          if (diffs.Count() > 0)
-          {
-            List<View> extraCompiledViews = new List<View>();
-
-            foreach (string tempName in diffs)
-            {
-              ViewTemplate v = viewTemplates.FirstOrDefault(x => x.FullName == tempName);
-
-              extraCompiledViews.Add(viewCompiler.Compile(v.Partition, v.Controller, v.Name));
-            }
-
-            compiledViews.InsertRange(0, extraCompiledViews);
-          }
+          UpdateChangedTemplates();
+          CompileNewFiles();
         }
+      }
+    }
+
+    public void UpdateChangedTemplates()
+    {
+      foreach (ViewTemplate vt in viewTemplates)
+      {
+        View cv = compiledViews.FirstOrDefault(x => x.FullName == vt.FullName && x.Template != vt.Template);
+
+        if(cv!=null)
+        {
+          compiledViews.Remove(cv);
+          compiledViews.Add(viewCompiler.Compile(vt.Partition, vt.Controller, vt.Name));
+        }
+      }
+    }
+
+    private void CompileNewFiles()
+    {
+      string[] vtNames = viewTemplates.Select(x => x.FullName).ToArray();
+      string[] cvNames = compiledViews.Select(x => x.FullName).ToArray();
+
+      var newFiles = vtNames.Except(cvNames);
+
+      if (newFiles.Count() > 0)
+      {
+        #region COMPILE NEW FILES
+        List<View> extraCompiledViews = new List<View>();
+
+        foreach (string newName in newFiles)
+        {
+          ViewTemplate v = viewTemplates.FirstOrDefault(x => x.FullName == newName);
+
+          extraCompiledViews.Add(viewCompiler.Compile(v.Partition, v.Controller, v.Name));
+        }
+
+        compiledViews.InsertRange(0, extraCompiledViews);
+        #endregion
       }
     }
 
@@ -5518,7 +5843,9 @@ namespace Aurora
       string modifiedBundlePath = bundlePath;
 
       if (!isAPath)
+      {
         modifiedBundlePath = string.Format(CultureInfo.InvariantCulture, "/{0}/{1}/{2}", MainConfig.PublicResourcesFolderName, extension.TrimStart('.'), bundlePath);
+      }
 
       switch (extension)
       {
@@ -5658,7 +5985,9 @@ namespace Aurora
       }
 
       if (sb.Length > 0)
+      {
         return sb.ToString().Trim();
+      }
 
       return null;
     }
@@ -5714,9 +6043,13 @@ namespace Aurora
       ColumnInfo = typeof(T).GetProperties().FirstOrDefault(x => x.Name == ColumnName);
 
       if (ColumnInfo != null)
+      {
         TransformType = ColumnTransformType.Existing;
+      }
       else
+      {
         TransformType = ColumnTransformType.New;
+      }
     }
 
     public string Result(int index)
@@ -5792,14 +6125,21 @@ namespace Aurora
         {
           DescriptiveNameAttribute pn = (DescriptiveNameAttribute)p.GetCustomAttributes(typeof(DescriptiveNameAttribute), false).FirstOrDefault();
 
-          if ((IgnoreColumns != null) && IgnoreColumns.Contains(p.Name)) continue;
+          if ((IgnoreColumns != null) && IgnoreColumns.Contains(p.Name))
+          {
+            continue;
+          }
 
           if (pn != null)
           {
             if (pn.Op == DescriptiveNameOperation.SplitCamelCase)
+            {
               PropertyNames.Add(CultureInfo.InvariantCulture.TextInfo.ToTitleCase(pn.PerformOperation(p.Name)));
+            }
             else
+            {
               PropertyNames.Add(pn.Name);
+            }
 
             hasDescriptiveNames.Add(p.Name);
           }
@@ -5812,12 +6152,16 @@ namespace Aurora
           foreach (ColumnTransform<T> addColumn in ColumnTransforms)
           {
             if ((!PropertyNames.Contains(addColumn.ColumnName)) && (!hasDescriptiveNames.Contains(addColumn.ColumnName)))
+            {
               PropertyNames.Add(addColumn.ColumnName);
+            }
           }
         }
 
         if (PropertyNames.Count > 0)
+        {
           return PropertyNames;
+        }
       }
 
       return null;
@@ -5856,13 +6200,18 @@ namespace Aurora
         }
 
         if (AlternateRowColorEnabled && !string.IsNullOrEmpty(AlternateRowColor) && (i & 1) != 0)
+        {
           alternatingColor = string.Format(CultureInfo.CurrentCulture, "bgcolor=\"{0}\"", AlternateRowColor);
+        }
 
         html.AppendFormat("<tr {0} {1}>", rowClass, alternatingColor);
 
         foreach (PropertyInfo pn in PropertyInfos)
         {
-          if ((IgnoreColumns != null) && IgnoreColumns.Contains(pn.Name)) continue;
+          if ((IgnoreColumns != null) && IgnoreColumns.Contains(pn.Name))
+          {
+            continue;
+          }
 
           if (pn.CanRead)
           {
@@ -5876,14 +6225,18 @@ namespace Aurora
               value = string.Format(CultureInfo.CurrentCulture, sfa.Format, o);
             }
             else
+            {
               value = (o == null) ? ((displayNull) ? "NULL" : string.Empty) : o.ToString();
+            }
 
             if (o is DateTime)
             {
               DateFormatAttribute dfa = (DateFormatAttribute)Attribute.GetCustomAttribute(pn, typeof(DateFormatAttribute));
 
               if (dfa != null)
+              {
                 value = ((DateTime)o).ToString(dfa.Format, CultureInfo.CurrentCulture);
+              }
             }
 
             if (ColumnTransforms != null)
@@ -5891,7 +6244,9 @@ namespace Aurora
               ColumnTransform<T> transform = (ColumnTransform<T>)ColumnTransforms.FirstOrDefault(x => x.ColumnName == pn.Name && x.TransformType == ColumnTransformType.Existing);
 
               if (transform != null)
+              {
                 value = transform.Result(i);
+              }
             }
 
             html.AppendFormat("<td>{0}</td>", value);
@@ -5953,7 +6308,9 @@ namespace Aurora
     public override string ToString()
     {
       if (InputType == HtmlInputType.TextArea)
+      {
         return string.Format(CultureInfo.CurrentCulture, InputType.GetMetadata(), CondenseAttribs(), string.Empty);
+      }
 
       return string.Format(CultureInfo.CurrentCulture, InputType.GetMetadata(), CondenseAttribs());
     }
@@ -5961,7 +6318,9 @@ namespace Aurora
     public string ToString(string text)
     {
       if (InputType == HtmlInputType.TextArea)
+      {
         return string.Format(CultureInfo.CurrentCulture, InputType.GetMetadata(), CondenseAttribs(), text);
+      }
 
       return string.Format(CultureInfo.CurrentCulture, InputType.GetMetadata(), CondenseAttribs());
     }
@@ -6041,7 +6400,9 @@ namespace Aurora
       sb.AppendFormat("<select {0} {1}>", CondenseAttribs(), Enabled);
 
       if (EmptyOption)
+      {
         sb.Append("<option selected=\"selected\"></option>");
+      }
 
       int count = 0;
 
@@ -6050,7 +6411,9 @@ namespace Aurora
         string selected = string.Empty;
 
         if (!string.IsNullOrEmpty(SelectedDefault) && o == SelectedDefault)
+        {
           selected = "selected=\"selected\"";
+        }
 
         sb.AppendFormat("<option name=\"opt{0}\" {1}>{2}</option>", count, selected, o);
         count++;
@@ -6290,7 +6653,9 @@ namespace Aurora
       //
       // http://stackoverflow.com/questions/155303/net-how-can-you-split-a-caps-delimited-string-into-an-array
       if (Op == DescriptiveNameOperation.SplitCamelCase)
+      {
         return Regex.Replace(name, @"([a-z](?=[A-Z])|[A-Z](?=[A-Z][a-z]))", "$1 ");
+      }
 
       return null;
     }
@@ -6311,10 +6676,14 @@ namespace Aurora
     public string Sanitize(string value)
     {
       if (StripHtml)
+      {
         value = value.StripHtml();
+      }
 
       if (HtmlEncode)
+      {
         value = HttpUtility.HtmlEncode(value);
+      }
 
       return value;
     }
@@ -6687,7 +7056,9 @@ namespace Aurora
       Dictionary<string, string> protectedFiles = GetProtectedFilesList(ctx);
 
       if (!protectedFiles.ContainsKey(path))
+      {
         protectedFiles[path] = roles;
+      }
     }
 
     public static void UnprotectFile(AuroraContext ctx, string path)
@@ -6695,7 +7066,9 @@ namespace Aurora
       Dictionary<string, string> protectedFiles = GetProtectedFilesList(ctx);
 
       if (!protectedFiles.ContainsKey(path))
+      {
         protectedFiles.Remove(path);
+      }
     }
 
     internal static bool IsProtected(AuroraContext ctx, string path, out string roles)
@@ -6803,9 +7176,13 @@ namespace Aurora
         else
         {
           if (exception.InnerException != null)
+          {
             msg = exception.InnerException.Message;
+          }
           else
+          {
             msg = exception.Message;
+          }
         }
 
         error = String.Format(CultureInfo.CurrentCulture, "<i>{0}</i><br/><br/>Path: {1}", msg, Context.Path);
@@ -6820,7 +7197,9 @@ namespace Aurora
           foreach (StackFrame sf in trace.GetFrames())
           {
             if (!string.IsNullOrEmpty(sf.GetFileName()))
+            {
               stacktraceBuilder.AppendFormat("method: {0} file: {1}<br />", sf.GetMethod().Name, Path.GetFileName(sf.GetFileName()));
+            }
           }
 
           if (stacktraceBuilder.ToString().Length > 0)
@@ -6909,7 +7288,9 @@ namespace Aurora
     internal static ActiveDirectoryUser LookupUser(ActiveDirectorySearchType searchType, string data, bool global)
     {
       if (string.IsNullOrEmpty(searchType.GetMetadata()))
+      {
         throw new ArgumentNullException("searchType", MainConfig.ADSearchCriteriaIsNullOrEmptyError);
+      }
 
       if (MainConfig.ActiveDirectorySearchInfos.Length > 0)
       {
@@ -6926,22 +7307,32 @@ namespace Aurora
           catch
           {
             if (i < MainConfig.ActiveDirectorySearchInfos.Length - 1)
+            {
               continue;
+            }
             else
+            {
               throw;
+            }
           }
         }
       }
       else
       {
         if (string.IsNullOrEmpty(MainConfig.ADSearchUser) || string.IsNullOrEmpty(MainConfig.ADSearchPW))
+        {
           throw new Exception(MainConfig.ADUserOrPWError);
+        }
 
         if (string.IsNullOrEmpty(MainConfig.ADSearchRoot))
+        {
           throw new Exception(MainConfig.ADSearchRootIsNullOrEmpty);
+        }
 
         if (string.IsNullOrEmpty(MainConfig.ADSearchDomain))
+        {
           throw new Exception(MainConfig.ADSearchDomainIsNullorEmpty);
+        }
 
         return LookupUser(searchType, data, global,
             MainConfig.ADSearchDomain,
@@ -6958,7 +7349,9 @@ namespace Aurora
       ActiveDirectoryUser user = null;
 
       if (string.IsNullOrEmpty(data))
+      {
         throw new ArgumentNullException("data", MainConfig.ActiveDirectorySearchCriteriaNullOrEmpty);
+      }
 
       try
       {
@@ -6981,39 +7374,51 @@ namespace Aurora
               result = searcher.FindOne();
             }
           }
-          catch (DirectoryServicesCOMException)
+          catch (Exception ex)
           {
-            // If there was a problem contacting the domain controller then lets try another one.
-
-            DomainControllerCollection dcc = DomainController.FindAll(new DirectoryContext(DirectoryContextType.Domain, adSearchDomain));
-            List<DomainController> domainControllers = (from DomainController dc in dcc select dc).ToList();
-
-            for (int i = 0; i < domainControllers.Count(); i++)
+            if (ex is DirectoryServicesCOMException ||
+                ex is COMException)
             {
-              DomainController dc = domainControllers[i];
+              // If there was a problem contacting the domain controller then lets try another one.
 
-              try
+              DomainControllerCollection dcc = DomainController.FindAll(new DirectoryContext(DirectoryContextType.Domain, adSearchDomain));
+              List<DomainController> domainControllers = (from DomainController dc in dcc select dc).ToList();
+
+              for (int i = 0; i < domainControllers.Count(); i++)
               {
-                using (DirectorySearcher searcher = dc.GetDirectorySearcher())
+                DomainController dc = domainControllers[i];
+
+                try
                 {
-                  searcher.SearchRoot = searchRootDE;
-                  searcher.Filter = string.Format(CultureInfo.InvariantCulture, searchType.GetMetadata(), data);
+                  using (DirectorySearcher searcher = dc.GetDirectorySearcher())
+                  {
+                    searcher.SearchRoot = searchRootDE;
+                    searcher.Filter = string.Format(CultureInfo.InvariantCulture, searchType.GetMetadata(), data);
 
-                  result = searcher.FindOne();
+                    result = searcher.FindOne();
+                  }
+
+                  if (result != null)
+                  {
+                    break;
+                  }
                 }
-
-                if (result != null)
-                  break;
+                catch (DirectoryServicesCOMException)
+                {
+                  // Forget about this exception and move to the next domain controller
+                }
               }
-              catch (DirectoryServicesCOMException)
-              {
-                // Forget about this exception and move to the next domain controller
-              }
+            }
+            else
+            {
+              throw;
             }
           }
 
           if (result != null)
+          {
             user = GetUser(result.GetDirectoryEntry());
+          }
         }
       }
       catch (DirectoryServicesCOMException)
@@ -7143,7 +7548,10 @@ namespace Aurora
     {
       foreach (string p in GetProxyAddresses(user))
       {
-        if (p.StartsWith("SMTP:", StringComparison.Ordinal)) return p.Replace("SMTP:", string.Empty).ToLowerInvariant();
+        if (p.StartsWith("SMTP:", StringComparison.Ordinal))
+        {
+          return p.Replace("SMTP:", string.Empty).ToLowerInvariant();
+        }
       }
 
       return null;
@@ -7183,14 +7591,18 @@ namespace Aurora
       x509certificate = ctx.RequestClientCertificate;
 
       if (x509certificate == null)
+      {
         throw new Exception(MainConfig.ClientCertificateError);
+      }
 
       string cn = x509certificate.GetNameInfo(X509NameType.SimpleName, false);
       string cacid = string.Empty;
       bool valid = true;
 
       if (string.IsNullOrEmpty(cn))
+      {
         throw new Exception(MainConfig.ClientCertificateSimpleNameError);
+      }
 
       if (cn.Contains("."))
       {
@@ -7258,7 +7670,9 @@ namespace Aurora
             ActiveDirectoryLookupEvent(this, args);
 
             if (args.User != null)
+            {
               user = args.User;
+            }
           }
           catch (DirectoryServicesCOMException)
           {
@@ -7320,7 +7734,9 @@ namespace Aurora
     public bool IsInRole(string role)
     {
       if (Roles != null)
+      {
         return Roles.Contains(role);
+      }
 
       return false;
     }
@@ -7371,7 +7787,9 @@ namespace Aurora
       if (!Identifier.IsValid(identifier))
       {
         if (invalidLogon != null)
+        {
           invalidLogon(MainConfig.OpenIDInvalidIdentifierError);
+        }
       }
       else
       {
@@ -7413,10 +7831,14 @@ namespace Aurora
             Uri providerUri = ctx.Session[MainConfig.OpenIdProviderUriSessionName] as Uri;
 
             if (providerUri != response.Provider.Uri)
+            {
               throw new Exception(MainConfig.OpenIdProviderUriMismatchError);
+            }
           }
           else
+          {
             throw new Exception(MainConfig.OpenIdProviderUriMismatchError);
+          }
 
           switch (response.Status)
           {
@@ -7427,7 +7849,9 @@ namespace Aurora
               if (claimsResponse != null)
               {
                 if (string.IsNullOrEmpty(claimsResponse.Email))
+                {
                   throw new Exception(MainConfig.OpenIDProviderClaimsResponseError);
+                }
 
                 OpenAuthClaimsResponse openAuthClaimsResponse = new OpenAuthClaimsResponse()
                 {
@@ -7439,18 +7863,24 @@ namespace Aurora
                 ctx.Session[MainConfig.OpenIdClaimsResponseSessionName] = openAuthClaimsResponse;
 
                 if (authenticated != null)
+                {
                   authenticated(openAuthClaimsResponse);
+                }
               }
               break;
 
             case AuthenticationStatus.Canceled:
               if (cancelled != null)
+              {
                 cancelled(MainConfig.OpenIDLoginCancelledByProviderError);
+              }
               break;
 
             case AuthenticationStatus.Failed:
               if (failed != null)
+              {
                 failed(MainConfig.OpenIDLoginFailedError);
+              }
               break;
           }
         }
@@ -7460,7 +7890,9 @@ namespace Aurora
     public static OpenAuthClaimsResponse GetOpenAuthClaimsResponse(HttpContextBase ctx)
     {
       if (ctx.Session[MainConfig.OpenIdClaimsResponseSessionName] != null)
+      {
         return ctx.Session[MainConfig.OpenIdClaimsResponseSessionName] as OpenAuthClaimsResponse;
+      }
 
       return null;
     }
@@ -7474,13 +7906,18 @@ namespace Aurora
     public static string LogOn(AuroraContext ctx, string id, string[] roles, Func<User, string, bool> checkRoles)
     {
       if (string.IsNullOrEmpty(MainConfig.EncryptionKey))
+      {
         throw new Exception(MainConfig.EncryptionKeyNotSpecifiedError);
+      }
 
       List<User> users = GetUsers(ctx);
 
       User u = users.FirstOrDefault(x => x.SessionId == ctx.Session.SessionID && x.Identity.Name == id);
 
-      if (u != null) return u.AuthenticationToken;
+      if (u != null)
+      {
+        return u.AuthenticationToken;
+      }
 
       string authToken = CreateAuthenticationToken();
       DateTime expiration = DateTime.Now.Add(TimeSpan.FromHours(MainConfig.AuthCookieExpiry));
@@ -7526,7 +7963,9 @@ namespace Aurora
     public static User GetLoggedOnUser(AuroraContext ctx)
     {
       if (ctx.Session[MainConfig.CurrentUserSessionName] != null)
+      {
         return ctx.Session[MainConfig.CurrentUserSessionName] as User;
+      }
       else
       {
         AuthCookie cookie = GetAuthCookie(ctx);
@@ -7551,7 +7990,9 @@ namespace Aurora
       HttpCookie cookie = ctx.RequestCookies[MainConfig.AuroraAuthCookieName];
 
       if (cookie != null)
+      {
         return JsonConvert.DeserializeObject<AuthCookie>(Encryption.Decrypt(cookie.Value, MainConfig.EncryptionKey));
+      }
 
       return null;
     }
@@ -7575,7 +8016,9 @@ namespace Aurora
           if (result)
           {
             if (ctx.Session[MainConfig.CurrentUserSessionName] != null)
+            {
               ctx.Session.Remove(MainConfig.CurrentUserSessionName);
+            }
 
             ctx.User = null;
           }
@@ -7604,14 +8047,19 @@ namespace Aurora
 
         if (u != null)
         {
-          if (u.AuthenticationCookie.Expires < DateTime.Now) return false;
+          if (u.AuthenticationCookie.Expires < DateTime.Now)
+          {
+            return false;
+          }
 
           if (!string.IsNullOrEmpty(authRoles))
           {
             if (u.CheckRoles != null)
             {
               if (routeInfo != null)
+              {
                 u.ActionBindings = routeInfo.Bindings;
+              }
 
               return u.CheckRoles(u, authRoles);
             }
@@ -7619,11 +8067,16 @@ namespace Aurora
             {
               List<string> minimumRoles = authRoles.Split('|').ToList();
 
-              if (minimumRoles.Intersect(u.Roles).Count() > 0) return true;
+              if (minimumRoles.Intersect(u.Roles).Count() > 0)
+              {
+                return true;
+              }
             }
           }
           else
+          {
             return true;
+          }
         }
       }
 
@@ -7667,7 +8120,9 @@ namespace Aurora
       string token = string.Format(CultureInfo.InvariantCulture, "{0}{1}", Guid.NewGuid(), Guid.NewGuid()).Replace("-", string.Empty);
 
       if (tokens.Contains(token))
+      {
         CreateUniqueToken(context);
+      }
 
       return token;
     }
@@ -7763,7 +8218,9 @@ namespace Aurora
     public BundleManager(AuroraContext ctx)
     {
       if (ctx == null)
+      {
         throw new ArgumentNullException("ctx");
+      }
 
       context = ctx;
 
@@ -7785,7 +8242,9 @@ namespace Aurora
       get
       {
         if (bundles.ContainsKey(bundle))
+        {
           return bundles[bundle];
+        }
 
         return null;
       }
@@ -7811,7 +8270,9 @@ namespace Aurora
     public void AddFiles(string[] paths, string bundleName)
     {
       if (paths == null)
+      {
         throw new ArgumentNullException("paths");
+      }
 
       if (bundleInfos.FirstOrDefault(x => x.BundleName == bundleName) == null)
       {
@@ -7820,7 +8281,9 @@ namespace Aurora
         foreach (string path in paths)
         {
           if (allowedExts.Where(x => Path.GetExtension(path) == x) == null)
+          {
             throw new Exception(MainConfig.BundleNameError);
+          }
 
           string fullPath = context.MapPath(path);
 
@@ -7850,7 +8313,9 @@ namespace Aurora
                       .Select(x => x.RelativePath);
 
       if (binfos != null)
+      {
         return binfos.ToList();
+      }
 
       return null;
     }
@@ -7885,7 +8350,9 @@ namespace Aurora
       var files = bundleInfos.Where(x => x.BundleName == bundleName).Select(x => x.FileInfo);
 
       if (files != null)
+      {
         ProcessFiles(files, bundleName);
+      }
     }
   }
   #endregion
@@ -7943,7 +8410,9 @@ namespace Aurora
       get
       {
         if (pack)
+        {
           return Regex.Replace(result.ToString().Trim(), "(\n|\r)+", " ");
+        }
 
         return result.ToString().Trim();
       }
@@ -7985,8 +8454,10 @@ namespace Aurora
     {
       int charCode = (int)c;
 
-      if (css)
-        if (charCode == '.') return true;
+      if (css && charCode == '.')
+      {
+        return true;
+      }
 
       return (charCode >= 'a' && charCode <= 'z' ||
               charCode >= '0' && charCode <= '9' ||
@@ -8301,7 +8772,9 @@ namespace Aurora
     public void LoadPlugin(string path)
     {
       if (Plugins == null)
+      {
         Plugins = new List<IPlugin<T>>();
+      }
 
       if (File.Exists(path))
       {
@@ -8424,9 +8897,13 @@ namespace Aurora
                   parms[i].ToLowerInvariant() == "checked") // HTML checkbox value
           {
             if (parms[i].ToLowerInvariant() == "on" || parms[i].ToLowerInvariant() == "checked")
+            {
               parms[i] = "true";
+            }
             else if (parms[i].ToLowerInvariant() == "off")
+            {
               parms[i] = "false";
+            }
 
             _parms[i] = Convert.ToBoolean(parms[i], CultureInfo.InvariantCulture);
           }
@@ -8468,7 +8945,9 @@ namespace Aurora
     public static string NewLinesToBR(this string value)
     {
       if (string.IsNullOrEmpty(value))
+      {
         throw new ArgumentNullException("value");
+      }
 
       return value.Trim().Replace("\n", "<br />");
     }
@@ -8476,12 +8955,17 @@ namespace Aurora
     public static string StripHtml(this string value)
     {
       if (string.IsNullOrEmpty(value))
+      {
         throw new ArgumentNullException("value");
+      }
 
       HtmlDocument htmlDoc = new HtmlDocument();
       htmlDoc.LoadHtml(value);
 
-      if (htmlDoc == null) return value;
+      if (htmlDoc == null)
+      {
+        return value;
+      }
 
       StringBuilder sanitizedString = new StringBuilder();
 
@@ -8542,7 +9026,9 @@ namespace Aurora
       long x = 0;
 
       if (Int64.TryParse(value, out x))
+      {
         return true;
+      }
 
       return false;
     }
@@ -8580,7 +9066,9 @@ namespace Aurora
         MetadataAttribute mda = (MetadataAttribute)obj.GetType().GetField(obj.ToString()).GetCustomAttributes(false).FirstOrDefault(x => x is MetadataAttribute);
 
         if (mda != null)
+        {
           return mda.Metadata;
+        }
       }
 
       return null;
@@ -8593,7 +9081,9 @@ namespace Aurora
         DescriptiveNameAttribute dna = (DescriptiveNameAttribute)obj.GetType().GetField(obj.ToString()).GetCustomAttributes(false).FirstOrDefault(x => x is DescriptiveNameAttribute);
 
         if (dna != null)
+        {
           return dna.Name;
+        }
       }
 
       return null;
@@ -8602,7 +9092,9 @@ namespace Aurora
     public static string GetUniqueId(this Enum obj)
     {
       if (obj == null)
+      {
         throw new ArgumentNullException("obj");
+      }
 
       UniqueIdAttribute uid = (UniqueIdAttribute)obj.GetType().GetField(obj.ToString()).GetCustomAttributes(false).FirstOrDefault(x => x is UniqueIdAttribute);
 
@@ -8755,7 +9247,9 @@ namespace Aurora
     public void Init(HttpApplication context)
     {
       if (context == null)
+      {
         throw new ArgumentNullException("context");
+      }
 
       PagesSection pageSection = new PagesSection();
       pageSection.ValidateRequest = MainConfig.ValidateRequest;
