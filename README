@@ -4,7 +4,7 @@ NOTE: See source code comments for usage.
 
 Frank Hale <frankhale@gmail.com>
 
-Date: 24 May 2012
+Date: 25 May 2012
 
 --------------------
 --- Feature List ---
@@ -37,6 +37,10 @@ Date: 24 May 2012
   framework pipeline.)
  
 Changelog:
+
+25 May 2012
+
+- More fixing to the major refactoring that was done to the view engine.
 
 24 May 2012
 

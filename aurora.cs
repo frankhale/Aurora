@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 24 May 2012
+// Updated On: 25 May 2012
 //
 // Contact Info:
 //
@@ -1337,7 +1337,7 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyCopyright("(GNU GPLv3) Copyleft © 2011-2012")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("0.99.70.0")]
+[assembly: AssemblyVersion("0.99.71.0")]
 #endregion
 
 #region TODO (MAYBE)
@@ -2057,8 +2057,8 @@ namespace Aurora
                                        select type).FirstOrDefault();
 
       if (actionTransformClassType != null)
-      { 
-        return actionTransformClassType; 
+      {
+        return actionTransformClassType;
       }
 
       throw new ActionParameterTransformClassUnknownException(MainConfig.ActionParameterTransformClassUnknownError);
@@ -2166,10 +2166,10 @@ namespace Aurora
       {
         viewEngine = context.Application[MainConfig.ViewEngineSessionName] as IViewEngine;
 
-        if (AuroraConfig.InDebugMode)
-        {
-          viewEngine.Refresh(context);
-        }
+        //if (AuroraConfig.InDebugMode)
+        //{
+        viewEngine.Refresh(context);
+        //}
       }
       else
       {
@@ -5149,6 +5149,7 @@ namespace Aurora
     public string Controller { get; set; }
     public string Path { get; set; }
     public string Template { get; set; }
+    public string MD5sum { get; set; }
     public ViewTemplateType TemplateType { get; set; }
   }
   #endregion
@@ -5161,6 +5162,7 @@ namespace Aurora
     public string Render { get; set; }
     public string Template { get; set; }
     public string CompiledTemplate { get; set; }
+    public string TemplateMD5sum { get; set; }
   }
   #endregion
 
@@ -5199,70 +5201,74 @@ namespace Aurora
 
           foreach (FileInfo fi in rootDir.GetAllFiles().Where(x => x.Extension == ".html"))
           {
+            StringBuilder templateBuilder;
+            string templateName = fi.Name.Replace(fi.Extension, string.Empty);
+            string templateKeyName = fi.FullName.Replace(rootDir.Parent.FullName, string.Empty)
+                                                .Replace(physicalApplicationRoot, string.Empty)
+                                                .Replace(fi.Extension, string.Empty)
+                                                .Replace("\\", "/").TrimStart('/');
+
             using (StreamReader sr = new StreamReader(fi.OpenRead()))
             {
-              string templateName = fi.Name.Replace(fi.Extension, string.Empty);
-              string templateKeyName = fi.FullName.Replace(rootDir.Parent.FullName, string.Empty)
-                                                  .Replace(physicalApplicationRoot, string.Empty)
-                                                  .Replace(fi.Extension, string.Empty)
-                                                  .Replace("\\", "/").TrimStart('/');
-
-              #region STRIP COMMENT SECTIONS
-              StringBuilder templateBuilder = new StringBuilder(sr.ReadToEnd());
-
-              MatchCollection comments = commentBlockRE.Matches(templateBuilder.ToString());
-
-              if (comments.Count > 0)
-              {
-                foreach (Match comment in comments)
-                {
-                  templateBuilder.Replace(comment.Value, string.Empty);
-                }
-              }
-              #endregion
-
-              ViewTemplateType templateType = ViewTemplateType.Action;
-
-              if (fi.FullName.ToLower().Contains(sharedHint))
-              {
-                templateType = ViewTemplateType.Shared;
-              }
-              else if (fi.FullName.ToLower().Contains(fragmentsHint))
-              {
-                templateType = ViewTemplateType.Fragment;
-              }
-
-              string partition = null;
-              string controller = null;
-
-              if (templateType == ViewTemplateType.Action ||
-                  templateType == ViewTemplateType.Shared)
-              {
-                string[] keyParts = templateKeyName.Split('/');
-
-                if (keyParts.Length > 2)
-                {
-                  partition = keyParts[0];
-                  controller = keyParts[1];
-                }
-                else
-                {
-                  partition = null;
-                  controller = keyParts[0];
-                }
-              }
-
-              templates.Add(new ViewTemplate()
-                {
-                  Partition = partition,
-                  Controller = controller,
-                  FullName = templateKeyName,
-                  Name = templateName,
-                  Path = fi.FullName,
-                  Template = templateBuilder.ToString(),
-                  TemplateType = templateType
-                });
+              templateBuilder = new StringBuilder(sr.ReadToEnd());
             }
+
+            #region STRIP COMMENT SECTIONS
+            MatchCollection comments = commentBlockRE.Matches(templateBuilder.ToString());
+
+            if (comments.Count > 0)
+            {
+              foreach (Match comment in comments)
+              {
+                templateBuilder.Replace(comment.Value, string.Empty);
+              }
+            }
+            #endregion
+
+            ViewTemplateType templateType = ViewTemplateType.Action;
+
+            if (fi.FullName.ToLower().Contains(sharedHint))
+            {
+              templateType = ViewTemplateType.Shared;
+            }
+            else if (fi.FullName.ToLower().Contains(fragmentsHint))
+            {
+              templateType = ViewTemplateType.Fragment;
+            }
+
+            string partition = null;
+            string controller = null;
+
+            if (templateType == ViewTemplateType.Action ||
+                templateType == ViewTemplateType.Shared)
+            {
+              string[] keyParts = templateKeyName.Split('/');
+
+              if (keyParts.Length > 2)
+              {
+                partition = keyParts[0];
+                controller = keyParts[1];
+              }
+              else
+              {
+                partition = null;
+                controller = keyParts[0];
+              }
+            }
+
+            string template = templateBuilder.ToString();
+
+            templates.Add(new ViewTemplate()
+            {
+              MD5sum = template.CalculateMD5Hash(),
+              Partition = partition,
+              Controller = controller,
+              FullName = templateKeyName,
+              Name = templateName,
+              Path = fi.FullName,
+              Template = template,
+              TemplateType = templateType
+            });
           }
         }
       }
@@ -5309,7 +5315,7 @@ namespace Aurora
   {
     List<View> CompileAll();
     View Compile(string partitionName, string controllerName, string viewName);
-    View Render(View view, Dictionary<string, string> tags);
+    View Render(string fullName, Dictionary<string, string> tags);
 
     event EventHandler<AntiForgeryRequestHandlerEventArgs> AntiForgeryRequestEvent;
     event EventHandler<BundleFileLinkHandlerEventArgs> BundleFileLinkEvent;
@@ -5318,6 +5324,9 @@ namespace Aurora
   internal class ViewCompiler : IViewCompiler
   {
     private List<ViewTemplate> viewTemplates;
+    public List<View> CompiledViews { get; private set; }
+    public Dictionary<string, List<string>> viewDependencies;
+
     private static Markdown Markdown = new Markdown();
     private Dictionary<string, List<string>> templateKeyNames;
     private static Regex directiveTokenRE = new Regex(@"(\%\%(?<directive>[a-zA-Z0-9]+)=(?<value>(\S|\.)+)\%\%)");
@@ -5332,15 +5341,15 @@ namespace Aurora
     private static string antiForgeryToken = "%%AntiForgeryToken%%";
     private static string jsonAntiForgeryToken = "%%JsonAntiForgeryToken%%";
 
-    private List<View> compiledViews;
-
     public event EventHandler<AntiForgeryRequestHandlerEventArgs> AntiForgeryRequestEvent;
     public event EventHandler<BundleFileLinkHandlerEventArgs> BundleFileLinkEvent;
 
     public ViewCompiler()
     {
+      CompiledViews = new List<View>();
+
       templateKeyNames = new Dictionary<string, List<string>>();
-      compiledViews = new List<View>();
+      viewDependencies = new Dictionary<string, List<string>>();
     }
 
     public void SetTemplates(List<ViewTemplate> templates)
@@ -5353,12 +5362,17 @@ namespace Aurora
       viewTemplates = templates;
     }
 
-    private StringBuilder ProcessDirectives(string partitionName, string controllerName, StringBuilder rawView)
+    private StringBuilder ProcessDirectives(string fullViewName, string partitionName, string controllerName, StringBuilder rawView)
     {
       MatchCollection dirMatches = directiveTokenRE.Matches(rawView.ToString());
       StringBuilder pageContent = new StringBuilder();
       StringBuilder directive = new StringBuilder();
       StringBuilder value = new StringBuilder();
+
+      if (!viewDependencies.ContainsKey(fullViewName))
+      {
+        viewDependencies[fullViewName] = new List<string>();
+      }
 
       #region PROCESS DIRECTIVES
       foreach (Match match in dirMatches)
@@ -5375,10 +5389,12 @@ namespace Aurora
         {
           pageName = DetermineKeyName(partitionName, controllerName, value.ToString());
         }
-        
+
         if (!string.IsNullOrEmpty(pageName))
         {
           string template = viewTemplates.FirstOrDefault(x => x.FullName == pageName).Template;
+
+          viewDependencies[fullViewName].Add(pageName);
 
           switch (directive.ToString())
           {
@@ -5425,7 +5441,7 @@ namespace Aurora
       // we'll recursively call ProcessDirectives to take care of them
       if (directiveTokenRE.Matches(pageContent.ToString()).Count > 0)
       {
-        ProcessDirectives(partitionName, controllerName, pageContent);
+        ProcessDirectives(fullViewName, partitionName, controllerName, pageContent);
       }
 
       #region PROCESS HEAD SUBSTITUTIONS AFTER ALL TEMPLATES HAVE BEEN COMPILED
@@ -5542,7 +5558,7 @@ namespace Aurora
 
           if (viewTemplate.TemplateType != ViewTemplateType.Fragment)
           {
-            compiledView = ProcessDirectives(partitionName, controllerName, rawView);
+            compiledView = ProcessDirectives(keyName, partitionName, controllerName, rawView);
           }
 
           if (string.IsNullOrEmpty(compiledView.ToString()))
@@ -5558,9 +5574,19 @@ namespace Aurora
             Name = viewName,
             Template = viewTemplate.Template,
             CompiledTemplate = compiledView.ToString(),
-            Render = string.Empty
+            Render = string.Empty,
+            TemplateMD5sum = viewTemplate.MD5sum
           };
-          
+
+          View previouslyCompiled = CompiledViews.FirstOrDefault(x => x.FullName == viewTemplate.FullName);
+
+          if (previouslyCompiled != null)
+          {
+            CompiledViews.Remove(previouslyCompiled);
+          }
+
+          CompiledViews.Add(view);
+
           return view;
         }
       }
@@ -5568,31 +5594,46 @@ namespace Aurora
       throw new FileNotFoundException(string.Format(CultureInfo.CurrentCulture, "Cannot find view : {0}", viewName));
     }
 
+    public void RecompileDependencies(string fullViewName, string partitionName, string controllerName)
+    {
+      var deps = viewDependencies.Where(x => x.Value.FirstOrDefault(y => y == fullViewName) != null);
+
+      foreach (KeyValuePair<string, List<string>> view in deps)
+      {
+        var template = viewTemplates.FirstOrDefault(x => x.FullName == view.Key);
+
+        if (template != null)
+        {
+          Compile(partitionName, controllerName, template.Name);
+        }
+      }
+    }
+
     public List<View> CompileAll()
     {
       foreach (ViewTemplate vt in viewTemplates)
       {
-        if (vt.TemplateType == ViewTemplateType.Action || 
-            vt.TemplateType == ViewTemplateType.Shared)
+        if (vt.TemplateType != ViewTemplateType.Fragment)
         {
-          compiledViews.Add(Compile(vt.Partition, vt.Controller, vt.Name));
+          Compile(vt.Partition, vt.Controller, vt.Name);
         }
         else
         {
-          compiledViews.Add(new View()
+          CompiledViews.Add(new View()
             {
               FullName = vt.FullName,
               Name = vt.Name,
               CompiledTemplate = vt.Template,
               Template = vt.Template,
               Render = string.Empty,
+              TemplateMD5sum = vt.MD5sum
             });
         }
       }
 
-      if (compiledViews.Count > 0)
+      if (CompiledViews.Count > 0)
       {
-        return compiledViews;
+        return CompiledViews;
       }
 
       return null;
@@ -5622,74 +5663,73 @@ namespace Aurora
       return view;
     }
 
-    public View Render(View view, Dictionary<string, string> tags)
+    public View Render(string fullName, Dictionary<string, string> tags)
     {
-      if (view == null)
+      View compiledView = CompiledViews.FirstOrDefault(x => x.FullName == fullName);
+
+      if (compiledView != null)
       {
-        throw new ArgumentNullException("view");
-      }
+        StringBuilder compiledViewSB = new StringBuilder(compiledView.CompiledTemplate);
 
-      StringBuilder compiledView = new StringBuilder(view.CompiledTemplate);
-
-      //if (renderFinal && keyName.Contains("Fragments"))
-      //  throw new FileNotFoundException(string.Format(CultureInfo.CurrentCulture, "Cannot find view : {0}", viewName));
-
-      if (AntiForgeryRequestEvent != null)
-      {
-        compiledView = ReplaceAntiForgeryTokens(compiledView, antiForgeryToken, AntiForgeryTokenType.Form);
-        compiledView = ReplaceAntiForgeryTokens(compiledView, jsonAntiForgeryToken, AntiForgeryTokenType.Json);
-      }
-
-      if (tags != null)
-      {
-        StringBuilder tagSB = new StringBuilder();
-
-        foreach (KeyValuePair<string, string> tag in tags)
+        if (AntiForgeryRequestEvent != null)
         {
-          tagSB.Length = 0;
-          tagSB.Insert(0, string.Format(CultureInfo.InvariantCulture, tagFormatPattern, tag.Key));
+          compiledViewSB = ReplaceAntiForgeryTokens(compiledViewSB, antiForgeryToken, AntiForgeryTokenType.Form);
+          compiledViewSB = ReplaceAntiForgeryTokens(compiledViewSB, jsonAntiForgeryToken, AntiForgeryTokenType.Json);
+        }
 
-          Regex tempTagRE = new Regex(tagSB.ToString());
+        if (tags != null)
+        {
+          StringBuilder tagSB = new StringBuilder();
 
-          MatchCollection tagMatches = tempTagRE.Matches(compiledView.ToString());
-
-          if (tagMatches != null)
+          foreach (KeyValuePair<string, string> tag in tags)
           {
-            foreach (Match m in tagMatches)
+            tagSB.Length = 0;
+            tagSB.Insert(0, string.Format(CultureInfo.InvariantCulture, tagFormatPattern, tag.Key));
+
+            Regex tempTagRE = new Regex(tagSB.ToString());
+
+            MatchCollection tagMatches = tempTagRE.Matches(compiledViewSB.ToString());
+
+            if (tagMatches != null)
             {
-              if (!string.IsNullOrEmpty(tag.Value))
+              foreach (Match m in tagMatches)
               {
-                if (m.Value.StartsWith(unencodedTagHint, StringComparison.Ordinal))
+                if (!string.IsNullOrEmpty(tag.Value))
                 {
-                  compiledView.Replace(m.Value, tag.Value.Trim());
-                }
-                else if (m.Value.StartsWith(tagEncodingHint, StringComparison.Ordinal))
-                {
-                  compiledView.Replace(m.Value, HttpUtility.HtmlEncode(tag.Value.Trim()));
-                }
-                else if (m.Value.StartsWith(markdownEncodingHint, StringComparison.Ordinal))
-                {
-                  compiledView.Replace(m.Value, Markdown.Transform(tag.Value.Trim()));
+                  if (m.Value.StartsWith(unencodedTagHint, StringComparison.Ordinal))
+                  {
+                    compiledViewSB.Replace(m.Value, tag.Value.Trim());
+                  }
+                  else if (m.Value.StartsWith(tagEncodingHint, StringComparison.Ordinal))
+                  {
+                    compiledViewSB.Replace(m.Value, HttpUtility.HtmlEncode(tag.Value.Trim()));
+                  }
+                  else if (m.Value.StartsWith(markdownEncodingHint, StringComparison.Ordinal))
+                  {
+                    compiledViewSB.Replace(m.Value, Markdown.Transform(tag.Value.Trim()));
+                  }
                 }
               }
             }
           }
-        }
 
-        MatchCollection leftoverMatches = tagRE.Matches(compiledView.ToString());
+          MatchCollection leftoverMatches = tagRE.Matches(compiledViewSB.ToString());
 
-        if (leftoverMatches != null)
-        {
-          foreach (Match match in leftoverMatches)
+          if (leftoverMatches != null)
           {
-            compiledView.Replace(match.Value, string.Empty);
+            foreach (Match match in leftoverMatches)
+            {
+              compiledViewSB.Replace(match.Value, string.Empty);
+            }
           }
         }
+
+        compiledView.Render = compiledViewSB.ToString();
+
+        return compiledView;
       }
 
-      view.Render = compiledView.ToString();
-
-      return view;
+      return null;
     }
   }
   #endregion
@@ -5706,8 +5746,6 @@ namespace Aurora
     private AuroraContext context;
 
     private List<ViewTemplate> viewTemplates;
-    private List<View> compiledViews;
-
     private ViewTemplateLoader viewTemplateLoader;
     private ViewCompiler viewCompiler;
 
@@ -5755,8 +5793,6 @@ namespace Aurora
       BundleFileLinkEvent += new EventHandler<BundleFileLinkHandlerEventArgs>(BundleFileLinkHandler);
 
       viewTemplateLoader = new ViewTemplateLoader(appRoot);
-
-      compiledViews = new List<View>();
       viewTemplates = new List<ViewTemplate>();
 
       Refresh(ctx);
@@ -5764,6 +5800,11 @@ namespace Aurora
 
     public void Refresh(AuroraContext ctx)
     {
+      if (ctx == null)
+      {
+        throw new ArgumentNullException("ctx");
+      }
+
       context = ctx;
 
       string[] viewRoots = ApplicationInternals.AllViewRoots(context);
@@ -5773,59 +5814,54 @@ namespace Aurora
         throw new ArgumentException("At least one view root is required to load view templates from.");
       }
 
+      //FIXME: This can be done more efficiently. This needs to load only views that have changed and then we simply merge the changes back into the original list.
       viewTemplates = viewTemplateLoader.Load(viewRoots);
 
       if (viewTemplates.Count() > 0)
       {
         viewCompiler.SetTemplates(viewTemplates);
 
-        if (!(compiledViews.Count() > 0))
+        if (!(viewCompiler.CompiledViews.Count() > 0))
         {
-          compiledViews = viewCompiler.CompileAll();
+          viewCompiler.CompileAll();
         }
         else
         {
-          UpdateChangedTemplates();
-          CompileNewFiles();
+          //CompileNewFiles();
+          RecompileChangedTemplates();
         }
       }
     }
 
-    public void UpdateChangedTemplates()
+    //public void CompileNewFiles()
+    //{
+    //  var newTemplates = from vt in viewTemplates
+    //                     join cv in viewCompiler.CompiledViews
+    //                       on vt.FullName equals cv.FullName into joinedNames
+    //                     from cv in joinedNames.DefaultIfEmpty()
+    //                     where cv == null
+    //                     select vt;
+
+    //  if (newTemplates.Count() > 0)
+    //  {
+    //    foreach (ViewTemplate vt in newTemplates)
+    //    {
+    //      viewCompiler.Compile(vt.Partition, vt.Controller, vt.Name);
+    //    }
+    //  }
+    //}
+
+    public void RecompileChangedTemplates()
     {
       foreach (ViewTemplate vt in viewTemplates)
       {
-        View cv = compiledViews.FirstOrDefault(x => x.FullName == vt.FullName && x.Template != vt.Template);
+        View cv = viewCompiler.CompiledViews.FirstOrDefault(x => x.FullName == vt.FullName && x.TemplateMD5sum != vt.MD5sum);
 
-        if(cv!=null)
+        if (cv != null)
         {
-          compiledViews.Remove(cv);
-          compiledViews.Add(viewCompiler.Compile(vt.Partition, vt.Controller, vt.Name));
+          viewCompiler.RecompileDependencies(vt.FullName, vt.Partition, vt.Controller);
+          viewCompiler.Compile(vt.Partition, vt.Controller, vt.Name);
         }
-      }
-    }
-
-    private void CompileNewFiles()
-    {
-      string[] vtNames = viewTemplates.Select(x => x.FullName).ToArray();
-      string[] cvNames = compiledViews.Select(x => x.FullName).ToArray();
-
-      var newFiles = vtNames.Except(cvNames);
-
-      if (newFiles.Count() > 0)
-      {
-        #region COMPILE NEW FILES
-        List<View> extraCompiledViews = new List<View>();
-
-        foreach (string newName in newFiles)
-        {
-          ViewTemplate v = viewTemplates.FirstOrDefault(x => x.FullName == newName);
-
-          extraCompiledViews.Add(viewCompiler.Compile(v.Partition, v.Controller, v.Name));
-        }
-
-        compiledViews.InsertRange(0, extraCompiledViews);
-        #endregion
       }
     }
 
@@ -5888,11 +5924,9 @@ namespace Aurora
     {
       string keyName = viewCompiler.DetermineKeyName(partitionName, controllerName, viewName);
 
-      View compiledView = compiledViews.FirstOrDefault(x => x.FullName == keyName);
-
-      if (compiledView != null)
+      if (!string.IsNullOrEmpty(keyName))
       {
-        View renderedView = viewCompiler.Render(compiledView, tags);
+        View renderedView = viewCompiler.Render(keyName, tags);
 
         if (renderedView != null)
         {
@@ -8863,6 +8897,25 @@ namespace Aurora
   /// </summary>
   public static class ExtensionMethods
   {
+    //
+    // http://blogs.msdn.com/b/csharpfaq/archive/2006/10/09/how-do-i-calculate-a-md5-hash-from-a-string_3f00_.aspx
+    //
+    public static string CalculateMD5Hash(this string input)
+    {
+      MD5 md5 = System.Security.Cryptography.MD5.Create();
+      byte[] inputBytes = System.Text.Encoding.UTF8.GetBytes(input);
+      byte[] hash = md5.ComputeHash(inputBytes);
+
+      StringBuilder sb = new StringBuilder();
+
+      for (int i = 0; i < hash.Length; i++)
+      {
+        sb.Append(hash[i].ToString("X2"));
+      }
+
+      return sb.ToString();
+    }
+
     public static object[] ToObjectArray(this string[] parms)
     {
       DateTime? dt = null;
