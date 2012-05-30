@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 25 May 2012
+// Updated On: 29 May 2012
 //
 // Contact Info:
 //
@@ -1329,6 +1329,7 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 
 #endregion
 
+#if LIBRARY
 #region ASSEMBLY INFORMATION
 [assembly: AssemblyTitle("Aurora")]
 [assembly: AssemblyDescription("An MVC web framework for .NET")]
@@ -1337,8 +1338,9 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyCopyright("(GNU GPLv3) Copyleft © 2011-2012")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("0.99.71.0")]
+[assembly: AssemblyVersion("0.99.72.0")]
 #endregion
+#endif
 
 #region TODO (MAYBE)
 //TODO: Figure out how the Plugin infrastructure will be integrated into the framework pipeline (if at all). 
@@ -1457,7 +1459,6 @@ namespace Aurora
     }
   }
 
-  [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1010:CollectionsShouldImplementGenericInterface")]
   public class ActiveDirectorySearchConfigurationCollection : ConfigurationElementCollection
   {
     public ActiveDirectorySearchConfigurationElement this[int index]
@@ -1663,6 +1664,7 @@ namespace Aurora
     public static string ADSearchDomainIsNullorEmpty = "The Active Directory search domain is null or empty";
     public static string ADSearchCriteriaIsNullOrEmptyError = "The LDAP query associated with this search type is null or empty, a valid query must be annotated to this search type via the MetaData attribute";
 #endif
+
 #if OPENID		
     public static string OpenIDInvalidIdentifierError = "The specified login identifier is invalid";
     public static string OpenIDLoginCancelledByProviderError = "Login was cancelled at the provider";
@@ -1672,6 +1674,7 @@ namespace Aurora
     public static string OpenIdClaimsResponseSessionName = "__OpenAuthClaimsResponse";
     public static string OpenIdProviderUriSessionName = "__OpenIdProviderUri";
 #endif
+
     public static Regex PathTokenRE = new Regex(@"/(?<token>[a-zA-Z0-9]+)");
     public static Regex PathStaticFileRE = (WebConfig == null) ? new Regex(@"\.(js|css|png|jpg|gif|ico|txt)$") : new Regex(WebConfig.StaticFileExtWhiteList);
     public static Dictionary<string, string> MimeTypes;
@@ -1776,6 +1779,11 @@ namespace Aurora
 
     internal static List<Type> GetTypeList(AuroraContext context, string sessionName, Type t)
     {
+      if (context == null)
+      {
+        throw new ArgumentNullException("context");
+      }
+
       List<Type> types = null;
 
       if (context.Application[sessionName] != null)
@@ -1822,6 +1830,11 @@ namespace Aurora
 
     public static List<Type> AllControllers(AuroraContext context)
     {
+      if (context == null)
+      {
+        throw new ArgumentNullException("context");
+      }
+      
       if (context.Application[MainConfig.ControllersSessionName] != null)
       {
         return context.Application[MainConfig.ControllersSessionName] as List<Type>;
@@ -1838,6 +1851,11 @@ namespace Aurora
 
     public static List<Controller> AllControllerInstances(AuroraContext context)
     {
+      if (context == null)
+      {
+        throw new ArgumentNullException("context");
+      }
+
       List<Controller> controllerInstances = null;
 
       if (context.Application[MainConfig.ControllerInstancesSessionName] == null)
@@ -1856,12 +1874,21 @@ namespace Aurora
 
     public static List<Type> AllModels(AuroraContext context)
     {
+      if (context == null)
+      {
+        throw new ArgumentNullException("context");
+      }
+      
       return GetTypeList(context, MainConfig.ModelsSessionName, typeof(Model));
     }
 
-    //TODO: This methods name needs to be changed.
-    internal static IEnumerable<ActionInfo> GetAllActionInfos(AuroraContext context)
+    internal static IEnumerable<ActionInfo> _GetAllActionInfos(AuroraContext context)
     {
+      if (context == null)
+      {
+        throw new ArgumentNullException("context");
+      }
+
       foreach (Type c in AllControllers(context))
       {
         foreach (MethodInfo mi in c.GetMethods())
@@ -1899,6 +1926,11 @@ namespace Aurora
 
     public static List<ActionInfo> AllActionInfos(AuroraContext context)
     {
+      if (context == null)
+      {
+        throw new ArgumentNullException("context");
+      }
+
       List<ActionInfo> actionInfos = new List<ActionInfo>();
 
       if (context.Application[MainConfig.ActionInfosSessionName] != null)
@@ -1907,7 +1939,7 @@ namespace Aurora
       }
       else
       {
-        foreach (ActionInfo ai in GetAllActionInfos(context))
+        foreach (ActionInfo ai in _GetAllActionInfos(context))
         {
           actionInfos.Add(ai);
         }
@@ -1918,6 +1950,11 @@ namespace Aurora
 
     public static Dictionary<string, string> AllPartitionNames(AuroraContext context)
     {
+      if (context == null)
+      {
+        throw new ArgumentNullException("context");
+      }
+
       Dictionary<string, string> partitionNames = new Dictionary<string, string>();
 
       foreach (Type c in AllControllers(context))
@@ -1940,6 +1977,11 @@ namespace Aurora
 
     public static string[] AllViewRoots(AuroraContext context)
     {
+      if (context == null)
+      {
+        throw new ArgumentNullException("context");
+      }
+
       Dictionary<string, string> partitionNames = AllPartitionNames(context);
 
       List<string> partitionViewRoots = new List<string>();
@@ -1959,9 +2001,14 @@ namespace Aurora
 
     public static List<string> AllRoutableActionNames(AuroraContext context, string controllerName)
     {
+      if (context == null)
+      {
+        throw new ArgumentNullException("context");
+      }
+
       List<string> routableActionNames = new List<string>();
 
-      foreach (ActionInfo ai in GetAllActionInfos(context).Where(x => x.ControllerType.Name == controllerName))
+      foreach (ActionInfo ai in _GetAllActionInfos(context).Where(x => x.ControllerType.Name == controllerName))
       {
         routableActionNames.Add(ai.ActionMethod.Name);
       }
@@ -1976,6 +2023,11 @@ namespace Aurora
 
     public static List<RouteInfo> AllRouteInfos(AuroraContext context)
     {
+      if (context == null)
+      {
+        throw new ArgumentNullException("context");
+      }
+
       List<RouteInfo> routes = null;
       List<ActionInfo> actionInfos = null;
 
@@ -2005,7 +2057,7 @@ namespace Aurora
           AllControllerInstances(context).Add(ctrl);
           #endregion
 
-          foreach (ActionInfo ai in GetAllActionInfos(context).Where(x => x.ControllerType.Name == c.Name))
+          foreach (ActionInfo ai in _GetAllActionInfos(context).Where(x => x.ControllerType.Name == c.Name))
           {
             RequestTypeAttribute attr = (ai.Attribute as RequestTypeAttribute);
 
@@ -2050,10 +2102,15 @@ namespace Aurora
       return routes;
     }
 
-    public static Type GetActionTransformClassType(ActionParamTransformAttribute apt)
+    public static Type GetActionTransformClassType(ActionParamTransformAttribute actionParameterTransform)
     {
+      if (actionParameterTransform == null)
+      {
+        throw new ArgumentNullException("actionParameterTransform");
+      }
+
       Type actionTransformClassType = (from assembly in AppDomain.CurrentDomain.GetAssemblies().Where(x => x.GetName().Name != "DotNetOpenAuth")
-                                       from type in assembly.GetTypes().Where(x => x.GetInterface(typeof(IActionParamTransform<,>).Name) != null && x.Name == apt.TransformName)
+                                       from type in assembly.GetTypes().Where(x => x.GetInterface(typeof(IActionParamTransform<,>).Name) != null && x.Name == actionParameterTransform.TransformName)
                                        select type).FirstOrDefault();
 
       if (actionTransformClassType != null)
@@ -2066,6 +2123,11 @@ namespace Aurora
 
     public static void RemoveRouteInfo(AuroraContext context, string alias)
     {
+      if (context == null)
+      {
+        throw new ArgumentNullException("context");
+      }
+
       List<RouteInfo> routes = AllRouteInfos(context);
       List<RouteInfo> routeInfos = routes.Where(x => x.Dynamic == true && x.Alias == alias).ToList();
 
@@ -2082,6 +2144,11 @@ namespace Aurora
 
     public static void AddRouteInfo(AuroraContext context, string alias, Controller controller, MethodInfo action, string requestType, string frontParams)
     {
+      if (context == null)
+      {
+        throw new ArgumentNullException("context");
+      }
+
       List<RouteInfo> routes = context.Application[MainConfig.RoutesSessionName] as List<RouteInfo>;
 
       if (routes == null)
@@ -2107,9 +2174,14 @@ namespace Aurora
       context.Application[MainConfig.RoutesSessionName] = routes;
     }
 
-    public static FrontController GetFrontController(AuroraContext ctx)
+    public static FrontController GetFrontController(AuroraContext context)
     {
-      List<Type> frontController = GetTypeList(ctx, MainConfig.FrontControllerSessionName, typeof(FrontController));
+      if (context == null)
+      {
+        throw new ArgumentNullException("context");
+      }
+
+      List<Type> frontController = GetTypeList(context, MainConfig.FrontControllerSessionName, typeof(FrontController));
 
       if (frontController != null && frontController.Count > 0)
       {
@@ -2119,15 +2191,15 @@ namespace Aurora
         }
 
         // Check to see if we already have an instance created otherwise create one
-        if (ctx.Application[MainConfig.FrontControllerInstanceSessionName] != null)
+        if (context.Application[MainConfig.FrontControllerInstanceSessionName] != null)
         {
-          return ctx.Application[MainConfig.FrontControllerInstanceSessionName] as FrontController;
+          return context.Application[MainConfig.FrontControllerInstanceSessionName] as FrontController;
         }
         else
         {
-          FrontController fc = FrontController.CreateInstance(frontController[0], ctx);
+          FrontController fc = FrontController.CreateInstance(frontController[0], context);
 
-          ctx.Application[MainConfig.FrontControllerInstanceSessionName] = fc;
+          context.Application[MainConfig.FrontControllerInstanceSessionName] = fc;
 
           return fc;
         }
@@ -2138,6 +2210,11 @@ namespace Aurora
 
     public static CustomError GetCustomError(AuroraContext context, bool useDefaultHandler)
     {
+      if (context == null)
+      {
+        throw new ArgumentNullException("context");
+      }
+
       Type errorType = typeof(DefaultCustomError);
 
       if (!useDefaultHandler)
@@ -2160,6 +2237,11 @@ namespace Aurora
 
     public static IViewEngine GetViewEngine(AuroraContext context)
     {
+      if (context == null)
+      {
+        throw new ArgumentNullException("context");
+      }
+
       IViewEngine viewEngine;
 
       if (context.Application[MainConfig.ViewEngineSessionName] != null)
@@ -2183,6 +2265,11 @@ namespace Aurora
 
     public static IRouteEngine GetRouteEngine(AuroraContext context)
     {
+      if (context == null)
+      {
+        throw new ArgumentNullException("context");
+      }
+
       IRouteEngine routeEngine;
 
       if (!MainConfig.AuroraDebug && context.Application[MainConfig.RouteEngineSessionName] != null)
@@ -4122,6 +4209,7 @@ namespace Aurora
   #endregion
 
   #region CONTROLLERS
+
   #region ACTION HANDLER
   internal enum RouteHandlerEventType
   {
@@ -4299,6 +4387,11 @@ namespace Aurora
 
     internal void Refresh(AuroraContext context)
     {
+      if (context == null)
+      {
+        throw new ArgumentNullException("context");
+      }
+
       Context = context;
 
       QueryString = (context.QueryString == null) ? new NameValueCollection() : new NameValueCollection(context.QueryString);
@@ -4487,6 +4580,7 @@ namespace Aurora
     #endregion
   }
   #endregion
+
   #endregion
 
   #region MODEL BASE
@@ -4615,6 +4709,11 @@ namespace Aurora
 
     internal void Validate(AuroraContext context, Model instance)
     {
+      if (context == null)
+      {
+        throw new ArgumentNullException("context");
+      }
+
       List<bool> results = new List<bool>();
 
       foreach (PropertyInfo pi in GetPropertiesWithExclusions<Model>(GetType(), false))
@@ -4640,37 +4739,64 @@ namespace Aurora
             // the property type to determine if the value was actually set in the posted form.
 
             requiredResult = ValidateRequiredAttribute(requiredAttribute, pi, value);
+
+            if (requiredResult)
+            {
+              results.Add(true);
+            }
+            else
+            {
+              results.Add(false);
+            }
           }
         }
 
         if (requiredLengthAttribute != null)
         {
           requiredLengthResult = ValidateRequiredLengthAttribute(requiredLengthAttribute, pi, value);
+
+          if (requiredLengthResult)
+          {
+            results.Add(true);
+          }
+          else
+          {
+            results.Add(false);
+          }
         }
 
         if (regularExpressionAttribute != null)
         {
           regularExpressionResult = ValidateRegularExpressionAttribute(regularExpressionAttribute, pi, value);
+
+          if (regularExpressionResult)
+          {
+            results.Add(true);
+          }
+          else
+          {
+            results.Add(false);
+          }
         }
 
         if (rangeAttribute != null)
         {
           rangeResult = ValidateRangeAttribute(rangeAttribute, pi, value);
-        }
 
-        if (requiredResult && requiredLengthResult && regularExpressionResult && rangeResult)
-        {
-          results.Add(true);
-        }
-        else
-        {
-          results.Add(false);
+          if (rangeResult)
+          {
+            results.Add(true);
+          }
+          else
+          {
+            results.Add(false);
+          }
         }
       }
 
       bool? finalResult = results.FirstOrDefault(x => x == false);
 
-      if (finalResult.HasValue)
+      if (finalResult == null)
       {
         instance.IsValid = false;
       }
@@ -4707,7 +4833,10 @@ namespace Aurora
                              .FirstOrDefault(y => y is ExcludeFromBindingAttribute) == null);
       }
 
-      return props.ToList();
+      if(props!=null)
+        return props.ToList();
+
+      return null;
     }
 
     /// <summary>
@@ -4717,6 +4846,11 @@ namespace Aurora
     /// <returns>The type of model</returns>
     internal static Type DetermineModelFromPostedForm(AuroraContext context)
     {
+      if (context == null)
+      {
+        throw new ArgumentNullException("context");
+      }
+
       string[] formKeys = context.Form.AllKeys.Where(x => x != MainConfig.AntiForgeryTokenName).ToArray();
 
       if (formKeys.Length > 0)
@@ -5284,7 +5418,6 @@ namespace Aurora
   #endregion
 
   #region VIEW COMPILER
-
   public class BundleFileLinkHandlerEventArgs : EventArgs
   {
     public bool DebugMode { get; set; }
@@ -5519,10 +5652,15 @@ namespace Aurora
           keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "{0}/Fragments/{1}", controllerName, viewName));
         }
 
+        //// globalScopeSharedKeyName
+        //keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "Shared/{0}", viewName));
+        //// globalScopeFragmentKeyName
+        //keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "Fragments/{0}", viewName));
+
         // globalScopeSharedKeyName
-        keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "Shared/{0}", viewName));
+        keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "Views/Shared/{0}", viewName));
         // globalScopeFragmentKeyName
-        keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "Fragments/{0}", viewName));
+        keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "Views/Fragments/{0}", viewName));
 
         templateKeyNames[lookupKeyName] = keyTypes;
       }
@@ -7437,7 +7575,7 @@ namespace Aurora
                     break;
                   }
                 }
-                catch (DirectoryServicesCOMException)
+                catch (Exception)
                 {
                   // Forget about this exception and move to the next domain controller
                 }
@@ -7463,7 +7601,7 @@ namespace Aurora
       return user;
     }
 
-    #region LOOKUP BY USERNAME
+  #region LOOKUP BY USERNAME
     public static ActiveDirectoryUser LookupUserByUserName(string userName)
     {
       return LookupUser(ActiveDirectorySearchType.USERNAME, userName, false);
@@ -7490,7 +7628,7 @@ namespace Aurora
     }
     #endregion
 
-    #region LOOKUP USER BY UPN
+  #region LOOKUP USER BY UPN
     public static ActiveDirectoryUser LookupUserByUpn(string upn)
     {
       return LookupUser(ActiveDirectorySearchType.UPN, upn, false);
@@ -7517,7 +7655,7 @@ namespace Aurora
     }
     #endregion
 
-    #region LOOKUP USER BY EMAIL ADDRESS
+  #region LOOKUP USER BY EMAIL ADDRESS
     public static ActiveDirectoryUser LookupUserByEmailAddress(string email)
     {
       return LookupUser(ActiveDirectorySearchType.EMAIL, email, false);

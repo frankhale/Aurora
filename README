@@ -4,7 +4,7 @@ NOTE: See source code comments for usage.
 
 Frank Hale <frankhale@gmail.com>
 
-Date: 25 May 2012
+Date: 29 May 2012
 
 --------------------
 --- Feature List ---
@@ -37,6 +37,11 @@ Date: 25 May 2012
   framework pipeline.)
  
 Changelog:
+
+29 May 2012
+
+- Fix for view search paths for views that are in the global scope
+- Code cleanup
 
 25 May 2012
 
