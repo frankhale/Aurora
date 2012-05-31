@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 29 May 2012
+// Updated On: 30 May 2012
 //
 // Contact Info:
 //
@@ -111,7 +111,7 @@
 // --- Building ---
 // ----------------
 //
-// Aurora requires .NET 3.5 or higher to compile.
+// Aurora requires .NET 4.0 or higher to compile.
 //
 // You can use the included CSPROJ file to compile the assembly using MSBUILD or 
 // you can build a Visual Studio project with it. The CSPROJ file assumes that 
@@ -130,6 +130,7 @@
 //	System.Web.Abstractions
 //	System.Xml.Linq
 //	System.Xml.dll
+//  Microsoft.CSharp
 //	Newtonsoft.Json.NET35 - http://json.codeplex.com/
 //	HtmlAgilityPack - http://htmlagilitypack.codeplex.com/
 //  MarkdownSharp - http://code.google.com/p/markdownsharp/
@@ -1284,6 +1285,7 @@ using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Configuration;
 using System.Diagnostics;
+using System.Dynamic;
 using System.Globalization;
 using System.IO;
 using System.IO.Compression;
@@ -1338,7 +1340,7 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyCopyright("(GNU GPLv3) Copyleft © 2011-2012")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("0.99.72.0")]
+[assembly: AssemblyVersion("0.99.73.0")]
 #endregion
 #endif
 
@@ -1352,12 +1354,88 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 //TODO: Add HTTP Patch verb support (need to research this more!)
 //TODO: If we are adding bound parameters during the OnInit() method execution then we should have a method overload that infers the name of the current controller.
 //TODO: We shouldn't need to new up the ActionBinder to add new bindings. Let's put an instance in the controller base class.
-//TODO: A dynamic VeiwTags dictionary in the Controllers would be awesome! http://haacked.com/archive/2009/08/26/method-missing-csharp-4.aspx
 #endregion
 
 namespace Aurora
 {
+  #region VERSION
+  public sealed class Version
+  {
+    public static string Name = "Aurora";
+    public static string[] Authors = { "Frank Hale" };
+    public static string Website = "http://github.com/frankhale/aurora";
+
+    public int Major
+    {
+      get
+      {
+        return version.Major;
+      }
+    }
+
+    public int Minor
+    {
+      get
+      {
+        return version.Minor;
+      }
+    }
+
+    public int Build
+    {
+      get
+      {
+        return version.Build;
+      }
+    }
+
+    public int MinorRevision
+    {
+      get
+      {
+        return version.MinorRevision;
+      }
+    }
+
+    public int Revision 
+    {
+      get
+      {
+        return version.Revision;
+      }
+    }
+    
+    private System.Version version;
+
+    public Version(string versionString)
+    {
+      version = new System.Version(versionString);
+    }
+  }
+  #endregion
+
   #region CONFIGURATION
+
+  #region AURORA PUBLIC CONFIG
+  /// <summary>
+  /// Any miscellaneous properties and methods that can be used by applications will be in here.
+  /// </summary>
+  public static class AuroraConfig
+  {
+    public static Version Version = new Version("0.99.73.0");
+
+    /// <summary>
+    /// Returns true if either Aurora or the web application is in debug mode, false otherwise.
+    /// </summary>
+    public static bool InDebugMode
+    {
+      get
+      {
+        return (MainConfig.AuroraDebug || MainConfig.ASPNETDebug) ? true : false;
+      }
+    }
+  }
+  #endregion
 
   #region WEB.CONFIG CONFIGURATION
   //
@@ -1834,7 +1912,7 @@ namespace Aurora
       {
         throw new ArgumentNullException("context");
       }
-      
+
       if (context.Application[MainConfig.ControllersSessionName] != null)
       {
         return context.Application[MainConfig.ControllersSessionName] as List<Type>;
@@ -1878,7 +1956,7 @@ namespace Aurora
       {
         throw new ArgumentNullException("context");
       }
-      
+
       return GetTypeList(context, MainConfig.ModelsSessionName, typeof(Model));
     }
 
@@ -2149,6 +2227,16 @@ namespace Aurora
         throw new ArgumentNullException("context");
       }
 
+      if (string.IsNullOrEmpty(alias))
+      {
+        throw new ArgumentNullException("alias");
+      }
+
+      if (string.IsNullOrEmpty(requestType))
+      {
+        throw new ArgumentNullException("requestType");
+      }
+
       List<RouteInfo> routes = context.Application[MainConfig.RoutesSessionName] as List<RouteInfo>;
 
       if (routes == null)
@@ -2156,22 +2244,28 @@ namespace Aurora
         routes = new List<RouteInfo>();
       }
 
-      routes.Add(new RouteInfo()
-      {
-        Alias = alias,
-        Action = action,
-        ActionName = action.Name,
-        Context = context,
-        ControllerInstance = controller,
-        ControllerName = action.DeclaringType.Name,
-        ControllerType = controller.GetType(),
-        FrontLoadedParams = frontParams,
-        RequestType = requestType,
-        Bindings = new ActionBinder(context).GetBindings(controller.GetType().Name, action.Name),
-        Dynamic = true
-      });
+      if (!alias.StartsWith("/"))
+        alias = string.Concat("/", alias);
 
-      context.Application[MainConfig.RoutesSessionName] = routes;
+      if (routes.FirstOrDefault(x => x.Alias == alias && x.Action == action) == null)
+      {
+        routes.Add(new RouteInfo()
+        {
+          Alias = alias,
+          Action = action,
+          ActionName = action.Name,
+          Context = context,
+          ControllerInstance = controller,
+          ControllerName = action.DeclaringType.Name,
+          ControllerType = controller.GetType(),
+          FrontLoadedParams = frontParams,
+          RequestType = requestType,
+          Bindings = new ActionBinder(context).GetBindings(controller.GetType().Name, action.Name),
+          Dynamic = false
+        });
+
+        context.Application[MainConfig.RoutesSessionName] = routes;
+      }
     }
 
     public static FrontController GetFrontController(AuroraContext context)
@@ -2286,25 +2380,6 @@ namespace Aurora
       }
 
       return routeEngine;
-    }
-  }
-  #endregion
-
-  #region AURORA PUBLIC CONFIG
-  /// <summary>
-  /// Any miscellaneous properties and methods that can be used by applications will be in here.
-  /// </summary>
-  public static class AuroraConfig
-  {
-    /// <summary>
-    /// Returns true if either Aurora or the web application is in debug mode, false otherwise.
-    /// </summary>
-    public static bool InDebugMode
-    {
-      get
-      {
-        return (MainConfig.AuroraDebug || MainConfig.ASPNETDebug) ? true : false;
-      }
     }
   }
   #endregion
@@ -3657,7 +3732,9 @@ namespace Aurora
     #region PARAM GETTERS
     private static object[] GetFrontParams(RouteInfo routeInfo)
     {
-      return !string.IsNullOrEmpty(routeInfo.FrontLoadedParams) ? routeInfo.FrontLoadedParams.Split('/') : new object[] { };
+      return !string.IsNullOrEmpty(routeInfo.FrontLoadedParams) ?
+        routeInfo.FrontLoadedParams.Split('/').ToObjectArray() :
+        new object[] { };
     }
 
     private static object[] GetBoundParams(RouteInfo routeInfo)
@@ -4335,7 +4412,9 @@ namespace Aurora
     private string PartitionName;
     private IViewEngine viewEngine;
     protected Dictionary<string, string> ViewTags { get; private set; }
+    protected dynamic DViewTags { get; private set; }
     protected Dictionary<string, Dictionary<string, string>> FragTags { get; private set; }
+    protected dynamic DFragTags { get; private set; }
     protected NameValueCollection Form { get; private set; }
     protected NameValueCollection QueryString { get; private set; }
 
@@ -4346,6 +4425,8 @@ namespace Aurora
     {
       ViewTags = new Dictionary<string, string>();
       FragTags = new Dictionary<string, Dictionary<string, string>>();
+      DFragTags = new DynamicDictionary();
+      DViewTags = new DynamicDictionary();
 
       PartitionName = GetPartitionName();
     }
@@ -4409,6 +4490,8 @@ namespace Aurora
     {
       ViewTags = new Dictionary<string, string>();
       FragTags = new Dictionary<string, Dictionary<string, string>>();
+      DFragTags = new DynamicDictionary();
+      DViewTags = new DynamicDictionary();
     }
 
     public string CreateAntiForgeryToken()
@@ -4504,9 +4587,21 @@ namespace Aurora
     {
       Dictionary<string, string> fragTags = null;
 
-      if (FragTags.ContainsKey(fragmentName))
+      if (!DFragTags.IsEmpty())
       {
-        fragTags = FragTags[fragmentName];
+        Dictionary<string, object> _fragTags = DFragTags.GetDynamicDictionary(fragmentName);
+
+        if (_fragTags != null)
+        {
+          fragTags = _fragTags.ToDictionary(k => k.Key, k => k.Value.ToString());
+        }
+      }
+      else
+      {
+        if (FragTags.ContainsKey(fragmentName))
+        {
+          fragTags = FragTags[fragmentName];
+        }
       }
 
       return RenderFragment(fragmentName, fragTags);
@@ -4543,7 +4638,19 @@ namespace Aurora
     {
       RequestTypeAttribute reqAttrib = (RequestTypeAttribute)CurrentRoute.Action.GetCustomAttributes(false).FirstOrDefault(x => x is RequestTypeAttribute);
 
-      ViewResult vr = new ViewResult(Context, viewEngine, PartitionName, controllerName, actionName, reqAttrib, ViewTags);
+      Dictionary<string, string> viewTags = ViewTags;
+
+      if (!DViewTags.IsEmpty())
+      {
+        Dictionary<string, object> _viewTags = DViewTags.GetDynamicDictionary();
+
+        if (_viewTags != null)
+        {
+          viewTags = _viewTags.ToDictionary(k => k.Key, k => k.Value.ToString());
+        }
+      }
+
+      ViewResult vr = new ViewResult(Context, viewEngine, PartitionName, controllerName, actionName, reqAttrib, viewTags);
 
       if (clearViewTags)
       {
@@ -4574,7 +4681,7 @@ namespace Aurora
       {
         ClearViewTags();
       }
-
+      
       return new PartialResult(Context, viewEngine, PartitionName, this.GetType().Name, partialName, ViewTags);
     }
     #endregion
@@ -4833,7 +4940,7 @@ namespace Aurora
                              .FirstOrDefault(y => y is ExcludeFromBindingAttribute) == null);
       }
 
-      if(props!=null)
+      if (props != null)
         return props.ToList();
 
       return null;
@@ -7626,7 +7733,7 @@ namespace Aurora
     {
       return LookupUser(ActiveDirectorySearchType.USERNAME, userName, global, adSearchUser, adSearchPW, adSearchRoot, adSearchDomain);
     }
-    #endregion
+  #endregion
 
   #region LOOKUP USER BY UPN
     public static ActiveDirectoryUser LookupUserByUpn(string upn)
@@ -7653,7 +7760,7 @@ namespace Aurora
     {
       return LookupUser(ActiveDirectorySearchType.UPN, upn, global, adSearchUser, adSearchPW, adSearchRoot, adSearchDomain);
     }
-    #endregion
+  #endregion
 
   #region LOOKUP USER BY EMAIL ADDRESS
     public static ActiveDirectoryUser LookupUserByEmailAddress(string email)
@@ -7680,7 +7787,7 @@ namespace Aurora
     {
       return LookupUser(ActiveDirectorySearchType.EMAIL, email, global, adSearchUser, adSearchPW, adSearchRoot, adSearchDomain);
     }
-    #endregion
+  #endregion
 
     private static ActiveDirectoryUser GetUser(DirectoryEntry de)
     {
@@ -9026,7 +9133,7 @@ namespace Aurora
   }
   #endregion
 
-  #region EXTENSION METHODS / ENCRYPTION
+  #region EXTENSION METHODS / ENCRYPTION / DYNAMIC DICTIONARY
 
   #region EXTENSION METHODS
   /// <summary>
@@ -9404,6 +9511,83 @@ namespace Aurora
       }
 
       return decrypted;
+    }
+  }
+  #endregion
+
+  #region DYNAMIC DICTIONARY
+  public class DynamicDictionary : DynamicObject
+  {
+    private Dictionary<string, object> _members = new Dictionary<string, object>();
+
+    public bool IsEmpty()
+    {
+      if (_members.Keys.Count() > 0)
+      {
+        return false;
+      }
+
+      return true;
+    }
+
+    public override IEnumerable<string> GetDynamicMemberNames()
+    {
+      return _members.Keys;
+    }
+
+    public IEnumerable<string> GetDynamicMemberNames(string key)
+    {
+      if (_members.ContainsKey(key))
+      {
+        if (_members[key] is DynamicDictionary)
+          return (_members[key] as DynamicDictionary)._members.Keys;
+      }
+
+      return null;
+    }
+
+    public Dictionary<string, object> GetDynamicDictionary()
+    {
+      return _members;
+    }
+        
+    public Dictionary<string, object> GetDynamicDictionary(string key)
+    {
+      if (_members.ContainsKey(key))
+      {
+        if (_members[key] is DynamicDictionary)
+          return (_members[key] as DynamicDictionary)._members;
+      }
+
+      return null;
+    }
+
+    public override bool TrySetMember(SetMemberBinder binder, object value)
+    {
+      if (!_members.ContainsKey(binder.Name))
+      {
+        _members.Add(binder.Name, value);
+      }
+      else
+      {
+        _members[binder.Name] = value;
+      }
+
+      return true;
+    }
+
+    public override bool TryGetMember(GetMemberBinder binder, out object result)
+    {
+      if (_members.ContainsKey(binder.Name))
+      {
+        result = _members[binder.Name];
+      }
+      else
+      {
+        result = _members[binder.Name] = new DynamicDictionary();
+      }
+
+      return true;
     }
   }
   #endregion

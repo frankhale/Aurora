@@ -4,7 +4,7 @@ NOTE: See source code comments for usage.
 
 Frank Hale <frankhale@gmail.com>
 
-Date: 29 May 2012
+Date: 30 May 2012
 
 --------------------
 --- Feature List ---
@@ -37,6 +37,17 @@ Date: 29 May 2012
   framework pipeline.)
  
 Changelog:
+
+NOTE: The code is evolving fast and the documentation is not. This will be 
+      rectified soon.
+
+30 May 2012
+
+- Added a dynamic dictionary class to use for the ViewTags and FragTags. This 
+  makes them much cleaner. 
+- Aurora now depends on .NET 4.0
+- Tweaked the AddRoute function in the ApplicationInternals class.
+- Added a version class
 
 29 May 2012
 
