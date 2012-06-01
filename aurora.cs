@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 30 May 2012
+// Updated On: 31 May 2012
 //
 // Contact Info:
 //
@@ -111,7 +111,7 @@
 // --- Building ---
 // ----------------
 //
-// Aurora requires .NET 4.0 or higher to compile.
+// Aurora requires .NET 3.5 or higher to compile.
 //
 // You can use the included CSPROJ file to compile the assembly using MSBUILD or 
 // you can build a Visual Studio project with it. The CSPROJ file assumes that 
@@ -130,7 +130,6 @@
 //	System.Web.Abstractions
 //	System.Xml.Linq
 //	System.Xml.dll
-//  Microsoft.CSharp
 //	Newtonsoft.Json.NET35 - http://json.codeplex.com/
 //	HtmlAgilityPack - http://htmlagilitypack.codeplex.com/
 //  MarkdownSharp - http://code.google.com/p/markdownsharp/
@@ -1340,7 +1339,7 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyCopyright("(GNU GPLv3) Copyleft © 2011-2012")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("0.99.73.0")]
+[assembly: AssemblyVersion("0.99.74.0")]
 #endregion
 #endif
 
@@ -1362,6 +1361,8 @@ namespace Aurora
   public sealed class Version
   {
     public static string Name = "Aurora";
+    public static string Description = "An MVC web framework for .NET";
+    public static string Copyright = "(GNU GPLv3) Copyleft © 2011-2012";
     public static string[] Authors = { "Frank Hale" };
     public static string Website = "http://github.com/frankhale/aurora";
 
@@ -1397,14 +1398,14 @@ namespace Aurora
       }
     }
 
-    public int Revision 
+    public int Revision
     {
       get
       {
         return version.Revision;
       }
     }
-    
+
     private System.Version version;
 
     public Version(string versionString)
@@ -1422,7 +1423,7 @@ namespace Aurora
   /// </summary>
   public static class AuroraConfig
   {
-    public static Version Version = new Version("0.99.73.0");
+    public static Version Version = new Version("0.99.74.0");
 
     /// <summary>
     /// Returns true if either Aurora or the web application is in debug mode, false otherwise.
@@ -1593,11 +1594,11 @@ namespace Aurora
       get { return this["StaticFileExtWhiteList"] as string; }
     }
 
-    [ConfigurationProperty("ValidateRequest", DefaultValue = true, IsRequired = false)]
-    public bool ValidateRequest
-    {
-      get { return Convert.ToBoolean(this["ValidateRequest"], CultureInfo.CurrentCulture); }
-    }
+    //[ConfigurationProperty("ValidateRequest", DefaultValue = true, IsRequired = false)]
+    //public bool ValidateRequest
+    //{
+    //  get { return Convert.ToBoolean(this["ValidateRequest"], CultureInfo.CurrentCulture); }
+    //}
 
     [ConfigurationProperty("DefaultRoute", DefaultValue = "/Home/Index", IsRequired = false)]
     public string DefaultRoute
@@ -1721,7 +1722,7 @@ namespace Aurora
 
     public static WebConfig WebConfig = ConfigurationManager.GetSection("Aurora") as WebConfig;
     public static CustomErrorsSection CustomErrorsSection = ConfigurationManager.GetSection("system.web/customErrors") as CustomErrorsSection;
-    public static bool ValidateRequest = (MainConfig.WebConfig == null) ? true : WebConfig.ValidateRequest;
+    //public static bool ValidateRequest = (MainConfig.WebConfig == null) ? true : WebConfig.ValidateRequest;
     public static string[] SupportedHttpVerbs = { "GET", "POST", "PUT", "DELETE" };
     public static string EncryptionKey = (MainConfig.WebConfig == null) ? null : WebConfig.EncryptionKey;
     public static int AuthCookieExpiry = (MainConfig.WebConfig == null) ? 8 : WebConfig.AuthCookieExpiry;
@@ -1802,7 +1803,6 @@ namespace Aurora
     public static string RedirectWithoutAuthorizationToError = "RedirectWithoutAuthorizationTo is either null or empty";
     public static string DefaultRoute = (WebConfig == null) ? "/Home/Index" : WebConfig.DefaultRoute;
     public static string HtmlTableStartOrLengthOutOfBoundsWithModelError = "The start or length is out of bounds with the model";
-    public static string HttpContextNullError = "The HttpContext cannot be null";
 
     #region ACTION BINDER
     public static string ActionBinderNullOrEmptyControllerNameError = "The controller name cannot be null or empty";
@@ -2094,6 +2094,24 @@ namespace Aurora
       if (routableActionNames.Count() > 0)
       {
         return routableActionNames;
+      }
+
+      return null;
+    }
+
+    public static List<string> AllRouteAliases(AuroraContext context)
+    {
+      if (context == null)
+      {
+        throw new ArgumentNullException("context");
+      }
+
+      if (context.Application[MainConfig.RoutesSessionName] != null)
+      {
+        List<RouteInfo> routes = context.Application[MainConfig.RoutesSessionName] as List<RouteInfo>;
+
+        if (routes.Count() > 0)
+          return routes.Select(x => x.Alias).ToList();
       }
 
       return null;
@@ -2930,6 +2948,10 @@ namespace Aurora
           ctx.Request.Files.CopyTo(Files, 0);
         }
 
+        //Configuration config = WebConfigurationManager.OpenWebConfiguration("~");
+        //var pagesSection = config.GetSection("system.web/pages") as PagesSection;
+        //pagesSection.ValidateRequest = MainConfig.ValidateRequest;
+
         Form = new NameValueCollection(ctx.Request.Form);
         QueryString = new NameValueCollection(ctx.Request.QueryString);
 
@@ -3101,10 +3123,10 @@ namespace Aurora
         throw new Exception(string.Format(CultureInfo.CurrentCulture, MainConfig.HttpRequestTypeNotSupportedError, ctx.RequestType));
       }
 
-      if (MainConfig.ValidateRequest)
-      {
-        context.ValidateInput();
-      }
+      //if (MainConfig.ValidateRequest)
+      //{
+      //  context.ValidateInput();
+      //}
 
       string incomingPath = context.Path;
       string path = string.Empty;
@@ -3709,6 +3731,11 @@ namespace Aurora
 
     public PostedFormInfo(AuroraContext ctx, Type m)
     {
+      if (ctx == null)
+      {
+        throw new ArgumentNullException("ctx");
+      }
+
       context = ctx;
 
       FormProcessor(m);
@@ -3721,11 +3748,21 @@ namespace Aurora
 
     public AuroraRouteEngine(AuroraContext ctx)
     {
+      if (ctx == null)
+      {
+        throw new ArgumentNullException("ctx");
+      }
+
       context = ctx;
     }
 
     public void Refresh(AuroraContext ctx)
     {
+      if (ctx == null)
+      {
+        throw new ArgumentNullException("ctx");
+      }
+
       context = ctx;
     }
 
@@ -3784,6 +3821,12 @@ namespace Aurora
             }
 
             string[] formValues = new string[form.AllKeys.Length];
+
+            //FIXME: posted forms that put their variables directly in the action parameter list
+            //       do not behave the same way as posted forms using post models. Post models
+            //       convert the form value to the data type of the corresponding property, where as
+            //       the former converts the form values to whatever they appear to be, strings are 
+            //       strings, numbers are int's, etc...
 
             for (int i = 0; i < form.AllKeys.Length; i++)
             {
@@ -3997,7 +4040,7 @@ namespace Aurora
     {
       if (ctx == null)
       {
-        throw new ArgumentNullException("ctx", MainConfig.HttpContextNullError);
+        throw new ArgumentNullException("ctx");
       }
 
       this.context = ctx;
@@ -4333,6 +4376,11 @@ namespace Aurora
 
     internal static FrontController CreateInstance(Type t, AuroraContext context)
     {
+      if (context == null)
+      {
+        throw new ArgumentNullException("context");
+      }
+
       if (t.BaseType == typeof(FrontController))
       {
         FrontController fc = (FrontController)Activator.CreateInstance(t);
@@ -4451,6 +4499,11 @@ namespace Aurora
 
     internal static Controller CreateInstance(Type t, AuroraContext context)
     {
+      if (context == null)
+      {
+        throw new ArgumentNullException("context");
+      }
+
       if (t.BaseType == typeof(Controller))
       {
         Controller controller = (Controller)Activator.CreateInstance(t);
@@ -4533,6 +4586,26 @@ namespace Aurora
     public void RemoveRoute(string alias)
     {
       ApplicationInternals.RemoveRouteInfo(Context, alias);
+    }
+
+    public List<string> AllRouteAliases()
+    {
+      List<string> aliases = ApplicationInternals.AllRouteAliases(Context);
+
+      if (aliases != null)
+      {
+        return aliases;
+      }
+
+      return new List<string>();
+    }
+
+    public bool IsRouteAliasAvailable(string name)
+    {
+      if (!AllRouteAliases().Contains(name))
+        return true;
+
+      return false;
     }
     #endregion
 
@@ -4681,7 +4754,7 @@ namespace Aurora
       {
         ClearViewTags();
       }
-      
+
       return new PartialResult(Context, viewEngine, PartitionName, this.GetType().Name, partialName, ViewTags);
     }
     #endregion
@@ -5004,6 +5077,11 @@ namespace Aurora
   {
     public static void AddEncodingHeaders(AuroraContext context)
     {
+      if (context == null)
+      {
+        throw new ArgumentNullException("context");
+      }
+
       string acceptsEncoding = context.RequestHeaders["Accept-Encoding"];
 
       if (!string.IsNullOrEmpty(acceptsEncoding))
@@ -5023,6 +5101,11 @@ namespace Aurora
 
     public static void SetContentType(AuroraContext context, string contentType)
     {
+      if (context == null)
+      {
+        throw new ArgumentNullException("context");
+      }
+
       context.ResponseClearHeaders();
       context.ResponseClearContent();
       context.ResponseCharset = "utf-8";
@@ -5044,6 +5127,11 @@ namespace Aurora
 
     public VirtualFileResult(AuroraContext ctx, string name, byte[] bytes, string contentType)
     {
+      if (ctx == null)
+      {
+        throw new ArgumentNullException("ctx");
+      }
+
       context = ctx;
       fileName = name;
       fileBytes = bytes;
@@ -5073,6 +5161,11 @@ namespace Aurora
 
     public PhysicalFileResult(AuroraContext ctx, string file)
     {
+      if (ctx == null)
+      {
+        throw new ArgumentNullException("ctx");
+      }
+
       context = ctx;
       filePath = file;
       contentType = string.Empty;
@@ -5156,6 +5249,11 @@ namespace Aurora
 
     public ViewResult(AuroraContext ctx, IViewEngine ve, string pName, string cName, string vName, RequestTypeAttribute attrib, Dictionary<string, string> vTags)
     {
+      if (ctx == null)
+      {
+        throw new ArgumentNullException("ctx");
+      }
+
       context = ctx;
       viewEngine = ve;
       requestAttribute = attrib;
@@ -5171,6 +5269,11 @@ namespace Aurora
       // This constructor is used by the DefaultCustomError class to 
       // by pass the load view code in the Render method if the web application
       // does not specify the Error view.
+      
+      if (ctx == null)
+      {
+        throw new ArgumentNullException("ctx");
+      }
 
       context = ctx;
       this.view = view;
@@ -5178,6 +5281,11 @@ namespace Aurora
 
     public void Refresh(AuroraContext ctx, RequestTypeAttribute attrib)
     {
+      if (ctx == null)
+      {
+        throw new ArgumentNullException("ctx");
+      }
+
       context = ctx;
       requestAttribute = attrib;
     }
@@ -5266,6 +5374,11 @@ namespace Aurora
 
     public PartialResult(AuroraContext ctx, IViewEngine ve, string pName, string cName, string fName, Dictionary<string, string> vTags)
     {
+      if (ctx == null)
+      {
+        throw new ArgumentNullException("ctx");
+      }
+
       context = ctx;
       viewEngine = ve;
       partitionName = pName;
@@ -5289,6 +5402,11 @@ namespace Aurora
 
     public JsonResult(AuroraContext ctx, object d)
     {
+      if (ctx == null)
+      {
+        throw new ArgumentNullException("ctx");
+      }
+
       context = ctx;
       data = d;
     }
@@ -5318,6 +5436,11 @@ namespace Aurora
 
     public ErrorResult(AuroraContext ctx, Exception e)
     {
+      if (ctx == null)
+      {
+        throw new ArgumentNullException("ctx");
+      }
+
       context = ctx;
       exception = e;
     }
@@ -5361,6 +5484,11 @@ namespace Aurora
 
     public RedirectResult(AuroraContext ctx, string loc)
     {
+      if (ctx == null)
+      {
+        throw new ArgumentNullException("ctx");
+      }
+
       context = ctx;
       location = loc;
     }
@@ -5847,7 +5975,7 @@ namespace Aurora
       {
         var template = viewTemplates.FirstOrDefault(x => x.FullName == view.Key);
 
-        if (template != null)
+        if (template != null && template.TemplateType != ViewTemplateType.Fragment)
         {
           Compile(partitionName, controllerName, template.Name);
         }
@@ -6104,8 +6232,18 @@ namespace Aurora
 
         if (cv != null)
         {
-          viewCompiler.RecompileDependencies(vt.FullName, vt.Partition, vt.Controller);
-          viewCompiler.Compile(vt.Partition, vt.Controller, vt.Name);
+          if (vt.TemplateType == ViewTemplateType.Fragment)
+          {
+            cv.TemplateMD5sum = vt.MD5sum;
+            cv.Template = vt.Template;
+            cv.CompiledTemplate = vt.Template;
+            cv.Render = string.Empty;
+          }
+          else
+          {
+            viewCompiler.RecompileDependencies(vt.FullName, vt.Partition, vt.Controller);
+            viewCompiler.Compile(vt.Partition, vt.Controller, vt.Name);
+          }
         }
       }
     }
@@ -7314,6 +7452,11 @@ namespace Aurora
   {
     private static Dictionary<string, string> GetProtectedFilesList(AuroraContext context)
     {
+      if (context == null)
+      {
+        throw new ArgumentNullException("context");
+      }
+
       Dictionary<string, string> protectedFiles = null;
 
       if (context.Application[MainConfig.StaticFileManagerSessionName] != null)
@@ -7330,9 +7473,14 @@ namespace Aurora
       return protectedFiles;
     }
 
-    public static void ProtectFile(AuroraContext ctx, string path, string roles)
+    public static void ProtectFile(AuroraContext context, string path, string roles)
     {
-      Dictionary<string, string> protectedFiles = GetProtectedFilesList(ctx);
+      if (context == null)
+      {
+        throw new ArgumentNullException("context");
+      }
+
+      Dictionary<string, string> protectedFiles = GetProtectedFilesList(context);
 
       if (!protectedFiles.ContainsKey(path))
       {
@@ -7340,9 +7488,14 @@ namespace Aurora
       }
     }
 
-    public static void UnprotectFile(AuroraContext ctx, string path)
+    public static void UnprotectFile(AuroraContext context, string path)
     {
-      Dictionary<string, string> protectedFiles = GetProtectedFilesList(ctx);
+      if (context == null)
+      {
+        throw new ArgumentNullException("context");
+      }
+
+      Dictionary<string, string> protectedFiles = GetProtectedFilesList(context);
 
       if (!protectedFiles.ContainsKey(path))
       {
@@ -7350,9 +7503,14 @@ namespace Aurora
       }
     }
 
-    internal static bool IsProtected(AuroraContext ctx, string path, out string roles)
+    internal static bool IsProtected(AuroraContext context, string path, out string roles)
     {
-      Dictionary<string, string> protectedFiles = GetProtectedFilesList(ctx);
+      if (context == null)
+      {
+        throw new ArgumentNullException("context");
+      }
+
+      Dictionary<string, string> protectedFiles = GetProtectedFilesList(context);
 
       if (protectedFiles.ContainsKey(path))
       {
@@ -7384,6 +7542,11 @@ namespace Aurora
 
     internal static CustomError CreateInstance(Type t, AuroraContext context)
     {
+      if (context == null)
+      {
+        throw new ArgumentNullException("context");
+      }
+
       if (t.BaseType == typeof(CustomError))
       {
         CustomError ce = (CustomError)Activator.CreateInstance(t);
@@ -7401,7 +7564,8 @@ namespace Aurora
 
     public string RenderFragment(string fragmentName, Dictionary<string, string> tags)
     {
-      return ViewEngine.LoadView(null, /*this.GetType().Name*/ "Shared", fragmentName, tags);
+      //MainConfig.FragmentsFolderName
+      return ViewEngine.LoadView(null, this.GetType().Name, fragmentName, tags);
     }
 
     public string RenderFragment(string fragmentName)
@@ -7859,14 +8023,24 @@ namespace Aurora
       ActiveDirectoryLookupEvent += activeDirectoryLookupHandler;
     }
 
-    public void ExecuteBeforeAction(AuroraContext ctx)
+    public void ExecuteBeforeAction(AuroraContext context)
     {
+      if (context == null)
+      {
+        throw new ArgumentNullException("context");
+      }
+
       ValidateClientCertificate(ctx);
     }
 
 #if !DEBUG
-    private static string GetCACIDFromCN(AuroraContext ctx, out X509Certificate2 x509certificate)
+    private static string GetCACIDFromCN(AuroraContext context, out X509Certificate2 x509certificate)
     {
+      if (context == null)
+      {
+        throw new ArgumentNullException("context");
+      }
+
       x509certificate = ctx.RequestClientCertificate;
 
       if (x509certificate == null)
@@ -7913,8 +8087,13 @@ namespace Aurora
     }
 #endif
 
-    private void ValidateClientCertificate(AuroraContext ctx)
+    private void ValidateClientCertificate(AuroraContext context)
     {
+      if (context == null)
+      {
+        throw new ArgumentNullException("context");
+      }
+
       ActiveDirectoryAuthenticationEventArgs args = new ActiveDirectoryAuthenticationEventArgs();
 
 #if DEBUG
@@ -8041,6 +8220,11 @@ namespace Aurora
   {
     private static List<User> GetUsers(AuroraContext context)
     {
+      if (context == null)
+      {
+        throw new ArgumentNullException("context");
+      }
+
       List<User> users = null;
 
       if (context.Application[MainConfig.SecurityManagerSessionName] != null)
@@ -8177,21 +8361,31 @@ namespace Aurora
     }
 #endif
 
-    public static string LogOn(AuroraContext ctx, string id)
+    public static string LogOn(AuroraContext context, string id)
     {
-      return LogOn(ctx, id, null, null);
+      if (context == null)
+      {
+        throw new ArgumentNullException("context");
+      }
+
+      return LogOn(context, id, null, null);
     }
 
-    public static string LogOn(AuroraContext ctx, string id, string[] roles, Func<User, string, bool> checkRoles)
+    public static string LogOn(AuroraContext context, string id, string[] roles, Func<User, string, bool> checkRoles)
     {
+      if (context == null)
+      {
+        throw new ArgumentNullException("context");
+      }
+
       if (string.IsNullOrEmpty(MainConfig.EncryptionKey))
       {
         throw new Exception(MainConfig.EncryptionKeyNotSpecifiedError);
       }
 
-      List<User> users = GetUsers(ctx);
+      List<User> users = GetUsers(context);
 
-      User u = users.FirstOrDefault(x => x.SessionId == ctx.Session.SessionID && x.Identity.Name == id);
+      User u = users.FirstOrDefault(x => x.SessionId == context.Session.SessionID && x.Identity.Name == id);
 
       if (u != null)
       {
@@ -8216,14 +8410,14 @@ namespace Aurora
         Value = Encryption.Encrypt(JsonConvert.SerializeObject(new AuthCookie() { AuthToken = authToken, ID = id, Expiration = expiration }), MainConfig.EncryptionKey)
       };
 
-      ctx.ResponseCookies.Add(auroraAuthCookie);
+      context.ResponseCookies.Add(auroraAuthCookie);
 
       u = new User()
       {
         AuthenticationToken = authToken,
         AuthenticationCookie = auroraAuthCookie,
-        SessionId = ctx.Session.SessionID,
-        IPAddress = ctx.IPAddress,
+        SessionId = context.Session.SessionID,
+        IPAddress = context.IPAddress,
         LogOnDate = DateTime.Now,
         Identity = new Identity() { AuthenticationType = MainConfig.AuroraAuthTypeName, IsAuthenticated = true, Name = id },
         Roles = roles.ToList(),
@@ -8233,29 +8427,34 @@ namespace Aurora
 
       users.Add(u);
 
-      ctx.Session[MainConfig.CurrentUserSessionName] = u;
-      ctx.User = u;
+      context.Session[MainConfig.CurrentUserSessionName] = u;
+      context.User = u;
 
       return u.AuthenticationToken;
     }
 
-    public static User GetLoggedOnUser(AuroraContext ctx)
+    public static User GetLoggedOnUser(AuroraContext context)
     {
-      if (ctx.Session[MainConfig.CurrentUserSessionName] != null)
+      if (context == null)
       {
-        return ctx.Session[MainConfig.CurrentUserSessionName] as User;
+        throw new ArgumentNullException("context");
+      }
+
+      if (context.Session[MainConfig.CurrentUserSessionName] != null)
+      {
+        return context.Session[MainConfig.CurrentUserSessionName] as User;
       }
       else
       {
-        AuthCookie cookie = GetAuthCookie(ctx);
+        AuthCookie cookie = GetAuthCookie(context);
 
         if (cookie != null)
         {
-          User u = GetUsers(ctx).FirstOrDefault(x => x.SessionId == ctx.Session.SessionID && x.Identity.Name == cookie.ID);
+          User u = GetUsers(context).FirstOrDefault(x => x.SessionId == context.Session.SessionID && x.Identity.Name == cookie.ID);
 
           if (u != null)
           {
-            ctx.Session[MainConfig.CurrentUserSessionName] = u;
+            context.Session[MainConfig.CurrentUserSessionName] = u;
             return u;
           }
         }
@@ -8264,9 +8463,14 @@ namespace Aurora
       return null;
     }
 
-    private static AuthCookie GetAuthCookie(AuroraContext ctx)
+    private static AuthCookie GetAuthCookie(AuroraContext context)
     {
-      HttpCookie cookie = ctx.RequestCookies[MainConfig.AuroraAuthCookieName];
+      if (context == null)
+      {
+        throw new ArgumentNullException("context");
+      }
+
+      HttpCookie cookie = context.RequestCookies[MainConfig.AuroraAuthCookieName];
 
       if (cookie != null)
       {
@@ -8276,15 +8480,20 @@ namespace Aurora
       return null;
     }
 
-    public static bool LogOff(AuroraContext ctx)
+    public static bool LogOff(AuroraContext context)
     {
-      HttpCookie cookie = ctx.RequestCookies[MainConfig.AuroraAuthCookieName];
+      if (context == null)
+      {
+        throw new ArgumentNullException("context");
+      }
+
+      HttpCookie cookie = context.RequestCookies[MainConfig.AuroraAuthCookieName];
 
       if (cookie != null)
       {
-        AuthCookie authCookie = GetAuthCookie(ctx);
+        AuthCookie authCookie = GetAuthCookie(context);
 
-        List<User> users = GetUsers(ctx);
+        List<User> users = GetUsers(context);
 
         User u = users.FirstOrDefault(x => x.AuthenticationToken == authCookie.AuthToken);
 
@@ -8294,15 +8503,15 @@ namespace Aurora
 
           if (result)
           {
-            if (ctx.Session[MainConfig.CurrentUserSessionName] != null)
+            if (context.Session[MainConfig.CurrentUserSessionName] != null)
             {
-              ctx.Session.Remove(MainConfig.CurrentUserSessionName);
+              context.Session.Remove(MainConfig.CurrentUserSessionName);
             }
 
-            ctx.User = null;
+            context.User = null;
           }
 
-          ctx.ResponseCookies.Remove(MainConfig.AuroraAuthCookieName);
+          context.ResponseCookies.Remove(MainConfig.AuroraAuthCookieName);
 
           return result;
         }
@@ -8311,18 +8520,18 @@ namespace Aurora
       return false;
     }
 
-    //internal static bool IsAuthenticated(HttpContextBase ctx)
-    //{
-    //  return IsAuthenticated(ctx, null, null);
-    //}
-
-    internal static bool IsAuthenticated(AuroraContext ctx, RouteInfo routeInfo, string authRoles)
+    internal static bool IsAuthenticated(AuroraContext context, RouteInfo routeInfo, string authRoles)
     {
-      AuthCookie authCookie = GetAuthCookie(ctx);
+      if (context == null)
+      {
+        throw new ArgumentNullException("context");
+      }
+
+      AuthCookie authCookie = GetAuthCookie(context);
 
       if (authCookie != null)
       {
-        User u = GetUsers(ctx).FirstOrDefault(x => x.SessionId == ctx.Session.SessionID && x.Identity.Name == authCookie.ID);
+        User u = GetUsers(context).FirstOrDefault(x => x.SessionId == context.Session.SessionID && x.Identity.Name == authCookie.ID);
 
         if (u != null)
         {
@@ -8376,6 +8585,11 @@ namespace Aurora
   {
     private static List<string> GetTokens(AuroraContext context)
     {
+      if (context == null)
+      {
+        throw new ArgumentNullException("context");
+      }
+
       List<string> tokens = null;
 
       if (context.Application[MainConfig.AntiForgeryTokenSessionName] != null)
@@ -8394,6 +8608,11 @@ namespace Aurora
 
     private static string CreateUniqueToken(AuroraContext context)
     {
+      if (context == null)
+      {
+        throw new ArgumentNullException("context");
+      }
+
       List<string> tokens = GetTokens(context);
 
       string token = string.Format(CultureInfo.InvariantCulture, "{0}{1}", Guid.NewGuid(), Guid.NewGuid()).Replace("-", string.Empty);
@@ -8408,6 +8627,11 @@ namespace Aurora
 
     public static string Create(AuroraContext context, AntiForgeryTokenType type)
     {
+      if (context == null)
+      {
+        throw new ArgumentNullException("context");
+      }
+
       List<string> tokens = GetTokens(context);
       string token = CreateUniqueToken(context);
       tokens.Add(token);
@@ -8434,6 +8658,11 @@ namespace Aurora
 
     public static void RemoveToken(AuroraContext context)
     {
+      if (context == null)
+      {
+        throw new ArgumentNullException("context");
+      }
+
       if (context.Form.AllKeys.Contains(MainConfig.AntiForgeryTokenName))
       {
         string token = context.Form[MainConfig.AntiForgeryTokenName];
@@ -8451,11 +8680,21 @@ namespace Aurora
 
     public static bool VerifyToken(AuroraContext context, string token)
     {
+      if (context == null)
+      {
+        throw new ArgumentNullException("context");
+      }
+
       return GetTokens(context).Contains(token);
     }
 
     public static bool VerifyToken(AuroraContext context)
     {
+      if (context == null)
+      {
+        throw new ArgumentNullException("context");
+      }
+
       if (context.Form.AllKeys.Contains(MainConfig.AntiForgeryTokenName))
       {
         string token = context.Form[MainConfig.AntiForgeryTokenName];
@@ -9224,22 +9463,6 @@ namespace Aurora
       return null;
     }
 
-    //// This method is based on the following example at StackOverflow:
-    ////
-    //// http://stackoverflow.com/questions/735350/how-to-get-a-users-client-ip-address-in-asp-net
-    //public static string IPAddress(this HttpContextBase ctx)
-    //{
-    //  if (ctx == null)
-    //    throw new ArgumentNullException("ctx", MainConfig.HttpContextNullError);
-
-    //  string ip = ctx.Request.ServerVariables["HTTP_X_FORWARDED_FOR"];
-
-    //  if (string.IsNullOrEmpty(ip))
-    //    return ctx.Request.ServerVariables["REMOTE_ADDR"];
-    //  else
-    //    return ip.Split(',')[0];
-    //}
-
     public static string NewLinesToBR(this string value)
     {
       if (string.IsNullOrEmpty(value))
@@ -9273,6 +9496,11 @@ namespace Aurora
       }
 
       return sanitizedString.ToString();
+    }
+
+    public static string ToMarkdown(this string value)
+    {
+      return new Markdown().Transform(value);
     }
 
     public static bool InRange(this int value, int min, int max)
@@ -9550,7 +9778,7 @@ namespace Aurora
     {
       return _members;
     }
-        
+
     public Dictionary<string, object> GetDynamicDictionary(string key)
     {
       if (_members.ContainsKey(key))
@@ -9626,8 +9854,8 @@ namespace Aurora
         throw new ArgumentNullException("context");
       }
 
-      PagesSection pageSection = new PagesSection();
-      pageSection.ValidateRequest = MainConfig.ValidateRequest;
+      //PagesSection pageSection = new PagesSection();
+      //pageSection.ValidateRequest = MainConfig.ValidateRequest;
 
       context.Error += new EventHandler(app_Error);
     }

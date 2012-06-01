@@ -4,7 +4,7 @@ NOTE: See source code comments for usage.
 
 Frank Hale <frankhale@gmail.com>
 
-Date: 30 May 2012
+Date: 31 May 2012
 
 --------------------
 --- Feature List ---
@@ -40,6 +40,14 @@ Changelog:
 
 NOTE: The code is evolving fast and the documentation is not. This will be 
       rectified soon.
+
+31 May 2012
+
+- Updates to the Version class
+- Some code clean up
+- Commented out ValidateRequest web config option as it's not actually working.
+- Fixes for changed templates that need recompiling
+- Fixes for RenderFragment not finding fragments in some situations
 
 30 May 2012
 
