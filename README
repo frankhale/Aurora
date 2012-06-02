@@ -4,7 +4,7 @@ NOTE: See source code comments for usage.
 
 Frank Hale <frankhale@gmail.com>
 
-Date: 31 May 2012
+Date: 1 June 2012
 
 --------------------
 --- Feature List ---
@@ -40,6 +40,10 @@ Changelog:
 
 NOTE: The code is evolving fast and the documentation is not. This will be 
       rectified soon.
+
+1 June 2012
+
+- Code cleanup
 
 31 May 2012
 

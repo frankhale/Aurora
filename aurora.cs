@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 31 May 2012
+// Updated On: 1 June 2012
 //
 // Contact Info:
 //
@@ -1339,11 +1339,12 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyCopyright("(GNU GPLv3) Copyleft © 2011-2012")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("0.99.74.0")]
+[assembly: AssemblyVersion("0.99.75.0")]
 #endregion
 #endif
 
 #region TODO (MAYBE)
+//TODO: Objects that need to be in Session or Application stores ought to be wrapped into an object that can store all of them for easy retrieval respectively.
 //TODO: Figure out how the Plugin infrastructure will be integrated into the framework pipeline (if at all). 
 //TODO: Continue the documentation rewrite/revision
 //TODO: Upload NuGet package to NuGet.org Package Gallery
@@ -1423,7 +1424,7 @@ namespace Aurora
   /// </summary>
   public static class AuroraConfig
   {
-    public static Version Version = new Version("0.99.74.0");
+    public static Version Version = new Version("0.99.75.0");
 
     /// <summary>
     /// Returns true if either Aurora or the web application is in debug mode, false otherwise.
@@ -1798,6 +1799,7 @@ namespace Aurora
     public static string HttpRequestTypeNotSupportedError = "The HTTP Request type [{0}] is not supported";
     public static string ActionParameterTransformClassUnknownError = "The action parameter transform class cannot be determined";
     public static string Http404Error = "Http 404 - Page Not Found";
+    public static string Http500Error = "Http 500 - Internal Server Error";
     public static string OnlyOneCustomErrorClassPerApplicationError = "Cannot have more than one custom error class per application";
     public static string OnlyOneFrontControllerClassPerApplicationError = "Cannot have more than one front controller class per application";
     public static string RedirectWithoutAuthorizationToError = "RedirectWithoutAuthorizationTo is either null or empty";
@@ -3197,17 +3199,16 @@ namespace Aurora
           // Check to see if there is a derived CustomError class otherwise look to see if there is a cusom error method on a controller
           CustomError customError = ApplicationInternals.GetCustomError(context, false);
 
-          if (customError == null)
-          {
-            (new ErrorResult(context, ex)).Render();
-
-            context.ResponseStatusCode(HttpStatusCode.NotFound);
-          }
-          else
-          {
-            // The custom error class is for all controllers and all static content that may produce an error.
-            customError.OnError(ex.Message, ex).Render();
-          }
+          //if (customError == null)
+          //{
+          //  (new ErrorResult(context, ex)).Render();
+          //
+          //  context.ResponseStatusCode(HttpStatusCode.NotFound);
+          //}
+          //else
+          //{
+          customError.OnError(ex.Message, ex).Render();
+          //}
         }
         else
         {
@@ -3672,7 +3673,8 @@ namespace Aurora
         {
           // We need to convert the form value to a datatype 
 
-          if (p.PropertyType == typeof(int))
+          if (p.PropertyType == typeof(int) ||
+              p.PropertyType == typeof(int?))
           {
             if (context.Form[p.Name].IsInt32())
             {
@@ -3707,23 +3709,23 @@ namespace Aurora
 
             p.SetValue(DataTypeInstance, dt, null);
           }
-          //else if (p.PropertyType == typeof(List<HttpPostedFileBase>))
-          //{
-          //List<HttpPostedFileBase> fileList = (List<HttpPostedFileBase>)Activator.CreateInstance(p.PropertyType);
-
-            //foreach (string file in context.Files)
-          //{
-          //  fileList.Add(context.Files[file] as HttpPostedFileBase);
-          //}
-
-            //p.SetValue(DataTypeInstance, fileList, null);
-          //}
           else if (p.PropertyType == typeof(HttpPostedFile))
           {
             if (context.Files.Length > 0)
             {
               p.SetValue(DataTypeInstance, context.Files[0], null);
             }
+          }
+          else if (p.PropertyType == typeof(List<HttpPostedFileBase>))
+          {
+            List<HttpPostedFileBase> fileList = (List<HttpPostedFileBase>)Activator.CreateInstance(p.PropertyType);
+
+            foreach (HttpPostedFileBase f in context.Files)
+            {
+              fileList.Add(f);
+            }
+
+            p.SetValue(DataTypeInstance, fileList, null);
           }
         }
       }
@@ -3858,7 +3860,7 @@ namespace Aurora
 
     private object[] GetFileParams()
     {
-      if (context.Files.Length > 0)
+      if (context.Files != null && context.Files.Length > 0)
       {
         return context.Files;
       }
@@ -4986,6 +4988,18 @@ namespace Aurora
       }
     }
 
+    internal static List<PropertyInfo> GetPropertiesNotRequiredToPost<T>(Type t) where T : Model
+    {
+      var props = GetPropertiesWithExclusions<Model>(t, true)
+          .Where(x => x.GetCustomAttributes(false)
+                       .FirstOrDefault(y => y is NotRequiredToPostAttribute) == null);
+
+      if (props != null)
+        return props.ToList();
+
+      return null;
+    }
+
     /// <summary>
     /// This method returns the properties of a Model minus hidden or excluded properties.
     /// <remarks>
@@ -5031,14 +5045,14 @@ namespace Aurora
         throw new ArgumentNullException("context");
       }
 
+      Type result = null;
+
       string[] formKeys = context.Form.AllKeys.Where(x => x != MainConfig.AntiForgeryTokenName).ToArray();
 
       if (formKeys.Length > 0)
       {
         foreach (Type m in ApplicationInternals.AllModels(context))
         {
-          List<string> props = GetPropertiesWithExclusions<Model>(m, true).Select(x => x.Name).ToList();
-
           // TL;DR - This is not sufficient for complex post models.
 
           // To support things like checkbox lists or other input elements that may need to have a variable number
@@ -5047,14 +5061,25 @@ namespace Aurora
           // and is prepended with a number where the number increments from 1 - x. I'll then have to do a deeper inspection
           // of the form variables to see what we are dealing with and then try to map it to a specific type.
 
+          List<string> props = GetPropertiesWithExclusions<Model>(m, true).Select(x => x.Name).ToList();
+
           if (props.Intersect(formKeys).Count() == props.Union(formKeys).Count())
           {
-            return m;
+            result = m;
+          }
+          else
+          {
+            props = GetPropertiesNotRequiredToPost<Model>(m).Select(x => x.Name).ToList();
+
+            if (props.Intersect(formKeys).Count() == props.Union(formKeys).Count())
+            {
+              result = m;
+            }
           }
         }
       }
 
-      return null;
+      return result;
     }
   }
   #endregion
@@ -5269,7 +5294,7 @@ namespace Aurora
       // This constructor is used by the DefaultCustomError class to 
       // by pass the load view code in the Render method if the web application
       // does not specify the Error view.
-      
+
       if (ctx == null)
       {
         throw new ArgumentNullException("ctx");
@@ -5429,43 +5454,43 @@ namespace Aurora
     }
   }
 
-  public class ErrorResult : IViewResult
-  {
-    private AuroraContext context;
-    private Exception exception;
+  //public class ErrorResult : IViewResult
+  //{
+  //  private AuroraContext context;
+  //  private Exception exception;
 
-    public ErrorResult(AuroraContext ctx, Exception e)
-    {
-      if (ctx == null)
-      {
-        throw new ArgumentNullException("ctx");
-      }
+  //  public ErrorResult(AuroraContext ctx, Exception e)
+  //  {
+  //    if (ctx == null)
+  //    {
+  //      throw new ArgumentNullException("ctx");
+  //    }
 
-      context = ctx;
-      exception = e;
-    }
+  //    context = ctx;
+  //    exception = e;
+  //  }
 
-    public void Render()
-    {
-      string message = string.Empty;
+  //  public void Render()
+  //  {
+  //    string message = string.Empty;
 
-      if (exception.InnerException != null)
-      {
-        message = exception.InnerException.Message;
-      }
-      else
-      {
-        message = exception.Message;
-      }
+  //    if (exception.InnerException != null)
+  //    {
+  //      message = exception.InnerException.Message;
+  //    }
+  //    else
+  //    {
+  //      message = exception.Message;
+  //    }
 
-      ResponseHeader.SetContentType(context, "text/html");
+  //    ResponseHeader.SetContentType(context, "text/html");
 
-      ResponseHeader.AddEncodingHeaders(context);
+  //    ResponseHeader.AddEncodingHeaders(context);
 
-      //context.Response.StatusDescription = message;
-      context.ResponseWrite(string.Format(CultureInfo.CurrentCulture, "{0} - {1}", message, context.Path));
-    }
-  }
+  //    //context.Response.StatusDescription = message;
+  //    context.ResponseWrite(string.Format(CultureInfo.CurrentCulture, "{0} - {1}", message, context.Path));
+  //  }
+  //}
 
   /// <summary>
   /// A VoidResult is a mechanism which basically says we don't want to do any processing
@@ -7112,6 +7137,11 @@ namespace Aurora
   }
 
   [AttributeUsage(AttributeTargets.Property)]
+  public sealed class NotRequiredToPostAttribute : Attribute
+  {
+  }
+
+  [AttributeUsage(AttributeTargets.Property)]
   internal sealed class ExcludeFromBindingAttribute : Attribute
   {
   }
@@ -7602,6 +7632,8 @@ namespace Aurora
   #region DEFAULT CUSTOM ERROR IMPLEMENTATION
   public class DefaultCustomError : CustomError
   {
+    // More work needs to be done in here to differentiate what types of errors are happening
+
     public override ViewResult OnError(string message, Exception exception)
     {
       string error = string.Empty;
@@ -7614,10 +7646,14 @@ namespace Aurora
         if ((exception.InnerException != null && exception.InnerException is TargetParameterCountException) ||
             (exception != null && exception is TargetParameterCountException))
         {
+          Context.ResponseStatusCode(HttpStatusCode.NotFound);
+
           msg = MainConfig.Http404Error;
         }
         else
         {
+          Context.ResponseStatusCode(HttpStatusCode.InternalServerError);
+
           if (exception.InnerException != null)
           {
             msg = exception.InnerException.Message;
@@ -9503,6 +9539,16 @@ namespace Aurora
       return new Markdown().Transform(value);
     }
 
+    public static string ToURLEncodedString(this string value)
+    {
+      return HttpUtility.UrlEncode(value);
+    }
+
+    public static string ToHtmlEncodedString(this string value)
+    {
+      return HttpUtility.HtmlEncode(value);
+    }
+
     public static bool InRange(this int value, int min, int max)
     {
       return value <= max && value >= min;
@@ -9573,17 +9619,17 @@ namespace Aurora
       return bool.TryParse(value, out x);
     }
 
-    //public static List<T> ModifyForEach<T>(this List<T> l, Func<T, T> a)
-    //{
-    //  List<T> newList = new List<T>();
+    public static List<T> ModifyForEach<T>(this List<T> l, Func<T, T> a)
+    {
+      List<T> newList = new List<T>();
 
-    //  foreach (T t in l)
-    //  {
-    //    newList.Add(a(t));
-    //  }
+      foreach (T t in l)
+      {
+        newList.Add(a(t));
+      }
 
-    //  return newList;
-    //}
+      return newList;
+    }
 
     public static string GetMetadata(this Enum obj)
     {
