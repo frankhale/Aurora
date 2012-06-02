@@ -4,7 +4,7 @@ NOTE: See source code comments for usage.
 
 Frank Hale <frankhale@gmail.com>
 
-Date: 1 June 2012
+Date: 2 June 2012
 
 --------------------
 --- Feature List ---
@@ -40,6 +40,11 @@ Changelog:
 
 NOTE: The code is evolving fast and the documentation is not. This will be 
       rectified soon.
+
+2 June 2012
+
+- Added an attribute called Alias so you can add more than one alias to an 
+  action. 
 
 1 June 2012
 

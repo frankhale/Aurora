@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 1 June 2012
+// Updated On: 2 June 2012
 //
 // Contact Info:
 //
@@ -1339,7 +1339,7 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyCopyright("(GNU GPLv3) Copyleft © 2011-2012")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("0.99.75.0")]
+[assembly: AssemblyVersion("0.99.76.0")]
 #endregion
 #endif
 
@@ -1424,7 +1424,7 @@ namespace Aurora
   /// </summary>
   public static class AuroraConfig
   {
-    public static Version Version = new Version("0.99.75.0");
+    public static Version Version = new Version("0.99.76.0");
 
     /// <summary>
     /// Returns true if either Aurora or the web application is in debug mode, false otherwise.
@@ -1855,6 +1855,7 @@ namespace Aurora
       public string ActionName;
       public MethodInfo ActionMethod;
       public Attribute Attribute;
+      public List<string> Aliases;
     }
 
     internal static List<Type> GetTypeList(AuroraContext context, string sessionName, Type t)
@@ -1973,7 +1974,13 @@ namespace Aurora
       {
         foreach (MethodInfo mi in c.GetMethods())
         {
-          foreach (Attribute a in mi.GetCustomAttributes(false))
+          List<string> aliases = mi.GetCustomAttributes(false)
+                                   .Where(x => x.GetType() == typeof(AliasAttribute))
+                                   .Cast<AliasAttribute>()
+                                   .Select(x => x.Alias)
+                                   .ToList();
+
+          foreach (Attribute a in mi.GetCustomAttributes(false).Where(x => x.GetType() != typeof(AliasAttribute)))
           {
             if ((a is HttpGetAttribute) ||
                 (a is HttpPostAttribute) ||
@@ -1995,7 +2002,8 @@ namespace Aurora
                   ControllerType = c,
                   ActionName = mi.Name,
                   ActionMethod = mi,
-                  Attribute = a
+                  Attribute = a,
+                  Aliases = aliases
                 };
               }
             }
@@ -2169,25 +2177,36 @@ namespace Aurora
               continue;
             }
 
-            RouteInfo routeInfo = new RouteInfo()
+            Action<string> addRoute = delegate(string alias)
             {
-              Alias = (!string.IsNullOrEmpty(attr.RouteAlias)) ? attr.RouteAlias :
-                        string.Format(CultureInfo.InvariantCulture, "/{0}/{1}", c.Name, ai.ActionMethod.Name),
-              Context = context,
-              ControllerName = c.Name,
-              ControllerType = c,
-              Action = ai.ActionMethod,
-              ActionName = ai.ActionMethod.Name,
-              Bindings = new ActionBinder(context).GetBindings(c.Name, ai.ActionMethod.Name),
-              FromRedirectOnlyInfo = (attr as FromRedirectOnlyAttribute) != null ? true : false,
-              Dynamic = (attr as FromRedirectOnlyAttribute) != null ? true : false,
-              IsFiltered = false,
-              RequestType = attr.RequestType,
-              Attribute = attr
+              RouteInfo routeInfo = new RouteInfo()
+              {
+                Alias = alias,
+                Context = context,
+                ControllerName = c.Name,
+                ControllerType = c,
+                Action = ai.ActionMethod,
+                ActionName = ai.ActionMethod.Name,
+                Bindings = new ActionBinder(context).GetBindings(c.Name, ai.ActionMethod.Name),
+                FromRedirectOnlyInfo = (attr as FromRedirectOnlyAttribute) != null ? true : false,
+                Dynamic = (attr as FromRedirectOnlyAttribute) != null ? true : false,
+                IsFiltered = false,
+                RequestType = attr.RequestType,
+                Attribute = attr
+              };
+
+              routes.Add(routeInfo);
             };
 
+            addRoute((!string.IsNullOrEmpty(attr.RouteAlias)) ? attr.RouteAlias :
+                     string.Format(CultureInfo.InvariantCulture, "/{0}/{1}", c.Name, ai.ActionMethod.Name));
+
+            foreach (string alias in ai.Aliases)
+            {
+              addRoute(alias);
+            }
+
             actionInfos.Add(ai);
-            routes.Add(routeInfo);
           }
         }
         else
@@ -7106,8 +7125,8 @@ namespace Aurora
   [AttributeUsage(AttributeTargets.Parameter | AttributeTargets.Property)]
   public sealed class SanitizeAttribute : Attribute
   {
-    public bool StripHtml { get; set; }
-    public bool HtmlEncode { get; set; }
+    public bool StripHtml { get; private set; }
+    public bool HtmlEncode { get; private set; }
 
     public SanitizeAttribute()
     {
@@ -7144,6 +7163,17 @@ namespace Aurora
   [AttributeUsage(AttributeTargets.Property)]
   internal sealed class ExcludeFromBindingAttribute : Attribute
   {
+  }
+
+  [AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
+  internal sealed class AliasAttribute : Attribute
+  {
+    public string Alias { get; private set; }
+
+    public AliasAttribute(string alias)
+    {
+      Alias = alias;
+    }
   }
   #endregion
 
