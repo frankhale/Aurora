@@ -43,6 +43,7 @@ NOTE: The code is evolving fast and the documentation is not. This will be
 
 2 June 2012
 
+- Added Visual Studio 2010 project template
 - Added an attribute called Alias so you can add more than one alias to an 
   action. 
 
