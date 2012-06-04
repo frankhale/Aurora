@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 2 June 2012
+// Updated On: 4 June 2012
 //
 // Contact Info:
 //
@@ -513,15 +513,15 @@
 // ------------------------ 
 //
 // Actions can have parameters bound to them when they are invoked. This type of 
-// parameter is special and implements the IBoundActionObject interface. This is 
+// parameter is special and implements the IBindToAction interface. This is 
 // a very simple interface and mandates only one method be implemented. This 
 // method is named ExecuteBeforeAction and as it's name suggests executes before
 // the action to perform any initialization steps necessary to new up the 
 // object. Once this step is complete the object is passed off to the action.
 //
-// A class implementing the IBoundActionObject could look like this:
+// A class implementing the IBindToAction could look like this:
 //
-//  public class DataConnector : IBoundActionObject
+//  public class DataConnector : IBindToAction
 //  {
 //    public WikiDataClassesDataContext DB { get; internal set; }
 //
@@ -533,7 +533,7 @@
 //
 // This adds a simple wrapper around a LINQ to SQL data context. This is just
 // a trivial example and perhaps a better usage would be for your data access
-// layer to directly implement the IBoundActionObject.
+// layer to directly implement the IBindToAction.
 //
 // Another usage could be to pass an instance of the currently logged in user to 
 // a set of actions.
@@ -1339,11 +1339,12 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyCopyright("(GNU GPLv3) Copyleft © 2011-2012")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("0.99.76.0")]
+[assembly: AssemblyVersion("0.99.77.0")]
 #endregion
 #endif
 
 #region TODO (MAYBE)
+//TODO: Bundles ought to be a collection of CSS and Javascript instead of one or the other which is how the current bundle manager handles bundling.
 //TODO: Objects that need to be in Session or Application stores ought to be wrapped into an object that can store all of them for easy retrieval respectively.
 //TODO: Figure out how the Plugin infrastructure will be integrated into the framework pipeline (if at all). 
 //TODO: Continue the documentation rewrite/revision
@@ -1424,7 +1425,7 @@ namespace Aurora
   /// </summary>
   public static class AuroraConfig
   {
-    public static Version Version = new Version("0.99.76.0");
+    public static Version Version = new Version("0.99.77.0");
 
     /// <summary>
     /// Returns true if either Aurora or the web application is in debug mode, false otherwise.
@@ -1745,7 +1746,7 @@ namespace Aurora
     public static string ADSearchCriteriaIsNullOrEmptyError = "The LDAP query associated with this search type is null or empty, a valid query must be annotated to this search type via the MetaData attribute";
 #endif
 
-#if OPENID		
+#if OPENID
     public static string OpenIDInvalidIdentifierError = "The specified login identifier is invalid";
     public static string OpenIDLoginCancelledByProviderError = "Login was cancelled at the provider";
     public static string OpenIDLoginFailedError = "Login failed using the provided OpenID identifier";
@@ -1781,7 +1782,7 @@ namespace Aurora
     public static string UniquedIDSessionName = "__UniquedIDs";
     public static string AntiForgeryTokenName = "AntiForgeryToken";
     public static string JsonAntiForgeryTokenName = "JsonAntiForgeryToken";
-    public static string JsonAntiForgeryTokenMissing = "An AntiForgry token is required on all Json requests";
+    public static string JsonAntiForgeryTokenMissing = "An AntiForgery token is required on all Json requests";
     public static string AntiForgeryTokenMissingError = "An AntiForgery token is required on all forms unless RequireAntiForgeryToken is set to false in the [HttpPost] attribute";
     public static string AntiForgeryTokenVerificationFailedError = "AntiForgery token verification failed";
     public static string AntiForgeryTokenNullOrEmptyError = "AntiForgery token cannot be null or empty.";
@@ -1860,10 +1861,7 @@ namespace Aurora
 
     internal static List<Type> GetTypeList(AuroraContext context, string sessionName, Type t)
     {
-      if (context == null)
-      {
-        throw new ArgumentNullException("context");
-      }
+      context.ThrowIfArgumentNull();
 
       List<Type> types = null;
 
@@ -1911,10 +1909,7 @@ namespace Aurora
 
     public static List<Type> AllControllers(AuroraContext context)
     {
-      if (context == null)
-      {
-        throw new ArgumentNullException("context");
-      }
+      context.ThrowIfArgumentNull();
 
       if (context.Application[MainConfig.ControllersSessionName] != null)
       {
@@ -1932,10 +1927,7 @@ namespace Aurora
 
     public static List<Controller> AllControllerInstances(AuroraContext context)
     {
-      if (context == null)
-      {
-        throw new ArgumentNullException("context");
-      }
+      context.ThrowIfArgumentNull();
 
       List<Controller> controllerInstances = null;
 
@@ -1955,20 +1947,14 @@ namespace Aurora
 
     public static List<Type> AllModels(AuroraContext context)
     {
-      if (context == null)
-      {
-        throw new ArgumentNullException("context");
-      }
+      context.ThrowIfArgumentNull();
 
       return GetTypeList(context, MainConfig.ModelsSessionName, typeof(Model));
     }
 
     internal static IEnumerable<ActionInfo> _GetAllActionInfos(AuroraContext context)
     {
-      if (context == null)
-      {
-        throw new ArgumentNullException("context");
-      }
+      context.ThrowIfArgumentNull();
 
       foreach (Type c in AllControllers(context))
       {
@@ -2014,10 +2000,7 @@ namespace Aurora
 
     public static List<ActionInfo> AllActionInfos(AuroraContext context)
     {
-      if (context == null)
-      {
-        throw new ArgumentNullException("context");
-      }
+      context.ThrowIfArgumentNull();
 
       List<ActionInfo> actionInfos = new List<ActionInfo>();
 
@@ -2038,10 +2021,7 @@ namespace Aurora
 
     public static Dictionary<string, string> AllPartitionNames(AuroraContext context)
     {
-      if (context == null)
-      {
-        throw new ArgumentNullException("context");
-      }
+      context.ThrowIfArgumentNull();
 
       Dictionary<string, string> partitionNames = new Dictionary<string, string>();
 
@@ -2065,10 +2045,7 @@ namespace Aurora
 
     public static string[] AllViewRoots(AuroraContext context)
     {
-      if (context == null)
-      {
-        throw new ArgumentNullException("context");
-      }
+      context.ThrowIfArgumentNull();
 
       Dictionary<string, string> partitionNames = AllPartitionNames(context);
 
@@ -2089,10 +2066,7 @@ namespace Aurora
 
     public static List<string> AllRoutableActionNames(AuroraContext context, string controllerName)
     {
-      if (context == null)
-      {
-        throw new ArgumentNullException("context");
-      }
+      context.ThrowIfArgumentNull();
 
       List<string> routableActionNames = new List<string>();
 
@@ -2111,10 +2085,7 @@ namespace Aurora
 
     public static List<string> AllRouteAliases(AuroraContext context)
     {
-      if (context == null)
-      {
-        throw new ArgumentNullException("context");
-      }
+      context.ThrowIfArgumentNull();
 
       if (context.Application[MainConfig.RoutesSessionName] != null)
       {
@@ -2129,10 +2100,7 @@ namespace Aurora
 
     public static List<RouteInfo> AllRouteInfos(AuroraContext context)
     {
-      if (context == null)
-      {
-        throw new ArgumentNullException("context");
-      }
+      context.ThrowIfArgumentNull();
 
       List<RouteInfo> routes = null;
       List<ActionInfo> actionInfos = null;
@@ -2221,10 +2189,7 @@ namespace Aurora
 
     public static Type GetActionTransformClassType(ActionParamTransformAttribute actionParameterTransform)
     {
-      if (actionParameterTransform == null)
-      {
-        throw new ArgumentNullException("actionParameterTransform");
-      }
+      actionParameterTransform.ThrowIfArgumentNull();
 
       Type actionTransformClassType = (from assembly in AppDomain.CurrentDomain.GetAssemblies().Where(x => x.GetName().Name != "DotNetOpenAuth")
                                        from type in assembly.GetTypes().Where(x => x.GetInterface(typeof(IActionParamTransform<,>).Name) != null && x.Name == actionParameterTransform.TransformName)
@@ -2240,10 +2205,7 @@ namespace Aurora
 
     public static void RemoveRouteInfo(AuroraContext context, string alias)
     {
-      if (context == null)
-      {
-        throw new ArgumentNullException("context");
-      }
+      context.ThrowIfArgumentNull();
 
       List<RouteInfo> routes = AllRouteInfos(context);
       List<RouteInfo> routeInfos = routes.Where(x => x.Dynamic == true && x.Alias == alias).ToList();
@@ -2261,10 +2223,7 @@ namespace Aurora
 
     public static void AddRouteInfo(AuroraContext context, string alias, Controller controller, MethodInfo action, string requestType, string frontParams)
     {
-      if (context == null)
-      {
-        throw new ArgumentNullException("context");
-      }
+      context.ThrowIfArgumentNull();
 
       if (string.IsNullOrEmpty(alias))
       {
@@ -2309,10 +2268,7 @@ namespace Aurora
 
     public static FrontController GetFrontController(AuroraContext context)
     {
-      if (context == null)
-      {
-        throw new ArgumentNullException("context");
-      }
+      context.ThrowIfArgumentNull();
 
       List<Type> frontController = GetTypeList(context, MainConfig.FrontControllerSessionName, typeof(FrontController));
 
@@ -2334,6 +2290,8 @@ namespace Aurora
 
           context.Application[MainConfig.FrontControllerInstanceSessionName] = fc;
 
+          fc.Refresh(context);
+
           return fc;
         }
       }
@@ -2343,10 +2301,7 @@ namespace Aurora
 
     public static CustomError GetCustomError(AuroraContext context, bool useDefaultHandler)
     {
-      if (context == null)
-      {
-        throw new ArgumentNullException("context");
-      }
+      context.ThrowIfArgumentNull();
 
       Type errorType = typeof(DefaultCustomError);
 
@@ -2370,10 +2325,7 @@ namespace Aurora
 
     public static IViewEngine GetViewEngine(AuroraContext context)
     {
-      if (context == null)
-      {
-        throw new ArgumentNullException("context");
-      }
+      context.ThrowIfArgumentNull();
 
       IViewEngine viewEngine;
 
@@ -2398,10 +2350,7 @@ namespace Aurora
 
     public static IRouteEngine GetRouteEngine(AuroraContext context)
     {
-      if (context == null)
-      {
-        throw new ArgumentNullException("context");
-      }
+      context.ThrowIfArgumentNull();
 
       IRouteEngine routeEngine;
 
@@ -3129,10 +3078,7 @@ namespace Aurora
 
     public AuroraEngine(AuroraContext ctx)
     {
-      if (ctx == null)
-      {
-        throw new ArgumentNullException("ctx");
-      }
+      ctx.ThrowIfArgumentNull();
 
       context = ctx;
 
@@ -3448,7 +3394,7 @@ namespace Aurora
         {
           foreach (object i in routeInfo.Bindings)
           {
-            if (i.GetType().GetInterface(typeof(IBoundActionObject).Name) != null)
+            if (i.GetType().GetInterface(typeof(IBindToAction).Name) != null)
             {
               MethodInfo boundActionObject = i.GetType().GetMethod("ExecuteBeforeAction");
 
@@ -3610,14 +3556,7 @@ namespace Aurora
 
           if (transformMethodParameterType != incomingParameterType)
           {
-            // Why am I doing this here? Why am I converting the result to a string? I can't remember. ARGH!
-
-            //if (transformMethodParameterType == typeof(string) || incomingParameterType == typeof(Int64))
-            //{
             processedParams[apti.IndexIntoParamList] = processedParams[apti.IndexIntoParamList].ToString();
-            //}
-            //else
-            //  throw new ArgumentException();
           }
 
           object transformedParam = apti.TransformMethod.Invoke(actionParamTransformClassInstance, new object[] { processedParams[apti.IndexIntoParamList] });
@@ -3752,10 +3691,7 @@ namespace Aurora
 
     public PostedFormInfo(AuroraContext ctx, Type m)
     {
-      if (ctx == null)
-      {
-        throw new ArgumentNullException("ctx");
-      }
+      ctx.ThrowIfArgumentNull();
 
       context = ctx;
 
@@ -3769,20 +3705,14 @@ namespace Aurora
 
     public AuroraRouteEngine(AuroraContext ctx)
     {
-      if (ctx == null)
-      {
-        throw new ArgumentNullException("ctx");
-      }
+      ctx.ThrowIfArgumentNull();
 
       context = ctx;
     }
 
     public void Refresh(AuroraContext ctx)
     {
-      if (ctx == null)
-      {
-        throw new ArgumentNullException("ctx");
-      }
+      ctx.ThrowIfArgumentNull();
 
       context = ctx;
     }
@@ -3998,7 +3928,7 @@ namespace Aurora
   #endregion
 
   #region ACTION BINDER
-  public interface IBoundActionObject
+  public interface IBindToAction
   {
     void ExecuteBeforeAction(AuroraContext ctx);
   }
@@ -4059,12 +3989,9 @@ namespace Aurora
 
     public ActionBinder(AuroraContext ctx)
     {
-      if (ctx == null)
-      {
-        throw new ArgumentNullException("ctx");
-      }
+      ctx.ThrowIfArgumentNull();
 
-      this.context = ctx;
+      context = ctx;
 
       bindings = new Dictionary<string, List<ActionBinding>>();
 
@@ -4087,10 +4014,7 @@ namespace Aurora
         throw new ArgumentException(MainConfig.ActionBinderNullOrEmptyControllerNameError);
       }
 
-      if (bindInstance == null)
-      {
-        throw new ArgumentNullException("bindInstance", MainConfig.ActionBinderBindingInstanceNullOrEmptyError);
-      }
+      bindInstance.ThrowIfArgumentNull();
 
       AddForAllActions(controllerName, new object[] { bindInstance });
     }
@@ -4102,10 +4026,7 @@ namespace Aurora
         throw new ArgumentException(MainConfig.ActionBinderNullOrEmptyControllerNameError);
       }
 
-      if (bindInstances == null)
-      {
-        throw new ArgumentNullException("bindInstances", MainConfig.ActionBinderBindingInstanceNullOrEmptyError);
-      }
+      bindInstances.ThrowIfArgumentNull();
 
       if (bindInstances.Count() == 0)
       {
@@ -4123,20 +4044,14 @@ namespace Aurora
 
     public void AddForAllControllers(object bindInstance)
     {
-      if (bindInstance == null)
-      {
-        throw new ArgumentNullException("bindInstance", MainConfig.ActionBinderBindingInstanceNullOrEmptyError);
-      }
+      bindInstance.ThrowIfArgumentNull();
 
       AddForAllControllers(new object[] { bindInstance });
     }
 
     public void AddForAllControllers(object[] bindInstances)
     {
-      if (bindInstances == null)
-      {
-        throw new ArgumentNullException("bindInstances", MainConfig.ActionBinderBindingInstanceNullOrEmptyError);
-      }
+      bindInstances.ThrowIfArgumentNull();
 
       if (bindInstances.Count() == 0)
       {
@@ -4162,19 +4077,12 @@ namespace Aurora
         throw new ArgumentException(MainConfig.ActionBinderNullOrEmptyControllerNameError);
       }
 
-      if (actionNames == null)
-      {
-        throw new ArgumentNullException("actionNames", MainConfig.ActionBinderActionNameNullorEmptyError);
-      }
+      actionNames.ThrowIfArgumentNull();
+      bindInstance.ThrowIfArgumentNull();
 
       if (actionNames.Count() == 0)
       {
         throw new ArgumentException(MainConfig.ActionBinderActionNameNullorEmptyError);
-      }
-
-      if (bindInstance == null)
-      {
-        throw new ArgumentNullException("bindInstance", MainConfig.ActionBinderBindingInstanceNullOrEmptyError);
       }
 
       foreach (string a in actionNames)
@@ -4190,19 +4098,12 @@ namespace Aurora
         throw new ArgumentException(MainConfig.ActionBinderNullOrEmptyControllerNameError);
       }
 
-      if (actionNames == null)
-      {
-        throw new ArgumentNullException("actionNames", MainConfig.ActionBinderActionNameNullorEmptyError);
-      }
+      actionNames.ThrowIfArgumentNull();
+      bindInstances.ThrowIfArgumentNull();
 
       if (actionNames.Count() == 0)
       {
         throw new ArgumentException(MainConfig.ActionBinderActionNameNullorEmptyError);
-      }
-
-      if (bindInstances == null)
-      {
-        throw new ArgumentNullException("bindInstances", MainConfig.ActionBinderBindingInstanceNullOrEmptyError);
       }
 
       foreach (string a in actionNames)
@@ -4226,17 +4127,11 @@ namespace Aurora
         throw new ArgumentException(MainConfig.ActionBinderActionNameNullorEmptyError);
       }
 
-      if (bindInstances == null)
-      {
-        throw new ArgumentNullException("bindInstances", MainConfig.ActionBinderBindingInstanceNullOrEmptyError);
-      }
+      bindInstances.ThrowIfArgumentNull();
 
-      if (bindInstances != null)
+      foreach (object o in bindInstances)
       {
-        foreach (object o in bindInstances)
-        {
-          Add(controllerName, actionName, o);
-        }
+        Add(controllerName, actionName, o);
       }
     }
 
@@ -4252,10 +4147,7 @@ namespace Aurora
         throw new ArgumentException(MainConfig.ActionBinderActionNameNullorEmptyError);
       }
 
-      if (bindInstance == null)
-      {
-        throw new ArgumentNullException("bindInstance", MainConfig.ActionBinderBindingInstanceNullOrEmptyError);
-      }
+      bindInstance.ThrowIfArgumentNull();
 
       List<ActionBinding> binding = (bindings.ContainsKey(controllerName)) ? bindings[controllerName] : null;
 
@@ -4299,10 +4191,7 @@ namespace Aurora
         throw new ArgumentException(MainConfig.ActionBinderActionNameNullorEmptyError);
       }
 
-      if (bindInstance == null)
-      {
-        throw new ArgumentNullException("bindInstance", MainConfig.ActionBinderBindingInstanceNullOrEmptyError);
-      }
+      bindInstance.ThrowIfArgumentNull();
 
       List<ActionBinding> binding = bindings[controllerName];
 
@@ -4382,7 +4271,9 @@ namespace Aurora
   {
     // I'm still undecided about how much power I want to give this class.
 
-    public AuroraContext Context { get; private set; }
+    protected AuroraContext Context;
+    protected ActionBinder Binder;
+    protected BundleManager Bundler;
 
     protected virtual void OnInit() { }
 
@@ -4397,22 +4288,28 @@ namespace Aurora
 
     internal static FrontController CreateInstance(Type t, AuroraContext context)
     {
-      if (context == null)
-      {
-        throw new ArgumentNullException("context");
-      }
+      context.ThrowIfArgumentNull();
 
       if (t.BaseType == typeof(FrontController))
       {
         FrontController fc = (FrontController)Activator.CreateInstance(t);
 
-        fc.Context = context;
+        fc.Refresh(context);
         fc.OnInit();
 
         return fc;
       }
 
       return null;
+    }
+
+    internal void Refresh(AuroraContext context)
+    {
+      context.ThrowIfArgumentNull();
+
+      Context = context;
+      Binder = new ActionBinder(context);
+      Bundler = new BundleManager(context);
     }
 
     public void AddRoute(string alias, string controllerName, string actionName, string requestType, string frontParams)
@@ -4477,6 +4374,7 @@ namespace Aurora
   public abstract class Controller
   {
     public AuroraContext Context { get; internal set; }
+    protected ActionBinder Binder;
     internal RouteInfo CurrentRoute { get; set; }
     private string PartitionName;
     private IViewEngine viewEngine;
@@ -4520,10 +4418,7 @@ namespace Aurora
 
     internal static Controller CreateInstance(Type t, AuroraContext context)
     {
-      if (context == null)
-      {
-        throw new ArgumentNullException("context");
-      }
+      context.ThrowIfArgumentNull();
 
       if (t.BaseType == typeof(Controller))
       {
@@ -4542,13 +4437,10 @@ namespace Aurora
 
     internal void Refresh(AuroraContext context)
     {
-      if (context == null)
-      {
-        throw new ArgumentNullException("context");
-      }
+      context.ThrowIfArgumentNull();
 
       Context = context;
-
+      Binder = new ActionBinder(context);
       QueryString = (context.QueryString == null) ? new NameValueCollection() : new NameValueCollection(context.QueryString);
       Form = (context.Form == null) ? new NameValueCollection() : new NameValueCollection(context.Form);
       ClearViewTags();
@@ -4910,10 +4802,7 @@ namespace Aurora
 
     internal void Validate(AuroraContext context, Model instance)
     {
-      if (context == null)
-      {
-        throw new ArgumentNullException("context");
-      }
+      context.ThrowIfArgumentNull();
 
       List<bool> results = new List<bool>();
 
@@ -5059,10 +4948,7 @@ namespace Aurora
     /// <returns>The type of model</returns>
     internal static Type DetermineModelFromPostedForm(AuroraContext context)
     {
-      if (context == null)
-      {
-        throw new ArgumentNullException("context");
-      }
+      context.ThrowIfArgumentNull();
 
       Type result = null;
 
@@ -5121,10 +5007,7 @@ namespace Aurora
   {
     public static void AddEncodingHeaders(AuroraContext context)
     {
-      if (context == null)
-      {
-        throw new ArgumentNullException("context");
-      }
+      context.ThrowIfArgumentNull();
 
       string acceptsEncoding = context.RequestHeaders["Accept-Encoding"];
 
@@ -5145,10 +5028,7 @@ namespace Aurora
 
     public static void SetContentType(AuroraContext context, string contentType)
     {
-      if (context == null)
-      {
-        throw new ArgumentNullException("context");
-      }
+      context.ThrowIfArgumentNull();
 
       context.ResponseClearHeaders();
       context.ResponseClearContent();
@@ -5171,10 +5051,7 @@ namespace Aurora
 
     public VirtualFileResult(AuroraContext ctx, string name, byte[] bytes, string contentType)
     {
-      if (ctx == null)
-      {
-        throw new ArgumentNullException("ctx");
-      }
+      ctx.ThrowIfArgumentNull();
 
       context = ctx;
       fileName = name;
@@ -5205,10 +5082,7 @@ namespace Aurora
 
     public PhysicalFileResult(AuroraContext ctx, string file)
     {
-      if (ctx == null)
-      {
-        throw new ArgumentNullException("ctx");
-      }
+      ctx.ThrowIfArgumentNull();
 
       context = ctx;
       filePath = file;
@@ -5293,10 +5167,7 @@ namespace Aurora
 
     public ViewResult(AuroraContext ctx, IViewEngine ve, string pName, string cName, string vName, RequestTypeAttribute attrib, Dictionary<string, string> vTags)
     {
-      if (ctx == null)
-      {
-        throw new ArgumentNullException("ctx");
-      }
+      ctx.ThrowIfArgumentNull();
 
       context = ctx;
       viewEngine = ve;
@@ -5314,10 +5185,7 @@ namespace Aurora
       // by pass the load view code in the Render method if the web application
       // does not specify the Error view.
 
-      if (ctx == null)
-      {
-        throw new ArgumentNullException("ctx");
-      }
+      ctx.ThrowIfArgumentNull();
 
       context = ctx;
       this.view = view;
@@ -5325,10 +5193,7 @@ namespace Aurora
 
     public void Refresh(AuroraContext ctx, RequestTypeAttribute attrib)
     {
-      if (ctx == null)
-      {
-        throw new ArgumentNullException("ctx");
-      }
+      ctx.ThrowIfArgumentNull();
 
       context = ctx;
       requestAttribute = attrib;
@@ -5418,10 +5283,7 @@ namespace Aurora
 
     public PartialResult(AuroraContext ctx, IViewEngine ve, string pName, string cName, string fName, Dictionary<string, string> vTags)
     {
-      if (ctx == null)
-      {
-        throw new ArgumentNullException("ctx");
-      }
+      ctx.ThrowIfArgumentNull();
 
       context = ctx;
       viewEngine = ve;
@@ -5446,10 +5308,7 @@ namespace Aurora
 
     public JsonResult(AuroraContext ctx, object d)
     {
-      if (ctx == null)
-      {
-        throw new ArgumentNullException("ctx");
-      }
+      ctx.ThrowIfArgumentNull();
 
       context = ctx;
       data = d;
@@ -5472,45 +5331,7 @@ namespace Aurora
       }
     }
   }
-
-  //public class ErrorResult : IViewResult
-  //{
-  //  private AuroraContext context;
-  //  private Exception exception;
-
-  //  public ErrorResult(AuroraContext ctx, Exception e)
-  //  {
-  //    if (ctx == null)
-  //    {
-  //      throw new ArgumentNullException("ctx");
-  //    }
-
-  //    context = ctx;
-  //    exception = e;
-  //  }
-
-  //  public void Render()
-  //  {
-  //    string message = string.Empty;
-
-  //    if (exception.InnerException != null)
-  //    {
-  //      message = exception.InnerException.Message;
-  //    }
-  //    else
-  //    {
-  //      message = exception.Message;
-  //    }
-
-  //    ResponseHeader.SetContentType(context, "text/html");
-
-  //    ResponseHeader.AddEncodingHeaders(context);
-
-  //    //context.Response.StatusDescription = message;
-  //    context.ResponseWrite(string.Format(CultureInfo.CurrentCulture, "{0} - {1}", message, context.Path));
-  //  }
-  //}
-
+    
   /// <summary>
   /// A VoidResult is a mechanism which basically says we don't want to do any processing
   /// to this view. This means the action had a void return type and it's responsible for
@@ -5528,10 +5349,7 @@ namespace Aurora
 
     public RedirectResult(AuroraContext ctx, string loc)
     {
-      if (ctx == null)
-      {
-        throw new ArgumentNullException("ctx");
-      }
+      ctx.ThrowIfArgumentNull();
 
       context = ctx;
       location = loc;
@@ -5766,10 +5584,7 @@ namespace Aurora
 
     public void SetTemplates(List<ViewTemplate> templates)
     {
-      if (templates == null)
-      {
-        throw new ArgumentNullException("templates");
-      }
+      templates.ThrowIfArgumentNull();
 
       viewTemplates = templates;
     }
@@ -5849,13 +5664,6 @@ namespace Aurora
       }
       #endregion
 
-      // If during the process of building the view we have more directives to process
-      // we'll recursively call ProcessDirectives to take care of them
-      if (directiveTokenRE.Matches(pageContent.ToString()).Count > 0)
-      {
-        ProcessDirectives(fullViewName, partitionName, controllerName, pageContent);
-      }
-
       #region PROCESS HEAD SUBSTITUTIONS AFTER ALL TEMPLATES HAVE BEEN COMPILED
       MatchCollection heads = headBlockRE.Matches(pageContent.ToString());
 
@@ -5874,6 +5682,13 @@ namespace Aurora
 
       pageContent.Replace(headDirective, string.Empty);
       #endregion
+
+      // If during the process of building the view we have more directives to process
+      // we'll recursively call ProcessDirectives to take care of them
+      if (directiveTokenRE.Matches(pageContent.ToString()).Count > 0)
+      {
+        ProcessDirectives(fullViewName, partitionName, controllerName, pageContent);
+      }
 
       return pageContent;
     }
@@ -6197,10 +6012,7 @@ namespace Aurora
 
     public AuroraViewEngine(AuroraContext ctx)
     {
-      if (ctx == null)
-      {
-        throw new ArgumentNullException("ctx");
-      }
+      ctx.ThrowIfArgumentNull();
 
       string appRoot = ctx.ApplicationPhysicalPath;
 
@@ -6217,10 +6029,7 @@ namespace Aurora
 
     public void Refresh(AuroraContext ctx)
     {
-      if (ctx == null)
-      {
-        throw new ArgumentNullException("ctx");
-      }
+      ctx.ThrowIfArgumentNull();
 
       context = ctx;
 
@@ -7512,10 +7321,7 @@ namespace Aurora
   {
     private static Dictionary<string, string> GetProtectedFilesList(AuroraContext context)
     {
-      if (context == null)
-      {
-        throw new ArgumentNullException("context");
-      }
+      context.ThrowIfArgumentNull();
 
       Dictionary<string, string> protectedFiles = null;
 
@@ -7535,10 +7341,7 @@ namespace Aurora
 
     public static void ProtectFile(AuroraContext context, string path, string roles)
     {
-      if (context == null)
-      {
-        throw new ArgumentNullException("context");
-      }
+      context.ThrowIfArgumentNull();
 
       Dictionary<string, string> protectedFiles = GetProtectedFilesList(context);
 
@@ -7550,10 +7353,7 @@ namespace Aurora
 
     public static void UnprotectFile(AuroraContext context, string path)
     {
-      if (context == null)
-      {
-        throw new ArgumentNullException("context");
-      }
+      context.ThrowIfArgumentNull();
 
       Dictionary<string, string> protectedFiles = GetProtectedFilesList(context);
 
@@ -7565,10 +7365,7 @@ namespace Aurora
 
     internal static bool IsProtected(AuroraContext context, string path, out string roles)
     {
-      if (context == null)
-      {
-        throw new ArgumentNullException("context");
-      }
+      context.ThrowIfArgumentNull();
 
       Dictionary<string, string> protectedFiles = GetProtectedFilesList(context);
 
@@ -7602,10 +7399,7 @@ namespace Aurora
 
     internal static CustomError CreateInstance(Type t, AuroraContext context)
     {
-      if (context == null)
-      {
-        throw new ArgumentNullException("context");
-      }
+      context.ThrowIfArgumentNull();
 
       if (t.BaseType == typeof(CustomError))
       {
@@ -7938,7 +7732,7 @@ namespace Aurora
       return user;
     }
 
-  #region LOOKUP BY USERNAME
+    #region LOOKUP BY USERNAME
     public static ActiveDirectoryUser LookupUserByUserName(string userName)
     {
       return LookupUser(ActiveDirectorySearchType.USERNAME, userName, false);
@@ -7963,9 +7757,9 @@ namespace Aurora
     {
       return LookupUser(ActiveDirectorySearchType.USERNAME, userName, global, adSearchUser, adSearchPW, adSearchRoot, adSearchDomain);
     }
-  #endregion
+    #endregion
 
-  #region LOOKUP USER BY UPN
+    #region LOOKUP USER BY UPN
     public static ActiveDirectoryUser LookupUserByUpn(string upn)
     {
       return LookupUser(ActiveDirectorySearchType.UPN, upn, false);
@@ -7990,9 +7784,9 @@ namespace Aurora
     {
       return LookupUser(ActiveDirectorySearchType.UPN, upn, global, adSearchUser, adSearchPW, adSearchRoot, adSearchDomain);
     }
-  #endregion
+    #endregion
 
-  #region LOOKUP USER BY EMAIL ADDRESS
+    #region LOOKUP USER BY EMAIL ADDRESS
     public static ActiveDirectoryUser LookupUserByEmailAddress(string email)
     {
       return LookupUser(ActiveDirectorySearchType.EMAIL, email, false);
@@ -8017,7 +7811,7 @@ namespace Aurora
     {
       return LookupUser(ActiveDirectorySearchType.EMAIL, email, global, adSearchUser, adSearchPW, adSearchRoot, adSearchDomain);
     }
-  #endregion
+    #endregion
 
     private static ActiveDirectoryUser GetUser(DirectoryEntry de)
     {
@@ -8076,7 +7870,7 @@ namespace Aurora
     public string CACID { get; set; }
   }
 
-  public class ActiveDirectoryAuthentication : IBoundActionObject
+  public class ActiveDirectoryAuthentication : IBindToAction
   {
     public ActiveDirectoryUser User { get; private set; }
     public bool Authenticated { get; private set; }
@@ -8091,23 +7885,17 @@ namespace Aurora
 
     public void ExecuteBeforeAction(AuroraContext context)
     {
-      if (context == null)
-      {
-        throw new ArgumentNullException("context");
-      }
+      context.ThrowIfArgumentNull();
 
-      ValidateClientCertificate(ctx);
+      ValidateClientCertificate(context);
     }
 
 #if !DEBUG
     private static string GetCACIDFromCN(AuroraContext context, out X509Certificate2 x509certificate)
     {
-      if (context == null)
-      {
-        throw new ArgumentNullException("context");
-      }
+      context.ThrowIfArgumentNull();
 
-      x509certificate = ctx.RequestClientCertificate;
+      x509certificate = context.RequestClientCertificate;
 
       if (x509certificate == null)
       {
@@ -8155,10 +7943,7 @@ namespace Aurora
 
     private void ValidateClientCertificate(AuroraContext context)
     {
-      if (context == null)
-      {
-        throw new ArgumentNullException("context");
-      }
+      context.ThrowIfArgumentNull();
 
       ActiveDirectoryAuthenticationEventArgs args = new ActiveDirectoryAuthenticationEventArgs();
 
@@ -8171,7 +7956,7 @@ namespace Aurora
 #else
       X509Certificate2 x509fromASPNET;
 
-      CACID = GetCACIDFromCN(ctx, out x509fromASPNET);
+      CACID = GetCACIDFromCN(context, out x509fromASPNET);
 
       User = null;
       Authenticated = false;
@@ -8207,7 +7992,7 @@ namespace Aurora
           {
             X509Certificate2 x509fromAD;
 
-            string cacidFromAD = GetCACIDFromCN(ctx, out x509fromAD);
+            string cacidFromAD = GetCACIDFromCN(context, out x509fromAD);
 
             if (CACID == cacidFromAD)
             {
@@ -8286,10 +8071,7 @@ namespace Aurora
   {
     private static List<User> GetUsers(AuroraContext context)
     {
-      if (context == null)
-      {
-        throw new ArgumentNullException("context");
-      }
+      context.ThrowIfArgumentNull();
 
       List<User> users = null;
 
@@ -8311,8 +8093,10 @@ namespace Aurora
     }
 
 #if OPENID
-    public static void LogonViaOpenAuth(HttpContextBase ctx, string identifier, Action<string> invalidLogon)
+    public static void LogonViaOpenAuth(AuroraContext context, string identifier, Action<string> invalidLogon)
     {
+      context.ThrowIfArgumentNull();
+
       if (!Identifier.IsValid(identifier))
       {
         if (invalidLogon != null)
@@ -8328,7 +8112,7 @@ namespace Aurora
           {
             IAuthenticationRequest request = openid.CreateRequest(Identifier.Parse(identifier));
 
-            ctx.Session[MainConfig.OpenIdProviderUriSessionName] = request.Provider.Uri;
+            context.Session[MainConfig.OpenIdProviderUriSessionName] = request.Provider.Uri;
 
             request.AddExtension(new ClaimsRequest
             {
@@ -8347,17 +8131,19 @@ namespace Aurora
       }
     }
 
-    public static void FinalizeLogonViaOpenAuth(HttpContextBase ctx, Action<OpenAuthClaimsResponse> authenticated, Action<string> cancelled, Action<string> failed)
+    public static void FinalizeLogonViaOpenAuth(AuroraContext context, Action<OpenAuthClaimsResponse> authenticated, Action<string> cancelled, Action<string> failed)
     {
+      context.ThrowIfArgumentNull();
+
       using (var openid = new OpenIdRelyingParty())
       {
         IAuthenticationResponse response = openid.GetResponse();
 
         if (response != null)
         {
-          if (ctx.Session[MainConfig.OpenIdProviderUriSessionName] != null)
+          if (context.Session[MainConfig.OpenIdProviderUriSessionName] != null)
           {
-            Uri providerUri = ctx.Session[MainConfig.OpenIdProviderUriSessionName] as Uri;
+            Uri providerUri = context.Session[MainConfig.OpenIdProviderUriSessionName] as Uri;
 
             if (providerUri != response.Provider.Uri)
             {
@@ -8389,7 +8175,7 @@ namespace Aurora
                   ClaimedIdentifier = response.ClaimedIdentifier
                 };
 
-                ctx.Session[MainConfig.OpenIdClaimsResponseSessionName] = openAuthClaimsResponse;
+                context.Session[MainConfig.OpenIdClaimsResponseSessionName] = openAuthClaimsResponse;
 
                 if (authenticated != null)
                 {
@@ -8416,11 +8202,13 @@ namespace Aurora
       }
     }
 
-    public static OpenAuthClaimsResponse GetOpenAuthClaimsResponse(HttpContextBase ctx)
+    public static OpenAuthClaimsResponse GetOpenAuthClaimsResponse(AuroraContext context)
     {
-      if (ctx.Session[MainConfig.OpenIdClaimsResponseSessionName] != null)
+      context.ThrowIfArgumentNull();
+
+      if (context.Session[MainConfig.OpenIdClaimsResponseSessionName] != null)
       {
-        return ctx.Session[MainConfig.OpenIdClaimsResponseSessionName] as OpenAuthClaimsResponse;
+        return context.Session[MainConfig.OpenIdClaimsResponseSessionName] as OpenAuthClaimsResponse;
       }
 
       return null;
@@ -8429,20 +8217,14 @@ namespace Aurora
 
     public static string LogOn(AuroraContext context, string id)
     {
-      if (context == null)
-      {
-        throw new ArgumentNullException("context");
-      }
+      context.ThrowIfArgumentNull();
 
       return LogOn(context, id, null, null);
     }
 
     public static string LogOn(AuroraContext context, string id, string[] roles, Func<User, string, bool> checkRoles)
     {
-      if (context == null)
-      {
-        throw new ArgumentNullException("context");
-      }
+      context.ThrowIfArgumentNull();
 
       if (string.IsNullOrEmpty(MainConfig.EncryptionKey))
       {
@@ -8501,10 +8283,7 @@ namespace Aurora
 
     public static User GetLoggedOnUser(AuroraContext context)
     {
-      if (context == null)
-      {
-        throw new ArgumentNullException("context");
-      }
+      context.ThrowIfArgumentNull();
 
       if (context.Session[MainConfig.CurrentUserSessionName] != null)
       {
@@ -8531,10 +8310,7 @@ namespace Aurora
 
     private static AuthCookie GetAuthCookie(AuroraContext context)
     {
-      if (context == null)
-      {
-        throw new ArgumentNullException("context");
-      }
+      context.ThrowIfArgumentNull();
 
       HttpCookie cookie = context.RequestCookies[MainConfig.AuroraAuthCookieName];
 
@@ -8548,10 +8324,7 @@ namespace Aurora
 
     public static bool LogOff(AuroraContext context)
     {
-      if (context == null)
-      {
-        throw new ArgumentNullException("context");
-      }
+      context.ThrowIfArgumentNull();
 
       HttpCookie cookie = context.RequestCookies[MainConfig.AuroraAuthCookieName];
 
@@ -8588,10 +8361,7 @@ namespace Aurora
 
     internal static bool IsAuthenticated(AuroraContext context, RouteInfo routeInfo, string authRoles)
     {
-      if (context == null)
-      {
-        throw new ArgumentNullException("context");
-      }
+      context.ThrowIfArgumentNull();
 
       AuthCookie authCookie = GetAuthCookie(context);
 
@@ -8651,10 +8421,7 @@ namespace Aurora
   {
     private static List<string> GetTokens(AuroraContext context)
     {
-      if (context == null)
-      {
-        throw new ArgumentNullException("context");
-      }
+      context.ThrowIfArgumentNull();
 
       List<string> tokens = null;
 
@@ -8674,10 +8441,7 @@ namespace Aurora
 
     private static string CreateUniqueToken(AuroraContext context)
     {
-      if (context == null)
-      {
-        throw new ArgumentNullException("context");
-      }
+      context.ThrowIfArgumentNull();
 
       List<string> tokens = GetTokens(context);
 
@@ -8693,10 +8457,7 @@ namespace Aurora
 
     public static string Create(AuroraContext context, AntiForgeryTokenType type)
     {
-      if (context == null)
-      {
-        throw new ArgumentNullException("context");
-      }
+      context.ThrowIfArgumentNull();
 
       List<string> tokens = GetTokens(context);
       string token = CreateUniqueToken(context);
@@ -8724,10 +8485,7 @@ namespace Aurora
 
     public static void RemoveToken(AuroraContext context)
     {
-      if (context == null)
-      {
-        throw new ArgumentNullException("context");
-      }
+      context.ThrowIfArgumentNull();
 
       if (context.Form.AllKeys.Contains(MainConfig.AntiForgeryTokenName))
       {
@@ -8746,20 +8504,14 @@ namespace Aurora
 
     public static bool VerifyToken(AuroraContext context, string token)
     {
-      if (context == null)
-      {
-        throw new ArgumentNullException("context");
-      }
+      context.ThrowIfArgumentNull();
 
       return GetTokens(context).Contains(token);
     }
 
     public static bool VerifyToken(AuroraContext context)
     {
-      if (context == null)
-      {
-        throw new ArgumentNullException("context");
-      }
+      context.ThrowIfArgumentNull();
 
       if (context.Form.AllKeys.Contains(MainConfig.AntiForgeryTokenName))
       {
@@ -8801,10 +8553,7 @@ namespace Aurora
 
     public BundleManager(AuroraContext ctx)
     {
-      if (ctx == null)
-      {
-        throw new ArgumentNullException("ctx");
-      }
+      ctx.ThrowIfArgumentNull();
 
       context = ctx;
 
@@ -8846,17 +8595,16 @@ namespace Aurora
       var files = di.GetAllFiles().Where(x => x.Extension == fileExtension);
 
       foreach (FileInfo file in files)
+      {
         bundleInfos.Add(new BundleInfo() { BundleName = bundleName, FileInfo = file });
+      }
 
       ProcessFiles(files, bundleName);
     }
 
     public void AddFiles(string[] paths, string bundleName)
     {
-      if (paths == null)
-      {
-        throw new ArgumentNullException("paths");
-      }
+      paths.ThrowIfArgumentNull();
 
       if (bundleInfos.FirstOrDefault(x => x.BundleName == bundleName) == null)
       {
@@ -9032,7 +8780,6 @@ namespace Aurora
         }
       }
     }
-
 
     private bool IsAlphanum(char c)
     {
@@ -9447,6 +9194,18 @@ namespace Aurora
   /// </summary>
   public static class ExtensionMethods
   {
+    // This was adapted from one of the extension methods given in an answer to:
+    //
+    // http://stackoverflow.com/questions/271398/what-are-your-favorite-extension-methods-for-c-codeplex-com-extensionoverflow
+    //
+    public static void ThrowIfArgumentNull<T>(this T t) where T : class
+    {
+      if (t == null)
+      {
+        throw new ArgumentNullException(t.GetType().Name);
+      }
+    }
+
     //
     // http://blogs.msdn.com/b/csharpfaq/archive/2006/10/09/how-do-i-calculate-a-md5-hash-from-a-string_3f00_.aspx
     //
@@ -9693,10 +9452,7 @@ namespace Aurora
 
     public static string GetUniqueId(this Enum obj)
     {
-      if (obj == null)
-      {
-        throw new ArgumentNullException("obj");
-      }
+      obj.ThrowIfArgumentNull();
 
       UniqueIdAttribute uid = (UniqueIdAttribute)obj.GetType().GetField(obj.ToString()).GetCustomAttributes(false).FirstOrDefault(x => x is UniqueIdAttribute);
 
@@ -9925,10 +9681,7 @@ namespace Aurora
 
     public void Init(HttpApplication context)
     {
-      if (context == null)
-      {
-        throw new ArgumentNullException("context");
-      }
+      context.ThrowIfArgumentNull();
 
       //PagesSection pageSection = new PagesSection();
       //pageSection.ValidateRequest = MainConfig.ValidateRequest;
