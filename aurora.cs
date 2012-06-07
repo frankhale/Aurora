@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 4 June 2012
+// Updated On: 6 June 2012
 //
 // Contact Info:
 //
@@ -46,8 +46,8 @@
 //
 // -- What is this?
 //
-// Aurora is an MVC web framework that aims to have modern features but have a 
-// small code footprint. 
+// Aurora is a light MVC framework built on top of ASP.NET that aims for a 
+// modern feature set without layers of complexity. 
 //
 // -- Why develop yet another web framework on top of ASP.NET?
 //
@@ -66,15 +66,16 @@
 // -- Why is all the code in a single file?
 //
 // The great thing about this framework in my opinion is that it's self 
-// contained in just a single file. Everything is in here, there is no hidden 
+// contained in just a single file. You can drop it straight into a project
+// and modify it to your needs. Everything is in here, there is no hidden 
 // magic and if you want to know what's going on just look below. No need to 
 // wade through file after file to figure out how the thing works. A big turn
 // off when looking at somebody elses code (in my opinion) is shuffling through 
 // the files to figure how all of it is put together. 
 //
 // What I hope to do here is provide a single file with the appropriate 
-// commentary and rationale for those that are interested in building a web 
-// framework on top of ASP.NET. As this framework matures I will be putting 
+// commentary and rationale for those that are interested in building their own 
+// web framework on top of ASP.NET. As this framework matures I will be putting 
 // descriptive commentary throughout to describe the classes, how they work and 
 // why they are there.
 //
@@ -106,18 +107,16 @@
 //
 #endregion
 
-#region DOCUMENTATION (TODO: NEEDS SOME LOVE AGAIN!)
+#region DOCUMENTATION
 // ----------------
 // --- Building ---
 // ----------------
 //
-// Aurora requires .NET 3.5 or higher to compile.
+// Aurora requires at least .NET 4.0 to compile.
 //
-// You can use the included CSPROJ file to compile the assembly using MSBUILD or 
-// you can build a Visual Studio project with it. The CSPROJ file assumes that 
-// the external dependencies are located in a folder called Libs. The code 
-// depends on HtmlAgilityPack.dll and Newtonsoft.Json.dll. The URLs to download
-// them are provided below. 
+// You can use the included CSPROJ file that is part of the github repository to 
+// compile the assembly using MSBUILD. All external dependencies are included
+// in the repository.
 //
 // References:
 //
@@ -130,7 +129,8 @@
 //	System.Web.Abstractions
 //	System.Xml.Linq
 //	System.Xml.dll
-//	Newtonsoft.Json.NET35 - http://json.codeplex.com/
+//  Microsoft.CSharp
+//	Newtonsoft.Json.NET - http://json.codeplex.com/
 //	HtmlAgilityPack - http://htmlagilitypack.codeplex.com/
 //  MarkdownSharp - http://code.google.com/p/markdownsharp/
 //
@@ -141,9 +141,14 @@
 //
 //  COMPILE FLAG        | Reference
 //  -------------------------------------------------------------------------
-//  ACTIVEDIRECTORY     | System.DirectoryServices
+//  ACTIVE_DIRECTORY    | System.DirectoryServices
 //  CAC_AUTHENTICATION  | System.DirectoryServices
 //  OPENID              | DotNetOpenAuth.dll - http://www.dotnetopenauth.net/
+//
+// Other compile flags:
+//
+// LIBRARY - if you want to build this as a library use this flag so that 
+//           assembly information is included in the build.
 //
 // -------------
 // --- Usage ---
@@ -151,23 +156,31 @@
 //
 // Compiling the code is simple but how do you use it?
 //
-// There are no project templates at the moment. The only way to create a new 
-// project is by using a manual process. The basic project structure is quite 
-// simple and looks like this:
+// The best way to get started with this framework is by using the Visual Studio
+// 2010 project template. The template contains the framework code and the 
+// requisite project layout. You can find the template here:
+//
+// https://github.com/frankhale/aurora/blob/master/AuroraMVCWebApplication40.zip
+//
+// This is a basic Hello, World application and shows the project structure.
+//
+// The project structure is quite simple and looks like this:
 //
 //  App/
 //    Controllers/    <- This is a convention (optional)
 //    Models/         <- This is a convention (optional)
+//    Resources/      <- Javascript, CSS, static files.
+//    [PartitionName] <- Optional, controllers which declare partitions
+//      Controllers/  <- This is a convention (optional)
+//      ControllerName/
+//        Fragments/
+//        Shared/
 //    Views/
 //      Fragments/ (similar to partials but rendered by themselves)
 //      Shared/ (for master pages and partial views)
-//      Home/ (one folder for each controller, folder is the name as controller)
-//
-// I fully plan to create a Visual Studio template but for the time being what
-// you can do is start with a fresh ASP.NET project and just delete everything 
-// except for the web.config. Create an empty Default.aspx so the Visual Studio
-// dev server has something to look for in an empty request. The framework will
-// rewrite the request with the default route instead.
+//      ControllerName/ (If not using partitions)
+//        Fragments/
+//        Shared/
 //
 // The folder structure is quite simple. There are a couple of convention based
 // directories for controllers and models. These directories are optional but 
@@ -230,12 +243,12 @@
 //
 // The controller initialization method: 
 //
-// Controller_OnInit
+//   OnInit
 // 
 // You can override this method to perform anything you like at the init phase
 // of the controller.
 //
-//  protected override void Controller_OnInit()
+//  protected override void OnInit()
 //  {
 //		// We want to perform some code before our actions are invoked
 //    PreActionEvent += 
@@ -305,14 +318,14 @@
 // Parameters are grouped into a number of categories (in order of their 
 // precedence):
 // 
-//  filter results (optional)
+//  filter results 
 //  bound parameters
 //  front parameters
 //  url parameters
 //  form parameters / post model / (HTTP Put/Delete) payload 
 //  files
 //
-// Filter Results - If an action has been anotated with a filter then any 
+// Filter Results - If an action has been annotated with a filter then any 
 // results from the invocation of the filter will be applied to the parameter 
 // list of the action. Filters are invoked right after the action pre event and
 // right before the action is invoked. Keep in mind filters are not required to 
@@ -353,7 +366,7 @@
 // 
 // An index action that mapped to the following URL would look like this:
 //
-// URL: http://mysite.com 
+// URL: http://mysite.com/ControllerName/Index 
 //
 //  [HttpGet] 
 //  public ViewResult Index()
@@ -362,6 +375,12 @@
 //
 //    return View();
 //  }
+//
+// NOTE: The default route can be configured in the Aurora web.config section.
+//       If you wanted to your Index action to be your default route then you'd
+//       specify it like this in the web.config Aurora section.
+//
+//         <Aurora DefaultRoute="/Index" ... />
 //
 // An action that mapped to the following URL would look like this:
 //
@@ -372,6 +391,7 @@
 //  {
 //    return View();
 //  }
+//
 //
 // NOTE: Actions have access to a special dictionary called ViewTags which is 
 // used to describe a key=value pair where the key is the tag name in your view
@@ -385,10 +405,41 @@
 // --- ROUTES ---
 // --------------
 //
-// Routes in Aurora make some assumptions and they are that URL's will conform
-// to the following structure:
+// Aurora tries to automatically map routes to actions by looking at the URL
+// and splitting it up in the following format:
 //
-//  http://yoursite.com/alias/param1/param2/param3/etc 
+//  http://yoursite.com/alias/param1/param2/param3
+//
+// Keep in mind that the query string is not handled in any special way. Actions
+// can grab query string values by looking at the Context.QueryString 
+// dictionary.
+//
+// The alias is what gets mapped back to an action and it can be configured in 
+// a number of ways. You can declare an alias by specifying it in one of the 
+// HTTP request attributes such as:
+//
+//  [HttpGet("/Index")]
+//  public ViewResult Index() 
+//  {
+//    ...
+//  }
+//
+// This would map http://yoursite.com/Index to your Index() action.
+//
+// You can also declare an alias in the following manner:
+//
+//  [Alias("/Index")]
+//  [HttpGet]
+//  public ViewResult Index() 
+//  {
+//    ...
+//  }
+//
+// This would map http://yoursite.com/ControllerName/Index and
+// http://yoursite.com/Index to your Index() action.
+//
+// You can also stack the Alias attribute if you want more than one alias to 
+// point to the same action.
 //
 // Actions that do not specify a specific alias will have the following default
 // alias. 
@@ -396,7 +447,7 @@
 //  /controller_name/action_name
 //
 // Routes can be added dynamically through code. This is very useful if you 
-// wanted to create a psuedo alias for usernames for example so that it would
+// wanted to create a dynamic alias for usernames for example so that it would
 // make it easier to navigate to a user details page. 
 //
 // Both normal controllers and the front controller have the following methods
@@ -416,6 +467,10 @@
 //
 // Here is a list of options you can use with the various types of action 
 // attributes:
+//
+//  Alias - used to specify an alias which will refer to an action. This 
+//          attribute can be stacked if you want to specify more than one
+//          alias per action.
 //
 //  HttpPost, HttpPut, HttpDelete and HttpGet:
 //
@@ -444,8 +499,8 @@
 //    return View();
 //  }
 //
-// NOTE: Methods with no action attribute will not be invoked from a URL 
-// regardless if they are public or not.
+// NOTE: Methods with no http request attribute will not be invoked from a URL 
+//       regardless if they are public or not.
 //
 // There is an attribute that is used for special cases where you want to 
 // redirect to an action but you don't want that action publically available. 
@@ -543,10 +598,9 @@
 //
 //  public class Home : Controller
 //  {
-//		protected override void Controller_OnInit()
+//		protected override void OnInit()
 //    {
-//			ActionBinder actionBinder = new ActionBinder(Context);
-//			actionBinder.Add("Home", "Index", new Foo());
+//			Binder.Bind("Home", "Index", new Foo());
 //    }
 //
 //    [HttpGet] 
@@ -561,9 +615,9 @@
 // the action is invoked the bound parameters ExecuteBeforeAction() method will
 // be triggered initializing the object and then it'll be passed to the action.
 //
-// In addition to the Add methods there are a few others that make it convenient
-// to add bound parameters to all actions in a controller or even to all actions
-// in all controllers.
+// In addition to the Bind methods there are a few others that make it 
+// convenient to add bound parameters to all actions in a controller or even to 
+// all actions in all controllers.
 //
 // -----------------------
 // --- ACTION FILTERS ----
@@ -703,7 +757,9 @@
 // Views are the primary mechanism to take dynamic data and combine them with 
 // HTML. Views in Aurora are simple text files with HTML and a few directives
 // that tell the view engine what to do with the files. The Aurora view engine
-// does not support code inside the view. 
+// does not support code inside the view. Instead, code needed to produce layout
+// is performed inside an action and combined with HTML from a fragment. You
+// can also use the HTML helpers or create your own. 
 // 
 // Given a simple application scenario that doesn't use partitioning (more on 
 // that later) your views would live inside a folder at the root of your 
@@ -717,16 +773,17 @@
 //
 //  {{myTag}} - Not HTML Encoded
 //  {|myTag|} - HTML Encoded
+//  {!myTag!} - Markdown
 //
 // A simple view with a tag for the page title and a tag for page content would 
 // look like this:
 //
 //  <html>
 //   <head>
-//    <title>{{title}}</title>
+//    <title>{|title|}</title>
 //   </head>
 //   <body>
-//    {{content}}
+//    {|content|}
 //   </body>
 //  </html>
 //
@@ -1317,7 +1374,7 @@ using MarkdownSharp;
 using NUnit.Framework;
 #endif
 
-#if ACTIVEDIRECTORY
+#if ACTIVE_DIRECTORY
 using System.DirectoryServices;
 using System.DirectoryServices.ActiveDirectory;
 #endif
@@ -1339,22 +1396,24 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyCopyright("(GNU GPLv3) Copyleft © 2011-2012")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("0.99.77.0")]
+[assembly: AssemblyVersion("0.99.78.0")]
 #endregion
 #endif
 
-#region TODO (MAYBE)
+#region TODO
+//TODO: Add HTML helpers for checkbox list and radio button list
+//TODO: Add support to handle posted forms with checkbox and radio button lists
+//TODO: Document the dynamic view tags and frag tags
+//TODO: Need a way to expire antiforgery tokens that were not used but sit dormant in the token cache
 //TODO: Bundles ought to be a collection of CSS and Javascript instead of one or the other which is how the current bundle manager handles bundling.
 //TODO: Objects that need to be in Session or Application stores ought to be wrapped into an object that can store all of them for easy retrieval respectively.
 //TODO: Figure out how the Plugin infrastructure will be integrated into the framework pipeline (if at all). 
-//TODO: Continue the documentation rewrite/revision
 //TODO: Upload NuGet package to NuGet.org Package Gallery
 //TODO: Add more events to the FrontController class, decide how much power it'll ultimately have
 //TODO: Routing: Add model validation checking to the form parameters if they are being placed directly in the action parameter list rather than in a model
 //TODO: HTMLHelpers: All of the areas where I'm using these Func<> lambda (craziness!) params to add name=value pairs to HTML tags need to have complimentary methods that also use a dictionary. The infrastructure has been put in place in the base HTML helper but not used yet.
 //TODO: Add HTTP Patch verb support (need to research this more!)
 //TODO: If we are adding bound parameters during the OnInit() method execution then we should have a method overload that infers the name of the current controller.
-//TODO: We shouldn't need to new up the ActionBinder to add new bindings. Let's put an instance in the controller base class.
 #endregion
 
 namespace Aurora
@@ -1425,7 +1484,7 @@ namespace Aurora
   /// </summary>
   public static class AuroraConfig
   {
-    public static Version Version = new Version("0.99.77.0");
+    public static Version Version = new Version("0.99.78.0");
 
     /// <summary>
     /// Returns true if either Aurora or the web application is in debug mode, false otherwise.
@@ -1500,7 +1559,7 @@ namespace Aurora
   #endregion
 
   #region ACTIVE DIRECTORY DOMAIN AND SEARCH PATH ELEMENT AND COLLECTION
-#if ACTIVEDIRECTORY
+#if ACTIVE_DIRECTORY
   public class ActiveDirectorySearchConfigurationElement : ConfigurationElement
   {
     [ConfigurationProperty("Domain", IsRequired = true)]
@@ -1633,7 +1692,7 @@ namespace Aurora
     }
 
     #region ACTIVE DIRECTORY CONFIGURATION
-#if ACTIVEDIRECTORY
+#if ACTIVE_DIRECTORY
     [ConfigurationProperty("ActiveDirectorySearchInfo")]
     public ActiveDirectorySearchConfigurationCollection ActiveDirectorySearchInfo
     {
@@ -1702,7 +1761,7 @@ namespace Aurora
           MimeTypes.Add(ct.FileExtension, ct.ContentType);
         }
 
-#if ACTIVEDIRECTORY
+#if ACTIVE_DIRECTORY
         if (WebConfig.ActiveDirectorySearchInfo.Count > 0)
         {
           ActiveDirectorySearchInfos = new string[WebConfig.ActiveDirectorySearchInfo.Count][];
@@ -1733,7 +1792,7 @@ namespace Aurora
     public static bool AuroraDebug = (WebConfig == null) ? false : WebConfig.Debug;
     public static bool ASPNETDebug = (ConfigurationManager.GetSection("system.web/compilation") as CompilationSection).Debug;
 
-#if ACTIVEDIRECTORY
+#if ACTIVE_DIRECTORY
     public static string ADSearchUser = (MainConfig.WebConfig == null) ? null : (!string.IsNullOrEmpty(WebConfig.ADSearchUser) && !string.IsNullOrEmpty(WebConfig.EncryptionKey)) ? Encryption.Decrypt(WebConfig.ADSearchUser, WebConfig.EncryptionKey) : null;
     public static string ADSearchPW = (MainConfig.WebConfig == null) ? null : (!string.IsNullOrEmpty(WebConfig.ADSearchPW) && !string.IsNullOrEmpty(WebConfig.EncryptionKey)) ? Encryption.Decrypt(WebConfig.ADSearchPW, WebConfig.EncryptionKey) : null;
     public static string ADSearchDomain = (MainConfig.WebConfig == null) ? null : WebConfig.ADSearchDomain;
@@ -1835,8 +1894,6 @@ namespace Aurora
   #endregion
 
   #endregion
-
-  #region CORE WEB FRAMEWORK
 
   #region APPLICATION INTERNALS
   /// <summary>
@@ -2372,6 +2429,463 @@ namespace Aurora
   }
   #endregion
 
+  #region ATTRIBUTES
+  public enum ActionSecurity
+  {
+    Secure,
+    None	// dummy value for RequestTypeAttribute.SecurityType default
+  }
+
+  public enum DescriptiveNameOperation
+  {
+    SplitCamelCase,
+    None
+  }
+
+  #region APP PARTITION
+  [AttributeUsage(AttributeTargets.Class)]
+  public sealed class PartitionAttribute : Attribute
+  {
+    public string Name { get; private set; }
+
+    public PartitionAttribute(string name)
+    {
+      Name = name;
+    }
+  }
+  #endregion
+
+  #region MISCELLANEOUS
+  [AttributeUsage(AttributeTargets.All)]
+  public sealed class MetadataAttribute : Attribute
+  {
+    public string Metadata { get; private set; }
+
+    public MetadataAttribute(string metadata)
+    {
+      Metadata = metadata;
+    }
+  }
+
+  [AttributeUsage(AttributeTargets.All)]
+  public sealed class DescriptiveNameAttribute : Attribute
+  {
+    public string Name { get; private set; }
+
+    public DescriptiveNameOperation Op { get; private set; }
+
+    public DescriptiveNameAttribute(string name)
+    {
+      Name = name;
+      Op = DescriptiveNameOperation.None;
+    }
+
+    public DescriptiveNameAttribute(DescriptiveNameOperation op)
+    {
+      Name = string.Empty; // Name comes from property name
+
+      Op = op; // We'll perform an operation on the property name like put spacing between camel case names, then title case the name.
+    }
+
+    public string PerformOperation(string name)
+    {
+      // This regex comes from this StackOverflow question answer:
+      //
+      // http://stackoverflow.com/questions/155303/net-how-can-you-split-a-caps-delimited-string-into-an-array
+      if (Op == DescriptiveNameOperation.SplitCamelCase)
+      {
+        return Regex.Replace(name, @"([a-z](?=[A-Z])|[A-Z](?=[A-Z][a-z]))", "$1 ");
+      }
+
+      return null;
+    }
+  }
+
+  [AttributeUsage(AttributeTargets.Parameter | AttributeTargets.Property)]
+  public sealed class SanitizeAttribute : Attribute
+  {
+    public bool StripHtml { get; private set; }
+    public bool HtmlEncode { get; private set; }
+
+    public SanitizeAttribute()
+    {
+      StripHtml = true;
+      HtmlEncode = true;
+    }
+
+    public string Sanitize(string value)
+    {
+      if (StripHtml)
+      {
+        value = value.StripHtml();
+      }
+
+      if (HtmlEncode)
+      {
+        value = HttpUtility.HtmlEncode(value);
+      }
+
+      return value;
+    }
+  }
+
+  [AttributeUsage(AttributeTargets.Property)]
+  public sealed class HiddenAttribute : Attribute
+  {
+  }
+
+  [AttributeUsage(AttributeTargets.Property)]
+  public sealed class NotRequiredToPostAttribute : Attribute
+  {
+  }
+
+  [AttributeUsage(AttributeTargets.Property)]
+  internal sealed class ExcludeFromBindingAttribute : Attribute
+  {
+  }
+
+  [AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
+  internal sealed class AliasAttribute : Attribute
+  {
+    public string Alias { get; private set; }
+
+    public AliasAttribute(string alias)
+    {
+      Alias = alias;
+    }
+  }
+  #endregion
+
+  #region HTTP REQUEST
+  public abstract class RequestTypeAttribute : Attribute
+  {
+    public ActionSecurity SecurityType { get; set; }
+    public string RouteAlias { get; set; }
+    public string Roles { get; set; }
+    public bool HttpsOnly { get; set; }
+    public string RedirectWithoutAuthorizationTo { get; set; }
+    public string RequestType { get; private set; }
+
+    protected RequestTypeAttribute(string requestType)
+    {
+      SecurityType = ActionSecurity.None;
+      RequestType = requestType;
+    }
+  }
+
+  [AttributeUsage(AttributeTargets.Method)]
+  public sealed class FromRedirectOnlyAttribute : RequestTypeAttribute
+  {
+    public FromRedirectOnlyAttribute(string routeAlias)
+      : base("GET")
+    {
+      RouteAlias = routeAlias;
+    }
+  }
+
+  [AttributeUsage(AttributeTargets.Method)]
+  public sealed class HttpGetAttribute : RequestTypeAttribute
+  {
+    public HttpCacheability CacheabilityOption { get; set; }
+    public bool Cache { get; set; }
+    public int Duration { get; set; } // in minutes
+    public string Refresh { get; set; }
+
+    internal TimeSpan Expires { get; set; }
+    internal DateTime DateExpiry { get; set; }
+
+    public HttpGetAttribute()
+      : base("GET")
+    {
+      Init();
+    }
+
+    public HttpGetAttribute(string routeAlias)
+      : base("GET")
+    {
+      RouteAlias = routeAlias;
+
+      Init();
+    }
+
+    public HttpGetAttribute(ActionSecurity sec) : this(string.Empty, sec) { }
+
+    public HttpGetAttribute(string routeAlias, ActionSecurity sec)
+      : base("GET")
+    {
+      SecurityType = sec;
+      RouteAlias = routeAlias;
+
+      Init();
+    }
+
+    private void Init()
+    {
+      CacheabilityOption = HttpCacheability.Public;
+      Duration = 15;
+      Expires = new TimeSpan(0, 15, 0);
+      DateExpiry = DateTime.Now.Add(new TimeSpan(0, 15, 0));
+    }
+  }
+
+  [AttributeUsage(AttributeTargets.Method)]
+  public sealed class HttpPostAttribute : RequestTypeAttribute
+  {
+    public bool RequireAntiForgeryToken { get; set; }
+
+    public HttpPostAttribute() : base("POST") { }
+
+    public HttpPostAttribute(string routeAlias)
+      : base("POST")
+    {
+      RouteAlias = routeAlias;
+      RequireAntiForgeryToken = true;
+    }
+
+    public HttpPostAttribute(ActionSecurity sec)
+      : this(string.Empty, sec)
+    {
+    }
+
+    public HttpPostAttribute(string routeAlias, ActionSecurity sec)
+      : base("POST")
+    {
+      SecurityType = sec;
+      RouteAlias = routeAlias;
+    }
+  }
+
+  [AttributeUsage(AttributeTargets.Method)]
+  public sealed class HttpPutAttribute : RequestTypeAttribute
+  {
+    public bool RequireAntiForgeryToken { get; set; }
+
+    public HttpPutAttribute() : base("PUT") { }
+
+    public HttpPutAttribute(string routeAlias)
+      : base("PUT")
+    {
+      RouteAlias = routeAlias;
+      RequireAntiForgeryToken = true;
+    }
+
+    public HttpPutAttribute(ActionSecurity sec)
+      : this(string.Empty, sec)
+    {
+    }
+
+    public HttpPutAttribute(string routeAlias, ActionSecurity sec)
+      : base("PUT")
+    {
+      SecurityType = sec;
+      RouteAlias = routeAlias;
+    }
+  }
+
+  [AttributeUsage(AttributeTargets.Method)]
+  public sealed class HttpDeleteAttribute : RequestTypeAttribute
+  {
+    public bool RequireAntiForgeryToken { get; set; }
+    public HttpDeleteAttribute() : base("DELETE") { }
+
+    public HttpDeleteAttribute(string routeAlias)
+      : base("DELETE")
+    {
+      RouteAlias = routeAlias;
+      RequireAntiForgeryToken = true;
+    }
+
+    public HttpDeleteAttribute(ActionSecurity sec)
+      : this(string.Empty, sec)
+    {
+    }
+
+    public HttpDeleteAttribute(string routeAlias, ActionSecurity sec)
+      : base("DELETE")
+    {
+      SecurityType = sec;
+      RouteAlias = routeAlias;
+    }
+  }
+  #endregion
+
+  #region MODEL
+
+  #region STRING FORMAT
+  [AttributeUsage(AttributeTargets.Property)]
+  public sealed class StringFormatAttribute : Attribute
+  {
+    public string Format { get; set; }
+
+    public StringFormatAttribute(string format)
+    {
+      Format = format;
+    }
+  }
+  #endregion
+
+  #region DATE FORMAT
+  [AttributeUsage(AttributeTargets.Property)]
+  public sealed class DateFormatAttribute : Attribute
+  {
+    public string Format { get; set; }
+
+    public DateFormatAttribute(string format)
+    {
+      Format = format;
+    }
+  }
+  #endregion
+
+  #region MODEL VALIDATION
+  public abstract class ModelValidationBaseAttribute : Attribute
+  {
+    public string ErrorMessage { get; set; }
+
+    protected ModelValidationBaseAttribute(string errorMessage)
+    {
+      ErrorMessage = errorMessage;
+    }
+  }
+
+  [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field)]
+  public sealed class RequiredAttribute : ModelValidationBaseAttribute
+  {
+    public RequiredAttribute(string errorMessage)
+      : base(errorMessage)
+    {
+    }
+  }
+
+  [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field)]
+  public sealed class RequiredLengthAttribute : ModelValidationBaseAttribute
+  {
+    public int Length { get; private set; }
+
+    public RequiredLengthAttribute(int length, string errorMessage)
+      : base(errorMessage)
+    {
+      Length = length;
+    }
+  }
+
+  [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field)]
+  public sealed class RegularExpressionAttribute : ModelValidationBaseAttribute
+  {
+    public Regex Pattern { get; set; }
+
+    public RegularExpressionAttribute(string pattern, string errorMessage)
+      : base(errorMessage)
+    {
+      Pattern = new Regex(pattern);
+    }
+  }
+
+  [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field)]
+  public sealed class RangeAttribute : ModelValidationBaseAttribute
+  {
+    public int Min { get; private set; }
+    public int Max { get; private set; }
+
+    public RangeAttribute(int min, int max, string errorMessage)
+      : base(errorMessage)
+    {
+      Min = min;
+      Max = max;
+    }
+  }
+  #endregion
+
+  #endregion
+
+  #region UNIQUE ID
+  [AttributeUsage(AttributeTargets.Field)]
+  public sealed class UniqueIdAttribute : Attribute
+  {
+    internal string Id { get; set; }
+
+    public UniqueIdAttribute() { }
+
+    internal void GenerateID(string name)
+    {
+      HttpContext ctx = HttpContext.Current;
+      Dictionary<string, string> uids = null;
+
+      if (ctx.Session[MainConfig.UniquedIDSessionName] != null)
+      {
+        uids = ctx.Session[MainConfig.UniquedIDSessionName] as Dictionary<string, string>;
+      }
+      else
+      {
+        ctx.Session[MainConfig.UniquedIDSessionName] = uids = new Dictionary<string, string>();
+      }
+
+      if (!uids.ContainsKey(name))
+      {
+        Id = NewUID();
+        uids[name] = Id;
+      }
+      else
+      {
+        Id = uids[name];
+      }
+    }
+
+    private static string NewUID()
+    {
+      return Guid.NewGuid().ToString().Replace("-", "").Substring(0, 16);
+    }
+  }
+  #endregion
+
+  #region ACTION FILTER
+  /// <summary>
+  /// This empty interface is used to identify a filter result that will be passed
+  /// to an action after the filter is invoked.
+  /// </summary>
+  public interface IActionFilterResult
+  {
+    //FIXME: Warning	224	CA1040 : Microsoft.Design : Define a custom attribute to replace 'IActionFilterResult'.
+  }
+
+  //[AttributeUsage(AttributeTargets.Parameter)]
+  //public class ActionFilterResultAttribute : Attribute 
+  //{ 
+  //  This will be used when I implement the fix for the warning listed in IActionFilterResult
+  //}
+
+  [AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
+  public abstract class ActionFilterAttribute : Attribute
+  {
+    internal Controller Controller { get; set; }
+
+    public IActionFilterResult FilterResult { get; set; }
+
+    public abstract void OnFilter(RouteInfo routeInfo);
+
+    public void RedirectToAlias(string alias)
+    {
+      Controller.RedirectToAlias(alias);
+    }
+
+    public void RedirectOnlyToAlias(string alias)
+    {
+      Controller.RedirectOnlyToAlias(alias);
+    }
+
+    public void RedirectToAction(string controllerName, string actionName)
+    {
+      Controller.RedirectToAction(controllerName, actionName);
+    }
+
+    public void RedirectOnlyToAction(string controllerName, string actionName)
+    {
+      Controller.RedirectOnlyToAction(controllerName, actionName);
+    }
+  }
+  #endregion
+  #endregion
+
   #region AURORA CONTEXT
   /// <summary>
   /// A thin wrapper which is used to set the various Response.Cache options
@@ -2582,6 +3096,8 @@ namespace Aurora
   {
     HttpContextBase RawContext { get; set; }
 
+    RouteInfo RouteInfo { get; }
+
     X509Certificate2 RequestClientCertificate { get; set; }
 
     IAuroraSessionStore Application { get; set; }
@@ -2604,7 +3120,7 @@ namespace Aurora
     string ApplicationPhysicalPath { get; set; }
     string Path { get; set; }
     string RequestType { get; set; }
-    Dictionary<string, string> RequestPayload { get; set; }
+    NameValueCollection RequestPayload { get; set; }
 
     HttpPostedFileBase[] Files { get; set; }
 
@@ -2641,6 +3157,8 @@ namespace Aurora
   public class AuroraContext : IAuroraContext
   {
     public HttpContextBase RawContext { get; set; }
+
+    public RouteInfo RouteInfo { get; internal set; }
 
     public X509Certificate2 RequestClientCertificate { get; set; }
 
@@ -2754,7 +3272,7 @@ namespace Aurora
     public string Path { get; set; }
     public string RequestType { get; set; }
 
-    public Dictionary<string, string> RequestPayload { get; set; }
+    public NameValueCollection RequestPayload { get; set; }
 
     public HttpPostedFileBase[] Files { get; set; }
 
@@ -2854,11 +3372,10 @@ namespace Aurora
       RequestType = "GET";
       Form = new NameValueCollection();
       QueryString = new NameValueCollection();
-      RequestPayload = new Dictionary<string, string>();
       RequestCookies = new HttpCookieCollection();
       ResponseCookies = new HttpCookieCollection();
       RequestHeaders = new NameValueCollection();
-      RequestPayload = new Dictionary<string, string>();
+      RequestPayload = new NameValueCollection();
       Session = new AuroraFakeSessionStore();
       Application = new AuroraFakeSessionStore();
       Files = new HttpPostedFileBase[0];
@@ -2925,13 +3442,16 @@ namespace Aurora
         Form = new NameValueCollection(ctx.Request.Form);
         QueryString = new NameValueCollection(ctx.Request.QueryString);
 
-        RequestPayload = new Dictionary<string, string>();
+        RequestPayload = new NameValueCollection();
 
         string payload = new StreamReader(RawContext.Request.InputStream).ReadToEnd();
 
         if (!string.IsNullOrEmpty(payload))
         {
-          RequestPayload = payload.Split(',').Select(x => x.Split('=')).ToDictionary(x => x[0], x => x[1]);
+          foreach (string[] arr in payload.Split(',').Select(x => x.Split('=')))
+          {
+            RequestPayload.Add(arr[0], arr[1]);
+          }
         }
         #endregion
       }
@@ -3141,7 +3661,14 @@ namespace Aurora
         {
           viewEngine = ApplicationInternals.GetViewEngine(context);
 
-          result = ProcessDynamicRequest(path, routeEngine.FindRoute(path));
+          RouteInfo routeInfo = routeEngine.FindRoute(path);
+
+          if (routeInfo != null)
+          {
+            context.RouteInfo = routeInfo;
+
+            result = ProcessDynamicRequest(path, routeInfo);
+          }
         }
 
         if (result == null)
@@ -3164,16 +3691,7 @@ namespace Aurora
           // Check to see if there is a derived CustomError class otherwise look to see if there is a cusom error method on a controller
           CustomError customError = ApplicationInternals.GetCustomError(context, false);
 
-          //if (customError == null)
-          //{
-          //  (new ErrorResult(context, ex)).Render();
-          //
-          //  context.ResponseStatusCode(HttpStatusCode.NotFound);
-          //}
-          //else
-          //{
           customError.OnError(ex.Message, ex).Render();
-          //}
         }
         else
         {
@@ -3216,7 +3734,7 @@ namespace Aurora
 
             if (StaticFileManager.IsProtected(context, staticFilePath, out protectedRoles))
             {
-              if (!SecurityManager.IsAuthenticated(context, null, protectedRoles))
+              if (!SecurityManager.IsAuthenticated(context, protectedRoles))
               {
                 return iar;
               }
@@ -3261,7 +3779,7 @@ namespace Aurora
 
         if (reqAttrib.SecurityType == ActionSecurity.Secure)
         {
-          if (!SecurityManager.IsAuthenticated(context, routeInfo, reqAttrib.Roles))
+          if (!SecurityManager.IsAuthenticated(context, reqAttrib.Roles))
           {
             if (frontController != null)
             {
@@ -3326,8 +3844,16 @@ namespace Aurora
             context.RequestType == "PUT" && (routeInfo.Attribute as HttpPutAttribute).RequireAntiForgeryToken ||
             context.RequestType == "DELETE" && (routeInfo.Attribute as HttpDeleteAttribute).RequireAntiForgeryToken))
         {
-          string antiForgeryToken = (routeInfo.Payload == null) ?
-            context.Form[MainConfig.AntiForgeryTokenName] : routeInfo.Payload[MainConfig.AntiForgeryTokenName];
+          string antiForgeryToken = string.Empty;
+
+          NameValueCollection nameValueCollection = (routeInfo.Payload == null) ? context.Form : routeInfo.Payload;
+
+          KeyValuePair<string, string>? kvp = nameValueCollection.GetKeyValuePair(MainConfig.AntiForgeryTokenName);
+
+          if (kvp != null)
+          {
+            antiForgeryToken = kvp.Value.Value;
+          }
 
           if (!string.IsNullOrEmpty(antiForgeryToken))
           {
@@ -3335,6 +3861,8 @@ namespace Aurora
             {
               throw new Exception(MainConfig.AntiForgeryTokenVerificationFailedError);
             }
+
+            AntiForgeryToken.RemoveToken(context, antiForgeryToken);
           }
           else
           {
@@ -3588,7 +4116,7 @@ namespace Aurora
     public List<object> Bindings { get; internal set; }
     public string RequestType { get; internal set; }
     public string Alias { get; internal set; }
-    public Dictionary<string, string> Payload { get; internal set; }
+    public NameValueCollection Payload { get; internal set; }
 
     #region INTERNAL PROPS
     internal Type ControllerType { get; set; }
@@ -3766,9 +4294,12 @@ namespace Aurora
           {
             NameValueCollection form = new NameValueCollection(context.Form);
 
-            if (form[MainConfig.AntiForgeryTokenName] != null)
+            foreach (string key in form.Keys)
             {
-              form.Remove(MainConfig.AntiForgeryTokenName);
+              if (key.StartsWith(MainConfig.AntiForgeryTokenName))
+              {
+                form.Remove(key);
+              }
             }
 
             string[] formValues = new string[form.AllKeys.Length];
@@ -3799,7 +4330,7 @@ namespace Aurora
         routeInfo.Payload = context.RequestPayload;
       }
 
-      if (routeInfo.Payload != null && routeInfo.Payload.Count() > 0)
+      if (routeInfo.Payload != null && routeInfo.Payload.Count > 0)
       {
         return new object[] { routeInfo.Payload };
       }
@@ -4007,7 +4538,7 @@ namespace Aurora
       }
     }
 
-    public void AddForAllActions(string controllerName, object bindInstance)
+    public void BindForAllActions(string controllerName, object bindInstance)
     {
       if (string.IsNullOrEmpty(controllerName))
       {
@@ -4016,10 +4547,10 @@ namespace Aurora
 
       bindInstance.ThrowIfArgumentNull();
 
-      AddForAllActions(controllerName, new object[] { bindInstance });
+      BindForAllActions(controllerName, new object[] { bindInstance });
     }
 
-    public void AddForAllActions(string controllerName, object[] bindInstances)
+    public void BindForAllActions(string controllerName, object[] bindInstances)
     {
       if (string.IsNullOrEmpty(controllerName))
       {
@@ -4037,19 +4568,19 @@ namespace Aurora
       {
         foreach (object o in bindInstances)
         {
-          Add(controllerName, actionName, o);
+          Bind(controllerName, actionName, o);
         }
       }
     }
 
-    public void AddForAllControllers(object bindInstance)
+    public void BindForAllControllers(object bindInstance)
     {
       bindInstance.ThrowIfArgumentNull();
 
-      AddForAllControllers(new object[] { bindInstance });
+      BindForAllControllers(new object[] { bindInstance });
     }
 
-    public void AddForAllControllers(object[] bindInstances)
+    public void BindForAllControllers(object[] bindInstances)
     {
       bindInstances.ThrowIfArgumentNull();
 
@@ -4064,13 +4595,13 @@ namespace Aurora
         {
           foreach (object o in bindInstances)
           {
-            Add(controller.Name, actionName, o);
+            Bind(controller.Name, actionName, o);
           }
         }
       }
     }
 
-    public void Add(string controllerName, string[] actionNames, object bindInstance)
+    public void Bind(string controllerName, string[] actionNames, object bindInstance)
     {
       if (string.IsNullOrEmpty(controllerName))
       {
@@ -4087,11 +4618,11 @@ namespace Aurora
 
       foreach (string a in actionNames)
       {
-        Add(controllerName, a, bindInstance);
+        Bind(controllerName, a, bindInstance);
       }
     }
 
-    public void Add(string controllerName, string[] actionNames, object[] bindInstances)
+    public void Bind(string controllerName, string[] actionNames, object[] bindInstances)
     {
       if (string.IsNullOrEmpty(controllerName))
       {
@@ -4110,12 +4641,12 @@ namespace Aurora
       {
         foreach (object o in bindInstances)
         {
-          Add(controllerName, a, o);
+          Bind(controllerName, a, o);
         }
       }
     }
 
-    public void Add(string controllerName, string actionName, object[] bindInstances)
+    public void Bind(string controllerName, string actionName, object[] bindInstances)
     {
       if (string.IsNullOrEmpty(controllerName))
       {
@@ -4131,11 +4662,11 @@ namespace Aurora
 
       foreach (object o in bindInstances)
       {
-        Add(controllerName, actionName, o);
+        Bind(controllerName, actionName, o);
       }
     }
 
-    public void Add(string controllerName, string actionName, object bindInstance)
+    public void Bind(string controllerName, string actionName, object bindInstance)
     {
       if (string.IsNullOrEmpty(controllerName))
       {
@@ -4269,8 +4800,6 @@ namespace Aurora
   #region FRONT CONTROLLER
   public abstract class FrontController
   {
-    // I'm still undecided about how much power I want to give this class.
-
     protected AuroraContext Context;
     protected ActionBinder Binder;
     protected BundleManager Bundler;
@@ -4312,6 +4841,12 @@ namespace Aurora
       Bundler = new BundleManager(context);
     }
 
+    #region ADD / REMOVE ROUTE
+    public void AddRoute(string alias, string controllerName, string actionName, string requestType)
+    {
+      AddRoute(alias, actionName, controllerName, requestType, null);
+    }
+
     public void AddRoute(string alias, string controllerName, string actionName, string requestType, string frontParams)
     {
       Controller controller = ApplicationInternals.AllControllerInstances(Context).FirstOrDefault(x => x.GetType().Name == controllerName);
@@ -4327,6 +4862,27 @@ namespace Aurora
     {
       ApplicationInternals.RemoveRouteInfo(Context, alias);
     }
+
+    public List<string> AllRouteAliases()
+    {
+      List<string> aliases = ApplicationInternals.AllRouteAliases(Context);
+
+      if (aliases != null)
+      {
+        return aliases;
+      }
+
+      return new List<string>();
+    }
+
+    public bool IsRouteAliasAvailable(string name)
+    {
+      if (!AllRouteAliases().Contains(name))
+        return true;
+
+      return false;
+    }
+    #endregion
 
     internal void RaiseEvent(RouteHandlerEventType type, string path, RouteInfo routeInfo)
     {
@@ -4952,7 +5508,7 @@ namespace Aurora
 
       Type result = null;
 
-      string[] formKeys = context.Form.AllKeys.Where(x => x != MainConfig.AntiForgeryTokenName).ToArray();
+      string[] formKeys = context.Form.AllKeys.Where(x => !x.StartsWith(MainConfig.AntiForgeryTokenName)).ToArray();
 
       if (formKeys.Length > 0)
       {
@@ -5331,7 +5887,7 @@ namespace Aurora
       }
     }
   }
-    
+
   /// <summary>
   /// A VoidResult is a mechanism which basically says we don't want to do any processing
   /// to this view. This means the action had a void return type and it's responsible for
@@ -6546,6 +7102,85 @@ namespace Aurora
   }
   #endregion
 
+  #region CHECKBOX AND RADIO BUTTON LIST (NOT FINISHED)
+
+  //NOTE: Both lists are the same except the input type name. I don't know if 
+  //      there even needs to be two separate classes for this. Time will tell.
+
+  public class HtmlCheckBoxList : HtmlBase
+  {
+    public List<HtmlListItem> Items { get; private set; }
+
+    public HtmlCheckBoxList()
+    {
+      Items = new List<HtmlListItem>();
+    }
+
+    public void AddItem(HtmlListItem item)
+    {
+      Items.Add(item);
+    }
+
+    public string ToString(bool lineBreak)
+    {
+      StringBuilder sb = new StringBuilder();
+      int counter = 0;
+
+      string br = (lineBreak) ? "<br />" : string.Empty;
+
+      foreach (HtmlListItem i in Items)
+      {
+        sb.AppendFormat("<input type=\"checkbox\" name=\"checkboxItem{0}\" value=\"{1}\">{2}</input>{3}", counter, i.Value, i.Text, br);
+        counter++;
+      }
+
+      return sb.ToString();
+    }
+
+    public override string ToString()
+    {
+      return ToString(true);
+    }
+  }
+
+  public class HtmlRadioButtonList : HtmlBase
+  {
+    public List<HtmlListItem> Items { get; private set; }
+
+    public HtmlRadioButtonList()
+    {
+      Items = new List<HtmlListItem>();
+    }
+
+    public void AddItem(HtmlListItem item)
+    {
+      Items.Add(item);
+    }
+
+    public string ToString(bool lineBreak)
+    {
+      StringBuilder sb = new StringBuilder();
+      int counter = 0;
+
+      string br = (lineBreak) ? "<br />" : string.Empty;
+
+      foreach (HtmlListItem i in Items)
+      {
+        sb.AppendFormat("<input type=\"radio\" name=\"radioItem{0}\" value=\"{1}\">{2}</input>{3}", counter, i.Value, i.Text, br);
+        counter++;
+      }
+
+      return sb.ToString();
+    }
+
+    public override string ToString()
+    {
+      return ToString(true);
+    }
+  }
+
+  #endregion
+
   #region MISC HELPERS
   public class HtmlAnchor : HtmlBase
   {
@@ -6718,24 +7353,11 @@ namespace Aurora
     }
   }
 
-  //FIXME: Implement HtmlCheckBoxList
-  public class HtmlCheckBoxList : HtmlBase
+  public class HtmlListItem
   {
-    public HtmlCheckBoxList()
-    {
-      throw new NotImplementedException();
-    }
+    public string Text { get; set; }
+    public string Value { get; set; }
   }
-
-  //FIXME: Implement HtmlRadioButtonList
-  public class HtmlRadioButtonList : HtmlBase
-  {
-    public HtmlRadioButtonList()
-    {
-      throw new NotImplementedException();
-    }
-  }
-
   public class HtmlImage : HtmlBase
   {
     public string Src { get; set; }
@@ -6781,8 +7403,6 @@ namespace Aurora
     public MethodInfo TransformMethod { get; set; }
     public int IndexIntoParamList { get; set; }
   }
-  #endregion
-
   #endregion
 
   #region EXCEPTIONS
@@ -6857,463 +7477,6 @@ namespace Aurora
     {
     }
   }
-  #endregion
-
-  #region ATTRIBUTES
-  public enum ActionSecurity
-  {
-    Secure,
-    None	// dummy value for RequestTypeAttribute.SecurityType default
-  }
-
-  public enum DescriptiveNameOperation
-  {
-    SplitCamelCase,
-    None
-  }
-
-  #region APP PARTITION
-  [AttributeUsage(AttributeTargets.Class)]
-  public sealed class PartitionAttribute : Attribute
-  {
-    public string Name { get; private set; }
-
-    public PartitionAttribute(string name)
-    {
-      Name = name;
-    }
-  }
-  #endregion
-
-  #region MISCELLANEOUS
-  [AttributeUsage(AttributeTargets.All)]
-  public sealed class MetadataAttribute : Attribute
-  {
-    public string Metadata { get; private set; }
-
-    public MetadataAttribute(string metadata)
-    {
-      Metadata = metadata;
-    }
-  }
-
-  [AttributeUsage(AttributeTargets.All)]
-  public sealed class DescriptiveNameAttribute : Attribute
-  {
-    public string Name { get; private set; }
-
-    public DescriptiveNameOperation Op { get; private set; }
-
-    public DescriptiveNameAttribute(string name)
-    {
-      Name = name;
-      Op = DescriptiveNameOperation.None;
-    }
-
-    public DescriptiveNameAttribute(DescriptiveNameOperation op)
-    {
-      Name = string.Empty; // Name comes from property name
-
-      Op = op; // We'll perform an operation on the property name like put spacing between camel case names, then title case the name.
-    }
-
-    public string PerformOperation(string name)
-    {
-      // This regex comes from this StackOverflow question answer:
-      //
-      // http://stackoverflow.com/questions/155303/net-how-can-you-split-a-caps-delimited-string-into-an-array
-      if (Op == DescriptiveNameOperation.SplitCamelCase)
-      {
-        return Regex.Replace(name, @"([a-z](?=[A-Z])|[A-Z](?=[A-Z][a-z]))", "$1 ");
-      }
-
-      return null;
-    }
-  }
-
-  [AttributeUsage(AttributeTargets.Parameter | AttributeTargets.Property)]
-  public sealed class SanitizeAttribute : Attribute
-  {
-    public bool StripHtml { get; private set; }
-    public bool HtmlEncode { get; private set; }
-
-    public SanitizeAttribute()
-    {
-      StripHtml = true;
-      HtmlEncode = true;
-    }
-
-    public string Sanitize(string value)
-    {
-      if (StripHtml)
-      {
-        value = value.StripHtml();
-      }
-
-      if (HtmlEncode)
-      {
-        value = HttpUtility.HtmlEncode(value);
-      }
-
-      return value;
-    }
-  }
-
-  [AttributeUsage(AttributeTargets.Property)]
-  public sealed class HiddenAttribute : Attribute
-  {
-  }
-
-  [AttributeUsage(AttributeTargets.Property)]
-  public sealed class NotRequiredToPostAttribute : Attribute
-  {
-  }
-
-  [AttributeUsage(AttributeTargets.Property)]
-  internal sealed class ExcludeFromBindingAttribute : Attribute
-  {
-  }
-
-  [AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
-  internal sealed class AliasAttribute : Attribute
-  {
-    public string Alias { get; private set; }
-
-    public AliasAttribute(string alias)
-    {
-      Alias = alias;
-    }
-  }
-  #endregion
-
-  #region HTTP REQUEST
-  public abstract class RequestTypeAttribute : Attribute
-  {
-    public ActionSecurity SecurityType { get; set; }
-    public string RouteAlias { get; set; }
-    public string Roles { get; set; }
-    public bool HttpsOnly { get; set; }
-    public string RedirectWithoutAuthorizationTo { get; set; }
-    public string RequestType { get; private set; }
-
-    protected RequestTypeAttribute(string requestType)
-    {
-      SecurityType = ActionSecurity.None;
-      RequestType = requestType;
-    }
-  }
-
-  [AttributeUsage(AttributeTargets.Method)]
-  public sealed class FromRedirectOnlyAttribute : RequestTypeAttribute
-  {
-    public FromRedirectOnlyAttribute(string routeAlias)
-      : base("GET")
-    {
-      RouteAlias = routeAlias;
-    }
-  }
-
-  [AttributeUsage(AttributeTargets.Method)]
-  public sealed class HttpGetAttribute : RequestTypeAttribute
-  {
-    public HttpCacheability CacheabilityOption { get; set; }
-    public bool Cache { get; set; }
-    public int Duration { get; set; } // in minutes
-    public string Refresh { get; set; }
-
-    internal TimeSpan Expires { get; set; }
-    internal DateTime DateExpiry { get; set; }
-
-    public HttpGetAttribute()
-      : base("GET")
-    {
-      Init();
-    }
-
-    public HttpGetAttribute(string routeAlias)
-      : base("GET")
-    {
-      RouteAlias = routeAlias;
-
-      Init();
-    }
-
-    public HttpGetAttribute(ActionSecurity sec) : this(string.Empty, sec) { }
-
-    public HttpGetAttribute(string routeAlias, ActionSecurity sec)
-      : base("GET")
-    {
-      SecurityType = sec;
-      RouteAlias = routeAlias;
-
-      Init();
-    }
-
-    private void Init()
-    {
-      CacheabilityOption = HttpCacheability.Public;
-      Duration = 15;
-      Expires = new TimeSpan(0, 15, 0);
-      DateExpiry = DateTime.Now.Add(new TimeSpan(0, 15, 0));
-    }
-  }
-
-  [AttributeUsage(AttributeTargets.Method)]
-  public sealed class HttpPostAttribute : RequestTypeAttribute
-  {
-    public bool RequireAntiForgeryToken { get; set; }
-
-    public HttpPostAttribute() : base("POST") { }
-
-    public HttpPostAttribute(string routeAlias)
-      : base("POST")
-    {
-      RouteAlias = routeAlias;
-      RequireAntiForgeryToken = true;
-    }
-
-    public HttpPostAttribute(ActionSecurity sec)
-      : this(string.Empty, sec)
-    {
-    }
-
-    public HttpPostAttribute(string routeAlias, ActionSecurity sec)
-      : base("POST")
-    {
-      SecurityType = sec;
-      RouteAlias = routeAlias;
-    }
-  }
-
-  [AttributeUsage(AttributeTargets.Method)]
-  public sealed class HttpPutAttribute : RequestTypeAttribute
-  {
-    public bool RequireAntiForgeryToken { get; set; }
-
-    public HttpPutAttribute() : base("PUT") { }
-
-    public HttpPutAttribute(string routeAlias)
-      : base("PUT")
-    {
-      RouteAlias = routeAlias;
-      RequireAntiForgeryToken = true;
-    }
-
-    public HttpPutAttribute(ActionSecurity sec)
-      : this(string.Empty, sec)
-    {
-    }
-
-    public HttpPutAttribute(string routeAlias, ActionSecurity sec)
-      : base("PUT")
-    {
-      SecurityType = sec;
-      RouteAlias = routeAlias;
-    }
-  }
-
-  [AttributeUsage(AttributeTargets.Method)]
-  public sealed class HttpDeleteAttribute : RequestTypeAttribute
-  {
-    public bool RequireAntiForgeryToken { get; set; }
-    public HttpDeleteAttribute() : base("DELETE") { }
-
-    public HttpDeleteAttribute(string routeAlias)
-      : base("DELETE")
-    {
-      RouteAlias = routeAlias;
-      RequireAntiForgeryToken = true;
-    }
-
-    public HttpDeleteAttribute(ActionSecurity sec)
-      : this(string.Empty, sec)
-    {
-    }
-
-    public HttpDeleteAttribute(string routeAlias, ActionSecurity sec)
-      : base("DELETE")
-    {
-      SecurityType = sec;
-      RouteAlias = routeAlias;
-    }
-  }
-  #endregion
-
-  #region MODEL
-
-  #region STRING FORMAT
-  [AttributeUsage(AttributeTargets.Property)]
-  public sealed class StringFormatAttribute : Attribute
-  {
-    public string Format { get; set; }
-
-    public StringFormatAttribute(string format)
-    {
-      Format = format;
-    }
-  }
-  #endregion
-
-  #region DATE FORMAT
-  [AttributeUsage(AttributeTargets.Property)]
-  public sealed class DateFormatAttribute : Attribute
-  {
-    public string Format { get; set; }
-
-    public DateFormatAttribute(string format)
-    {
-      Format = format;
-    }
-  }
-  #endregion
-
-  #region MODEL VALIDATION
-  public abstract class ModelValidationBaseAttribute : Attribute
-  {
-    public string ErrorMessage { get; set; }
-
-    protected ModelValidationBaseAttribute(string errorMessage)
-    {
-      ErrorMessage = errorMessage;
-    }
-  }
-
-  [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field)]
-  public sealed class RequiredAttribute : ModelValidationBaseAttribute
-  {
-    public RequiredAttribute(string errorMessage)
-      : base(errorMessage)
-    {
-    }
-  }
-
-  [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field)]
-  public sealed class RequiredLengthAttribute : ModelValidationBaseAttribute
-  {
-    public int Length { get; private set; }
-
-    public RequiredLengthAttribute(int length, string errorMessage)
-      : base(errorMessage)
-    {
-      Length = length;
-    }
-  }
-
-  [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field)]
-  public sealed class RegularExpressionAttribute : ModelValidationBaseAttribute
-  {
-    public Regex Pattern { get; set; }
-
-    public RegularExpressionAttribute(string pattern, string errorMessage)
-      : base(errorMessage)
-    {
-      Pattern = new Regex(pattern);
-    }
-  }
-
-  [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field)]
-  public sealed class RangeAttribute : ModelValidationBaseAttribute
-  {
-    public int Min { get; private set; }
-    public int Max { get; private set; }
-
-    public RangeAttribute(int min, int max, string errorMessage)
-      : base(errorMessage)
-    {
-      Min = min;
-      Max = max;
-    }
-  }
-  #endregion
-
-  #endregion
-
-  #region UNIQUE ID
-  [AttributeUsage(AttributeTargets.Field)]
-  public sealed class UniqueIdAttribute : Attribute
-  {
-    internal string Id { get; set; }
-
-    public UniqueIdAttribute() { }
-
-    internal void GenerateID(string name)
-    {
-      HttpContext ctx = HttpContext.Current;
-      Dictionary<string, string> uids = null;
-
-      if (ctx.Session[MainConfig.UniquedIDSessionName] != null)
-      {
-        uids = ctx.Session[MainConfig.UniquedIDSessionName] as Dictionary<string, string>;
-      }
-      else
-      {
-        ctx.Session[MainConfig.UniquedIDSessionName] = uids = new Dictionary<string, string>();
-      }
-
-      if (!uids.ContainsKey(name))
-      {
-        Id = NewUID();
-        uids[name] = Id;
-      }
-      else
-      {
-        Id = uids[name];
-      }
-    }
-
-    private static string NewUID()
-    {
-      return Guid.NewGuid().ToString().Replace("-", "").Substring(0, 16);
-    }
-  }
-  #endregion
-
-  #region ACTION FILTER
-  /// <summary>
-  /// This empty interface is used to identify a filter result that will be passed
-  /// to an action after the filter is invoked.
-  /// </summary>
-  public interface IActionFilterResult
-  {
-    //FIXME: Warning	224	CA1040 : Microsoft.Design : Define a custom attribute to replace 'IActionFilterResult'.
-  }
-
-  //[AttributeUsage(AttributeTargets.Parameter)]
-  //public class ActionFilterResultAttribute : Attribute 
-  //{ 
-  //  This will be used when I implement the fix for the warning listed in IActionFilterResult
-  //}
-
-  [AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
-  public abstract class ActionFilterAttribute : Attribute
-  {
-    internal Controller Controller { get; set; }
-
-    public IActionFilterResult FilterResult { get; set; }
-
-    public abstract void OnFilter(RouteInfo routeInfo);
-
-    public void RedirectToAlias(string alias)
-    {
-      Controller.RedirectToAlias(alias);
-    }
-
-    public void RedirectOnlyToAlias(string alias)
-    {
-      Controller.RedirectOnlyToAlias(alias);
-    }
-
-    public void RedirectToAction(string controllerName, string actionName)
-    {
-      Controller.RedirectToAction(controllerName, actionName);
-    }
-
-    public void RedirectOnlyToAction(string controllerName, string actionName)
-    {
-      Controller.RedirectOnlyToAction(controllerName, actionName);
-    }
-  }
-  #endregion
   #endregion
 
   #region STATIC FILE MANAGER
@@ -7560,7 +7723,7 @@ namespace Aurora
   /// <summary>
   /// This provides some basic Active Directory lookup methods for user accounts.  
   /// </summary>
-#if ACTIVEDIRECTORY
+#if ACTIVE_DIRECTORY
   public class ActiveDirectoryUser
   {
     public string FirstName { get; internal set; }
@@ -8172,7 +8335,7 @@ namespace Aurora
                 {
                   Email = claimsResponse.Email,
                   FullName = claimsResponse.FullName,
-                  ClaimedIdentifier = response.ClaimedIdentifier
+                  ClaimedIdentifier = response.ClaimedIdentifier,
                 };
 
                 context.Session[MainConfig.OpenIdClaimsResponseSessionName] = openAuthClaimsResponse;
@@ -8225,15 +8388,14 @@ namespace Aurora
     public static string LogOn(AuroraContext context, string id, string[] roles, Func<User, string, bool> checkRoles)
     {
       context.ThrowIfArgumentNull();
-
-      if (string.IsNullOrEmpty(MainConfig.EncryptionKey))
-      {
-        throw new Exception(MainConfig.EncryptionKeyNotSpecifiedError);
-      }
+      roles.ThrowIfArgumentNull();
+      MainConfig.EncryptionKey.ThrowIfArgumentNull(MainConfig.EncryptionKeyNotSpecifiedError);
 
       List<User> users = GetUsers(context);
 
-      User u = users.FirstOrDefault(x => x.SessionId == context.Session.SessionID && x.Identity.Name == id);
+      //TODO: Probably need to disallow multiple logins. 
+      User u = users.FirstOrDefault(x => x.SessionId == context.Session.SessionID 
+                                                     && x.Identity.Name == id);
 
       if (u != null)
       {
@@ -8300,6 +8462,7 @@ namespace Aurora
           if (u != null)
           {
             context.Session[MainConfig.CurrentUserSessionName] = u;
+            
             return u;
           }
         }
@@ -8359,10 +8522,46 @@ namespace Aurora
       return false;
     }
 
-    internal static bool IsAuthenticated(AuroraContext context, RouteInfo routeInfo, string authRoles)
+    internal static bool CheckAuthentication(AuroraContext context, User u, string authRoles)
     {
       context.ThrowIfArgumentNull();
+      u.ThrowIfArgumentNull();
 
+      if (u.AuthenticationCookie.Expires < DateTime.Now ||
+          u.IPAddress != context.IPAddress)
+      {
+        return false;
+      }
+
+      if (!string.IsNullOrEmpty(authRoles))
+      {
+        if (u.CheckRoles != null)
+        {
+          if (context.RouteInfo != null)
+          {
+            u.ActionBindings = context.RouteInfo.Bindings;
+          }
+
+          return u.CheckRoles(u, authRoles);
+        }
+        else
+        {
+          List<string> minimumRoles = authRoles.Split('|').ToList();
+
+          if (minimumRoles.Intersect(u.Roles).Count() > 0)
+          {
+            return true;
+          }
+        }
+      }
+
+      return false;
+    }
+
+    internal static bool IsAuthenticated(AuroraContext context, string authRoles)
+    {
+      context.ThrowIfArgumentNull();
+      
       AuthCookie authCookie = GetAuthCookie(context);
 
       if (authCookie != null)
@@ -8371,36 +8570,7 @@ namespace Aurora
 
         if (u != null)
         {
-          if (u.AuthenticationCookie.Expires < DateTime.Now)
-          {
-            return false;
-          }
-
-          if (!string.IsNullOrEmpty(authRoles))
-          {
-            if (u.CheckRoles != null)
-            {
-              if (routeInfo != null)
-              {
-                u.ActionBindings = routeInfo.Bindings;
-              }
-
-              return u.CheckRoles(u, authRoles);
-            }
-            else
-            {
-              List<string> minimumRoles = authRoles.Split('|').ToList();
-
-              if (minimumRoles.Intersect(u.Roles).Count() > 0)
-              {
-                return true;
-              }
-            }
-          }
-          else
-          {
-            return true;
-          }
+          return CheckAuthentication(context, u, authRoles);
         }
       }
 
@@ -8468,7 +8638,8 @@ namespace Aurora
       switch (type)
       {
         case AntiForgeryTokenType.Form:
-          renderToken = string.Format(CultureInfo.CurrentCulture, "<input type=\"hidden\" name=\"AntiForgeryToken\" value=\"{0}\" />", token);
+          string uid = Guid.NewGuid().ToString().Replace("-", "").Substring(0, 16);
+          renderToken = string.Format(CultureInfo.CurrentCulture, "<input type=\"hidden\" name=\"AntiForgeryToken-{0}\" value=\"{1}\" />", uid, token);
           break;
 
         case AntiForgeryTokenType.Json:
@@ -8483,22 +8654,17 @@ namespace Aurora
       return renderToken;
     }
 
-    public static void RemoveToken(AuroraContext context)
+    public static void RemoveToken(AuroraContext context, string token)
     {
       context.ThrowIfArgumentNull();
 
-      if (context.Form.AllKeys.Contains(MainConfig.AntiForgeryTokenName))
+      List<string> tokens = GetTokens(context);
+
+      if (tokens.Contains(token))
       {
-        string token = context.Form[MainConfig.AntiForgeryTokenName];
+        tokens.Remove(token);
 
-        List<string> tokens = GetTokens(context);
-
-        if (tokens.Contains(token))
-        {
-          tokens.Remove(token);
-
-          context.Application[MainConfig.AntiForgeryTokenSessionName] = tokens;
-        }
+        context.Application[MainConfig.AntiForgeryTokenSessionName] = tokens;
       }
     }
 
@@ -9050,6 +9216,10 @@ namespace Aurora
   #endregion
 
   #region PLUGIN MANAGEMENT
+
+  //NOTE: There is no ties between the plugin infrastructure and the framework
+  //      I don't know how this will be played into the framework yet.
+
   public enum PluginDevelopmentStatus
   {
     PreAlpha,
@@ -9194,15 +9364,62 @@ namespace Aurora
   /// </summary>
   public static class ExtensionMethods
   {
-    // This was adapted from one of the extension methods given in an answer to:
-    //
-    // http://stackoverflow.com/questions/271398/what-are-your-favorite-extension-methods-for-c-codeplex-com-extensionoverflow
-    //
-    public static void ThrowIfArgumentNull<T>(this T t) where T : class
+    public static KeyValuePair<string, string>? GetKeyValuePair(this NameValueCollection nvc, string startsWithName)
     {
+      foreach (string key in nvc.AllKeys)
+      {
+        if (key.StartsWith(startsWithName))
+        {
+          return new KeyValuePair<string, string>(key, nvc[key]);
+        }
+      }
+
+      return null;
+    }
+
+    public static List<KeyValuePair<string, string>> GetKeyValuePairs(this NameValueCollection nvc, string startsWithName)
+    {
+      List<KeyValuePair<string, string>> keyPairs = new List<KeyValuePair<string, string>>();
+
+      foreach (string key in nvc.AllKeys)
+      {
+        if (key.StartsWith(startsWithName))
+        {
+          keyPairs.Add(new KeyValuePair<string, string>(key, nvc[key]));
+        }
+      }
+
+      return keyPairs;
+    }
+
+    public static void ThrowIfArgumentNull<T>(this T t, string message=null)
+    {
+      string argName = t.GetType().Name;
+      bool result = false;
+
       if (t == null)
       {
-        throw new ArgumentNullException(t.GetType().Name);
+        result = true;
+      }
+      else
+      {
+        if (t is string)
+        {
+          if ((t as string) == string.Empty)
+          {
+            result = true;
+          }
+        }
+      }
+
+      if (result)
+      {
+        if (!string.IsNullOrEmpty(message))
+        {
+          throw new ArgumentNullException(argName, message);
+        }
+
+        throw new ArgumentNullException(argName);
       }
     }
 
@@ -9333,9 +9550,19 @@ namespace Aurora
       return HttpUtility.UrlEncode(value);
     }
 
+    public static string ToURLDecodedString(this string value)
+    {
+      return HttpUtility.UrlDecode(value);
+    }
+
     public static string ToHtmlEncodedString(this string value)
     {
       return HttpUtility.HtmlEncode(value);
+    }
+
+    public static string ToHtmlDecodedString(this string value)
+    {
+      return HttpUtility.HtmlDecode(value);
     }
 
     public static bool InRange(this int value, int min, int max)
@@ -9411,7 +9638,7 @@ namespace Aurora
     public static List<T> ModifyForEach<T>(this List<T> l, Func<T, T> a)
     {
       List<T> newList = new List<T>();
-
+      
       foreach (T t in l)
       {
         newList.Add(a(t));
