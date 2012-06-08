@@ -4,7 +4,7 @@ NOTE: See source code comments for usage.
 
 Frank Hale <frankhale@gmail.com>
 
-Date: 6 June 2012
+Date: 7 June 2012
 
 --------------------
 --- Feature List ---
@@ -37,6 +37,13 @@ Date: 6 June 2012
   framework pipeline.)
  
 Changelog:
+
+7 June 2012
+
+- Documentation updates
+- Additional events added to the FrontController (RouteMissing, Error)
+- Added a couple new extension methods
+- Code cleanup
 
 6 June 2012
 

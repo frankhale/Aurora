@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 6 June 2012
+// Updated On: 7 June 2012
 //
 // Contact Info:
 //
@@ -866,10 +866,21 @@
 //  }
 //
 // This would render the fragment called Foo to the ViewTags dictionary for
-// key "content". You can use the rendered fragment in any way you like and
-// you are free to do string substitution on it or use it in a combined way
-// to build up bigger fragments. 
+// key "content". 
 //
+// NOTE: Fragments can contain tags just like views.
+//
+// Actions have access to a special dictionary called ViewTags and FragTags. 
+// These dictionaries are used to perform substitution on views and fragments
+// with dynamic data based on the tags you place in your views and fragments. 
+//
+// There are two additional "dictionaries" available for use that are based on
+// the new C# dynamic feature. Instead of using indexing to specify keys you 
+// simply use the key as if it were a property on the dictionary. These 
+// dictionaries are named DViewTags and DFragTags.
+//
+// Bundle directive:
+// 
 // Bundle directives are used to annotate a CSS or Javascript bundle that will
 // be replaced at compile time with a bundle. The bundle will either be 
 // compressed if your app is is in release mode or uncompressed if it isn't. 
@@ -1396,12 +1407,14 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyCopyright("(GNU GPLv3) Copyleft © 2011-2012")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("0.99.78.0")]
+[assembly: AssemblyVersion("0.99.79.0")]
 #endregion
 #endif
 
 #region TODO
-//TODO: Add HTML helpers for checkbox list and radio button list
+//TODO: Fix funkiness with adding dynamic routes and the dynamic property (eg. FromRedirectOnly) craziness!
+//TODO: All classes looking at Session or Application for values should have that code put in a method in the ApplicationInternals class
+//TODO: Add HTML helpers for checkbox list and radio button list (partially done)
 //TODO: Add support to handle posted forms with checkbox and radio button lists
 //TODO: Document the dynamic view tags and frag tags
 //TODO: Need a way to expire antiforgery tokens that were not used but sit dormant in the token cache
@@ -1484,7 +1497,7 @@ namespace Aurora
   /// </summary>
   public static class AuroraConfig
   {
-    public static Version Version = new Version("0.99.78.0");
+    public static Version Version = new Version("0.99.79.0");
 
     /// <summary>
     /// Returns true if either Aurora or the web application is in debug mode, false otherwise.
@@ -2316,7 +2329,7 @@ namespace Aurora
           FrontLoadedParams = frontParams,
           RequestType = requestType,
           Bindings = new ActionBinder(context).GetBindings(controller.GetType().Name, action.Name),
-          Dynamic = false
+          Dynamic = true
         });
 
         context.Application[MainConfig.RoutesSessionName] = routes;
@@ -2339,7 +2352,10 @@ namespace Aurora
         // Check to see if we already have an instance created otherwise create one
         if (context.Application[MainConfig.FrontControllerInstanceSessionName] != null)
         {
-          return context.Application[MainConfig.FrontControllerInstanceSessionName] as FrontController;
+          FrontController fc = context.Application[MainConfig.FrontControllerInstanceSessionName] as FrontController;
+          fc.Refresh(context);
+          
+          return fc;
         }
         else
         {
@@ -2378,6 +2394,18 @@ namespace Aurora
       }
 
       return CustomError.CreateInstance(errorType, context);
+    }
+
+    public static bool GetFromRedirectOnlyFlag(AuroraContext context)
+    {
+      bool fromRedirectOnlyFlag = false;
+
+      if (context.Session[MainConfig.FromRedirectOnlySessionFlag] != null)
+      {
+        fromRedirectOnlyFlag = (bool)context.Session[MainConfig.FromRedirectOnlySessionFlag];
+      }
+
+      return fromRedirectOnlyFlag;
     }
 
     public static IViewEngine GetViewEngine(AuroraContext context)
@@ -2534,8 +2562,8 @@ namespace Aurora
   {
   }
 
-  [AttributeUsage(AttributeTargets.Property)]
-  public sealed class NotRequiredToPostAttribute : Attribute
+  [AttributeUsage(AttributeTargets.Property | AttributeTargets.Parameter)]
+  public sealed class NotRequiredAttribute : Attribute
   {
   }
 
@@ -3638,6 +3666,7 @@ namespace Aurora
     private void ProcessRequest(string path)
     {
       HttpCookie authCookie = context.RequestCookies[MainConfig.AuroraAuthCookieName];
+      RouteInfo routeInfo = null;
 
       if (authCookie != null)
       {
@@ -3661,7 +3690,13 @@ namespace Aurora
         {
           viewEngine = ApplicationInternals.GetViewEngine(context);
 
-          RouteInfo routeInfo = routeEngine.FindRoute(path);
+          routeInfo = routeEngine.FindRoute(path);
+          
+          // Front Controller Missing Route route event
+          if (routeInfo == null && frontController != null)
+          {
+            routeInfo = frontController.RaiseEvent(RouteHandlerEventType.MissingRoute, path, null);
+          }
 
           if (routeInfo != null)
           {
@@ -3685,6 +3720,12 @@ namespace Aurora
       catch (Exception ex)
       {
         context.ServerClearError();
+
+        // Front Controller Missing Route route event
+        if (frontController != null)
+        {
+          frontController.RaiseEvent(RouteHandlerEventType.Error, path, routeInfo, ex);
+        }
 
         if (MainConfig.CustomErrorsSection.Mode == CustomErrorsMode.On)
         {
@@ -3748,7 +3789,7 @@ namespace Aurora
       return iar;
     }
 
-    public IViewResult ProcessDynamicRequest(string path, RouteInfo routeInfo)
+    private IViewResult ProcessDynamicRequest(string path, RouteInfo routeInfo)
     {
       IViewResult result = null;
 
@@ -3936,7 +3977,8 @@ namespace Aurora
 
         if (!routeInfo.IsFiltered)
         {
-          if (routeInfo.Dynamic && context.Session[MainConfig.FromRedirectOnlySessionFlag] == null)
+          //if (routeInfo.Dynamic && context.Session[MainConfig.FromRedirectOnlySessionFlag] == null)
+          if (routeInfo.Attribute is FromRedirectOnlyAttribute && context.Session[MainConfig.FromRedirectOnlySessionFlag] == null)
           {
             return null;
           }
@@ -4349,25 +4391,27 @@ namespace Aurora
     }
     #endregion
 
+    /// <summary>
+    /// Finds an 'Aurora Route' based on an incoming path
+    /// <remarks>
+    /// Actions parameters map in the following way to route parameters.
+    /// 
+    /// ActionName(action_filter_results, bound_parameters, front_params, url_parameters, form_parameters or (HTTP Put/Delete) payload, files)
+    /// </remarks>
+    /// </summary>
+    /// <param name="path"></param>
+    /// <returns></returns>
     public RouteInfo FindRoute(string path)
     {
-      //
-      // Actions map like this: 
-      //
-      //	ActionName(action_filter_results, bound_parameters, front_params, url_parameters, form_parameters / (HTTP Put/Delete) payload, files)
-      //
-      bool fromRedirectOnlyFlag = false;
+      //NOTE: This method is still not where I want it. There is a lot going on in here that needs to be made a little more sane.
+
+      bool fromRedirectOnlyFlag = ApplicationInternals.GetFromRedirectOnlyFlag(context);
 
       List<RouteInfo> routeInfos = ApplicationInternals.AllRouteInfos(context);
 
       if (routeInfos == null)
       {
         return null;
-      }
-
-      if (context.Session[MainConfig.FromRedirectOnlySessionFlag] != null)
-      {
-        fromRedirectOnlyFlag = (bool)context.Session[MainConfig.FromRedirectOnlySessionFlag];
       }
 
       string alias = routeInfos.OrderByDescending(y => y.Alias)
@@ -4407,20 +4451,18 @@ namespace Aurora
 
         object[] actionParameters = actionParametersList.ToArray();
 
-        if (fromRedirectOnlyFlag && !routeInfo.FromRedirectOnlyInfo)
+        if ((fromRedirectOnlyFlag && !routeInfo.FromRedirectOnlyInfo) ||
+            (actionParameters.Count() < routeInfo.Action.GetParameters().Count()))
         {
           continue;
         }
 
-        if (actionParameters.Count() < routeInfo.Action.GetParameters().Count())
-        {
-          continue;
-        }
+        ParameterInfo[] methodParameterInfos = routeInfo.Action.GetParameters();
 
         Type[] actionParameterTypes = actionParameters.Select(x => (x != null) ? x.GetType() : null).ToArray();
-        Type[] methodParamTypes = routeInfo.Action.GetParameters().Select(x => x.ParameterType).ToArray();
+        Type[] methodParamTypes = methodParameterInfos.Select(x => x.ParameterType).ToArray();
 
-        if (methodParamTypes.Count() < actionParameters.Count())
+        if (methodParamTypes.Count() != actionParameters.Count())
         {
           continue;
         }
@@ -4433,7 +4475,6 @@ namespace Aurora
         }
 
         List<Type> matches = new List<Type>();
-        ParameterInfo[] methodParameterInfos = routeInfo.Action.GetParameters();
 
         for (int x = 0; x < methodParamTypes.Length; x++)
         {
@@ -4781,19 +4822,18 @@ namespace Aurora
     Static,
     CachedViewResult,
     PassedSecurity,
-    FailedSecurity
+    FailedSecurity,
+    MissingRoute,
+    Error
   }
 
   public class RouteHandlerEventArgs : EventArgs
   {
     public string Path { get; set; }
-    public RouteInfo RouteInfo { get; internal set; }
+    public RouteInfo RouteInfo { get; set; }
+    public object Data { get; set; }
 
-    public RouteHandlerEventArgs(string path, RouteInfo routeInfo)
-    {
-      Path = path;
-      RouteInfo = routeInfo;
-    }
+    public RouteHandlerEventArgs() { }
   }
   #endregion
 
@@ -4803,6 +4843,8 @@ namespace Aurora
     protected AuroraContext Context;
     protected ActionBinder Binder;
     protected BundleManager Bundler;
+
+    private IRouteEngine routeEngine;
 
     protected virtual void OnInit() { }
 
@@ -4814,6 +4856,8 @@ namespace Aurora
     public event EventHandler<RouteHandlerEventArgs> PostRouteDeterminationEvent = (sender, args) => { };
     public event EventHandler<RouteHandlerEventArgs> PassedSecurityEvent = (sender, args) => { };
     public event EventHandler<RouteHandlerEventArgs> FailedSecurityEvent = (sender, args) => { };
+    public event EventHandler<RouteHandlerEventArgs> MissingRouteEvent = (sender, args) => { };
+    public event EventHandler<RouteHandlerEventArgs> ErrorEvent = (sender, args) => { };
 
     internal static FrontController CreateInstance(Type t, AuroraContext context)
     {
@@ -4837,11 +4881,17 @@ namespace Aurora
       context.ThrowIfArgumentNull();
 
       Context = context;
+      routeEngine = ApplicationInternals.GetRouteEngine(context);
       Binder = new ActionBinder(context);
       Bundler = new BundleManager(context);
     }
 
-    #region ADD / REMOVE ROUTE
+    #region ADD / REMOVE ROUTE / FIND ROUTE
+    public RouteInfo FindRoute(string path)
+    {
+      return routeEngine.FindRoute(path);
+    }
+
     public void AddRoute(string alias, string controllerName, string actionName, string requestType)
     {
       AddRoute(alias, actionName, controllerName, requestType, null);
@@ -4878,15 +4928,24 @@ namespace Aurora
     public bool IsRouteAliasAvailable(string name)
     {
       if (!AllRouteAliases().Contains(name))
+      {
         return true;
+      }
 
       return false;
     }
     #endregion
 
-    internal void RaiseEvent(RouteHandlerEventType type, string path, RouteInfo routeInfo)
+    internal RouteInfo RaiseEvent(RouteHandlerEventType type, string path, RouteInfo routeInfo, object data = null)
     {
-      RouteHandlerEventArgs args = new RouteHandlerEventArgs(path, routeInfo);
+      RouteInfo route = routeInfo;
+
+      RouteHandlerEventArgs args = new RouteHandlerEventArgs()
+      {
+        Path = path,
+        RouteInfo = routeInfo,
+        Data = data
+      };
 
       switch (type)
       {
@@ -4921,7 +4980,22 @@ namespace Aurora
         case RouteHandlerEventType.FailedSecurity:
           FailedSecurityEvent(this, args);
           break;
+
+        case RouteHandlerEventType.MissingRoute:
+          MissingRouteEvent(this, args);
+
+          if (args.RouteInfo != null)
+          {
+            route = args.RouteInfo;
+          }
+          break;
+
+        case RouteHandlerEventType.Error:
+          ErrorEvent(this, args);
+          break;
       }
+
+      return route;
     }
   }
   #endregion
@@ -4958,7 +5032,12 @@ namespace Aurora
 
     internal void RaiseEvent(RouteHandlerEventType type, string path, RouteInfo routeInfo)
     {
-      RouteHandlerEventArgs args = new RouteHandlerEventArgs(path, routeInfo);
+      RouteHandlerEventArgs args = new RouteHandlerEventArgs()
+      {
+        Path = path,
+        RouteInfo = routeInfo,
+        Data = null
+      };
 
       switch (type)
       {
@@ -5072,7 +5151,9 @@ namespace Aurora
     public bool IsRouteAliasAvailable(string name)
     {
       if (!AllRouteAliases().Contains(name))
+      {
         return true;
+      }
 
       return false;
     }
@@ -5456,7 +5537,7 @@ namespace Aurora
     {
       var props = GetPropertiesWithExclusions<Model>(t, true)
           .Where(x => x.GetCustomAttributes(false)
-                       .FirstOrDefault(y => y is NotRequiredToPostAttribute) == null);
+                       .FirstOrDefault(y => y is NotRequiredAttribute) == null);
 
       if (props != null)
         return props.ToList();
@@ -6047,7 +6128,7 @@ namespace Aurora
 
             templates.Add(new ViewTemplate()
             {
-              MD5sum = template.CalculateMD5Hash(),
+              MD5sum = template.CalculateMD5sum(),
               Partition = partition,
               Controller = controller,
               FullName = templateKeyName,
@@ -8394,7 +8475,7 @@ namespace Aurora
       List<User> users = GetUsers(context);
 
       //TODO: Probably need to disallow multiple logins. 
-      User u = users.FirstOrDefault(x => x.SessionId == context.Session.SessionID 
+      User u = users.FirstOrDefault(x => x.SessionId == context.Session.SessionID
                                                      && x.Identity.Name == id);
 
       if (u != null)
@@ -8462,7 +8543,7 @@ namespace Aurora
           if (u != null)
           {
             context.Session[MainConfig.CurrentUserSessionName] = u;
-            
+
             return u;
           }
         }
@@ -8561,7 +8642,7 @@ namespace Aurora
     internal static bool IsAuthenticated(AuroraContext context, string authRoles)
     {
       context.ThrowIfArgumentNull();
-      
+
       AuthCookie authCookie = GetAuthCookie(context);
 
       if (authCookie != null)
@@ -9392,7 +9473,7 @@ namespace Aurora
       return keyPairs;
     }
 
-    public static void ThrowIfArgumentNull<T>(this T t, string message=null)
+    public static void ThrowIfArgumentNull<T>(this T t, string message = null)
     {
       string argName = t.GetType().Name;
       bool result = false;
@@ -9423,10 +9504,54 @@ namespace Aurora
       }
     }
 
-    //
-    // http://blogs.msdn.com/b/csharpfaq/archive/2006/10/09/how-do-i-calculate-a-md5-hash-from-a-string_3f00_.aspx
-    //
-    public static string CalculateMD5Hash(this string input)
+    /// <summary>
+    /// Converts a lowercase string to title case
+    /// <remarks>
+    /// Adapted from: http://stackoverflow.com/questions/271398/what-are-your-favorite-extension-methods-for-c-codeplex-com-extensionoverflow
+    /// </remarks>
+    /// </summary>
+    /// <param name="value">String to convert</param>
+    /// <returns>A title cased string</returns>
+    public static string ToTitleCase(this string value)
+    {
+      if (string.IsNullOrEmpty(value))
+      {
+        return value;
+      }
+
+      System.Globalization.CultureInfo cultureInfo = System.Threading.Thread.CurrentThread.CurrentCulture;
+      System.Globalization.TextInfo textInfo = cultureInfo.TextInfo;
+
+      // TextInfo.ToTitleCase only operates on the string if is all lower case, otherwise it returns the string unchanged.
+      return textInfo.ToTitleCase(value.ToLower());
+    }
+
+    /// <summary>
+    /// Takes a camel cased string and returns the string with spaces between the words
+    /// <remarks>
+    /// from http://stackoverflow.com/questions/271398/what-are-your-favorite-extension-methods-for-c-codeplex-com-extensionoverflow
+    /// </remarks>
+    /// </summary>
+    /// <param name="camelCaseWord">The input string</param>
+    /// <returns>A string with spaces between words</returns>
+    public static string Wordify(this string camelCaseWord)
+    {
+      // if the word is all upper, just return it
+      if (!Regex.IsMatch(camelCaseWord, "[a-z]"))
+        return camelCaseWord;
+
+      return string.Join(" ", Regex.Split(camelCaseWord, @"(?<!^)(?=[A-Z])"));
+    }
+
+    /// <summary>
+    /// Calculates the MD5sum of a string
+    /// <remarks>
+    /// from http://blogs.msdn.com/b/csharpfaq/archive/2006/10/09/how-do-i-calculate-a-md5-hash-from-a-string_3f00_.aspx
+    /// </remarks>
+    /// </summary>
+    /// <param name="input">The input string</param>
+    /// <returns>An MD5sum</returns>
+    public static string CalculateMD5sum(this string input)
     {
       MD5 md5 = System.Security.Cryptography.MD5.Create();
       byte[] inputBytes = System.Text.Encoding.UTF8.GetBytes(input);
@@ -9638,7 +9763,7 @@ namespace Aurora
     public static List<T> ModifyForEach<T>(this List<T> l, Func<T, T> a)
     {
       List<T> newList = new List<T>();
-      
+
       foreach (T t in l)
       {
         newList.Add(a(t));
