@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 8 June 2012
+// Updated On: 11 June 2012
 //
 // Contact Info:
 //
@@ -11,9 +11,11 @@
 // LICENSE - GPL version 3 <http://www.gnu.org/licenses/gpl-3.0.html>
 //
 // NOTE: Aurora contains some code that is not licensed under the GPLv3. 
-//       that code has been labeled with it's respective license. 
+//       that code has been labeled with it's respective license below. 
 //
-//       NON-GPL code = JSMin C# port and Massive
+//       NON-GPL code = my JSMin C# port which retains original JSMin license
+//                      and Rob Conery's Massive which is under the 
+//                      "New BSD License". 
 // 
 // --------------------
 // --- Feature List ---
@@ -1424,12 +1426,11 @@ using System.Data.SqlClient;
 [assembly: AssemblyCopyright("(GNU GPLv3) Copyleft © 2011-2012")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("0.99.80.0")]
+[assembly: AssemblyVersion("0.99.81.0")]
 #endregion
 #endif
 
 #region TODO
-//TODO: Fix funkiness with adding dynamic routes and the dynamic property (eg. FromRedirectOnly) craziness!
 //TODO: All classes looking at Session or Application for values should have that code put in a method in the ApplicationInternals class
 //TODO: Add HTML helpers for checkbox list and radio button list (partially done)
 //TODO: Add support to handle posted forms with checkbox and radio button lists
@@ -1514,7 +1515,7 @@ namespace Aurora
   /// </summary>
   public static class AuroraConfig
   {
-    public static Version Version = new Version("0.99.80.0");
+    public static Version Version = new Version("0.99.81.0");
 
     /// <summary>
     /// Returns true if either Aurora or the web application is in debug mode, false otherwise.
@@ -10359,6 +10360,7 @@ namespace Aurora
         using (var conn = OpenConnection())
         {
           var rdr = CreateCommand(sql, conn, args).ExecuteReader();
+          
           while (rdr.Read())
           {
             yield return rdr.RecordToExpando();
@@ -10656,7 +10658,7 @@ namespace Aurora
         else throw new InvalidOperationException("Can't parse this object to the database - there are no properties set");
         return result;
       }
-
+      
       /// <summary>
       /// Creates a command for use with transactions - internal stuff mostly, but here for you to play with
       /// </summary>
@@ -10808,6 +10810,7 @@ namespace Aurora
         if (String.IsNullOrEmpty(value.ToString()))
           Errors.Add(message);
       }
+      
       //fun methods
       public virtual void ValidatesNumericalityOf(object value, string message = "Should be a number")
       {
@@ -10818,6 +10821,7 @@ namespace Aurora
           Errors.Add(message);
         }
       }
+      
       public virtual void ValidateIsCurrency(object value, string message = "Should be money")
       {
         if (value == null)
@@ -10829,10 +10833,12 @@ namespace Aurora
 
 
       }
+      
       public int Count()
       {
         return Count(TableName);
       }
+      
       public int Count(string tableName, string where = "")
       {
         return (int)Scalar("SELECT COUNT(*) FROM " + tableName + " " + where);
@@ -10912,27 +10918,26 @@ namespace Aurora
         else
         {
           //build the SQL
-          sql = "SELECT TOP 1 " + columns + " FROM " + TableName + where;
           var justOne = op.StartsWith("First") || op.StartsWith("Last") || op.StartsWith("Get") || op.StartsWith("Single");
 
-          //Be sure to sort by DESC on the PK (PK Sort is the default)
-          if (op.StartsWith("Last"))
+          if (justOne)
           {
-            orderBy = orderBy + " DESC ";
+            sql = "SELECT TOP 1 " + columns + " FROM " + TableName + where;
+
+            //Be sure to sort by DESC on the PK (PK Sort is the default)
+            if (op.StartsWith("Last"))
+            {
+              orderBy = orderBy + " DESC ";
+            }
+
+            //return a single record
+            result = Query(sql + orderBy, whereArgs.ToArray()).ToArray().FirstOrDefault();
           }
           else
           {
             //default to multiple
             sql = "SELECT " + columns + " FROM " + TableName + where;
-          }
 
-          if (justOne)
-          {
-            //return a single record
-            result = Query(sql + orderBy, whereArgs.ToArray()).FirstOrDefault();
-          }
-          else
-          {
             //return lots
             result = Query(sql + orderBy, whereArgs.ToArray());
           }
