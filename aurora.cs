@@ -1444,7 +1444,6 @@ using System.Data.SqlClient;
 //TODO: Routing: Add model validation checking to the form parameters if they are being placed directly in the action parameter list rather than in a model
 //TODO: HTMLHelpers: All of the areas where I'm using these Func<> lambda (craziness!) params to add name=value pairs to HTML tags need to have complimentary methods that also use a dictionary. The infrastructure has been put in place in the base HTML helper but not used yet.
 //TODO: Add HTTP Patch verb support (need to research this more!)
-//TODO: If we are adding bound parameters during the OnInit() method execution then we should have a method overload that infers the name of the current controller.
 #endregion
 
 namespace Aurora
@@ -2477,19 +2476,12 @@ namespace Aurora
 
     public static List<string> GetSkipValidationParameterNames(MethodInfo method)
     {
-      List<string> skipValidationParamNames = new List<string>();
+      method.ThrowIfArgumentNull();
 
-      foreach (ParameterInfo pi in method.GetParameters())
-      {
-        SkipValidationAttribute skipValidationAttrib = (SkipValidationAttribute)pi.GetCustomAttributes(false).FirstOrDefault(x => x.GetType() == typeof(SkipValidationAttribute));
-
-        if (skipValidationAttrib != null)
-        {
-          skipValidationParamNames.Add(pi.Name);
-        }
-      }
-
-      return skipValidationParamNames;
+      return method.GetParameters().Where(x => x.GetCustomAttributes(false)
+                                                .FirstOrDefault(y => y.GetType() == typeof(SkipValidationAttribute))!=null)
+                                                .Select(x => x.Name)
+                                                .ToList();
     }
   }
   #endregion
@@ -2620,6 +2612,9 @@ namespace Aurora
     }
   }
 
+  /// <summary>
+  /// Skips ASP.NET form post validation
+  /// </summary>
   [AttributeUsage(AttributeTargets.Property | AttributeTargets.Parameter)]
   public sealed class SkipValidationAttribute : Attribute
   {
