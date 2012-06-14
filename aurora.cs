@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 11 June 2012
+// Updated On: 13 June 2012
 //
 // Contact Info:
 //
@@ -1383,6 +1383,7 @@ using System.Web;
 using System.Web.Caching;
 using System.Web.Configuration;
 using System.Web.SessionState;
+using Microsoft.Web.Infrastructure.DynamicValidationHelper;
 using HtmlAgilityPack;
 using Newtonsoft.Json;
 using MarkdownSharp;
@@ -1426,7 +1427,7 @@ using System.Data.SqlClient;
 [assembly: AssemblyCopyright("(GNU GPLv3) Copyleft © 2011-2012")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("0.99.81.0")]
+[assembly: AssemblyVersion("0.99.82.0")]
 #endregion
 #endif
 
@@ -1434,7 +1435,6 @@ using System.Data.SqlClient;
 //TODO: All classes looking at Session or Application for values should have that code put in a method in the ApplicationInternals class
 //TODO: Add HTML helpers for checkbox list and radio button list (partially done)
 //TODO: Add support to handle posted forms with checkbox and radio button lists
-//TODO: Document the dynamic view tags and frag tags
 //TODO: Need a way to expire antiforgery tokens that were not used but sit dormant in the token cache
 //TODO: Bundles ought to be a collection of CSS and Javascript instead of one or the other which is how the current bundle manager handles bundling.
 //TODO: Objects that need to be in Session or Application stores ought to be wrapped into an object that can store all of them for easy retrieval respectively.
@@ -1515,7 +1515,7 @@ namespace Aurora
   /// </summary>
   public static class AuroraConfig
   {
-    public static Version Version = new Version("0.99.81.0");
+    public static Version Version = new Version("0.99.82.0");
 
     /// <summary>
     /// Returns true if either Aurora or the web application is in debug mode, false otherwise.
@@ -2248,7 +2248,8 @@ namespace Aurora
                 Dynamic = (attr as FromRedirectOnlyAttribute) != null ? true : false,
                 IsFiltered = false,
                 RequestType = attr.RequestType,
-                Attribute = attr
+                Attribute = attr,
+                SkipValidationParameterNames = GetSkipValidationParameterNames(ai.ActionMethod)
               };
 
               routes.Add(routeInfo);
@@ -2347,7 +2348,8 @@ namespace Aurora
           FrontLoadedParams = frontParams,
           RequestType = requestType,
           Bindings = new ActionBinder(context).GetBindings(controller.GetType().Name, action.Name),
-          Dynamic = true
+          Dynamic = true,
+          SkipValidationParameterNames = GetSkipValidationParameterNames(action)
         });
 
         context.Application[MainConfig.RoutesSessionName] = routes;
@@ -2471,6 +2473,23 @@ namespace Aurora
       }
 
       return routeEngine;
+    }
+
+    public static List<string> GetSkipValidationParameterNames(MethodInfo method)
+    {
+      List<string> skipValidationParamNames = new List<string>();
+
+      foreach (ParameterInfo pi in method.GetParameters())
+      {
+        SkipValidationAttribute skipValidationAttrib = (SkipValidationAttribute)pi.GetCustomAttributes(false).FirstOrDefault(x => x.GetType() == typeof(SkipValidationAttribute));
+
+        if (skipValidationAttrib != null)
+        {
+          skipValidationParamNames.Add(pi.Name);
+        }
+      }
+
+      return skipValidationParamNames;
     }
   }
   #endregion
@@ -2599,6 +2618,11 @@ namespace Aurora
     {
       Alias = alias;
     }
+  }
+
+  [AttributeUsage(AttributeTargets.Property | AttributeTargets.Parameter)]
+  public sealed class SkipValidationAttribute : Attribute
+  {
   }
   #endregion
 
@@ -3194,6 +3218,9 @@ namespace Aurora
     void ResponseSetNoCache();
     void ResponseStatusCode(HttpStatusCode statusCode);
     void ServerClearError();
+
+    string GetValidatedFormValue(string key);
+    //string GetValidatedQueryStringValue(string key);
   }
 
   /// <summary>
@@ -3212,6 +3239,7 @@ namespace Aurora
 
     public IAuroraSessionStore Application { get; set; }
     public IAuroraSessionStore Session { get; set; }
+
     public NameValueCollection Form { get; set; }
     public NameValueCollection QueryString { get; set; }
 
@@ -3483,11 +3511,18 @@ namespace Aurora
           ctx.Request.Files.CopyTo(Files, 0);
         }
 
-        //Configuration config = WebConfigurationManager.OpenWebConfiguration("~");
-        //var pagesSection = config.GetSection("system.web/pages") as PagesSection;
-        //pagesSection.ValidateRequest = MainConfig.ValidateRequest;
+        ValidationUtility.EnableDynamicValidation(ctx.ApplicationInstance.Context);
 
-        Form = new NameValueCollection(ctx.Request.Form);
+        #region FORM / QUERYSTRING
+        Func<NameValueCollection> _unvalidatedForm;
+        Func<NameValueCollection> _unvalidatedQueryString;
+
+        ValidationUtility.GetUnvalidatedCollections(ctx.ApplicationInstance.Context, out _unvalidatedForm, out _unvalidatedQueryString);
+
+        Form = _unvalidatedForm();
+        //QueryString = _unvalidatedQueryString();
+        #endregion
+
         QueryString = new NameValueCollection(ctx.Request.QueryString);
 
         RequestPayload = new NameValueCollection();
@@ -3520,6 +3555,7 @@ namespace Aurora
       if (RawContext != null)
       {
         RawContext.Request.ValidateInput();
+        string x = RawContext.Request.RawUrl;
       }
     }
 
@@ -3632,6 +3668,26 @@ namespace Aurora
         RawContext.Server.ClearError();
       }
     }
+
+    public string GetValidatedFormValue(string key)
+    {
+      if (RawContext != null)
+      {
+        return RawContext.Request.Form[key];
+      }
+
+      return null;
+    }
+
+    //public string GetValidatedQueryStringValue(string key)
+    //{
+    //  if (RawContext != null)
+    //  {
+    //    return RawContext.Request.QueryString[key];
+    //  }
+    //
+    //  return null;
+    //}
   }
   #endregion
 
@@ -4193,6 +4249,7 @@ namespace Aurora
     internal bool FromRedirectOnlyInfo { get; set; }
     internal List<ActionParamTransformInfo> ActionParameterTransforms { get; set; }
     internal RequestTypeAttribute Attribute { get; set; }
+    internal List<string> SkipValidationParameterNames { get; set; }
     #endregion
   }
 
@@ -4220,40 +4277,46 @@ namespace Aurora
         foreach (PropertyInfo p in Model.GetPropertiesWithExclusions<Model>(m, true))
         {
           // We need to convert the form value to a datatype 
+          SkipValidationAttribute skipValidationAttrib = (SkipValidationAttribute)p.GetCustomAttributes(false).FirstOrDefault(x => x.GetType() == typeof(SkipValidationAttribute));
+
+          string propertyValue = context.Form[p.Name];
+
+          if (skipValidationAttrib == null)
+          {
+            propertyValue = context.GetValidatedFormValue(p.Name);
+          }
 
           if (p.PropertyType == typeof(int) ||
               p.PropertyType == typeof(int?))
           {
-            if (context.Form[p.Name].IsInt32())
+            if (propertyValue.IsInt32())
             {
-              p.SetValue(DataTypeInstance, Convert.ToInt32(context.Form[p.Name], CultureInfo.InvariantCulture), null);
+              p.SetValue(DataTypeInstance, Convert.ToInt32(propertyValue, CultureInfo.InvariantCulture), null);
             }
           }
           else if (p.PropertyType == typeof(string))
           {
-            string value = context.Form[p.Name];
-
             SanitizeAttribute sanitize = (SanitizeAttribute)p.GetCustomAttributes(false).FirstOrDefault(x => x is SanitizeAttribute);
 
             if (sanitize != null)
             {
-              sanitize.Sanitize(value);
+              sanitize.Sanitize(propertyValue);
             }
 
-            p.SetValue(DataTypeInstance, value, null);
+            p.SetValue(DataTypeInstance, propertyValue, null);
           }
           else if (p.PropertyType == typeof(bool))
           {
-            if (context.Form[p.Name].IsBool())
+            if (propertyValue.IsBool())
             {
-              p.SetValue(DataTypeInstance, Convert.ToBoolean(context.Form[p.Name], CultureInfo.InvariantCulture), null);
+              p.SetValue(DataTypeInstance, Convert.ToBoolean(propertyValue, CultureInfo.InvariantCulture), null);
             }
           }
           else if (p.PropertyType == typeof(DateTime?))
           {
             DateTime? dt = null;
 
-            context.Form[p.Name].IsDate(out dt);
+            propertyValue.IsDate(out dt);
 
             p.SetValue(DataTypeInstance, dt, null);
           }
@@ -4332,7 +4395,7 @@ namespace Aurora
       return new object[] { };
     }
 
-    private object[] GetFormParams()
+    private object[] GetFormParams(RouteInfo routeInfo)
     {
       if (context.RequestType == "POST")
       {
@@ -4343,6 +4406,7 @@ namespace Aurora
 
           if (postedFormModel != null)
           {
+            #region POSTED FORM MODEL
             postedFormInfo = new PostedFormInfo(context, postedFormModel);
 
             if (postedFormInfo.DataType != null)
@@ -4351,16 +4415,26 @@ namespace Aurora
 
               return new object[] { postedFormInfo.DataTypeInstance };
             }
+            #endregion
           }
           else
           {
-            NameValueCollection form = new NameValueCollection(context.Form);
+            NameValueCollection form = new NameValueCollection();
 
             foreach (string key in form.Keys)
             {
               if (key.StartsWith(MainConfig.AntiForgeryTokenName))
               {
-                form.Remove(key);
+                continue;
+              }
+
+              if (routeInfo.SkipValidationParameterNames.Contains(key))
+              {
+                form[key] = context.Form[key];
+              }
+              else
+              {
+                form[key] = context.GetValidatedFormValue(key);
               }
             }
 
@@ -4451,11 +4525,11 @@ namespace Aurora
       }
 
       object[] urlParams = GetURLParams(path, alias);
-      object[] formParams = GetFormParams();
       object[] fileParams = GetFileParams();
 
       foreach (RouteInfo routeInfo in routeSlice)
       {
+        object[] formParams = GetFormParams(routeInfo);
         object[] boundParams = GetBoundParams(routeInfo);
         object[] frontParams = GetFrontParams(routeInfo);
         object[] putDeleteParams = GetPutDeleteParams(routeInfo);
@@ -10054,9 +10128,6 @@ namespace Aurora
     {
       context.ThrowIfArgumentNull();
 
-      //PagesSection pageSection = new PagesSection();
-      //pageSection.ValidateRequest = MainConfig.ValidateRequest;
-
       context.Error += new EventHandler(app_Error);
     }
 
@@ -10074,7 +10145,7 @@ namespace Aurora
 
   #endregion
 
-  #region MASSIVE ORM
+  #region MASSIVE ORM (FORKED)
 #if MASSIVE
   //
   // New BSD License
@@ -10127,6 +10198,7 @@ namespace Aurora
       {
         var p = cmd.CreateParameter();
         p.ParameterName = string.Format("@{0}", cmd.Parameters.Count);
+
         if (item == null)
         {
           p.Value = DBNull.Value;
@@ -10148,9 +10220,13 @@ namespace Aurora
           {
             p.Value = item;
           }
+
           if (item.GetType() == typeof(string))
+          {
             p.Size = ((string)item).Length > 4000 ? -1 : 4000;
+          }
         }
+
         cmd.Parameters.Add(p);
       }
 
@@ -10160,10 +10236,12 @@ namespace Aurora
       public static List<dynamic> ToExpandoList(this IDataReader rdr)
       {
         var result = new List<dynamic>();
+
         while (rdr.Read())
         {
           result.Add(rdr.RecordToExpando());
         }
+
         return result;
       }
 
@@ -10171,8 +10249,12 @@ namespace Aurora
       {
         dynamic e = new ExpandoObject();
         var d = e as IDictionary<string, object>;
+
         for (int i = 0; i < rdr.FieldCount; i++)
+        {
           d.Add(rdr.GetName(i), DBNull.Value.Equals(rdr[i]) ? null : rdr[i]);
+        }
+
         return e;
       }
 
@@ -10183,7 +10265,12 @@ namespace Aurora
       {
         var result = new ExpandoObject();
         var d = result as IDictionary<string, object>; //work with the Expando as a Dictionary
-        if (o.GetType() == typeof(ExpandoObject)) return o; //shouldn't have to... but just in case
+
+        if (o.GetType() == typeof(ExpandoObject))
+        {
+          return o; //shouldn't have to... but just in case
+        }
+
         if (o.GetType() == typeof(NameValueCollection) || o.GetType().IsSubclassOf(typeof(NameValueCollection)))
         {
           var nv = (NameValueCollection)o;
@@ -10192,11 +10279,13 @@ namespace Aurora
         else
         {
           var props = o.GetType().GetProperties();
+
           foreach (var item in props)
           {
             d.Add(item.Name, item.GetValue(o, null));
           }
         }
+
         return result;
       }
 
@@ -10222,6 +10311,7 @@ namespace Aurora
           {
             return new DynamicModel(ConfigurationManager.ConnectionStrings[1].Name);
           }
+
           throw new InvalidOperationException("Need a connection string name - can't determine what it is");
         }
       }
@@ -10232,8 +10322,8 @@ namespace Aurora
     /// </summary>
     public class DynamicModel : DynamicObject
     {
-      DbProviderFactory _factory;
-      string ConnectionString;
+      private DbProviderFactory _factory;
+      private string ConnectionString;
 
       public static DynamicModel Open(string connectionStringName)
       {
@@ -10247,23 +10337,30 @@ namespace Aurora
         TableName = tableName == "" ? this.GetType().Name : tableName;
         PrimaryKeyField = string.IsNullOrEmpty(primaryKeyField) ? "ID" : primaryKeyField;
         DescriptorField = descriptorField;
+
         var _providerName = "System.Data.SqlClient";
 
         if (!string.IsNullOrEmpty(connectionStringName))
         {
           if (ConfigurationManager.ConnectionStrings[connectionStringName] == null)
+          {
             throw new ArgumentException(string.Format("Invalid connection string name: {0}", connectionStringName), "connectionStringName");
+          }
         }
         else
         {
           if (!(ConfigurationManager.ConnectionStrings.Count > 1))
+          {
             throw new InvalidOperationException("Need a connection string name - can't determine what it is");
+          }
 
           connectionStringName = ConfigurationManager.ConnectionStrings[1].Name;
         }
 
         if (ConfigurationManager.ConnectionStrings[connectionStringName].ProviderName != null)
+        {
           _providerName = ConfigurationManager.ConnectionStrings[connectionStringName].ProviderName;
+        }
 
         _factory = DbProviderFactories.GetFactory(_providerName);
         ConnectionString = ConfigurationManager.ConnectionStrings[connectionStringName].ConnectionString;
@@ -10277,10 +10374,12 @@ namespace Aurora
         dynamic result = new ExpandoObject();
         var dc = (IDictionary<string, object>)result;
         var schema = Schema;
+
         //loop the collection, setting only what's in the Schema
         foreach (var item in coll.Keys)
         {
           var exists = schema.Any(x => x.COLUMN_NAME.ToLower() == item.ToString().ToLower());
+
           if (exists)
           {
             var key = item.ToString();
@@ -10288,6 +10387,7 @@ namespace Aurora
             dc.Add(key, val);
           }
         }
+
         return result;
       }
 
@@ -10298,6 +10398,7 @@ namespace Aurora
       {
         dynamic result = null;
         string def = column.COLUMN_DEFAULT;
+
         if (String.IsNullOrEmpty(def))
         {
           result = null;
@@ -10314,6 +10415,7 @@ namespace Aurora
         {
           result = def.Replace("(", "").Replace(")", "");
         }
+
         return result;
       }
 
@@ -10326,12 +10428,15 @@ namespace Aurora
         {
           dynamic result = new ExpandoObject();
           var schema = Schema;
+
           foreach (dynamic column in schema)
           {
             var dc = (IDictionary<string, object>)result;
             dc.Add(column.COLUMN_NAME, DefaultValue(column));
           }
+
           result._Table = this;
+
           return result;
         }
       }
@@ -10347,7 +10452,10 @@ namespace Aurora
         get
         {
           if (_schema == null)
+          {
             _schema = Query("SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = @0", TableName);
+          }
+
           return _schema;
         }
       }
@@ -10360,7 +10468,7 @@ namespace Aurora
         using (var conn = OpenConnection())
         {
           var rdr = CreateCommand(sql, conn, args).ExecuteReader();
-          
+
           while (rdr.Read())
           {
             yield return rdr.RecordToExpando();
@@ -10385,10 +10493,12 @@ namespace Aurora
       public virtual object Scalar(string sql, params object[] args)
       {
         object result = null;
+
         using (var conn = OpenConnection())
         {
           result = CreateCommand(sql, conn, args).ExecuteScalar();
         }
+
         return result;
       }
 
@@ -10400,8 +10510,12 @@ namespace Aurora
         var result = _factory.CreateCommand();
         result.Connection = conn;
         result.CommandText = sql;
+
         if (args.Length > 0)
+        {
           result.AddParams(args);
+        }
+
         return result;
       }
 
@@ -10413,6 +10527,7 @@ namespace Aurora
         var result = _factory.CreateConnection();
         result.ConnectionString = ConnectionString;
         result.Open();
+
         return result;
       }
 
@@ -10424,6 +10539,7 @@ namespace Aurora
       public virtual List<DbCommand> BuildCommands(params object[] things)
       {
         var commands = new List<DbCommand>();
+
         foreach (var item in things)
         {
           if (HasPrimaryKey(item))
@@ -10435,6 +10551,7 @@ namespace Aurora
             commands.Add(CreateInsertCommand(item));
           }
         }
+
         return commands;
       }
 
@@ -10454,6 +10571,7 @@ namespace Aurora
       public virtual int Execute(IEnumerable<DbCommand> commands)
       {
         var result = 0;
+
         using (var conn = OpenConnection())
         {
           using (var tx = conn.BeginTransaction())
@@ -10464,9 +10582,11 @@ namespace Aurora
               cmd.Transaction = tx;
               result += cmd.ExecuteNonQuery();
             }
+
             tx.Commit();
           }
         }
+
         return result;
       }
 
@@ -10489,6 +10609,7 @@ namespace Aurora
       {
         object result = null;
         o.ToDictionary().TryGetValue(PrimaryKeyField, out result);
+
         return result;
       }
 
@@ -10501,16 +10622,24 @@ namespace Aurora
       public virtual IEnumerable<dynamic> All(string where = "", string orderBy = "", int limit = 0, string columns = "*", params object[] args)
       {
         string sql = BuildSelect(where, orderBy, limit);
+
         return Query(string.Format(sql, columns, TableName), args);
       }
 
       private static string BuildSelect(string where, string orderBy, int limit)
       {
         string sql = limit > 0 ? "SELECT TOP " + limit + " {0} FROM {1} " : "SELECT {0} FROM {1} ";
+
         if (!string.IsNullOrEmpty(where))
+        {
           sql += where.Trim().StartsWith("where", StringComparison.OrdinalIgnoreCase) ? where : " WHERE " + where;
+        }
+
         if (!String.IsNullOrEmpty(orderBy))
+        {
           sql += orderBy.Trim().StartsWith("order by", StringComparison.OrdinalIgnoreCase) ? orderBy : " ORDER BY " + orderBy;
+        }
+
         return sql;
       }
 
@@ -10531,10 +10660,15 @@ namespace Aurora
       {
         dynamic result = new ExpandoObject();
         var countSQL = "";
+
         if (!string.IsNullOrEmpty(sql))
+        {
           countSQL = string.Format("SELECT COUNT({0}) FROM ({1}) AS PagedTable", primaryKeyField, sql);
+        }
         else
+        {
           countSQL = string.Format("SELECT COUNT({0}) FROM {1}", PrimaryKeyField, TableName);
+        }
 
         if (String.IsNullOrEmpty(orderBy))
         {
@@ -10551,18 +10685,27 @@ namespace Aurora
 
         var query = "";
         if (!string.IsNullOrEmpty(sql))
+        {
           query = string.Format("SELECT {0} FROM (SELECT ROW_NUMBER() OVER (ORDER BY {2}) AS Row, {0} FROM ({3}) AS PagedTable {4}) AS Paged ", columns, pageSize, orderBy, sql, where);
+        }
         else
+        {
           query = string.Format("SELECT {0} FROM (SELECT ROW_NUMBER() OVER (ORDER BY {2}) AS Row, {0} FROM {3} {4}) AS Paged ", columns, pageSize, orderBy, TableName, where);
+        }
 
         var pageStart = (currentPage - 1) * pageSize;
         query += string.Format(" WHERE Row > {0} AND Row <={1}", pageStart, (pageStart + pageSize));
         countSQL += where;
         result.TotalRecords = Scalar(countSQL, args);
         result.TotalPages = result.TotalRecords / pageSize;
+
         if (result.TotalRecords % pageSize > 0)
+        {
           result.TotalPages += 1;
+        }
+
         result.Items = Query(string.Format(query, columns, TableName), args);
+
         return result;
       }
 
@@ -10572,6 +10715,7 @@ namespace Aurora
       public virtual dynamic Single(string where, params object[] args)
       {
         var sql = string.Format("SELECT * FROM {0} WHERE {1}", TableName, where);
+
         return Query(sql, args).FirstOrDefault();
       }
 
@@ -10581,6 +10725,7 @@ namespace Aurora
       public virtual dynamic Single(object key, string columns = "*")
       {
         var sql = string.Format("SELECT {0} FROM {1} WHERE {2} = @0", columns, TableName, PrimaryKeyField);
+
         return Query(sql, key).FirstOrDefault();
       }
 
@@ -10590,12 +10735,19 @@ namespace Aurora
       public virtual IDictionary<string, object> KeyValues(string orderBy = "")
       {
         if (String.IsNullOrEmpty(DescriptorField))
+        {
           throw new InvalidOperationException("There's no DescriptorField set - do this in your constructor to describe the text value you want to see");
+        }
+
         var sql = string.Format("SELECT {0},{1} FROM {2} ", PrimaryKeyField, DescriptorField, TableName);
+
         if (!String.IsNullOrEmpty(orderBy))
+        {
           sql += "ORDER BY " + orderBy;
+        }
 
         var results = Query(sql).ToList().Cast<IDictionary<string, object>>();
+
         return results.ToDictionary(key => key[PrimaryKeyField].ToString(), value => value[DescriptorField]);
       }
 
@@ -10611,6 +10763,7 @@ namespace Aurora
       public virtual bool ItemContainsKey(string key, ExpandoObject item)
       {
         var dc = ItemAsDictionary(item);
+
         return dc.ContainsKey(key);
       }
 
@@ -10628,7 +10781,9 @@ namespace Aurora
             throw new InvalidOperationException("Can't save this item: " + String.Join("; ", Errors.ToArray()));
           }
         }
+
         var commands = BuildCommands(things);
+
         return Execute(commands);
       }
 
@@ -10641,13 +10796,15 @@ namespace Aurora
         var stub = "INSERT INTO {0} ({1}) \r\n VALUES ({2})";
         result = CreateCommand(stub, null);
         int counter = 0;
+
         foreach (var item in settings)
         {
-          sbKeys.AppendFormat("{0},", item.Key);
+          sbKeys.AppendFormat("[{0}],", item.Key);
           sbVals.AppendFormat("@{0},", counter.ToString());
           result.AddParam(item.Value);
           counter++;
         }
+
         if (counter > 0)
         {
           var keys = sbKeys.ToString().Substring(0, sbKeys.Length - 1);
@@ -10655,10 +10812,14 @@ namespace Aurora
           var sql = string.Format(stub, TableName, keys, vals);
           result.CommandText = sql;
         }
-        else throw new InvalidOperationException("Can't parse this object to the database - there are no properties set");
+        else
+        {
+          throw new InvalidOperationException("Can't parse this object to the database - there are no properties set");
+        }
+
         return result;
       }
-      
+
       /// <summary>
       /// Creates a command for use with transactions - internal stuff mostly, but here for you to play with
       /// </summary>
@@ -10670,13 +10831,15 @@ namespace Aurora
         var args = new List<object>();
         var result = CreateCommand(stub, null);
         int counter = 0;
+
         foreach (var item in settings)
         {
           var val = item.Value;
+
           if (!item.Key.Equals(PrimaryKeyField, StringComparison.OrdinalIgnoreCase) && item.Value != null)
           {
             result.AddParam(val);
-            sbKeys.AppendFormat("{0} = @{1}, \r\n", item.Key, counter.ToString());
+            sbKeys.AppendFormat("[{0}] = @{1}, \r\n", item.Key, counter.ToString());
             counter++;
           }
         }
@@ -10688,7 +10851,11 @@ namespace Aurora
           var keys = sbKeys.ToString().Substring(0, sbKeys.Length - 4);
           result.CommandText = string.Format(stub, TableName, keys, PrimaryKeyField, counter);
         }
-        else throw new InvalidOperationException("No parsable object was sent in - could not divine any name/value pairs");
+        else
+        {
+          throw new InvalidOperationException("No parsable object was sent in - could not divine any name/value pairs");
+        }
+
         return result;
       }
 
@@ -10698,15 +10865,17 @@ namespace Aurora
       public virtual DbCommand CreateDeleteCommand(string where = "", object key = null, params object[] args)
       {
         var sql = string.Format("DELETE FROM {0} ", TableName);
+
         if (key != null)
         {
-          sql += string.Format("WHERE {0}=@0", PrimaryKeyField);
+          sql += string.Format("WHERE [{0}]=@0", PrimaryKeyField);
           args = new object[] { key };
         }
         else if (!string.IsNullOrEmpty(where))
         {
           sql += where.Trim().StartsWith("where", StringComparison.OrdinalIgnoreCase) ? where : "WHERE " + where;
         }
+
         return CreateCommand(sql, null, args);
       }
 
@@ -10714,6 +10883,7 @@ namespace Aurora
       {
         Errors.Clear();
         Validate(item);
+
         return Errors.Count == 0;
       }
 
@@ -10727,10 +10897,12 @@ namespace Aurora
       public virtual dynamic Insert(object o)
       {
         var ex = o.ToExpando();
+
         if (!IsValid(ex))
         {
           throw new InvalidOperationException("Can't insert: " + String.Join("; ", Errors.ToArray()));
         }
+
         if (BeforeSave(ex))
         {
           using (dynamic conn = OpenConnection())
@@ -10742,12 +10914,11 @@ namespace Aurora
             ex.ID = cmd.ExecuteScalar();
             Inserted(ex);
           }
+
           return ex;
         }
-        else
-        {
-          return null;
-        }
+
+        return null;
       }
 
       /// <summary>
@@ -10757,16 +10928,20 @@ namespace Aurora
       public virtual int Update(object o, object key)
       {
         var ex = o.ToExpando();
+
         if (!IsValid(ex))
         {
           throw new InvalidOperationException("Can't Update: " + String.Join("; ", Errors.ToArray()));
         }
+
         var result = 0;
+
         if (BeforeSave(ex))
         {
           result = Execute(CreateUpdateCommand(ex, key));
           Updated(ex);
         }
+
         return result;
       }
 
@@ -10777,11 +10952,13 @@ namespace Aurora
       {
         var deleted = this.Single(key);
         var result = 0;
+
         if (BeforeDelete(deleted))
         {
           result = Execute(CreateDeleteCommand(where: where, key: key, args: args));
           Deleted(deleted);
         }
+
         return result;
       }
 
@@ -10806,39 +10983,49 @@ namespace Aurora
       public virtual void ValidatesPresenceOf(object value, string message = "Required")
       {
         if (value == null)
+        {
           Errors.Add(message);
+        }
+
         if (String.IsNullOrEmpty(value.ToString()))
+        {
           Errors.Add(message);
+        }
       }
-      
+
       //fun methods
       public virtual void ValidatesNumericalityOf(object value, string message = "Should be a number")
       {
         var type = value.GetType().Name;
         var numerics = new string[] { "Int32", "Int16", "Int64", "Decimal", "Double", "Single", "Float" };
+
         if (!numerics.Contains(type))
         {
           Errors.Add(message);
         }
       }
-      
+
       public virtual void ValidateIsCurrency(object value, string message = "Should be money")
       {
         if (value == null)
+        {
           Errors.Add(message);
+        }
+
         decimal val = decimal.MinValue;
         decimal.TryParse(value.ToString(), out val);
+
         if (val == decimal.MinValue)
+        {
           Errors.Add(message);
-
-
+        }
       }
-      
+
       public int Count()
       {
         return Count(TableName);
       }
-      
+
       public int Count(string tableName, string where = "")
       {
         return (int)Scalar("SELECT COUNT(*) FROM " + tableName + " " + where);
@@ -10853,11 +11040,13 @@ namespace Aurora
         var constraints = new List<string>();
         var counter = 0;
         var info = binder.CallInfo;
+
         // accepting named args only... SKEET!
         if (info.ArgumentNames.Count != args.Length)
         {
           throw new InvalidOperationException("Please use named arguments for this type of query - the column name, orderby, columns, etc");
         }
+
         //first should be "FindBy, Last, Single, First"
         var op = binder.Name;
         var columns = " * ";
@@ -10894,6 +11083,7 @@ namespace Aurora
         {
           where = " WHERE " + string.Join(" AND ", constraints.ToArray());
         }
+
         //probably a bit much here but... yeah this whole thing needs to be refactored...
         if (op.ToLower() == "count")
         {
@@ -10942,6 +11132,7 @@ namespace Aurora
             result = Query(sql + orderBy, whereArgs.ToArray());
           }
         }
+
         return true;
       }
     }
