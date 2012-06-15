@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 13 June 2012
+// Updated On: 14 June 2012
 //
 // Contact Info:
 //
@@ -13,9 +13,8 @@
 // NOTE: Aurora contains some code that is not licensed under the GPLv3. 
 //       that code has been labeled with it's respective license below. 
 //
-//       NON-GPL code = my JSMin C# port which retains original JSMin license
-//                      and Rob Conery's Massive which is under the 
-//                      "New BSD License". 
+// NON-GPL code = my JSMin C# port which retains original JSMin license and
+//                Rob Conery's Massive which is under the "New BSD License" 
 // 
 // --------------------
 // --- Feature List ---
@@ -46,6 +45,7 @@
 // - Bundling/Minifying of Javascript and CSS.
 // - Plugin support (can be used by apps but is not integrated at all into the
 //   framework pipeline.)
+// - My fork of Massive ORM
 //
 // ---------------
 // -- RATIONALE --
@@ -53,22 +53,24 @@
 //
 // -- What is this?
 //
-// Aurora is a light MVC framework built on top of ASP.NET that aims for a 
-// modern feature set without layers of complexity. 
+// Aurora is a single file light MVC web framework built on top of ASP.NET. 
 //
 // -- Why develop yet another web framework on top of ASP.NET?
 //
 // The short answer is easy and that is to learn! However, there is more to it 
 // than that and that is that I wanted a light modern framework that didn't hide 
 // behind mountains of complexity and that was simple enough to adapt and change
-// over time or with a particular project. I also wanted to create a sandbox so
-// that I could play with concepts, framework design and have fun doing it.
+// over time or with a particular project. I wanted this to be a single file
+// web framework that could be dropped into a project easily. I also wanted to 
+// create a sandbox so that I could play with concepts, framework design and 
+// have fun doing it. I am making the code available to assist others that are
+// wondering how to create their own framework or just to provide some examples
+// of how to get started.
 //
-// As with all things there is more than one way to skin a cat and my view of 
-// how a framework should work might be quite a bit different from yours. If you 
-// find something amazingly stupid in here please let me know so I can fix it.
-//
-// Patches are welcome!
+// NOTE: As with all things there is more than one way to skin a cat and my view 
+// of how a framework should work might be quite a bit different from yours. If 
+// you find something amazingly stupid in here please let me know so I can fix 
+// it. Patches are welcome!
 //
 // -- Why is all the code in a single file?
 //
@@ -96,9 +98,10 @@
 #region LICENSE - GPL version 3 <http://www.gnu.org/licenses/gpl-3.0.html>
 //
 // NOTE: Aurora contains some code that is not licensed under the GPLv3. 
-//       that code has been labeled with it's respective license. 
+//       that code has been labeled with it's respective license below. 
 //
-//       NON-GPL code = JSMin and Massive
+// NON-GPL code = my JSMin C# port which retains original JSMin license and
+//                Rob Conery's Massive which is under the "New BSD License" 
 //
 // GNU GPLv3 quick guide: http://www.gnu.org/licenses/quick-guide-gplv3.html
 //
@@ -142,6 +145,7 @@
 //	System.Xml.Linq
 //	System.Xml.dll
 //  Microsoft.CSharp
+//  Microsoft.Web.Infrastructure
 //	Newtonsoft.Json.NET - http://json.codeplex.com/
 //	HtmlAgilityPack - http://htmlagilitypack.codeplex.com/
 //  MarkdownSharp - http://code.google.com/p/markdownsharp/
@@ -1427,7 +1431,7 @@ using System.Data.SqlClient;
 [assembly: AssemblyCopyright("(GNU GPLv3) Copyleft © 2011-2012")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("0.99.82.0")]
+[assembly: AssemblyVersion("0.99.83.0")]
 #endregion
 #endif
 
@@ -1449,13 +1453,16 @@ using System.Data.SqlClient;
 namespace Aurora
 {
   #region VERSION
+  /// <summary>
+  /// Provides version information about the framework.
+  /// </summary>
   public sealed class Version
   {
-    public static string Name = "Aurora";
-    public static string Description = "An MVC web framework for .NET";
-    public static string Copyright = "(GNU GPLv3) Copyleft © 2011-2012";
-    public static string[] Authors = { "Frank Hale" };
-    public static string Website = "http://github.com/frankhale/aurora";
+    public readonly string Name = "Aurora";
+    public readonly string Description = "An MVC web framework for .NET";
+    public readonly string Copyright = "(GNU GPLv3) Copyleft © 2011-2012";
+    public readonly string[] Authors = { "Frank Hale" };
+    public readonly string Website = "http://github.com/frankhale/aurora";
 
     public int Major
     {
@@ -1514,16 +1521,16 @@ namespace Aurora
   /// </summary>
   public static class AuroraConfig
   {
-    public static Version Version = new Version("0.99.82.0");
+    public static Aurora.Version Version = new Version("0.99.83.0");
 
     /// <summary>
-    /// Returns true if either Aurora or the web application is in debug mode, false otherwise.
+    /// Returns true if the web application is in debug mode, false otherwise.
     /// </summary>
     public static bool InDebugMode
     {
       get
       {
-        return (MainConfig.AuroraDebug || MainConfig.ASPNETDebug) ? true : false;
+        return (MainConfig.ASPNETDebug) ? true : false;
       }
     }
   }
@@ -1697,12 +1704,6 @@ namespace Aurora
       get { return this["DefaultRoute"] as string; }
     }
 
-    [ConfigurationProperty("Debug", DefaultValue = false, IsRequired = false)]
-    public bool Debug
-    {
-      get { return Convert.ToBoolean(this["Debug"], CultureInfo.CurrentCulture); }
-    }
-
     [ConfigurationProperty("StaticContentCacheExpiry", DefaultValue = "15", IsRequired = false)]
     public int StaticContentCacheExpiry
     {
@@ -1813,13 +1814,11 @@ namespace Aurora
 
     public static WebConfig WebConfig = ConfigurationManager.GetSection("Aurora") as WebConfig;
     public static CustomErrorsSection CustomErrorsSection = ConfigurationManager.GetSection("system.web/customErrors") as CustomErrorsSection;
-    //public static bool ValidateRequest = (MainConfig.WebConfig == null) ? true : WebConfig.ValidateRequest;
     public static string[] SupportedHttpVerbs = { "GET", "POST", "PUT", "DELETE" };
     public static string EncryptionKey = (MainConfig.WebConfig == null) ? null : WebConfig.EncryptionKey;
     public static int AuthCookieExpiry = (MainConfig.WebConfig == null) ? 8 : WebConfig.AuthCookieExpiry;
     public static int StaticContentCacheExpiry = (MainConfig.WebConfig == null) ? 15 : WebConfig.StaticContentCacheExpiry;
     public static bool DisableStaticFileCaching = (MainConfig.WebConfig == null) ? false : WebConfig.DisableStaticFileCaching;
-    public static bool AuroraDebug = (WebConfig == null) ? false : WebConfig.Debug;
     public static bool ASPNETDebug = (ConfigurationManager.GetSection("system.web/compilation") as CompilationSection).Debug;
 
 #if ACTIVE_DIRECTORY
@@ -1862,6 +1861,7 @@ namespace Aurora
     public static string AntiForgeryTokenSessionName = "__AntiForgeryTokens";
     public static string SecurityManagerSessionName = "__Securitymanager";
     public static string TemplatesSessionName = "__Templates";
+    public static string CompiledViewsSessionName = "__CompiledViews";
     public static string CustomErrorSessionName = "__CustomError";
     public static string CurrentUserSessionName = "__CurrentUser";
     public static string BundleManagerSessionName = "__BundleManager";
@@ -2458,7 +2458,7 @@ namespace Aurora
 
       IRouteEngine routeEngine;
 
-      if (!MainConfig.AuroraDebug && context.Application[MainConfig.RouteEngineSessionName] != null)
+      if (!MainConfig.ASPNETDebug && context.Application[MainConfig.RouteEngineSessionName] != null)
       {
         routeEngine = context.Application[MainConfig.RouteEngineSessionName] as IRouteEngine;
 
@@ -2479,7 +2479,7 @@ namespace Aurora
       method.ThrowIfArgumentNull();
 
       return method.GetParameters().Where(x => x.GetCustomAttributes(false)
-                                                .FirstOrDefault(y => y.GetType() == typeof(SkipValidationAttribute))!=null)
+                                                .FirstOrDefault(y => y.GetType() == typeof(SkipValidationAttribute)) != null)
                                                 .Select(x => x.Name)
                                                 .ToList();
     }
@@ -4416,7 +4416,7 @@ namespace Aurora
           {
             NameValueCollection form = new NameValueCollection();
 
-            foreach (string key in form.Keys)
+            foreach (string key in context.Form.Keys)
             {
               if (key.StartsWith(MainConfig.AntiForgeryTokenName))
               {
@@ -4433,18 +4433,15 @@ namespace Aurora
               }
             }
 
-            string[] formValues = new string[form.AllKeys.Length];
-
             //FIXME: posted forms that put their variables directly in the action parameter list
             //       do not behave the same way as posted forms using post models. Post models
             //       convert the form value to the data type of the corresponding property, where as
             //       the former converts the form values to whatever they appear to be, strings are 
             //       strings, numbers are int's, etc...
 
-            for (int i = 0; i < form.AllKeys.Length; i++)
-            {
-              formValues[i] = form.Get(i);
-            }
+            string[] formValues = new string[form.Count];
+
+            form.CopyTo(formValues, 0);
 
             return formValues.ToObjectArray();
           }
@@ -5321,7 +5318,7 @@ namespace Aurora
 
     public string RenderFragment(string fragmentName, Dictionary<string, string> fragTags)
     {
-      return viewEngine.LoadView(PartitionName, this.GetType().Name, fragmentName, fragTags);
+      return viewEngine.LoadView(PartitionName, this.GetType().Name, fragmentName, ViewTemplateType.Fragment, fragTags);
     }
     #endregion
 
@@ -5358,7 +5355,8 @@ namespace Aurora
 
         if (_viewTags != null)
         {
-          viewTags = _viewTags.ToDictionary(k => k.Key, k => k.Value.ToString());
+          viewTags = _viewTags.ToDictionary(k => k.Key,
+            k => (k.Value != null) ? k.Value.ToString() : string.Empty);
         }
       }
 
@@ -5954,7 +5952,7 @@ namespace Aurora
 
         if (string.IsNullOrEmpty(view))
         {
-          view = viewEngine.LoadView(partitionName, controllerName, viewName, tags);
+          view = viewEngine.LoadView(partitionName, controllerName, viewName, ViewTemplateType.Action, tags);
         }
 
         if (get != null)
@@ -6023,7 +6021,7 @@ namespace Aurora
     {
       ResponseHeader.SetContentType(context, "text/html");
 
-      context.ResponseWrite(viewEngine.LoadView(partitionName, controllerName, fragmentName, tags));
+      context.ResponseWrite(viewEngine.LoadView(partitionName, controllerName, fragmentName, ViewTemplateType.Shared, tags));
     }
   }
 
@@ -6091,7 +6089,7 @@ namespace Aurora
   #region VIEW ENGINE
 
   #region VIEW TEMPLATE
-  internal enum ViewTemplateType
+  public enum ViewTemplateType
   {
     Fragment,
     Shared,
@@ -6156,7 +6154,9 @@ namespace Aurora
         {
           DirectoryInfo rootDir = new DirectoryInfo(viewRoot);
 
-          foreach (FileInfo fi in rootDir.GetAllFiles().Where(x => x.Extension == ".html"))
+          var files = rootDir.GetAllFiles().Where(x => x.Extension == ".html");
+
+          foreach (FileInfo fi in files)
           {
             StringBuilder templateBuilder;
             string templateName = fi.Name.Replace(fi.Extension, string.Empty);
@@ -6270,8 +6270,13 @@ namespace Aurora
   internal interface IViewCompiler
   {
     List<View> CompileAll();
-    View Compile(string partitionName, string controllerName, string viewName);
+    View Compile(string partitionName, string controllerName, string viewName, ViewTemplateType viewType);
     View Render(string fullName, Dictionary<string, string> tags);
+
+    void SetTemplates(List<ViewTemplate> templates);
+    void SetCompiledViews(List<View> compiledViews);
+
+    string DetermineKeyName(string partitionName, string controllerName, string viewName, ViewTemplateType viewType);
 
     event EventHandler<AntiForgeryRequestHandlerEventArgs> AntiForgeryRequestEvent;
     event EventHandler<BundleFileLinkHandlerEventArgs> BundleFileLinkEvent;
@@ -6280,7 +6285,7 @@ namespace Aurora
   internal class ViewCompiler : IViewCompiler
   {
     private List<ViewTemplate> viewTemplates;
-    public List<View> CompiledViews { get; private set; }
+    public List<View> CompiledViews { get; set; }
     public Dictionary<string, List<string>> viewDependencies;
 
     private static Markdown Markdown = new Markdown();
@@ -6315,7 +6320,14 @@ namespace Aurora
       viewTemplates = templates;
     }
 
-    private StringBuilder ProcessDirectives(string fullViewName, string partitionName, string controllerName, StringBuilder rawView)
+    public void SetCompiledViews(List<View> compiledViews)
+    {
+      compiledViews.ThrowIfArgumentNull();
+
+      CompiledViews = compiledViews;
+    }
+
+    private StringBuilder ProcessDirectives(string fullViewName, string partitionName, string controllerName, ViewTemplateType viewType, StringBuilder rawView)
     {
       MatchCollection dirMatches = directiveTokenRE.Matches(rawView.ToString());
       StringBuilder pageContent = new StringBuilder();
@@ -6340,7 +6352,7 @@ namespace Aurora
 
         if (!MainConfig.PathStaticFileRE.IsMatch(value.ToString()))
         {
-          pageName = DetermineKeyName(partitionName, controllerName, value.ToString());
+          pageName = DetermineKeyName(partitionName, controllerName, value.ToString(), ViewTemplateType.Shared);
         }
 
         if (!string.IsNullOrEmpty(pageName))
@@ -6413,16 +6425,18 @@ namespace Aurora
       // we'll recursively call ProcessDirectives to take care of them
       if (directiveTokenRE.Matches(pageContent.ToString()).Count > 0)
       {
-        ProcessDirectives(fullViewName, partitionName, controllerName, pageContent);
+        ProcessDirectives(fullViewName, partitionName, controllerName, viewType, pageContent);
       }
 
       return pageContent;
     }
 
-    public string DetermineKeyName(string partitionName, string controllerName, string viewName)
+    public string DetermineKeyName(string partitionName, string controllerName, string viewName, ViewTemplateType viewType)
     {
-      List<string> keyTypes = null;
+      string result = null;
+      List<string> keyTypes = new List<string>();
       string lookupKeyName = string.Empty;
+      string viewDesignation = string.Empty;
 
       if (string.IsNullOrEmpty(partitionName))
       {
@@ -6434,54 +6448,58 @@ namespace Aurora
         controllerName = "Shared";
       }
 
-      if (!string.IsNullOrEmpty(partitionName))
+      if (viewType == ViewTemplateType.Shared)
       {
-        lookupKeyName = string.Format(CultureInfo.InvariantCulture, "{0}/{1}/{2}", partitionName, controllerName, viewName);
+        viewDesignation = "Shared/";
       }
-      else
+      else if (viewType == ViewTemplateType.Fragment)
       {
-        lookupKeyName = string.Format(CultureInfo.InvariantCulture, "{0}/{1}", controllerName, viewName);
+        viewDesignation = "Fragments/";
       }
+      
+      lookupKeyName = string.Format("{0}/{1}/{2}{3}", partitionName, controllerName, viewDesignation, viewName);
 
       if (!templateKeyNames.ContainsKey(lookupKeyName))
       {
-        keyTypes = new List<string>();
-
-        // Preference is given to the controller scope first, global scope is last
-
-        if (!string.IsNullOrEmpty(partitionName))
+        switch (viewType)
         {
-          // partitionRootScopeSharedKeyName
-          keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "{0}/Views/Shared/{1}", partitionName, viewName));
-          // partitionRootScopeFragmentsKeyName
-          keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "{0}/Views/Fragments/{1}", partitionName, viewName));
-          // partitionControllerScopeActionKeyName
-          keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "{0}/{1}/{2}", partitionName, controllerName, viewName));
-          // partitionControllerScopeSharedKeyName
-          keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "{0}/{1}/Shared/{2}", partitionName, controllerName, viewName));
-          // partitionControllerScopeFragmentKeyName
-          keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "{0}/{1}/Fragments/{2}", partitionName, controllerName, viewName));
+          case ViewTemplateType.Action:
+
+            // partitionControllerScopeActionKeyName
+            keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "{0}/{1}/{2}", partitionName, controllerName, viewName));
+            // controllerScopeActionKeyName
+            keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "{0}/{1}", controllerName, viewName));
+
+            break;
+
+          case ViewTemplateType.Shared:
+
+            // partitionRootScopeSharedKeyName
+            keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "{0}/Views/Shared/{1}", partitionName, viewName));
+            // partitionControllerScopeSharedKeyName
+            keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "{0}/{1}/Shared/{2}", partitionName, controllerName, viewName));
+            // controllerScopeSharedKeyName
+            keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "{0}/Shared/{1}", controllerName, viewName));
+            // globalScopeSharedKeyName
+            keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "Views/Shared/{0}", viewName));
+
+            break;
+
+          case ViewTemplateType.Fragment:
+
+            // partitionControllerScopeFragmentKeyName
+            keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "{0}/{1}/Fragments/{2}", partitionName, controllerName, viewName));
+            // partitionRootScopeFragmentsKeyName
+            keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "{0}/Views/Fragments/{1}", partitionName, viewName));
+            // controllerScopeFragmentKeyName
+            keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "{0}/Fragments/{1}", controllerName, viewName));
+
+            // globalScopeFragmentKeyName
+            keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "Views/Fragments/{0}", viewName));
+
+            break;
         }
-        else
-        {
-          // controllerScopeActionKeyName
-          keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "{0}/{1}", controllerName, viewName));
-          // controllerScopeSharedKeyName
-          keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "{0}/Shared/{1}", controllerName, viewName));
-          // controllerScopeFragmentKeyName
-          keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "{0}/Fragments/{1}", controllerName, viewName));
-        }
-
-        //// globalScopeSharedKeyName
-        //keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "Shared/{0}", viewName));
-        //// globalScopeFragmentKeyName
-        //keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "Fragments/{0}", viewName));
-
-        // globalScopeSharedKeyName
-        keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "Views/Shared/{0}", viewName));
-        // globalScopeFragmentKeyName
-        keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "Views/Fragments/{0}", viewName));
-
+        
         templateKeyNames[lookupKeyName] = keyTypes;
       }
       else
@@ -6491,19 +6509,14 @@ namespace Aurora
 
       var viewTemplateNames = viewTemplates.Select(x => x.FullName);
 
-      string result = keyTypes.Intersect(viewTemplateNames).FirstOrDefault();
+      result = keyTypes.Intersect(viewTemplateNames).FirstOrDefault();
 
-      if (!string.IsNullOrEmpty(result))
-      {
-        return result;
-      }
-
-      return null;
+      return result;
     }
 
-    public View Compile(string partitionName, string controllerName, string viewName)
+    public View Compile(string partitionName, string controllerName, string viewName, ViewTemplateType viewType)
     {
-      string keyName = DetermineKeyName(partitionName, controllerName, viewName);
+      string keyName = DetermineKeyName(partitionName, controllerName, viewName, viewType);
 
       if (!string.IsNullOrEmpty(keyName))
       {
@@ -6516,7 +6529,7 @@ namespace Aurora
 
           if (viewTemplate.TemplateType != ViewTemplateType.Fragment)
           {
-            compiledView = ProcessDirectives(keyName, partitionName, controllerName, rawView);
+            compiledView = ProcessDirectives(keyName, partitionName, controllerName, viewType, rawView);
           }
 
           if (string.IsNullOrEmpty(compiledView.ToString()))
@@ -6562,7 +6575,7 @@ namespace Aurora
 
         if (template != null && template.TemplateType != ViewTemplateType.Fragment)
         {
-          Compile(partitionName, controllerName, template.Name);
+          Compile(partitionName, controllerName, template.Name, template.TemplateType);
         }
       }
     }
@@ -6573,7 +6586,7 @@ namespace Aurora
       {
         if (vt.TemplateType != ViewTemplateType.Fragment)
         {
-          Compile(vt.Partition, vt.Controller, vt.Name);
+          Compile(vt.Partition, vt.Controller, vt.Name, vt.TemplateType);
         }
         else
         {
@@ -6696,7 +6709,7 @@ namespace Aurora
   public interface IViewEngine
   {
     void Refresh(IAuroraContext ctx);
-    string LoadView(string partitionName, string controllerName, string viewName, Dictionary<string, string> tags);
+    string LoadView(string partitionName, string controllerName, string viewName, ViewTemplateType viewType, Dictionary<string, string> tags);
   }
 
   internal class AuroraViewEngine : IViewEngine
@@ -6773,6 +6786,11 @@ namespace Aurora
       {
         viewCompiler.SetTemplates(viewTemplates);
 
+        if (ctx.Application[MainConfig.CompiledViewsSessionName] != null)
+        {
+          viewCompiler.SetCompiledViews(ctx.Application[MainConfig.CompiledViewsSessionName] as List<View>);
+        }
+
         if (!(viewCompiler.CompiledViews.Count() > 0))
         {
           viewCompiler.CompileAll();
@@ -6782,6 +6800,8 @@ namespace Aurora
           //CompileNewFiles();
           RecompileChangedTemplates();
         }
+
+        ctx.Application[MainConfig.CompiledViewsSessionName] = viewCompiler.CompiledViews;
       }
     }
 
@@ -6821,7 +6841,7 @@ namespace Aurora
           else
           {
             viewCompiler.RecompileDependencies(vt.FullName, vt.Partition, vt.Controller);
-            viewCompiler.Compile(vt.Partition, vt.Controller, vt.Name);
+            viewCompiler.Compile(vt.Partition, vt.Controller, vt.Name, vt.TemplateType);
           }
         }
       }
@@ -6882,9 +6902,9 @@ namespace Aurora
       args.BundleLinks = fileLinkBuilder.ToString();
     }
 
-    public string LoadView(string partitionName, string controllerName, string viewName, Dictionary<string, string> tags)
+    public string LoadView(string partitionName, string controllerName, string viewName, ViewTemplateType viewType, Dictionary<string, string> tags)
     {
-      string keyName = viewCompiler.DetermineKeyName(partitionName, controllerName, viewName);
+      string keyName = viewCompiler.DetermineKeyName(partitionName, controllerName, viewName, viewType);
 
       if (!string.IsNullOrEmpty(keyName))
       {
@@ -7752,7 +7772,7 @@ namespace Aurora
     public string RenderFragment(string fragmentName, Dictionary<string, string> tags)
     {
       //MainConfig.FragmentsFolderName
-      return ViewEngine.LoadView(null, this.GetType().Name, fragmentName, tags);
+      return ViewEngine.LoadView(null, this.GetType().Name, fragmentName, ViewTemplateType.Fragment, tags);
     }
 
     public string RenderFragment(string fragmentName)
@@ -7762,7 +7782,7 @@ namespace Aurora
 
     public string RenderGlobalFragment(string fragmentName, Dictionary<string, string> tags)
     {
-      return ViewEngine.LoadView(MainConfig.ViewsFolderName, MainConfig.FragmentsFolderName, fragmentName, tags);
+      return ViewEngine.LoadView(MainConfig.ViewsFolderName, MainConfig.FragmentsFolderName, fragmentName, ViewTemplateType.Fragment, tags);
     }
 
     public string RenderGlobalFragment(string fragmentName)
