@@ -4,7 +4,7 @@ NOTE: See source code comments for usage.
 
 Frank Hale <frankhale@gmail.com>
 
-Date: 14 June 2012
+Date: 15 June 2012
 
 --------------------
 --- Feature List ---
@@ -33,11 +33,25 @@ Date: 14 June 2012
   against an Active Directory user. Typically for use in client certificate
   authentication.
 - Bundling/Minifying of Javascript and CSS.
+
+Aurora.Extra 
+
+- My fork of Massive ORM
+- My fork of the Gravatar URL generator
+- HTML helpers
 - Plugin support (can be used by apps but is not integrated at all into the
   framework pipeline.)
-- My fork of Massive ORM
  
 Changelog:
+
+15 June 2012
+
+- Given the current code size it was time to split everything that wasn't core
+  out into a separate file. With that said we have Aurora.Extra which now 
+  contains the plugin system, my Massive fork and Gravatar helpers to allow you
+  to create a Gravatar URL so you can embed an avatar store on your Gravatar 
+  account into your application.
+- Added placeholders to the view engine (documentation forthcoming)
 
 14 June 2012
 
