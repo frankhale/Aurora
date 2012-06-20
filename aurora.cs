@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 15 June 2012
+// Updated On: 19 June 2012
 //
 // Contact Info:
 //
@@ -1427,17 +1427,17 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyCopyright("(GNU GPLv3) Copyleft © 2011-2012")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("0.99.84.0")]
+[assembly: AssemblyVersion("0.99.85.0")]
 #endregion
 #endif
 
 #region TODO
-//TODO: All classes looking at Session or Application for values should have that code put in a method in the ApplicationInternals class
 //TODO: Add HTML helpers for checkbox list and radio button list (partially done)
 //TODO: Add support to handle posted forms with checkbox and radio button lists
 //TODO: Need a way to expire antiforgery tokens that were not used but sit dormant in the token cache
 //TODO: Bundles ought to be a collection of CSS and Javascript instead of one or the other which is how the current bundle manager handles bundling.
 //TODO: Objects that need to be in Session or Application stores ought to be wrapped into an object that can store all of them for easy retrieval respectively.
+//TODO: All classes looking at Session or Application for values should have that code put in a method in the ApplicationInternals class
 //TODO: Figure out how the Plugin infrastructure will be integrated into the framework pipeline (if at all). 
 //TODO: Upload NuGet package to NuGet.org Package Gallery
 //TODO: Add more events to the FrontController class, decide how much power it'll ultimately have
@@ -1517,7 +1517,7 @@ namespace Aurora
   /// </summary>
   public static class AuroraConfig
   {
-    public static Aurora.Version Version = new Version("0.99.84.0");
+    public static Aurora.Version Version = new Version("0.99.85.0");
 
     /// <summary>
     /// Returns true if the web application is in debug mode, false otherwise.
@@ -2509,6 +2509,11 @@ namespace Aurora
   #endregion
 
   #region MISCELLANEOUS
+  [AttributeUsage(AttributeTargets.Parameter)]
+  public sealed class JsonTransformAttribute : Attribute
+  {
+  }
+
   [AttributeUsage(AttributeTargets.All)]
   public sealed class MetadataAttribute : Attribute
   {
@@ -2582,16 +2587,29 @@ namespace Aurora
     }
   }
 
+  /// <summary>
+  /// This is used on a Model to hide a property from (right now) the HTML Table
+  /// helper. Any other HTML helpers that work with Models should honor this
+  /// and hide the property from it's final representation.
+  /// </summary>
   [AttributeUsage(AttributeTargets.Property)]
   public sealed class HiddenAttribute : Attribute
   {
   }
 
-  [AttributeUsage(AttributeTargets.Property | AttributeTargets.Parameter)]
+  /// <summary>
+  /// This attribute tells the framework that a property on a Model is 
+  /// not required for posting.
+  /// </summary>
+  [AttributeUsage(AttributeTargets.Property /*| AttributeTargets.Parameter*/)]
   public sealed class NotRequiredAttribute : Attribute
   {
   }
 
+  /// <summary>
+  /// Excludes a Model property from being bound to a value coming in from a 
+  /// POST request.
+  /// </summary>
   [AttributeUsage(AttributeTargets.Property)]
   internal sealed class ExcludeFromBindingAttribute : Attribute
   {
@@ -3977,6 +3995,9 @@ namespace Aurora
         #region REFINE ACTION PARAMS
         routeInfo.ActionParameters = DetermineAndProcessSanitizeAttributes(routeInfo);
         routeInfo.ActionParameterTransforms = DetermineActionParameterTransforms(routeInfo);
+#if JSON_NOT_TESTED
+        routeInfo.ActionParameters = DetermineJsonTransforms(routeInfo);
+#endif
 
         if (routeInfo.ActionParameterTransforms != null && routeInfo.ActionParameterTransforms.Count > 0)
         {
@@ -4094,6 +4115,8 @@ namespace Aurora
 
     private static object[] DetermineAndProcessSanitizeAttributes(RouteInfo routeInfo)
     {
+      routeInfo.ThrowIfArgumentNull();
+
       ParameterInfo[] actionParms = routeInfo.Action.GetParameters();
 
       object[] processedParams = new object[routeInfo.ActionParameters.Length];
@@ -4116,8 +4139,42 @@ namespace Aurora
       return processedParams;
     }
 
+#if JSON_NOT_TESTED
+    private static object[] DetermineJsonTransforms(RouteInfo routeInfo)
+    {
+      routeInfo.ThrowIfArgumentNull();
+
+      Type[] actionParameterTypes = routeInfo.ActionParameters.Select(x => (x != null) ? x.GetType() : null).ToArray();
+
+      object[] processedParams = new object[routeInfo.ActionParameters.Length];
+
+      for (int i = 0; i < routeInfo.Action.GetParameters().Count(); i++)
+      {
+        ParameterInfo pi = routeInfo.Action.GetParameters()[i];
+
+        JsonTransformAttribute jt = (JsonTransformAttribute)pi.GetCustomAttributes(typeof(JsonTransformAttribute), false).FirstOrDefault();
+
+        if (jt != null)
+        {
+          if (routeInfo.ActionParameters[i] is string)
+          {
+            string value = routeInfo.ActionParameters[i] as string;
+
+            Type t = actionParameterTypes[i];
+
+            processedParams[i] = JsonConvert.DeserializeObject(value); 
+          }
+        }
+      }
+
+      return null;
+    }
+#endif
+
     private static List<ActionParamTransformInfo> DetermineActionParameterTransforms(RouteInfo routeInfo)
     {
+      routeInfo.ThrowIfArgumentNull();
+
       Type[] actionParameterTypes = routeInfo.ActionParameters.Select(x => (x != null) ? x.GetType() : null).ToArray();
 
       List<ActionParamTransformInfo> actionParameterTransforms = new List<ActionParamTransformInfo>();
@@ -4422,6 +4479,8 @@ namespace Aurora
               {
                 form[key] = context.GetValidatedFormValue(key);
               }
+
+
             }
 
             //FIXME: posted forms that put their variables directly in the action parameter list
@@ -6283,7 +6342,6 @@ namespace Aurora
     private Dictionary<string, List<string>> templateKeyNames;
     private static Regex directiveTokenRE = new Regex(@"(\%\%(?<directive>[a-zA-Z0-9]+)=(?<value>(\S|\.)+)\%\%)", RegexOptions.Compiled);
     private static Regex headBlockRE = new Regex(@"\[\[(?<block>[\s\w\p{P}\p{S}]+)\]\]", RegexOptions.Compiled);
-    //private static Regex placeholderRE = new Regex(@"\[([a-zA-Z0-9]+)\](?<block>[\s\S]+?)\[/([a-zA-Z0-9]+)\]", RegexOptions.Compiled);
     private static Regex tagRE = new Regex(@"{({|\||\!)([\w]+)(}|\!|\|)}", RegexOptions.Compiled);
     private static string tagFormatPattern = @"({{({{|\||\!){0}(\||\!|}})}})";
     private static string tagEncodingHint = "{|";
@@ -6346,6 +6404,7 @@ namespace Aurora
 
         if (_directive == "Placeholder")
         {
+          // We'll process these later
           continue;
         }
 
@@ -6391,7 +6450,15 @@ namespace Aurora
               case "Master":
                 pageContent = new StringBuilder(template);
                 rawView.Replace(match.Groups[0].Value, string.Empty);
-                pageContent.Replace(viewDirective, rawView.ToString());
+
+                if (pageContent.ToString().Contains(viewDirective))
+                {
+                  pageContent.Replace(viewDirective, rawView.ToString());
+                }
+                else
+                {
+                  pageContent.Append(rawView.ToString());
+                }
                 break;
 
               case "Partial":
@@ -6415,7 +6482,7 @@ namespace Aurora
       }
 
       pageContent = ProcessPlaceHolders(pageContent);
-      
+
       return pageContent;
     }
 
@@ -6465,9 +6532,8 @@ namespace Aurora
           if (placeholderMatch.Success)
           {
             pageContent.Replace(match.Groups[0].Value, placeholderMatch.Groups["block"].Value);
+            pageContent.Replace(placeholderMatch.Groups[0].Value, string.Empty);
           }
-
-          pageContent.Replace(placeholderMatch.Groups[0].Value, string.Empty);
         }
       }
 

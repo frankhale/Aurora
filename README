@@ -4,7 +4,7 @@ NOTE: See source code comments for usage.
 
 Frank Hale <frankhale@gmail.com>
 
-Date: 15 June 2012
+Date: 19 June 2012
 
 --------------------
 --- Feature List ---
@@ -43,6 +43,14 @@ Aurora.Extra
   framework pipeline.)
  
 Changelog:
+
+19 June 2012
+
+- Started working on code to handle incoming posted form values that are JSON
+  and will allow you to cast inline to your JSON backing class much like 
+  ActionParamTransform'ss work except tailored to JSON deserialization.
+- If your view is only composed of placeholders then you don't have to use the
+  %%VIEW%% directive in your master page.
 
 15 June 2012
 
