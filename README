@@ -4,7 +4,7 @@ NOTE: See source code comments for usage.
 
 Frank Hale <frankhale@gmail.com>
 
-Date: 19 June 2012
+Date: 21 June 2012
 
 --------------------
 --- Feature List ---
@@ -43,6 +43,17 @@ Aurora.Extra
   framework pipeline.)
  
 Changelog:
+
+21 June 2012
+
+- Added: JsonTransform attribute and infrastructure to handle transforming 
+  posted Json data transformation in Action parameters.
+- Added: %%RawAntiForgeryToken%% directive to view engine. This will create
+  a new anti-forgery token in raw form, ie. it is just the token with nothing
+  decorating it.
+- FIX: If in debug mode CSS and JS won't be minified.
+- A couple minor tweaks not worth mentioning.
+- Updated VS2010 project template with latest framework code.
 
 19 June 2012
 

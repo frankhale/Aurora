@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 19 June 2012
+// Updated On: 21 June 2012
 //
 // Contact Info:
 //
@@ -3989,16 +3989,15 @@ namespace Aurora
           {
             throw new Exception(MainConfig.AntiForgeryTokenMissingError);
           }
+
+          routeInfo.ActionParameters = DetermineJsonTransforms(routeInfo);
         }
         #endregion
 
         #region REFINE ACTION PARAMS
         routeInfo.ActionParameters = DetermineAndProcessSanitizeAttributes(routeInfo);
         routeInfo.ActionParameterTransforms = DetermineActionParameterTransforms(routeInfo);
-#if JSON_NOT_TESTED
-        routeInfo.ActionParameters = DetermineJsonTransforms(routeInfo);
-#endif
-
+        
         if (routeInfo.ActionParameterTransforms != null && routeInfo.ActionParameterTransforms.Count > 0)
         {
           routeInfo.ActionParameters = ProcessActionParameterTransforms(routeInfo, routeInfo.ActionParameterTransforms);
@@ -4139,7 +4138,6 @@ namespace Aurora
       return processedParams;
     }
 
-#if JSON_NOT_TESTED
     private static object[] DetermineJsonTransforms(RouteInfo routeInfo)
     {
       routeInfo.ThrowIfArgumentNull();
@@ -4162,15 +4160,14 @@ namespace Aurora
 
             Type t = actionParameterTypes[i];
 
-            processedParams[i] = JsonConvert.DeserializeObject(value); 
+            processedParams[i] = JsonConvert.DeserializeObject<dynamic>(value);
           }
         }
       }
 
-      return null;
+      return processedParams;
     }
-#endif
-
+    
     private static List<ActionParamTransformInfo> DetermineActionParameterTransforms(RouteInfo routeInfo)
     {
       routeInfo.ThrowIfArgumentNull();
@@ -4616,7 +4613,8 @@ namespace Aurora
         {
           if ((methodParamTypes[x].FullName == actionParameterTypes[x].FullName) ||
               (actionParameterTypes[x].GetInterface(methodParamTypes[x].FullName) != null) ||
-              (methodParameterInfos[x].GetCustomAttributes(typeof(ActionParamTransformAttribute), false).FirstOrDefault() != null))
+              (methodParameterInfos[x].GetCustomAttributes(typeof(ActionParamTransformAttribute), false).FirstOrDefault() != null) ||
+              (methodParameterInfos[x].GetCustomAttributes(typeof(JsonTransformAttribute), false).FirstOrDefault() != null))
           {
             matches.Add(actionParameterTypes[x]);
           }
@@ -5916,9 +5914,16 @@ namespace Aurora
         {
           bool css = filePath.EndsWith(".css", StringComparison.Ordinal);
 
-          using (Minify mini = new Minify(File.ReadAllText(filePath), css, false))
+          if (!AuroraConfig.InDebugMode)
           {
-            context.ResponseWrite(mini.Result);
+            using (Minify mini = new Minify(File.ReadAllText(filePath), css, true))
+            {
+              context.ResponseWrite(mini.Result);
+            }
+          }
+          else
+          {
+            context.ResponseWrite(File.ReadAllText(filePath));
           }
         }
       }
@@ -6351,6 +6356,7 @@ namespace Aurora
     private static string headDirective = "%%Head%%";
     private static string antiForgeryToken = "%%AntiForgeryToken%%";
     private static string jsonAntiForgeryToken = "%%JsonAntiForgeryToken%%";
+    private static string rawAntiForgeryToken = "%%RawAntiForgeryToken%%";
 
     private StringBuilder directive = new StringBuilder();
     private StringBuilder value = new StringBuilder();
@@ -6755,6 +6761,7 @@ namespace Aurora
         {
           compiledViewSB = ReplaceAntiForgeryTokens(compiledViewSB, antiForgeryToken, AntiForgeryTokenType.Form);
           compiledViewSB = ReplaceAntiForgeryTokens(compiledViewSB, jsonAntiForgeryToken, AntiForgeryTokenType.Json);
+          compiledViewSB = ReplaceAntiForgeryTokens(compiledViewSB, rawAntiForgeryToken, AntiForgeryTokenType.Raw);
         }
 
         if (tags != null)
@@ -7000,12 +7007,12 @@ namespace Aurora
 
         foreach (string bundlePath in bundleFileList)
         {
-          fileLinkBuilder.Append(ProcessBundleLink(bundlePath));
+          fileLinkBuilder.AppendLine(ProcessBundleLink(bundlePath));
         }
       }
       else
       {
-        fileLinkBuilder.Append(ProcessBundleLink(args.BundleName));
+        fileLinkBuilder.AppendLine(ProcessBundleLink(args.BundleName));
       }
 
       args.BundleLinks = fileLinkBuilder.ToString();
@@ -8297,7 +8304,7 @@ namespace Aurora
           break;
 
         case AntiForgeryTokenType.Json:
-          renderToken = string.Format(CultureInfo.CurrentCulture, "AntiForgeryToken={0}", token);
+          renderToken = string.Format(CultureInfo.CurrentCulture, "\"AntiForgeryToken\": \"{0}\"", token);
           break;
 
         case AntiForgeryTokenType.Raw:
@@ -8605,9 +8612,12 @@ namespace Aurora
     {
       int charCode = (int)c;
 
-      if (css && charCode == '.')
+      if (css)
       {
-        return true;
+        if (charCode == '.' || charCode == ')')
+        {
+          return true;
+        }
       }
 
       return (charCode >= 'a' && charCode <= 'z' ||
