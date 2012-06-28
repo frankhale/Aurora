@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 21 June 2012
+// Updated On: 27 June 2012
 //
 // Contact Info:
 //
@@ -1427,7 +1427,7 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyCopyright("(GNU GPLv3) Copyleft © 2011-2012")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("0.99.85.0")]
+[assembly: AssemblyVersion("0.99.86.0")]
 #endregion
 #endif
 
@@ -1517,7 +1517,7 @@ namespace Aurora
   /// </summary>
   public static class AuroraConfig
   {
-    public static Aurora.Version Version = new Version("0.99.85.0");
+    public static Aurora.Version Version = new Version("0.99.86.0");
 
     /// <summary>
     /// Returns true if the web application is in debug mode, false otherwise.
@@ -4059,7 +4059,6 @@ namespace Aurora
 
         if (!routeInfo.IsFiltered)
         {
-          //if (routeInfo.Dynamic && context.Session[MainConfig.FromRedirectOnlySessionFlag] == null)
           if (routeInfo.Attribute is FromRedirectOnlyAttribute && context.Session[MainConfig.FromRedirectOnlySessionFlag] == null)
           {
             return null;
@@ -4411,16 +4410,36 @@ namespace Aurora
     }
 
     #region PARAM GETTERS
-    private static object[] GetFrontParams(RouteInfo routeInfo)
+    private object[] GetFrontParams(RouteInfo routeInfo)
     {
-      return !string.IsNullOrEmpty(routeInfo.FrontLoadedParams) ?
-        routeInfo.FrontLoadedParams.Split('/').ToObjectArray() :
-        new object[] { };
+      object[] result = null;
+
+      if (!string.IsNullOrEmpty(routeInfo.FrontLoadedParams))
+      {
+        result = routeInfo.FrontLoadedParams.Split('/').ToObjectArray();
+      }
+      else
+      {
+        result = new object[] { };
+      }
+
+      return result;
     }
 
-    private static object[] GetBoundParams(RouteInfo routeInfo)
+    private object[] GetBoundParams(RouteInfo routeInfo)
     {
-      return (routeInfo.Bindings != null) ? routeInfo.Bindings.ToArray() : new object[] { };
+      object[] result = null;
+
+      if (routeInfo.Bindings != null)
+      {
+        result = routeInfo.Bindings.ToArray();
+      }
+      else
+      {
+        result = new object[] { };
+      }
+
+      return result;
     }
 
     private object[] GetURLParams(string path, string alias)
@@ -5296,14 +5315,14 @@ namespace Aurora
     #region REDIRECT
     public void RedirectOnlyToAlias(string alias)
     {
-      Context.Session[MainConfig.FromRedirectOnlySessionFlag] = alias;
+      Context.Session[MainConfig.FromRedirectOnlySessionFlag] = true; // alias;
 
       RedirectToAlias(alias);
     }
 
     public void RedirectOnlyToAction(string controller, string action)
     {
-      Context.Session[MainConfig.FromRedirectOnlySessionFlag] = string.Format(CultureInfo.InvariantCulture, "/{0}/{1}", controller, action);
+      Context.Session[MainConfig.FromRedirectOnlySessionFlag] = true; // string.Format(CultureInfo.InvariantCulture, "/{0}/{1}", controller, action);
 
       RedirectToAction(controller, action);
     }

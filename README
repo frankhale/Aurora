@@ -4,7 +4,7 @@ NOTE: See source code comments for usage.
 
 Frank Hale <frankhale@gmail.com>
 
-Date: 21 June 2012
+Date: 27 June 2012
 
 --------------------
 --- Feature List ---
@@ -43,6 +43,11 @@ Aurora.Extra
   framework pipeline.)
  
 Changelog:
+
+27 June 2012
+
+- One small fix to [FromRedirectOnly], still not sure everything is totally 
+  worked out yet.
 
 21 June 2012
 
