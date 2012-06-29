@@ -231,11 +231,18 @@ namespace Aurora.Extra
     public string AlternateRowColor { get; set; }
     public bool AlternateRowColorEnabled { get; set; }
 
+    public HtmlTable(List<T> models, bool alternateRowColorEnabled, params Func<string, string>[] attribs)
+    {
+      AlternateRowColorEnabled = alternateRowColorEnabled;
+      Init(models, null, null, null, attribs);
+    }
+
     public HtmlTable(List<T> models,
                      List<string> ignoreColumns,
                      List<ColumnTransform<T>> columnTransforms,
                      params Func<string, string>[] attribs)
     {
+      AlternateRowColorEnabled = true;
       Init(models, ignoreColumns, columnTransforms, null, attribs);
     }
 
@@ -245,6 +252,7 @@ namespace Aurora.Extra
                      List<RowTransform<T>> rowTransforms,
                      params Func<string, string>[] attribs)
     {
+      AlternateRowColorEnabled = true;
       Init(models, ignoreColumns, columnTransforms, rowTransforms, attribs);
     }
 
@@ -260,7 +268,6 @@ namespace Aurora.Extra
       AttribsFunc = attribs;
       ColumnTransforms = columnTransforms;
       RowTransforms = rowTransforms;
-      AlternateRowColorEnabled = true;
       AlternateRowColor = "#dddddd";
 
       PropertyNames = ObtainPropertyNames();

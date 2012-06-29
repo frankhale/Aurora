@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 27 June 2012
+// Updated On: 28 June 2012
 //
 // Contact Info:
 //
@@ -1394,16 +1394,7 @@ using Microsoft.Web.Infrastructure.DynamicValidationHelper;
 using HtmlAgilityPack;
 using Newtonsoft.Json;
 using MarkdownSharp;
-
-#if TEST
-//
-// Aurora will be getting built in support for TDD using Nunit. What that means
-// will be defined later but suffice it to say that writing tests will be as 
-// seamless and simple as possible to encourage TDD design principles within
-// Aurora applications.
-// 
-using NUnit.Framework;
-#endif
+using Yahoo.Yui.Compressor;
 
 #if ACTIVE_DIRECTORY
 using System.DirectoryServices;
@@ -1427,24 +1418,9 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 [assembly: AssemblyCopyright("(GNU GPLv3) Copyleft © 2011-2012")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("0.99.86.0")]
+[assembly: AssemblyVersion("0.99.87.0")]
 #endregion
 #endif
-
-#region TODO
-//TODO: Add HTML helpers for checkbox list and radio button list (partially done)
-//TODO: Add support to handle posted forms with checkbox and radio button lists
-//TODO: Need a way to expire antiforgery tokens that were not used but sit dormant in the token cache
-//TODO: Bundles ought to be a collection of CSS and Javascript instead of one or the other which is how the current bundle manager handles bundling.
-//TODO: Objects that need to be in Session or Application stores ought to be wrapped into an object that can store all of them for easy retrieval respectively.
-//TODO: All classes looking at Session or Application for values should have that code put in a method in the ApplicationInternals class
-//TODO: Figure out how the Plugin infrastructure will be integrated into the framework pipeline (if at all). 
-//TODO: Upload NuGet package to NuGet.org Package Gallery
-//TODO: Add more events to the FrontController class, decide how much power it'll ultimately have
-//TODO: Routing: Add model validation checking to the form parameters if they are being placed directly in the action parameter list rather than in a model
-//TODO: HTMLHelpers: All of the areas where I'm using these Func<> lambda (craziness!) params to add name=value pairs to HTML tags need to have complimentary methods that also use a dictionary. The infrastructure has been put in place in the base HTML helper but not used yet.
-//TODO: Add HTTP Patch verb support (need to research this more!)
-#endregion
 
 namespace Aurora
 {
@@ -1517,7 +1493,7 @@ namespace Aurora
   /// </summary>
   public static class AuroraConfig
   {
-    public static Aurora.Version Version = new Version("0.99.86.0");
+    public static Aurora.Version Version = new Version("0.99.87.0");
 
     /// <summary>
     /// Returns true if the web application is in debug mode, false otherwise.
@@ -3997,7 +3973,7 @@ namespace Aurora
         #region REFINE ACTION PARAMS
         routeInfo.ActionParameters = DetermineAndProcessSanitizeAttributes(routeInfo);
         routeInfo.ActionParameterTransforms = DetermineActionParameterTransforms(routeInfo);
-        
+
         if (routeInfo.ActionParameterTransforms != null && routeInfo.ActionParameterTransforms.Count > 0)
         {
           routeInfo.ActionParameters = ProcessActionParameterTransforms(routeInfo, routeInfo.ActionParameterTransforms);
@@ -4166,7 +4142,7 @@ namespace Aurora
 
       return processedParams;
     }
-    
+
     private static List<ActionParamTransformInfo> DetermineActionParameterTransforms(RouteInfo routeInfo)
     {
       routeInfo.ThrowIfArgumentNull();
@@ -5410,10 +5386,8 @@ namespace Aurora
       return View(CurrentRoute.ControllerName, name, clearViewTags);
     }
 
-    public ViewResult View(string controllerName, string actionName, bool clearViewTags)
+    private Dictionary<string, string> GetViewTagsDictionary()
     {
-      RequestTypeAttribute reqAttrib = (RequestTypeAttribute)CurrentRoute.Action.GetCustomAttributes(false).FirstOrDefault(x => x is RequestTypeAttribute);
-
       Dictionary<string, string> viewTags = ViewTags;
 
       if (!DViewTags.IsEmpty())
@@ -5427,7 +5401,14 @@ namespace Aurora
         }
       }
 
-      ViewResult vr = new ViewResult(Context, viewEngine, PartitionName, controllerName, actionName, reqAttrib, viewTags);
+      return viewTags;
+    }
+
+    public ViewResult View(string controllerName, string actionName, bool clearViewTags)
+    {
+      RequestTypeAttribute reqAttrib = (RequestTypeAttribute)CurrentRoute.Action.GetCustomAttributes(false).FirstOrDefault(x => x is RequestTypeAttribute);
+
+      ViewResult vr = new ViewResult(Context, viewEngine, PartitionName, controllerName, actionName, reqAttrib, GetViewTagsDictionary());
 
       if (clearViewTags)
       {
@@ -5459,7 +5440,7 @@ namespace Aurora
         ClearViewTags();
       }
 
-      return new PartialResult(Context, viewEngine, PartitionName, this.GetType().Name, partialName, ViewTags);
+      return new PartialResult(Context, viewEngine, PartitionName, this.GetType().Name, partialName, GetViewTagsDictionary());
     }
     #endregion
   }
@@ -5914,7 +5895,7 @@ namespace Aurora
       }
 
       if (filePath.EndsWith(".css", StringComparison.Ordinal) ||
-          filePath.EndsWith(".js", StringComparison.Ordinal) && !AuroraConfig.InDebugMode)
+          filePath.EndsWith(".js", StringComparison.Ordinal) /*&& !AuroraConfig.InDebugMode*/)
       {
         BundleManager bm = new BundleManager(context);
 
@@ -5933,17 +5914,18 @@ namespace Aurora
         {
           bool css = filePath.EndsWith(".css", StringComparison.Ordinal);
 
-          if (!AuroraConfig.InDebugMode)
+          string result = string.Empty;
+
+          if (css)
           {
-            using (Minify mini = new Minify(File.ReadAllText(filePath), css, true))
-            {
-              context.ResponseWrite(mini.Result);
-            }
+            result = new CssCompressor().Compress(File.ReadAllText(filePath));
           }
           else
           {
-            context.ResponseWrite(File.ReadAllText(filePath));
+            result = new JavaScriptCompressor().Compress(File.ReadAllText(filePath));
           }
+
+          context.ResponseWrite(result);
         }
       }
       else
@@ -6095,7 +6077,9 @@ namespace Aurora
     {
       ResponseHeader.SetContentType(context, "text/html");
 
-      context.ResponseWrite(viewEngine.LoadView(partitionName, controllerName, fragmentName, ViewTemplateType.Shared, tags));
+      string result = viewEngine.LoadView(partitionName, controllerName, fragmentName, ViewTemplateType.Shared, tags);
+
+      context.ResponseWrite(result);
     }
   }
 
@@ -8373,7 +8357,7 @@ namespace Aurora
 
   #endregion
 
-  #region BUNDLING AND MINIFYING
+  #region BUNDLING
 
   #region BUNDLE MANAGER
   /// <summary>
@@ -8516,10 +8500,18 @@ namespace Aurora
       {
         bool css = bundleName.EndsWith(".css", StringComparison.Ordinal);
 
-        using (Minify mini = new Minify(bundleResult.ToString(), css, false))
+        string result = string.Empty;
+
+        if (css)
         {
-          bundles[bundleName] = mini.Result;
+          result = new CssCompressor().Compress(bundleResult.ToString());
         }
+        else
+        {
+          result = new JavaScriptCompressor().Compress(bundleResult.ToString());
+        }
+
+        bundles[bundleName] = result;
       }
     }
 
@@ -8530,369 +8522,6 @@ namespace Aurora
       if (files != null)
       {
         ProcessFiles(files, bundleName);
-      }
-    }
-  }
-  #endregion
-
-  #region JAVASCRIPT / CSS MINIFY
-  // Minify is based on my quick port of jsmin.c to C#. I made a few changes so 
-  // that it would work with CSS files as well.
-  //
-  // The original jsmin.c was written by Douglas Crockford, original license 
-  // and information below.
-  //
-  // Find the C source code for jsmin.c here:
-  //  https://github.com/douglascrockford/JSMin/blob/master/jsmin.c
-  //
-  // jsmin.c
-  //   2011-09-30
-  //
-  // Copyright (c) 2002 Douglas Crockford  (www.crockford.com)
-  //
-  // Permission is hereby granted, free of charge, to any person obtaining a copy of
-  // this software and associated documentation files (the "Software"), to deal in
-  // the Software without restriction, including without limitation the rights to
-  // use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-  // of the Software, and to permit persons to whom the Software is furnished to do
-  // so, subject to the following conditions:
-  //
-  // The above copyright notice and this permission notice shall be included in all
-  // copies or substantial portions of the Software.
-  //
-  // The Software shall be used for Good, not Evil.
-  //
-  // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-  // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-  // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-  // AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-  // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-  // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-  // SOFTWARE.
-  public class Minify : IDisposable
-  {
-    private const int EOF = -1;
-
-    private bool pack;
-    private bool css;
-
-    private int theA;
-    private int theB;
-    private int theLookahead = EOF;
-
-    private StringReader reader;
-    private StringBuilder result { get; set; }
-
-    public string Result
-    {
-      get
-      {
-        if (pack)
-        {
-          return Regex.Replace(result.ToString().Trim(), "(\n|\r)+", " ");
-        }
-
-        return result.ToString().Trim();
-      }
-    }
-
-    public Minify(string text, bool css, bool pack)
-    {
-      result = new StringBuilder();
-
-      this.css = css;
-      this.pack = pack;
-
-      reader = new StringReader(text);
-
-      Go();
-    }
-
-    public void Dispose()
-    {
-      Dispose(true);
-
-      GC.SuppressFinalize(this);
-    }
-
-    protected virtual void Dispose(bool disposing)
-    {
-      if (disposing)
-      {
-        if (reader != null)
-        {
-          reader.Dispose();
-          reader = null;
-        }
-      }
-    }
-
-    private bool IsAlphanum(char c)
-    {
-      int charCode = (int)c;
-
-      if (css)
-      {
-        if (charCode == '.' || charCode == ')')
-        {
-          return true;
-        }
-      }
-
-      return (charCode >= 'a' && charCode <= 'z' ||
-              charCode >= '0' && charCode <= '9' ||
-              charCode >= 'A' && charCode <= 'Z' ||
-              charCode == '_' ||
-              charCode == '$' ||
-              charCode == '\\' ||
-              charCode == '#' ||
-              charCode > 126);
-    }
-
-    private int Get()
-    {
-      int c = theLookahead;
-      theLookahead = EOF;
-      if (c == EOF)
-      {
-        c = reader.Read();
-      }
-      if (c >= ' ' || c == '\n' || c == EOF)
-      {
-        return c;
-      }
-      if (c == '\r')
-      {
-        return '\n';
-      }
-      return ' ';
-    }
-
-    private int Peek()
-    {
-      theLookahead = Get();
-      return theLookahead;
-    }
-
-    private int Next()
-    {
-      int c = Get();
-      if (c == '/')
-      {
-        switch (Peek())
-        {
-          case '/':
-            for (; ; )
-            {
-              c = Get();
-              if (c <= '\n')
-              {
-                return c;
-              }
-            }
-          case '*':
-            Get();
-            for (; ; )
-            {
-              switch (Get())
-              {
-                case '*':
-                  if (Peek() == '/')
-                  {
-                    Get();
-                    return ' ';
-                  }
-                  break;
-                case EOF:
-                  throw new Exception("Error: Minify Unterminated comment.");
-              }
-            }
-          default:
-            return c;
-        }
-      }
-      return c;
-    }
-
-    private void Action(int d)
-    {
-      switch (d)
-      {
-        case 1:
-          result.Append((char)theA);
-          goto case 2;
-        case 2:
-          theA = theB;
-          if (theA == '\'' || theA == '"' || theA == '`')
-          {
-            for (; ; )
-            {
-              result.Append((char)theA);
-              theA = Get();
-              if (theA == theB)
-              {
-                break;
-              }
-              if (theA == '\\')
-              {
-                result.Append((char)theA);
-                theA = Get();
-              }
-              if (theA == EOF)
-              {
-                throw new Exception("Error: Minify unterminated string literal.");
-              }
-            }
-          }
-          goto case 3;
-        case 3:
-          theB = Next();
-          if (theB == '/' && (theA == '(' || theA == ',' || theA == '=' ||
-                              theA == ':' || theA == '[' || theA == '!' ||
-                              theA == '&' || theA == '|' || theA == '?' ||
-                              theA == '{' || theA == '}' || theA == ';' ||
-                              theA == '\n'))
-          {
-            result.Append((char)theA);
-            result.Append((char)theB);
-            for (; ; )
-            {
-              theA = Get();
-              if (theA == '[')
-              {
-                for (; ; )
-                {
-                  result.Append((char)theA);
-                  theA = Get();
-                  if (theA == ']')
-                  {
-                    break;
-                  }
-                  if (theA == '\\')
-                  {
-                    result.Append((char)theA);
-                    theA = Get();
-                  }
-                  if (theA == EOF)
-                  {
-                    throw new Exception("Error: Minify unterminated set in Regular Expression literal.");
-                  }
-                }
-              }
-              else if (theA == '/')
-              {
-                break;
-              }
-              else if (theA == '\\')
-              {
-                result.Append((char)theA);
-                theA = Get();
-              }
-              if (theA == EOF)
-              {
-                throw new Exception("Error: Minify unterminated Regular Expression literal.");
-              }
-              result.Append((char)theA);
-            }
-            theB = Next();
-          }
-          break;
-      }
-    }
-
-    private void Go()
-    {
-      if (Peek() == 0xEF)
-      {
-        Get();
-        Get();
-        Get();
-      }
-      theA = '\n';
-      Action(3);
-      while (theA != EOF)
-      {
-        switch (theA)
-        {
-          case ' ':
-            if (IsAlphanum((char)theB))
-            {
-              Action(1);
-            }
-            else
-            {
-              Action(2);
-            }
-            break;
-          case '\n':
-            switch (theB)
-            {
-              case '{':
-              case '[':
-              case '(':
-              case '+':
-              case '-':
-              case '!':
-              case '~':
-                Action(1);
-                break;
-              case ' ':
-                Action(3);
-                break;
-              default:
-                if (IsAlphanum((char)theB))
-                {
-                  Action(1);
-                }
-                else
-                {
-                  Action(2);
-                }
-                break;
-            }
-            break;
-          default:
-            switch (theB)
-            {
-              case ' ':
-                if (IsAlphanum((char)theA))
-                {
-                  Action(1);
-                  break;
-                }
-                Action(3);
-                break;
-              case '\n':
-                switch (theA)
-                {
-                  case '}':
-                  case ']':
-                  case ')':
-                  case '+':
-                  case '-':
-                  case '"':
-                  case '\'':
-                  case '`':
-                    Action(1);
-                    break;
-                  default:
-                    if (IsAlphanum((char)theA))
-                    {
-                      Action(1);
-                    }
-                    else
-                    {
-                      Action(3);
-                    }
-                    break;
-                }
-                break;
-              default:
-                Action(1);
-                break;
-            }
-            break;
-        }
       }
     }
   }

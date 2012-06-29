@@ -43,6 +43,9 @@
     <Reference Include="Newtonsoft.Json">
       <HintPath>lib\40\Newtonsoft.Json.dll</HintPath>
     </Reference>
+	<Reference Include="Yahoo.Yui.Compressor">
+      <HintPath>lib\40\Yahoo.Yui.Compressor.dll</HintPath>
+    </Reference>
     <Reference Include="System.Core" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="System.Data.Linq" />
