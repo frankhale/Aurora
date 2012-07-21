@@ -1,4 +1,13 @@
-﻿//
+﻿// AspNetAdapter - A thin generic wrapper that exposes some ASP.NET stuff in a
+//                 a nice simple way.
+//
+// Updated On: 21 July 2012
+//
+// Contact Info:
+//
+//  Frank Hale - <frankhale@gmail.com> 
+//               <http://about.me/frank.hale>
+//
 // An attempt to abstract away some of the common bits of the ASP.NET 
 // HttpContext. This will be used in the Aurora MVC web framework to remove the 
 // dependency on HttpContext so that a proper TDD pattern can be employed.
@@ -40,11 +49,6 @@
 // dictionary with response values. All of the dictionary keys can be found in
 // the HttpAdapterConstants class.
 //
-//
-// Frank Hale <frankhale@gmail.com>
-//
-// 20 July 2012
-//
 
 #region LICENSE - GPL version 3 <http://www.gnu.org/licenses/gpl-3.0.html>
 //
@@ -67,6 +71,7 @@
 //
 #endregion
 
+#region USING STATEMENTS
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
@@ -81,6 +86,7 @@ using System.Web.Caching;
 using System.Web.SessionState;
 using Microsoft.Web.Infrastructure.DynamicValidationHelper;
 using System.Diagnostics;
+#endregion
 
 #if LIBRARY
 #region ASSEMBLY INFORMATION
