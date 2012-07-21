@@ -1,7 +1,7 @@
 ﻿//
 // Aurora.Extra - Additional bits that may be useful in your applications      
 //
-// Updated On: 19 July 2012
+// Updated On: 21 July 2012
 //
 // Contact Info:
 //
@@ -49,9 +49,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Configuration;
-using System.Data;
-using System.Data.Common;
-using System.Dynamic;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
@@ -60,11 +57,17 @@ using System.IO;
 using System.Text.RegularExpressions;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using System.DirectoryServices;
 using System.Runtime.InteropServices;
 #endregion
 
+#if MASSIVE
+using System.Data;
+using System.Data.Common;
+using System.Dynamic;
+#endif
+
 #if ACTIVEDIRECTORY
+using System.DirectoryServices;
 using System.DirectoryServices.ActiveDirectory;
 #endif
 
@@ -1501,9 +1504,7 @@ namespace Aurora.Extra
 			public static void AddParams(this DbCommand cmd, params object[] args)
 			{
 				foreach (var item in args)
-				{
 					AddParam(cmd, item);
-				}
 			}
 
 			/// <summary>
@@ -1515,9 +1516,7 @@ namespace Aurora.Extra
 				p.ParameterName = string.Format("@{0}", cmd.Parameters.Count);
 
 				if (item == null)
-				{
 					p.Value = DBNull.Value;
-				}
 				else
 				{
 					if (item.GetType() == typeof(Guid))
@@ -1532,14 +1531,10 @@ namespace Aurora.Extra
 						p.Value = d.Values.FirstOrDefault();
 					}
 					else
-					{
 						p.Value = item;
-					}
 
 					if (item.GetType() == typeof(string))
-					{
 						p.Size = ((string)item).Length > 4000 ? -1 : 4000;
-					}
 				}
 
 				cmd.Parameters.Add(p);
@@ -1553,9 +1548,7 @@ namespace Aurora.Extra
 				var result = new List<dynamic>();
 
 				while (rdr.Read())
-				{
 					result.Add(rdr.RecordToExpando());
-				}
 
 				return result;
 			}
@@ -1566,9 +1559,7 @@ namespace Aurora.Extra
 				var d = e as IDictionary<string, object>;
 
 				for (int i = 0; i < rdr.FieldCount; i++)
-				{
 					d.Add(rdr.GetName(i), DBNull.Value.Equals(rdr[i]) ? null : rdr[i]);
-				}
 
 				return e;
 			}
@@ -1582,9 +1573,7 @@ namespace Aurora.Extra
 				var d = result as IDictionary<string, object>; //work with the Expando as a Dictionary
 
 				if (o.GetType() == typeof(ExpandoObject))
-				{
 					return o; //shouldn't have to... but just in case
-				}
 
 				if (o.GetType() == typeof(NameValueCollection) || o.GetType().IsSubclassOf(typeof(NameValueCollection)))
 				{
@@ -1596,9 +1585,7 @@ namespace Aurora.Extra
 					var props = o.GetType().GetProperties();
 
 					foreach (var item in props)
-					{
 						d.Add(item.Name, item.GetValue(o, null));
-					}
 				}
 
 				return result;
@@ -1623,9 +1610,7 @@ namespace Aurora.Extra
 				get
 				{
 					if (ConfigurationManager.ConnectionStrings.Count > 1)
-					{
 						return new DynamicModel(ConfigurationManager.ConnectionStrings[1].Name);
-					}
 
 					throw new InvalidOperationException("Need a connection string name - can't determine what it is");
 				}
@@ -1658,24 +1643,18 @@ namespace Aurora.Extra
 				if (!string.IsNullOrEmpty(connectionStringName))
 				{
 					if (ConfigurationManager.ConnectionStrings[connectionStringName] == null)
-					{
 						throw new ArgumentException(string.Format("Invalid connection string name: {0}", connectionStringName), "connectionStringName");
-					}
 				}
 				else
 				{
 					if (!(ConfigurationManager.ConnectionStrings.Count > 1))
-					{
 						throw new InvalidOperationException("Need a connection string name - can't determine what it is");
-					}
 
 					connectionStringName = ConfigurationManager.ConnectionStrings[1].Name;
 				}
 
 				if (ConfigurationManager.ConnectionStrings[connectionStringName].ProviderName != null)
-				{
 					_providerName = ConfigurationManager.ConnectionStrings[connectionStringName].ProviderName;
-				}
 
 				_factory = DbProviderFactories.GetFactory(_providerName);
 				ConnectionString = ConfigurationManager.ConnectionStrings[connectionStringName].ConnectionString;
@@ -1715,21 +1694,13 @@ namespace Aurora.Extra
 				string def = column.COLUMN_DEFAULT;
 
 				if (String.IsNullOrEmpty(def))
-				{
 					result = null;
-				}
 				else if (def == "getdate()" || def == "(getdate())")
-				{
 					result = DateTime.Now.ToShortDateString();
-				}
 				else if (def == "newid()")
-				{
 					result = Guid.NewGuid().ToString();
-				}
 				else
-				{
 					result = def.Replace("(", "").Replace(")", "");
-				}
 
 				return result;
 			}
@@ -1767,9 +1738,7 @@ namespace Aurora.Extra
 				get
 				{
 					if (_schema == null)
-					{
 						_schema = Query("SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = @0", TableName);
-					}
 
 					return _schema;
 				}
@@ -1785,9 +1754,7 @@ namespace Aurora.Extra
 					var rdr = CreateCommand(sql, conn, args).ExecuteReader();
 
 					while (rdr.Read())
-					{
 						yield return rdr.RecordToExpando();
-					}
 				}
 			}
 
@@ -1796,9 +1763,7 @@ namespace Aurora.Extra
 				using (var rdr = CreateCommand(sql, connection, args).ExecuteReader())
 				{
 					while (rdr.Read())
-					{
 						yield return rdr.RecordToExpando();
-					}
 				}
 			}
 
@@ -1810,9 +1775,7 @@ namespace Aurora.Extra
 				object result = null;
 
 				using (var conn = OpenConnection())
-				{
 					result = CreateCommand(sql, conn, args).ExecuteScalar();
-				}
 
 				return result;
 			}
@@ -1827,9 +1790,7 @@ namespace Aurora.Extra
 				result.CommandText = sql;
 
 				if (args.Length > 0)
-				{
 					result.AddParams(args);
-				}
 
 				return result;
 			}
@@ -1858,13 +1819,9 @@ namespace Aurora.Extra
 				foreach (var item in things)
 				{
 					if (HasPrimaryKey(item))
-					{
 						commands.Add(CreateUpdateCommand(item, GetPrimaryKey(item)));
-					}
 					else
-					{
 						commands.Add(CreateInsertCommand(item));
-					}
 				}
 
 				return commands;
@@ -1946,14 +1903,10 @@ namespace Aurora.Extra
 				string sql = limit > 0 ? "SELECT TOP " + limit + " {0} FROM {1} " : "SELECT {0} FROM {1} ";
 
 				if (!string.IsNullOrEmpty(where))
-				{
 					sql += where.Trim().StartsWith("where", StringComparison.OrdinalIgnoreCase) ? where : " WHERE " + where;
-				}
 
 				if (!String.IsNullOrEmpty(orderBy))
-				{
 					sql += orderBy.Trim().StartsWith("order by", StringComparison.OrdinalIgnoreCase) ? orderBy : " ORDER BY " + orderBy;
-				}
 
 				return sql;
 			}
@@ -1977,36 +1930,22 @@ namespace Aurora.Extra
 				var countSQL = "";
 
 				if (!string.IsNullOrEmpty(sql))
-				{
 					countSQL = string.Format("SELECT COUNT({0}) FROM ({1}) AS PagedTable", primaryKeyField, sql);
-				}
 				else
-				{
 					countSQL = string.Format("SELECT COUNT({0}) FROM {1}", PrimaryKeyField, TableName);
-				}
 
 				if (String.IsNullOrEmpty(orderBy))
-				{
 					orderBy = string.IsNullOrEmpty(primaryKeyField) ? PrimaryKeyField : primaryKeyField;
-				}
 
 				if (!string.IsNullOrEmpty(where))
-				{
 					if (!where.Trim().StartsWith("where", StringComparison.CurrentCultureIgnoreCase))
-					{
 						where = " WHERE " + where;
-					}
-				}
 
 				var query = "";
 				if (!string.IsNullOrEmpty(sql))
-				{
 					query = string.Format("SELECT {0} FROM (SELECT ROW_NUMBER() OVER (ORDER BY {2}) AS Row, {0} FROM ({3}) AS PagedTable {4}) AS Paged ", columns, pageSize, orderBy, sql, where);
-				}
 				else
-				{
 					query = string.Format("SELECT {0} FROM (SELECT ROW_NUMBER() OVER (ORDER BY {2}) AS Row, {0} FROM {3} {4}) AS Paged ", columns, pageSize, orderBy, TableName, where);
-				}
 
 				var pageStart = (currentPage - 1) * pageSize;
 				query += string.Format(" WHERE Row > {0} AND Row <={1}", pageStart, (pageStart + pageSize));
@@ -2015,9 +1954,7 @@ namespace Aurora.Extra
 				result.TotalPages = result.TotalRecords / pageSize;
 
 				if (result.TotalRecords % pageSize > 0)
-				{
 					result.TotalPages += 1;
-				}
 
 				result.Items = Query(string.Format(query, columns, TableName), args);
 
@@ -2050,16 +1987,12 @@ namespace Aurora.Extra
 			public virtual IDictionary<string, object> KeyValues(string orderBy = "")
 			{
 				if (String.IsNullOrEmpty(DescriptorField))
-				{
 					throw new InvalidOperationException("There's no DescriptorField set - do this in your constructor to describe the text value you want to see");
-				}
 
 				var sql = string.Format("SELECT {0},{1} FROM {2} ", PrimaryKeyField, DescriptorField, TableName);
 
 				if (!String.IsNullOrEmpty(orderBy))
-				{
 					sql += "ORDER BY " + orderBy;
-				}
 
 				var results = Query(sql).ToList().Cast<IDictionary<string, object>>();
 
@@ -2090,12 +2023,8 @@ namespace Aurora.Extra
 			public virtual int Save(params object[] things)
 			{
 				foreach (var item in things)
-				{
 					if (!IsValid(item))
-					{
 						throw new InvalidOperationException("Can't save this item: " + String.Join("; ", Errors.ToArray()));
-					}
-				}
 
 				var commands = BuildCommands(things);
 
@@ -2128,9 +2057,7 @@ namespace Aurora.Extra
 					result.CommandText = sql;
 				}
 				else
-				{
 					throw new InvalidOperationException("Can't parse this object to the database - there are no properties set");
-				}
 
 				return result;
 			}
@@ -2167,9 +2094,7 @@ namespace Aurora.Extra
 					result.CommandText = string.Format(stub, TableName, keys, PrimaryKeyField, counter);
 				}
 				else
-				{
 					throw new InvalidOperationException("No parsable object was sent in - could not divine any name/value pairs");
-				}
 
 				return result;
 			}
@@ -2187,9 +2112,7 @@ namespace Aurora.Extra
 					args = new object[] { key };
 				}
 				else if (!string.IsNullOrEmpty(where))
-				{
 					sql += where.Trim().StartsWith("where", StringComparison.OrdinalIgnoreCase) ? where : "WHERE " + where;
-				}
 
 				return CreateCommand(sql, null, args);
 			}
@@ -2214,9 +2137,7 @@ namespace Aurora.Extra
 				var ex = o.ToExpando();
 
 				if (!IsValid(ex))
-				{
 					throw new InvalidOperationException("Can't insert: " + String.Join("; ", Errors.ToArray()));
-				}
 
 				if (BeforeSave(ex))
 				{
@@ -2245,9 +2166,7 @@ namespace Aurora.Extra
 				var ex = o.ToExpando();
 
 				if (!IsValid(ex))
-				{
 					throw new InvalidOperationException("Can't Update: " + String.Join("; ", Errors.ToArray()));
-				}
 
 				var result = 0;
 
@@ -2298,14 +2217,10 @@ namespace Aurora.Extra
 			public virtual void ValidatesPresenceOf(object value, string message = "Required")
 			{
 				if (value == null)
-				{
 					Errors.Add(message);
-				}
 
 				if (String.IsNullOrEmpty(value.ToString()))
-				{
 					Errors.Add(message);
-				}
 			}
 
 			//fun methods
@@ -2315,25 +2230,19 @@ namespace Aurora.Extra
 				var numerics = new string[] { "Int32", "Int16", "Int64", "Decimal", "Double", "Single", "Float" };
 
 				if (!numerics.Contains(type))
-				{
 					Errors.Add(message);
-				}
 			}
 
 			public virtual void ValidateIsCurrency(object value, string message = "Should be money")
 			{
 				if (value == null)
-				{
 					Errors.Add(message);
-				}
 
 				decimal val = decimal.MinValue;
 				decimal.TryParse(value.ToString(), out val);
 
 				if (val == decimal.MinValue)
-				{
 					Errors.Add(message);
-				}
 			}
 
 			public int Count()
@@ -2358,9 +2267,7 @@ namespace Aurora.Extra
 
 				// accepting named args only... SKEET!
 				if (info.ArgumentNames.Count != args.Length)
-				{
 					throw new InvalidOperationException("Please use named arguments for this type of query - the column name, orderby, columns, etc");
-				}
 
 				//first should be "FindBy, Last, Single, First"
 				var op = binder.Name;
@@ -2395,31 +2302,19 @@ namespace Aurora.Extra
 
 				//Build the WHERE bits
 				if (constraints.Count > 0)
-				{
 					where = " WHERE " + string.Join(" AND ", constraints.ToArray());
-				}
 
 				//probably a bit much here but... yeah this whole thing needs to be refactored...
 				if (op.ToLower() == "count")
-				{
 					result = Scalar("SELECT COUNT(*) FROM " + TableName + where, whereArgs.ToArray());
-				}
 				else if (op.ToLower() == "sum")
-				{
 					result = Scalar("SELECT SUM(" + columns + ") FROM " + TableName + where, whereArgs.ToArray());
-				}
 				else if (op.ToLower() == "max")
-				{
 					result = Scalar("SELECT MAX(" + columns + ") FROM " + TableName + where, whereArgs.ToArray());
-				}
 				else if (op.ToLower() == "min")
-				{
 					result = Scalar("SELECT MIN(" + columns + ") FROM " + TableName + where, whereArgs.ToArray());
-				}
 				else if (op.ToLower() == "avg")
-				{
 					result = Scalar("SELECT AVG(" + columns + ") FROM " + TableName + where, whereArgs.ToArray());
-				}
 				else
 				{
 					//build the SQL

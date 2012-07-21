@@ -42,7 +42,7 @@ Changelog:
 
 21 July 2012
 
-- Total code rewrite:
+- Aurora.cs has been totally rewritten from scratch:
 
    AspNetAdapter.cs - Interface to ASP.NET
    Aurora.cs - Core web framework
