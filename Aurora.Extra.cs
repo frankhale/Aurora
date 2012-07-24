@@ -1,7 +1,7 @@
 ﻿//
 // Aurora.Extra - Additional bits that may be useful in your applications      
 //
-// Updated On: 21 July 2012
+// Updated On: 23 July 2012
 //
 // Contact Info:
 //
@@ -10,7 +10,7 @@
 //
 // LICENSE: Unless otherwise stated all code is under the GNU GPLv3
 // 
-// GPL version 3 <http://www.gnu.org/licenses/gpl-3.0.html>
+// GPL version 3 <http://www.gnu.org/licenses/gpl-3.0.html> (see below)
 //
 // NON-GPL code = my fork of Rob Conery's Massive which is under the 
 //                "New BSD License" and my Gravatar fork for which the original 
@@ -58,7 +58,6 @@ using System.Text.RegularExpressions;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Runtime.InteropServices;
-#endregion
 
 #if MASSIVE
 using System.Data;
@@ -76,6 +75,7 @@ using DotNetOpenAuth.OpenId;
 using DotNetOpenAuth.OpenId.Extensions.SimpleRegistration;
 using DotNetOpenAuth.OpenId.RelyingParty;
 #endif
+#endregion
 
 namespace Aurora.Extra
 {

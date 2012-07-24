@@ -1,7 +1,7 @@
 ﻿// AspNetAdapter - A thin generic wrapper that exposes some ASP.NET stuff in a
 //                 a nice simple way.
 //
-// Updated On: 21 July 2012
+// Updated On: 23 July 2012
 //
 // Contact Info:
 //
@@ -49,8 +49,7 @@
 // dictionary with response values. All of the dictionary keys can be found in
 // the HttpAdapterConstants class.
 //
-
-#region LICENSE - GPL version 3 <http://www.gnu.org/licenses/gpl-3.0.html>
+// LICENSE:
 //
 // GNU GPLv3 quick guide: http://www.gnu.org/licenses/quick-guide-gplv3.html
 //
@@ -69,7 +68,6 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
-#endregion
 
 #region USING STATEMENTS
 using System;
@@ -432,9 +430,11 @@ namespace AspNetAdapter
 					response.ContainsKey(HttpAdapterConstants.ResponseContentType) ||
 					response.ContainsKey(HttpAdapterConstants.ResponseBody)))
 				throw new Exception("The response dictionary must include an http status code, content type and content");
-
+			
 			context.Response.ClearHeaders();
 			context.Response.ClearContent();
+			
+			context.Response.AddHeader("X_FRAME_OPTIONS", "SAMEORIGIN");
 
 			context.Response.StatusCode = (int)response[HttpAdapterConstants.ResponseStatus];
 			context.Response.ContentType = response[HttpAdapterConstants.ResponseContentType].ToString();
@@ -444,7 +444,7 @@ namespace AspNetAdapter
 				foreach (KeyValuePair<string, string> kvp in (response[HttpAdapterConstants.ResponseHeaders] as Dictionary<string, string>))
 					context.Response.AddHeader(kvp.Key, kvp.Value);
 			}
-
+						
 			try
 			{
 				if (response[HttpAdapterConstants.ResponseBody] is string)
