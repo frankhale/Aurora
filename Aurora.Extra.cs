@@ -1,7 +1,7 @@
 ﻿//
 // Aurora.Extra - Additional bits that may be useful in your applications      
 //
-// Updated On: 23 July 2012
+// Updated On: 24 July 2012
 //
 // Contact Info:
 //
@@ -96,9 +96,12 @@ namespace Aurora.Extra
 	{
 		internal string Id { get; set; }
 
-		public UniqueIdAttribute() { }
+		public UniqueIdAttribute() 
+		{
+			Id = Guid.NewGuid().ToString().Replace("-", "").Substring(0, 16);
+		}
 
-		private static string GenerateID()
+		private string GenerateID()
 		{
 			return Guid.NewGuid().ToString().Replace("-", "").Substring(0, 16);
 		}
@@ -136,9 +139,7 @@ namespace Aurora.Extra
 			//
 			// http://stackoverflow.com/questions/155303/net-how-can-you-split-a-caps-delimited-string-into-an-array
 			if (Op == DescriptiveNameOperation.SplitCamelCase)
-			{
 				return Regex.Replace(name, @"([a-z](?=[A-Z])|[A-Z](?=[A-Z][a-z]))", "$1 ");
-			}
 
 			return null;
 		}
@@ -223,6 +224,31 @@ namespace Aurora.Extra
 
 			return null;
 		}
+
+		public static string GetUniqueId(this Enum obj)
+		{
+			obj.ThrowIfArgumentNull();
+
+			UniqueIdAttribute uid = (UniqueIdAttribute)obj.GetType().GetField(obj.ToString()).GetCustomAttributes(false).FirstOrDefault(x => x is UniqueIdAttribute);
+
+			if (uid != null)
+				return uid.Id;
+
+			return null;
+		}
+
+		public static string GetDescriptiveName(this Enum obj)
+		{
+			if (obj != null)
+			{
+				DescriptiveNameAttribute dna = (DescriptiveNameAttribute)obj.GetType().GetField(obj.ToString()).GetCustomAttributes(false).FirstOrDefault(x => x is DescriptiveNameAttribute);
+
+				if (dna != null)
+					return dna.Name;
+			}
+
+			return null;
+		}
 	}
 	#endregion
 
@@ -281,6 +307,7 @@ namespace Aurora.Extra
 	#endregion
 
 	#region HTML HELPERS
+
 	public enum HtmlInputType
 	{
 		[Metadata("<input type=\"button\" {0} />")]
@@ -657,82 +684,77 @@ namespace Aurora.Extra
 	#endregion
 
 	#region CHECKBOX AND RADIO BUTTON LIST (NOT FINISHED)
+	public class HtmlCheckBoxList : HtmlBase
+	{
+		public List<HtmlListItem> Items { get; private set; }
 
-	//NOTE: Both lists are the same except the input type name. I don't know if 
-	//      there even needs to be two separate classes for this. Time will tell.
+		public HtmlCheckBoxList()
+		{
+			Items = new List<HtmlListItem>();
+		}
 
-	//public class HtmlCheckBoxList : HtmlBase
-	//{
-	//  public List<HtmlListItem> Items { get; private set; }
+		public void AddItem(HtmlListItem item)
+		{
+			Items.Add(item);
+		}
 
-	//  public HtmlCheckBoxList()
-	//  {
-	//    Items = new List<HtmlListItem>();
-	//  }
+		public string ToString(bool lineBreak)
+		{
+			StringBuilder sb = new StringBuilder();
+			int counter = 0;
 
-	//  public void AddItem(HtmlListItem item)
-	//  {
-	//    Items.Add(item);
-	//  }
+			string br = (lineBreak) ? "<br />" : string.Empty;
 
-	//  public string ToString(bool lineBreak)
-	//  {
-	//    StringBuilder sb = new StringBuilder();
-	//    int counter = 0;
+			foreach (HtmlListItem i in Items)
+			{
+				sb.AppendFormat("<input type=\"checkbox\" name=\"checkboxItem{0}\" value=\"{1}\">{2}</input>{3}", counter, i.Value, i.Text, br);
+				counter++;
+			}
 
-	//    string br = (lineBreak) ? "<br />" : string.Empty;
+			return sb.ToString();
+		}
 
-	//    foreach (HtmlListItem i in Items)
-	//    {
-	//      sb.AppendFormat("<input type=\"checkbox\" name=\"checkboxItem{0}\" value=\"{1}\">{2}</input>{3}", counter, i.Value, i.Text, br);
-	//      counter++;
-	//    }
+		public override string ToString()
+		{
+			return ToString(true);
+		}
+	}
 
-	//    return sb.ToString();
-	//  }
+	public class HtmlRadioButtonList : HtmlBase
+	{
+		public List<HtmlListItem> Items { get; private set; }
 
-	//  public override string ToString()
-	//  {
-	//    return ToString(true);
-	//  }
-	//}
+		public HtmlRadioButtonList()
+		{
+			Items = new List<HtmlListItem>();
+		}
 
-	//public class HtmlRadioButtonList : HtmlBase
-	//{
-	//  public List<HtmlListItem> Items { get; private set; }
+		public void AddItem(HtmlListItem item)
+		{
+			Items.Add(item);
+		}
 
-	//  public HtmlRadioButtonList()
-	//  {
-	//    Items = new List<HtmlListItem>();
-	//  }
+		public string ToString(bool lineBreak)
+		{
+			StringBuilder sb = new StringBuilder();
+			int counter = 0;
 
-	//  public void AddItem(HtmlListItem item)
-	//  {
-	//    Items.Add(item);
-	//  }
+			string br = (lineBreak) ? "<br />" : string.Empty;
 
-	//  public string ToString(bool lineBreak)
-	//  {
-	//    StringBuilder sb = new StringBuilder();
-	//    int counter = 0;
+			foreach (HtmlListItem i in Items)
+			{
+				sb.AppendFormat("<input type=\"radio\" name=\"radioItem{0}\" value=\"{1}\">{2}</input>{3}", counter, i.Value, i.Text, br);
+				counter++;
+			}
 
-	//    string br = (lineBreak) ? "<br />" : string.Empty;
+			return sb.ToString();
+		}
 
-	//    foreach (HtmlListItem i in Items)
-	//    {
-	//      sb.AppendFormat("<input type=\"radio\" name=\"radioItem{0}\" value=\"{1}\">{2}</input>{3}", counter, i.Value, i.Text, br);
-	//      counter++;
-	//    }
-
-	//    return sb.ToString();
-	//  }
-
-	//  public override string ToString()
-	//  {
-	//    return ToString(true);
-	//  }
-	//}
-
+		public override string ToString()
+		{
+			return ToString(true);
+		}
+	}
 	#endregion
 
 	#region MISC HELPERS
@@ -754,182 +776,184 @@ namespace Aurora.Extra
 		}
 	}
 
-	//public class HtmlInput : HtmlBase
-	//{
-	//  private HtmlInputType InputType;
+	public class HtmlInput : HtmlBase
+	{
+		private HtmlInputType InputType;
 
-	//  public HtmlInput(HtmlInputType type, params Func<string, string>[] attribs)
-	//  {
-	//    AttribsFunc = attribs;
-	//    InputType = type;
-	//  }
+		public HtmlInput(HtmlInputType type, params Func<string, string>[] attribs)
+		{
+			AttribsFunc = attribs;
+			InputType = type;
+		}
 
-	//  public override string ToString()
-	//  {
-	//    if (InputType == HtmlInputType.TextArea)
-	//    {
-	//      return string.Format(CultureInfo.CurrentCulture, InputType.GetMetadata(), CondenseAttribs(), string.Empty);
-	//    }
+		public override string ToString()
+		{
+			if (InputType == HtmlInputType.TextArea)
+			{
+				return string.Format(CultureInfo.CurrentCulture, InputType.GetMetadata(), CondenseAttribs(), string.Empty);
+			}
 
-	//    return string.Format(CultureInfo.CurrentCulture, InputType.GetMetadata(), CondenseAttribs());
-	//  }
+			return string.Format(CultureInfo.CurrentCulture, InputType.GetMetadata(), CondenseAttribs());
+		}
 
-	//  public string ToString(string text)
-	//  {
-	//    if (InputType == HtmlInputType.TextArea)
-	//    {
-	//      return string.Format(CultureInfo.CurrentCulture, InputType.GetMetadata(), CondenseAttribs(), text);
-	//    }
+		public string ToString(string text)
+		{
+			if (InputType == HtmlInputType.TextArea)
+			{
+				return string.Format(CultureInfo.CurrentCulture, InputType.GetMetadata(), CondenseAttribs(), text);
+			}
 
-	//    return string.Format(CultureInfo.CurrentCulture, InputType.GetMetadata(), CondenseAttribs());
-	//  }
-	//}
+			return string.Format(CultureInfo.CurrentCulture, InputType.GetMetadata(), CondenseAttribs());
+		}
+	}
 
-	//public class HtmlForm : HtmlBase
-	//{
-	//  private string Action;
-	//  private HtmlFormPostMethod Method;
-	//  private List<string> InputTags;
+	public class HtmlForm : HtmlBase
+	{
+		private string Action;
+		private HtmlFormPostMethod Method;
+		private List<string> InputTags;
 
-	//  public HtmlForm(string action, HtmlFormPostMethod method, List<string> inputTags, params Func<string, string>[] attribs)
-	//  {
-	//    Action = action;
-	//    Method = method;
-	//    AttribsFunc = attribs;
-	//    InputTags = inputTags;
-	//  }
+		public HtmlForm(string action, HtmlFormPostMethod method, List<string> inputTags, params Func<string, string>[] attribs)
+		{
+			Action = action;
+			Method = method;
+			AttribsFunc = attribs;
+			InputTags = inputTags;
+		}
 
-	//  public override string ToString()
-	//  {
-	//    StringBuilder sb = new StringBuilder();
+		public override string ToString()
+		{
+			StringBuilder sb = new StringBuilder();
 
-	//    sb.AppendFormat("<form action=\"{0}\" method=\"{1}\" {2}>", Action, Method, CondenseAttribs());
+			sb.AppendFormat("<form action=\"{0}\" method=\"{1}\" {2}>", Action, Method, CondenseAttribs());
 
-	//    foreach (string i in InputTags)
-	//    {
-	//      sb.Append(i);
-	//    }
+			foreach (string i in InputTags)
+			{
+				sb.Append(i);
+			}
 
-	//    sb.Append("</form>");
+			sb.Append("</form>");
 
-	//    return sb.ToString();
-	//  }
-	//}
+			return sb.ToString();
+		}
+	}
 
-	//public class HtmlSpan : HtmlBase
-	//{
-	//  private string Contents;
+	public class HtmlSpan : HtmlBase
+	{
+		private string Contents;
 
-	//  public HtmlSpan(string contents, params Func<string, string>[] attribs)
-	//  {
-	//    Contents = contents;
-	//    AttribsFunc = attribs;
-	//  }
+		public HtmlSpan(string contents, params Func<string, string>[] attribs)
+		{
+			Contents = contents;
+			AttribsFunc = attribs;
+		}
 
-	//  public override string ToString()
-	//  {
-	//    StringBuilder sb = new StringBuilder();
+		public override string ToString()
+		{
+			StringBuilder sb = new StringBuilder();
 
-	//    sb.AppendFormat("<span {0}>{1}</span>", CondenseAttribs(), Contents);
+			sb.AppendFormat("<span {0}>{1}</span>", CondenseAttribs(), Contents);
 
-	//    return sb.ToString();
-	//  }
-	//}
+			return sb.ToString();
+		}
+	}
 
-	//public class HtmlSelect : HtmlBase
-	//{
-	//  private List<string> Options;
-	//  private string SelectedDefault;
-	//  private bool EmptyOption;
-	//  private string Enabled;
+	public class HtmlSelect : HtmlBase
+	{
+		private List<string> Options;
+		private string SelectedDefault;
+		private bool EmptyOption;
+		private string Enabled;
 
-	//  public HtmlSelect(List<string> options, string selectedDefault, bool emptyOption, bool enabled, params Func<string, string>[] attribs)
-	//  {
-	//    Options = options;
-	//    AttribsFunc = attribs;
-	//    SelectedDefault = selectedDefault ?? string.Empty;
-	//    EmptyOption = emptyOption;
-	//    Enabled = (enabled) ? "disabled=\"disabled\"" : string.Empty;
-	//  }
+		public HtmlSelect(List<string> options, string selectedDefault, bool emptyOption, bool enabled, params Func<string, string>[] attribs)
+		{
+			Options = options;
+			AttribsFunc = attribs;
+			SelectedDefault = selectedDefault ?? string.Empty;
+			EmptyOption = emptyOption;
+			Enabled = (enabled) ? "disabled=\"disabled\"" : string.Empty;
+		}
 
-	//  public override string ToString()
-	//  {
-	//    StringBuilder sb = new StringBuilder();
+		public override string ToString()
+		{
+			StringBuilder sb = new StringBuilder();
 
-	//    sb.AppendFormat("<select {0} {1}>", CondenseAttribs(), Enabled);
+			sb.AppendFormat("<select {0} {1}>", CondenseAttribs(), Enabled);
 
-	//    if (EmptyOption)
-	//    {
-	//      sb.Append("<option selected=\"selected\"></option>");
-	//    }
+			if (EmptyOption)
+			{
+				sb.Append("<option selected=\"selected\"></option>");
+			}
 
-	//    int count = 0;
+			int count = 0;
 
-	//    foreach (string o in Options)
-	//    {
-	//      string selected = string.Empty;
+			foreach (string o in Options)
+			{
+				string selected = string.Empty;
 
-	//      if (!string.IsNullOrEmpty(SelectedDefault) && o == SelectedDefault)
-	//      {
-	//        selected = "selected=\"selected\"";
-	//      }
+				if (!string.IsNullOrEmpty(SelectedDefault) && o == SelectedDefault)
+				{
+					selected = "selected=\"selected\"";
+				}
 
-	//      sb.AppendFormat("<option name=\"opt{0}\" {1}>{2}</option>", count, selected, o);
-	//      count++;
-	//    }
+				sb.AppendFormat("<option name=\"opt{0}\" {1}>{2}</option>", count, selected, o);
+				count++;
+			}
 
-	//    sb.Append("</select>");
+			sb.Append("</select>");
 
-	//    return sb.ToString();
-	//  }
-	//}
+			return sb.ToString();
+		}
+	}
 
-	//public class HtmlCheckBox : HtmlBase
-	//{
-	//  private string ID;
-	//  private string Name;
-	//  private string CssClass;
-	//  private string Check;
-	//  private string Enabled;
+	public class HtmlCheckBox : HtmlBase
+	{
+		private string ID;
+		private string Name;
+		private string CssClass;
+		private string Check;
+		private string Enabled;
 
-	//  public HtmlCheckBox(string id, string name, string cssClass, bool enabled, bool check)
-	//  {
-	//    ID = id;
-	//    Name = name;
-	//    CssClass = cssClass;
-	//    Check = (check) ? "checked=\"checked\"" : string.Empty;
-	//    Enabled = (enabled) ? "disabled=\"disabled\"" : string.Empty;
-	//  }
+		public HtmlCheckBox(string id, string name, string cssClass, bool enabled, bool check)
+		{
+			ID = id;
+			Name = name;
+			CssClass = cssClass;
+			Check = (check) ? "checked=\"checked\"" : string.Empty;
+			Enabled = (enabled) ? "disabled=\"disabled\"" : string.Empty;
+		}
 
-	//  public override string ToString()
-	//  {
-	//    return string.Format(CultureInfo.CurrentCulture, "<input type=\"checkbox\" id=\"{0}\" name=\"{1}\" class=\"{2}\" {3} {4} />", ID, Name, CssClass, Check, Enabled);
-	//  }
-	//}
+		public override string ToString()
+		{
+			return string.Format(CultureInfo.CurrentCulture, "<input type=\"checkbox\" id=\"{0}\" name=\"{1}\" class=\"{2}\" {3} {4} />", ID, Name, CssClass, Check, Enabled);
+		}
+	}
 
-	//public class HtmlListItem
-	//{
-	//  public string Text { get; set; }
-	//  public string Value { get; set; }
-	//}
-	//public class HtmlImage : HtmlBase
-	//{
-	//  public string Src { get; set; }
+	public class HtmlListItem
+	{
+		public string Text { get; set; }
+		public string Value { get; set; }
+	}
 
-	//  public HtmlImage(string src) : this(src, null) { }
+	public class HtmlImage : HtmlBase
+	{
+		public string Src { get; set; }
 
-	//  public HtmlImage(string src, params Func<string, string>[] attribs)
-	//  {
-	//    Src = src;
-	//    AttribsFunc = attribs;
-	//  }
+		public HtmlImage(string src) : this(src, null) { }
 
-	//  public override string ToString()
-	//  {
-	//    return string.Format(CultureInfo.CurrentCulture, "<img src=\"{0}\" {1}/>", Src, CondenseAttribs());
-	//  }
-	//}
+		public HtmlImage(string src, params Func<string, string>[] attribs)
+		{
+			Src = src;
+			AttribsFunc = attribs;
+		}
+
+		public override string ToString()
+		{
+			return string.Format(CultureInfo.CurrentCulture, "<img src=\"{0}\" {1}/>", Src, CondenseAttribs());
+		}
+	}
 	#endregion
+
 	#endregion
 
 	#region PLUGIN MANAGEMENT
@@ -1080,387 +1104,6 @@ namespace Aurora.Extra
 		{
 		}
 	}
-	#endregion
-
-	#region GRAVATAR (FORKED : NON-GPL)
-#if GRAVATAR
-	// https://github.com/runeborg
-	//
-	// "Gravatar wrapper for ASP.NET MVC. Feel free to use it any way you want."
-	//    
-	namespace Gravatar
-	{
-		/// <summary>
-		/// Specifies what displays if the email has no matching Gravatar image.
-		/// </summary>
-		public enum DefaultGravatar
-		{
-			/// <summary>
-			/// Use the default image (Gravatar logo)
-			/// </summary>
-			GravatarLogo,
-			/// <summary>
-			/// Do not load any image if none is associated with the email, instead return an HTTP 404 (File Not Found) response.
-			/// </summary>
-			None,
-			/// <summary>
-			/// A simple, cartoon-style silhouetted outline of a person (does not vary by email).
-			/// </summary>
-			MysteryMan,
-			/// <summary>
-			/// A geometric pattern based on an email.
-			/// </summary>
-			IdentIcon,
-			/// <summary>
-			/// A generated 'monster' with different colors, faces, etc.
-			/// </summary>
-			MonsterId,
-			/// <summary>
-			/// Generated faces with differing features and backgrounds.
-			/// </summary>
-			Wavatar,
-			/// <summary>
-			/// Generated, 8-bit arcade-style pixelated faces.
-			/// </summary>
-			Retro
-		}
-
-		/// <summary>
-		/// If the requested email hash does not have an image meeting the requested rating level, then the default image is returned (or the specified default).
-		/// </summary>
-		public enum GravatarRating
-		{
-			/// <summary>
-			///  Default rating (G)
-			/// </summary>
-			Default,
-			/// <summary>
-			/// Suitable for display on all websites with any audience type.
-			/// </summary>
-			G,
-			/// <summary>
-			/// May contain rude gestures, provocatively dressed individuals, the lesser swear words, or mild violence.
-			/// </summary>
-			PG,
-			/// <summary>
-			/// May contain such things as harsh profanity, intense violence, nudity, or hard drug use.
-			/// </summary>
-			R,
-			/// <summary>
-			/// May contain hardcore sexual imagery or extremely disturbing violence.
-			/// </summary>
-			X
-		}
-
-		/// <summary>
-		/// Generates a Gravatar url
-		/// </summary>
-		public class GravatarGenerator
-		{
-			/// <summary>
-			/// Email to generate a Gravatar image for
-			/// </summary>
-			private string _Email { get; set; }
-			/// <summary>
-			/// The size of the image in pixels. Defaults to 80px
-			/// </summary>
-			private int _Size { get; set; }
-			/// <summary>
-			/// A default image to fall back to.
-			/// </summary>
-			private string _DefaultImage { get; set; }
-			/// <summary>
-			/// Wether to append a file ending to the url (.jpg).
-			/// </summary>
-			private bool _AppendFileType { get; set; }
-			/// <summary>
-			/// Force the default image to display.
-			/// </summary>
-			private bool _ForceDefaultImage { get; set; }
-			/// <summary>
-			/// Image rating to display for. See <see cref="Gravatar.GravatarRating"/> for details.
-			/// </summary>
-			private GravatarRating _DisplayRating { get; set; }
-			/// <summary>
-			/// How to generate a default image if no gravatar exists for the email. See <see cref="Gravatar.DefaultGravatar"/> for details.
-			/// </summary>
-			private DefaultGravatar _DefaultDisplay { get; set; }
-			/// <summary>
-			/// If https should be used.
-			/// </summary>
-			private bool _UseHttps { get; set; }
-
-			/// <summary>
-			/// Creates a GravatarGenerator.
-			/// </summary>
-			/// <param name="email">Email to generate Gravatar for.</param>
-			/// <param name="useHttps">Wether to use https or not.</param>
-			public GravatarGenerator(string email, bool useHttps)
-			{
-				_Email = email;
-				_UseHttps = useHttps;
-			}
-
-			/// <summary>
-			/// Gets the Url for the Gravatar
-			/// </summary>
-			public string Url
-			{
-				get
-				{
-					string prefix = this._UseHttps ? "https://" : "http://";
-					string url = prefix + "gravatar.com/avatar/" + Encode(Encoding.UTF8);
-
-					if (this._AppendFileType)
-						url += ".jpg";
-
-					url += BuildUrlParams();
-
-					return url;
-				}
-			}
-
-			/// <summary>
-			/// Sets the size of the Gravatar.
-			/// </summary>
-			/// <param name="size">Size in pixels between 1 and 512.</param>
-			public GravatarGenerator Size(int size)
-			{
-				if (size < 0 || size > 512)
-					throw new ArgumentOutOfRangeException("size", "Image size must be between 1 and 512");
-
-				this._Size = size;
-				return this;
-			}
-
-			/// <summary>
-			/// A default image to fall back to.
-			/// </summary>
-			/// <param name="defaultImage">A url to use as a default image.</param>
-			public GravatarGenerator DefaultImage(string defaultImage)
-			{
-				this._DefaultImage = defaultImage;
-				return this;
-			}
-
-			/// <summary>
-			/// How to generate a default image if no gravatar exists for the email. See <see cref="Gravatar.DefaultGravatar"/> for details.
-			/// </summary>
-			/// <param name="defaultImage">What type of default image to generate.</param>
-			public GravatarGenerator DefaultImage(DefaultGravatar defaultImage)
-			{
-				this._DefaultDisplay = defaultImage;
-				return this;
-			}
-
-			/// <summary>
-			/// Image rating to display for. See <see cref="Gravatar.GravatarRating"/> for details.
-			/// </summary>
-			/// <param name="defaultImage">The rating to filter Gravatars for.</param>
-			public GravatarGenerator Rating(GravatarRating rating)
-			{
-				this._DisplayRating = rating;
-				return this;
-			}
-
-			/// <summary>
-			/// Wether to append a file ending to the url (.jpg).
-			/// </summary>
-			public GravatarGenerator AppendFileType()
-			{
-				this._AppendFileType = true;
-				return this;
-			}
-
-			/// <summary>
-			/// Force the default image to display.
-			/// </summary>
-			public GravatarGenerator ForceDefaultImage()
-			{
-				this._ForceDefaultImage = true;
-				return this;
-			}
-
-			private string Encode(Encoding encoding)
-			{
-				System.Security.Cryptography.MD5CryptoServiceProvider x = new System.Security.Cryptography.MD5CryptoServiceProvider();
-				byte[] hash = encoding.GetBytes(_Email);
-				hash = x.ComputeHash(hash);
-
-				StringBuilder sb = new StringBuilder();
-				for (int i = 0; i < hash.Length; i++)
-				{
-					sb.Append(hash[i].ToString("x2"));
-				}
-
-				return sb.ToString();
-			}
-
-			private string GetRatingParam()
-			{
-				switch (this._DisplayRating)
-				{
-					case GravatarRating.G: return "r=g";
-					case GravatarRating.PG: return "r=pg";
-					case GravatarRating.R: return "r=r";
-					case GravatarRating.X: return "r=x";
-					default: return null;
-				}
-			}
-
-			private string GetDefaultImageParam()
-			{
-				if (!string.IsNullOrWhiteSpace(this._DefaultImage))
-					return "d=" + HttpUtility.UrlEncode(this._DefaultImage);
-
-				switch (this._DefaultDisplay)
-				{
-					case DefaultGravatar.IdentIcon: return "d=identicon";
-					case DefaultGravatar.MonsterId: return "d=monsterid";
-					case DefaultGravatar.MysteryMan: return "d=mm";
-					case DefaultGravatar.None: return "d=404";
-					case DefaultGravatar.Retro: return "d=retro";
-					case DefaultGravatar.Wavatar: return "d=wavatar";
-					default: return null;
-				}
-			}
-
-			private string BuildUrlParams()
-			{
-				if (this._Size < 0 || this._Size > 512)
-					throw new ArgumentOutOfRangeException("Size", "Image size must be between 1 and 512");
-
-				string defaultImageParam = GetDefaultImageParam();
-				string ratingParam = GetRatingParam();
-
-				List<string> urlParams = new List<string>();
-				if (this._Size > 0)
-					urlParams.Add("s=" + this._Size);
-				if (!string.IsNullOrWhiteSpace(ratingParam))
-					urlParams.Add(ratingParam);
-				if (!string.IsNullOrWhiteSpace(defaultImageParam))
-					urlParams.Add(defaultImageParam);
-				if (this._ForceDefaultImage)
-					urlParams.Add("f=y");
-
-				if (urlParams.Count == 0)
-					return "";
-
-				string paramString = "?";
-
-				for (int i = 0; i < urlParams.Count; ++i)
-				{
-					paramString += urlParams[i];
-					if (i < urlParams.Count - 1)
-						paramString += "&";
-				}
-
-				return paramString;
-			}
-		}
-
-		public static class GravatarURL
-		{
-			/// <summary>
-			/// Gets a <see cref="Gravatar.GravatarGenerator"/> object.
-			/// </summary>
-			/// <param name="email">Email to generate Gravatar for.</param>
-			/// <returns>A GravatarGenerator object.</returns>
-			public static GravatarGenerator Generator(string email)
-			{
-				return new GravatarGenerator(email, false);
-			}
-
-			/// <summary>
-			/// Gets a <see cref="Gravatar.GravatarGenerator"/> object.
-			/// </summary>
-			/// <param name="helper">UrlHelper objec.t</param>
-			/// <param name="email">Email to generate Gravatar for.</param>
-			/// <param name="size">The size in pixels, between 1 and 512.</param>
-			/// <returns>A GravatarGenerator object</returns>
-			public static GravatarGenerator Generator(string email, int size)
-			{
-				return new GravatarGenerator(email, false).Size(size);
-			}
-
-			/// <summary>
-			/// Gets a Gravatar Url as string.
-			/// </summary>
-			/// <param name="email">Email to generate Gravatar for.</param>
-			/// <param name="size">The size in pixels, between 1 and 512.</param>
-			/// <returns>A Gravatar Url</returns>
-			public static string Generate(string email, int size)
-			{
-				GravatarGenerator gravatar = new GravatarGenerator(email, false).Size(size);
-				return gravatar.Url;
-			}
-
-			/// <summary>
-			/// Gets a Gravatar Url as string.
-			/// </summary>
-			/// <param name="email">Email to generate Gravatar for.</param>
-			/// <param name="size">The size in pixels, between 1 and 512.</param>
-			/// <param name="defaultImage">A default Gravatar generation policy. See <see cref="Gravatar.DefaultGravatar"/> for details.</param>
-			/// <returns>A Gravatar Url</returns>
-			public static string Generate(string email, int size, DefaultGravatar defaultImage)
-			{
-				GravatarGenerator gravatar = new GravatarGenerator(email, false)
-					.Size(size)
-					.DefaultImage(defaultImage);
-				return gravatar.Url;
-			}
-
-			/// <summary>
-			/// Gets a Gravatar Url as string.
-			/// </summary>
-			/// <param name="email">Email to generate Gravatar for.</param>
-			/// <param name="size">The size in pixels, between 1 and 512.</param>
-			/// <param name="defaultImage">An Url to a default image to use if no Gravatar exists.</param>
-			/// <returns>A Gravatar Url</returns>
-			public static string Generate(string email, int size, string defaultImage)
-			{
-				GravatarGenerator gravatar = new GravatarGenerator(email, false)
-					.Size(size)
-					.DefaultImage(defaultImage);
-				return gravatar.Url;
-			}
-
-			/// <summary>
-			/// Gets a Gravatar Url as string.
-			/// </summary>
-			/// <param name="email">Email to generate Gravatar for.</param>
-			/// <param name="size">The size in pixels, between 1 and 512.</param>
-			/// <param name="defaultImage">A default Gravatar generation policy. See <see cref="Gravatar.DefaultGravatar"/> for details.</param>
-			/// <param name="rating">Image rating to display for. See <see cref="Gravatar.GravatarRating"/> for details.</param>
-			/// <returns>A Gravatar Url</returns>
-			public static string Generate(string email, int size, DefaultGravatar defaultImage, GravatarRating rating)
-			{
-				GravatarGenerator gravatar = new GravatarGenerator(email, false)
-					.Size(size)
-					.Rating(rating)
-					.DefaultImage(defaultImage);
-				return gravatar.Url;
-			}
-
-			/// <summary>
-			/// Gets a Gravatar Url as string.
-			/// </summary>
-			/// <param name="email">Email to generate Gravatar for.</param>
-			/// <param name="size">The size in pixels, between 1 and 512.</param>
-			/// <param name="defaultImage">An Url to a default image to use if no Gravatar exists.</param>
-			/// <param name="rating">Image rating to display for. See <see cref="Gravatar.GravatarRating"/> for details.</param>
-			/// <returns>A Gravatar Url</returns>
-			public static string Generate(string email, int size, string defaultImage, GravatarRating rating)
-			{
-				GravatarGenerator gravatar = new GravatarGenerator(email, false)
-					.Size(size)
-					.Rating(rating)
-					.DefaultImage(defaultImage);
-				return gravatar.Url;
-			}
-		}
-	}
-#endif
 	#endregion
 
 	#region MASSIVE ORM (FORKED : NON-GPL)
@@ -2510,6 +2153,25 @@ namespace Aurora.Extra
 		public static string ADSearchDomainIsNullorEmpty = "The Active Directory search domain is null or empty";
 		public static string ADSearchCriteriaIsNullOrEmptyError = "The LDAP query associated with this search type is null or empty, a valid query must be annotated to this search type via the MetaData attribute";
 
+		static ActiveDirectory()
+		{
+			if (webConfig.ActiveDirectorySearchInfo.Count > 0)
+			{
+				ActiveDirectorySearchInfos = new string[webConfig.ActiveDirectorySearchInfo.Count][];
+
+				for (int i = 0; i < ActiveDirectorySearchInfos.Length; i++)
+				{
+					ActiveDirectorySearchInfos[i] = new string[] 
+							{ 
+								webConfig.ActiveDirectorySearchInfo[i].Domain,
+								webConfig.ActiveDirectorySearchInfo[i].SearchRoot,
+								Encryption.Decrypt(webConfig.ActiveDirectorySearchInfo[i].UserName, webConfig.EncryptionKey),
+								Encryption.Decrypt(webConfig.ActiveDirectorySearchInfo[i].Password, webConfig.EncryptionKey)
+							};
+				}
+			}
+		}
+
 		internal static ActiveDirectoryUser LookupUser(ActiveDirectorySearchType searchType, string data, bool global)
 		{
 			if (string.IsNullOrEmpty(searchType.GetMetadata()))
@@ -2792,6 +2454,7 @@ namespace Aurora.Extra
 
 	public class ActiveDirectoryAuthentication : IBoundToAction
 	{
+		private Controller controller;
 		public ActiveDirectoryUser User { get; private set; }
 		public bool Authenticated { get; private set; }
 		public string CACID { get; private set; }
@@ -2803,31 +2466,25 @@ namespace Aurora.Extra
 			ActiveDirectoryLookupEvent += activeDirectoryLookupHandler;
 		}
 
-		public void Initialize()
+		public void Initialize(Controller c)
 		{
+			controller = c;
+
 			ValidateClientCertificate();
 		}
 
 #if !DEBUG
-		private static string GetCACIDFromCN(AuroraContext context, out X509Certificate2 x509certificate)
+		private string GetCACIDFromCN()
 		{
-			context.ThrowIfArgumentNull();
+			if (controller.ClientCertificate == null)
+				throw new Exception("The HttpContext.Request.ClientCertificate did not contain a valid certificate");
 
-			x509certificate = context.RequestClientCertificate;
-
-			if (x509certificate == null)
-			{
-				throw new Exception(MainConfig.ClientCertificateError);
-			}
-
-			string cn = x509certificate.GetNameInfo(X509NameType.SimpleName, false);
+			string cn = controller.ClientCertificate.GetNameInfo(X509NameType.SimpleName, false);
 			string cacid = string.Empty;
 			bool valid = true;
 
 			if (string.IsNullOrEmpty(cn))
-			{
-				throw new Exception(MainConfig.ClientCertificateSimpleNameError);
-			}
+				throw new Exception("Cannot determine the simple name from the client certificate");
 
 			if (cn.Contains("."))
 			{
@@ -2849,13 +2506,9 @@ namespace Aurora.Extra
 			}
 
 			if (valid)
-			{
 				return cacid;
-			}
 			else
-			{
-				throw new Exception(string.Format(CultureInfo.CurrentCulture, MainConfig.ClientCertificateUnexpectedFormatForCACID, cn));
-			}
+				throw new Exception(string.Format("The CAC ID was not in the expected format within the common name (last.first.middle.cacid), actual CN = {0}", cn));
 		}
 #endif
 
@@ -2870,9 +2523,7 @@ namespace Aurora.Extra
 			Authenticated = args.Authenticated;
 			CACID = args.CACID;
 #else
-			X509Certificate2 x509fromASPNET;
-
-			CACID = GetCACIDFromCN(context, out x509fromASPNET);
+			CACID = GetCACIDFromCN();
 
 			User = null;
 			Authenticated = false;
@@ -2884,10 +2535,8 @@ namespace Aurora.Extra
 				chain.ChainPolicy.RevocationMode = X509RevocationMode.Online;
 				chain.ChainPolicy.UrlRetrievalTimeout = new TimeSpan(0, 0, 30);
 
-				if (chain.Build(x509fromASPNET))
+				if (chain.Build(controller.ClientCertificate))
 				{
-					ActiveDirectoryUser user = null;
-
 					try
 					{
 						args.CACID = CACID;
@@ -2896,25 +2545,13 @@ namespace Aurora.Extra
 
 						if (args.User != null)
 						{
-							user = args.User;
+							User = args.User;
+							Authenticated = true;
 						}
 					}
 					catch (DirectoryServicesCOMException)
 					{
 						throw new Exception("A problem occurred trying to communicate with Active Directory");
-					}
-
-					if (user != null)
-					{
-						X509Certificate2 x509fromAD;
-
-						string cacidFromAD = GetCACIDFromCN(context, out x509fromAD);
-
-						if (CACID == cacidFromAD)
-						{
-							Authenticated = true;
-							User = user;
-						}
 					}
 				}
 			}

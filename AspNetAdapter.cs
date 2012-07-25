@@ -49,7 +49,8 @@
 // dictionary with response values. All of the dictionary keys can be found in
 // the HttpAdapterConstants class.
 //
-// LICENSE:
+
+#region LICENSE - GPL version 3 <http://www.gnu.org/licenses/gpl-3.0.html>
 //
 // GNU GPLv3 quick guide: http://www.gnu.org/licenses/quick-guide-gplv3.html
 //
@@ -68,6 +69,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
+#endregion
 
 #region USING STATEMENTS
 using System;
@@ -86,8 +88,8 @@ using Microsoft.Web.Infrastructure.DynamicValidationHelper;
 using System.Diagnostics;
 #endregion
 
-#if LIBRARY
 #region ASSEMBLY INFORMATION
+#if LIBRARY
 [assembly: AssemblyTitle("AspNetAdapter")]
 [assembly: AssemblyDescription("An ASP.NET HttpContext Adapter")]
 [assembly: AssemblyCompany("Frank Hale")]
@@ -96,8 +98,8 @@ using System.Diagnostics;
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
 [assembly: AssemblyVersion("0.0.1.0")]
-#endregion
 #endif
+#endregion
 
 namespace AspNetAdapter
 {

@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 23 July 2012
+// Updated On: 24 July 2012
 //
 // Contact Info:
 //
@@ -78,6 +78,7 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -98,7 +99,7 @@ using Yahoo.Yui.Compressor;
 [assembly: AssemblyCopyright("(GNU GPLv3) Copyleft © 2011-2012")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("2.0.0.0")]
+[assembly: AssemblyVersion("2.0.1.0")]
 #endif
 #endregion
 
@@ -116,11 +117,14 @@ namespace Aurora
 					{ ".png", "image/png" },
 					{ ".jpg", "image/jpg" },
 					{ ".gif", "image/gif" },
-					{ ".ico", "image/x-icon" }
+					{ ".ico", "image/x-icon" },
+					{ ".csv", "test/plain"},
+					{ ".xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
+					{ ".pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"}
 				};
 		}
 
-		public static Regex AllowedFilePattern = new Regex(@"\.(js|css|png|jpg|gif|ico)$");
+		public static Regex AllowedFilePattern = new Regex(@"\.(js|css|png|jpg|gif|ico|pptx|xlsx|csv)$", RegexOptions.Compiled);
 		public static string SharedResourceFolderPath = "/Resources";
 		public static Dictionary<string, string> MimeTypes;
 	}
@@ -137,17 +141,18 @@ namespace Aurora
 	public abstract class RequestTypeAttribute : Attribute
 	{
 		public bool RequireAntiForgeryToken { get; set; }
+		public string RedirectWithoutAuthorizationTo { get; set; }
 		public ActionSecurity SecurityType { get; set; }
 		public string RouteAlias { get; set; }
 		public string Roles { get; set; }
 		public bool HttpsOnly { get; set; }
-		public string RedirectWithoutAuthorizationTo { get; set; }
 		public string RequestType { get; private set; }
 
 		protected RequestTypeAttribute(string requestType)
 		{
 			SecurityType = ActionSecurity.None;
 			RequestType = requestType;
+			Roles = string.Empty;
 		}
 	}
 
@@ -164,45 +169,20 @@ namespace Aurora
 	[AttributeUsage(AttributeTargets.Method)]
 	public sealed class HttpGetAttribute : RequestTypeAttribute
 	{
-		public HttpCacheability CacheabilityOption { get; set; }
-		public bool Cache { get; set; }
-		public int Duration { get; set; }
-		public string Refresh { get; set; }
-
-		internal TimeSpan Expires { get; set; }
-		internal DateTime DateExpiry { get; set; }
-
-		public HttpGetAttribute()
-			: base("GET")
-		{
-			Init();
-		}
+		public HttpGetAttribute() : base("GET") { }
+		public HttpGetAttribute(ActionSecurity sec) : this(string.Empty, sec) { }
 
 		public HttpGetAttribute(string routeAlias)
 			: base("GET")
 		{
 			RouteAlias = routeAlias;
-
-			Init();
 		}
-
-		public HttpGetAttribute(ActionSecurity sec) : this(string.Empty, sec) { }
-
+		
 		public HttpGetAttribute(string routeAlias, ActionSecurity sec)
 			: base("GET")
 		{
 			SecurityType = sec;
 			RouteAlias = routeAlias;
-
-			Init();
-		}
-
-		private void Init()
-		{
-			CacheabilityOption = HttpCacheability.Public;
-			Duration = 15;
-			Expires = new TimeSpan(0, 15, 0);
-			DateExpiry = DateTime.Now.Add(new TimeSpan(0, 15, 0));
 		}
 	}
 
@@ -210,17 +190,13 @@ namespace Aurora
 	public sealed class HttpPostAttribute : RequestTypeAttribute
 	{
 		public HttpPostAttribute() : base("POST") { }
+		public HttpPostAttribute(ActionSecurity sec) : this(string.Empty, sec) { }
 
 		public HttpPostAttribute(string routeAlias)
 			: base("POST")
 		{
 			RouteAlias = routeAlias;
 			RequireAntiForgeryToken = true;
-		}
-
-		public HttpPostAttribute(ActionSecurity sec)
-			: this(string.Empty, sec)
-		{
 		}
 
 		public HttpPostAttribute(string routeAlias, ActionSecurity sec)
@@ -235,17 +211,13 @@ namespace Aurora
 	public sealed class HttpPutAttribute : RequestTypeAttribute
 	{
 		public HttpPutAttribute() : base("PUT") { }
+		public HttpPutAttribute(ActionSecurity sec) : this(string.Empty, sec) { }
 
 		public HttpPutAttribute(string routeAlias)
 			: base("PUT")
 		{
 			RouteAlias = routeAlias;
 			RequireAntiForgeryToken = true;
-		}
-
-		public HttpPutAttribute(ActionSecurity sec)
-			: this(string.Empty, sec)
-		{
 		}
 
 		public HttpPutAttribute(string routeAlias, ActionSecurity sec)
@@ -260,17 +232,13 @@ namespace Aurora
 	public sealed class HttpDeleteAttribute : RequestTypeAttribute
 	{
 		public HttpDeleteAttribute() : base("DELETE") { }
+		public HttpDeleteAttribute(ActionSecurity sec) : this(string.Empty, sec) { }
 
 		public HttpDeleteAttribute(string routeAlias)
 			: base("DELETE")
 		{
 			RouteAlias = routeAlias;
 			RequireAntiForgeryToken = true;
-		}
-
-		public HttpDeleteAttribute(ActionSecurity sec)
-			: this(string.Empty, sec)
-		{
 		}
 
 		public HttpDeleteAttribute(string routeAlias, ActionSecurity sec)
@@ -282,7 +250,7 @@ namespace Aurora
 	}
 	#endregion
 
-	#region MISC
+	#region MISCELLANEOUS
 	[AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
 	public sealed class AliasAttribute : Attribute
 	{
@@ -321,7 +289,7 @@ namespace Aurora
 	}
 
 	[AttributeUsage(AttributeTargets.Property | AttributeTargets.Parameter)]
-	public sealed class SkipValidationAttribute : Attribute
+	public sealed class UnsafeAttribute : Attribute
 	{
 	}
 
@@ -419,6 +387,7 @@ namespace Aurora
 		private Dictionary<string, string> payload;
 		private List<PostedFile> files;
 		private Exception serverError;
+		internal X509Certificate2 clientCertificate;
 		#endregion
 
 		#region SESSION NAMES
@@ -442,7 +411,7 @@ namespace Aurora
 		internal ViewEngine ViewEngine;
 		private FrontController frontController;
 		private List<Controller> controllers;
-		private List<RouteInfo> routeInfos;
+		internal List<RouteInfo> routeInfos;
 		private List<string> antiForgeryTokens;
 		private List<User> users;
 		private Dictionary<string, Dictionary<string, List<object>>> actionBindings;
@@ -454,6 +423,7 @@ namespace Aurora
 		private static string antiForgeryTokenName = "AntiForgeryToken";
 		#endregion
 
+		#region FRAMEWORK METHODS
 		public void Init(Dictionary<string, object> app, Dictionary<string, object> request, Action<Dictionary<string, object>> response)
 		{
 			#region INITIALIZE LOCALS FROM APP/REQUEST AND MISC
@@ -478,6 +448,7 @@ namespace Aurora
 			serverError = app[HttpAdapterConstants.ServerError] as Exception;
 			int httpStatus = 200;
 			ViewResponse viewResponse = null;
+			clientCertificate = request[HttpAdapterConstants.RequestClientCertificate] as X509Certificate2;
 			#endregion
 
 			#region GET OBJECTS FROM APPLICATION SESSION STORE
@@ -594,9 +565,9 @@ namespace Aurora
 			#endregion
 
 			#region INITIALIZE ROUTEINFOS
-			if (routeInfos.Count() == 0)
+			if (GetApplication(routeInfosSessionName) == null)
 			{
-				routeInfos = GetRouteInfos();
+				routeInfos.AddRange(GetRouteInfos());
 
 				AddApplication(routeInfosSessionName, routeInfos);
 			}
@@ -692,12 +663,15 @@ namespace Aurora
 						 requestType == "PUT" ||
 						 requestType == "DELETE")
 					{
-						if (!(form.ContainsKey(antiForgeryTokenName) || payload.ContainsKey(antiForgeryTokenName) && routeInfo.RequestTypeAttribute.RequireAntiForgeryToken))
-							return null;
-						else
+						if (routeInfo.RequestTypeAttribute.RequireAntiForgeryToken)
 						{
-							antiForgeryTokens.Remove(form[antiForgeryTokenName]);
-							antiForgeryTokens.Remove(payload[antiForgeryTokenName]);
+							if (!(form.ContainsKey(antiForgeryTokenName) || payload.ContainsKey(antiForgeryTokenName)))
+								return null;
+							else
+							{
+								antiForgeryTokens.Remove(form[antiForgeryTokenName]);
+								antiForgeryTokens.Remove(payload[antiForgeryTokenName]);
+							}
 						}
 					}
 
@@ -705,7 +679,8 @@ namespace Aurora
 						return null;
 
 					if (routeInfo.RequestTypeAttribute.SecurityType == ActionSecurity.Secure && currentUser == null ||
-							routeInfo.RequestTypeAttribute.SecurityType == ActionSecurity.Secure && !(currentUser.Roles.Intersect(routeInfo.RequestTypeAttribute.Roles.Split('|')).Count() > 0))
+							routeInfo.RequestTypeAttribute.SecurityType == ActionSecurity.Secure && !(currentUser.Roles.Intersect(routeInfo.RequestTypeAttribute.Roles.Split('|')).Count() > 0) &&
+							routeInfo.Controller.InvokeCheckRoles(routeInfo))
 					{
 						RaiseEventOnFrontController(RouteHandlerEventType.FailedSecurity, path, routeInfo, null);
 
@@ -727,7 +702,7 @@ namespace Aurora
 							RemoveSession(fromRedirectOnlySessionName);
 
 						foreach (IBoundToAction bta in routeInfo.IBoundToActionParams)
-							bta.Initialize();
+							bta.Initialize(routeInfo.Controller);
 
 						if (routeInfo.ActionParamTransforms != null)
 						{
@@ -756,7 +731,7 @@ namespace Aurora
 							routeInfo.Action.Invoke(routeInfo.Controller, routeInfo.ActionParams);
 
 						if (viewResult != null)
-							viewResponse = viewResult.Render();						
+							viewResponse = viewResult.Render();
 
 						if (viewResponse == null)
 							RaiseEventOnFrontController(RouteHandlerEventType.Error, path, routeInfo, null);
@@ -998,7 +973,7 @@ namespace Aurora
 
 				foreach (PropertyInfo p in Model.GetPropertiesWithExclusions(model, true))
 				{
-					SkipValidationAttribute skipValidationAttrib = (SkipValidationAttribute)p.GetCustomAttributes(typeof(SkipValidationAttribute), false).FirstOrDefault();
+					UnsafeAttribute skipValidationAttrib = (UnsafeAttribute)p.GetCustomAttributes(typeof(UnsafeAttribute), false).FirstOrDefault();
 					NotRequiredAttribute notRequiredAttrib = (NotRequiredAttribute)p.GetCustomAttributes(typeof(NotRequiredAttribute), false).FirstOrDefault();
 
 					if (notRequiredAttrib != null && !payload.ContainsKey(p.Name)) continue;
@@ -1152,10 +1127,10 @@ namespace Aurora
 				routeInfos.Remove(routeInfo);
 		}
 
-		internal void AddRoute(Controller c, MethodInfo action, List<string> aliases, string defaultParams)
+		internal void AddRoute(List<RouteInfo> routeInfos, Controller c, MethodInfo action, List<string> aliases, string defaultParams)
 		{
-			if (routeInfos.Where(x => x.Aliases.Intersect(aliases).Count() > 0).Count() > 0)
-				return;
+			//if (routeInfos.Where(x => x.Aliases.Intersect(aliases).Count() > 0).Count() > 0)
+			//	return;
 
 			if (action != null)
 			{
@@ -1186,7 +1161,7 @@ namespace Aurora
 			}
 		}
 
-		internal void AddRoute(string alias, string controllerName, string actionName, string defaultParams)
+		internal void AddRoute(List<RouteInfo> routeInfos, string alias, string controllerName, string actionName, string defaultParams)
 		{
 			alias.ThrowIfArgumentNull();
 			controllerName.ThrowIfArgumentNull();
@@ -1198,12 +1173,14 @@ namespace Aurora
 			{
 				MethodInfo action = c.GetType().GetMethods().FirstOrDefault(x => x.GetCustomAttributes(typeof(RequestTypeAttribute), false).Count() > 0 && x.Name == actionName);
 
-				AddRoute(c, action, new List<string> { alias }, defaultParams);
+				AddRoute(routeInfos, c, action, new List<string> { alias }, defaultParams);
 			}
 		}
 
 		private List<RouteInfo> GetRouteInfos()
 		{
+			List<RouteInfo> routeInfos = new List<RouteInfo>();
+
 			foreach (Controller c in controllers)
 			{
 				List<MethodInfo> actions = c.GetType().GetMethods().Where(x => x.GetCustomAttributes(typeof(RequestTypeAttribute), false).Count() > 0).ToList();
@@ -1218,7 +1195,7 @@ namespace Aurora
 					else
 						aliases.Add(rta.RouteAlias);
 
-					AddRoute(c, action, aliases, null);
+					AddRoute(routeInfos, c, action, aliases, null);
 				}
 			}
 
@@ -1274,6 +1251,7 @@ namespace Aurora
 			{
 				AuthenticationCookie = authCookie,
 				SessionId = sessionID,
+				//ClientCertificate = request
 				IPAddress = IPAddress,
 				LogOnDate = DateTime.Now,
 				Name = id,
@@ -1317,8 +1295,9 @@ namespace Aurora
 		{
 			return appRoot + path.Replace('/', '\\');
 		}
+		#endregion
 
-		#region CALLBACKS
+		#region ASP.NET ADAPTER CALLBACKS
 		public object GetApplication(string key)
 		{
 			if (app.ContainsKey(HttpAdapterConstants.ApplicationSessionStoreGetCallback) &&
@@ -1377,34 +1356,34 @@ namespace Aurora
 			}
 		}
 
-		public object GetCache(string key)
-		{
-			if (app.ContainsKey(HttpAdapterConstants.CacheGetCallback) &&
-					app[HttpAdapterConstants.CacheGetCallback] is Func<string, string>)
-			{
-				return (app[HttpAdapterConstants.CacheGetCallback] as Func<string, string>)(key);
-			}
+		//public object GetCache(string key)
+		//{
+		//  if (app.ContainsKey(HttpAdapterConstants.CacheGetCallback) &&
+		//      app[HttpAdapterConstants.CacheGetCallback] is Func<string, string>)
+		//  {
+		//    return (app[HttpAdapterConstants.CacheGetCallback] as Func<string, string>)(key);
+		//  }
 
-			return null;
-		}
+		//  return null;
+		//}
 
-		public void AddCache(string key, object value, DateTime expiry)
-		{
-			if (app.ContainsKey(HttpAdapterConstants.CacheAddCallback) &&
-					app[HttpAdapterConstants.CacheAddCallback] is Action<string, object, DateTime>)
-			{
-				(app[HttpAdapterConstants.CacheGetCallback] as Action<string, object, DateTime>)(key, value, expiry);
-			}
-		}
+		//public void AddCache(string key, object value, DateTime expiry)
+		//{
+		//  if (app.ContainsKey(HttpAdapterConstants.CacheAddCallback) &&
+		//      app[HttpAdapterConstants.CacheAddCallback] is Action<string, object, DateTime>)
+		//  {
+		//    (app[HttpAdapterConstants.CacheGetCallback] as Action<string, object, DateTime>)(key, value, expiry);
+		//  }
+		//}
 
-		public void RemoveCache(string key)
-		{
-			if (app.ContainsKey(HttpAdapterConstants.CacheRemoveCallback) &&
-					app[HttpAdapterConstants.CacheRemoveCallback] is Action<string>)
-			{
-				(app[HttpAdapterConstants.CacheRemoveCallback] as Action<string>)(key);
-			}
-		}
+		//public void RemoveCache(string key)
+		//{
+		//  if (app.ContainsKey(HttpAdapterConstants.CacheRemoveCallback) &&
+		//      app[HttpAdapterConstants.CacheRemoveCallback] is Action<string>)
+		//  {
+		//    (app[HttpAdapterConstants.CacheRemoveCallback] as Action<string>)(key);
+		//  }
+		//}
 
 		public void ResponseRedirect(string path, bool fromRedirectOnly)
 		{
@@ -1435,17 +1414,17 @@ namespace Aurora
 	#region ROUTE INFO
 	public class RouteInfo
 	{
-		public List<string> Aliases { get; set; }
-		public MethodInfo Action { get; set; }
-		public Controller Controller { get; set; }
-		public RequestTypeAttribute RequestTypeAttribute { get; set; }
-		public object[] ActionParams { get; set; }
-		public object[] BoundParams { get; set; }
+		public List<string> Aliases { get; internal set; }
+		public MethodInfo Action { get; internal set; }
+		public Controller Controller { get; internal set; }
+		public RequestTypeAttribute RequestTypeAttribute { get; internal set; }
+		public object[] ActionParams { get; internal set; }
+		public object[] BoundParams { get; internal set; }
 		public IBoundToAction[] IBoundToActionParams { get; set; }
-		public object[] DefaultParams { get; set; }
-		public List<Tuple<ActionParameterTransformAttribute, int>> ActionParamTransforms;
-		public Dictionary<string, object> CachedActionParamTransformInstances;
-		public bool Dynamic { get; set; }
+		public object[] DefaultParams { get; internal set; }
+		public List<Tuple<ActionParameterTransformAttribute, int>> ActionParamTransforms { get; internal set; }
+		public Dictionary<string, object> CachedActionParamTransformInstances { get; internal set; }
+		public bool Dynamic { get; internal set; }
 	}
 	#endregion
 
@@ -1493,7 +1472,7 @@ namespace Aurora
 	#region ACTION BINDINGS
 	public interface IBoundToAction
 	{
-		void Initialize();
+		void Initialize(Controller c);
 	}
 	#endregion
 
@@ -1516,17 +1495,14 @@ namespace Aurora
 				if (!string.IsNullOrEmpty(sValue))
 				{
 					if (sValue.Length >= requiredLengthAttribute.Length)
-					{
 						result = true;
-					}
 					else
-					{
 						result = false;
-
-						Error = string.Format("Model Validation Error: {0} has a required length that was not met", property.Name);
-					}
 				}
 			}
+
+			if(!result)
+				Error = string.Format("Model Validation Error: {0} has a required length that was not met", property.Name);
 
 			return result;
 		}
@@ -1537,28 +1513,21 @@ namespace Aurora
 
 			if (requiredAttribute != null)
 			{
-				// If we pass validation during the form checking then we just check values at that point to see if they aren't null or if
-				// the field is a string make sure that it isn't empty.
-				string sValue = value as string;
-
-				if (!string.IsNullOrEmpty(sValue))
+				if (value is string)
 				{
-					if (!string.IsNullOrEmpty(sValue))
-					{
+					if (!string.IsNullOrEmpty(value as string))
 						result = true;
-					}
+					else
+						result = false;
 				}
 				else if (value != null)
-				{
 					result = true;
-				}
 				else
-				{
 					result = false;
-
-					Error = string.Format("Model Validation Error: {0} is a required field", property.Name);
-				}
 			}
+
+			if (!result)
+				Error = string.Format("Model Validation Error: {0} is a required field", property.Name);
 
 			return result;
 		}
@@ -1574,17 +1543,16 @@ namespace Aurora
 				if (!string.IsNullOrEmpty(sValue))
 				{
 					if (regularExpressionAttribute.Pattern.IsMatch(sValue))
-					{
 						result = true;
-					}
 					else
-					{
 						result = false;
-
-						Error = string.Format("Model Validation Error: {0} did not pass regular expression validation", property.Name);
-					}
 				}
+				else
+					result = false;
 			}
+
+			if(!result)
+				Error = string.Format("Model Validation Error: {0} did not pass regular expression validation", property.Name);
 
 			return result;
 		}
@@ -1598,17 +1566,16 @@ namespace Aurora
 				if (value.GetType().IsAssignableFrom(typeof(Int64)))
 				{
 					if (((Int64)value).InRange(rangeAttribute.Min, rangeAttribute.Max))
-					{
 						result = true;
-					}
+					else
+						result = false;
 				}
 				else
-				{
 					result = false;
-
-					Error = string.Format("Model Validation Error: {0} was not within the range specified", property.Name);
-				}
 			}
+
+			if(!result)
+				Error = string.Format("Model Validation Error: {0} was not within the range specified", property.Name);
 
 			return result;
 		}
@@ -1675,9 +1642,9 @@ namespace Aurora
 				}
 			}
 
-			bool? finalResult = results.FirstOrDefault(x => x == false);
+			var finalResult = results.Where(x => x == false);
 
-			IsValid = (finalResult != null) ? true : false;
+			IsValid = (finalResult.Count()>0) ? false : true;
 		}
 
 		internal static List<PropertyInfo> GetPropertiesNotRequiredToPost(Type t)
@@ -1740,22 +1707,24 @@ namespace Aurora
 
 	public abstract class BaseController
 	{
-		internal bool OnInitComplete { get; set; }
-
 		internal Engine engine;
 
-		protected string IPAddress { get { return engine.IPAddress; } }
+		internal bool OnInitComplete { get; set; }
 
-		protected User CurrentUser { get { return engine.currentUser; } }
+		public string IPAddress { get { return engine.IPAddress; } }
+		public User CurrentUser { get { return engine.currentUser; } }
+		public X509Certificate2 ClientCertificate { get { return engine.clientCertificate; } }
 
 		protected virtual void OnInit() { }
-		protected virtual bool CheckRoles() { return true; }
+		protected virtual bool CheckRoles(RouteInfo routeInfo) { return true; }
 
 		internal void InvokeOnInit()
 		{
 			OnInit();
 			OnInitComplete = true;
 		}
+
+		internal bool InvokeCheckRoles(RouteInfo routeInfo) { return CheckRoles(routeInfo); }
 
 		internal void Refresh(Engine engine)
 		{
@@ -1769,7 +1738,7 @@ namespace Aurora
 
 		protected void AddRoute(string alias, string actionName, string defaultParams)
 		{
-			engine.AddRoute(alias, this.GetType().Name, actionName, defaultParams);
+			engine.AddRoute(engine.routeInfos, alias, this.GetType().Name, actionName, defaultParams);
 		}
 
 		protected void RemoveRoute(string alias)
@@ -2115,6 +2084,7 @@ namespace Aurora
 		public string IPAddress { get; internal set; }
 		public DateTime LogOnDate { get; internal set; }
 		public List<string> Roles { get; internal set; }
+		public X509Certificate2 ClientCertificate { get; internal set; }
 
 		public bool IsInRole(string role)
 		{
@@ -2198,7 +2168,7 @@ namespace Aurora
 		{
 			this.path = path;
 
-			if (File.Exists(path))
+			if (File.Exists(path) && Config.AllowedFilePattern.IsMatch(path))
 			{
 				string fileExtension = Path.GetExtension(path);
 
@@ -2917,31 +2887,31 @@ namespace Aurora
 				{
 					case ViewTemplateType.Action:
 						// partitionControllerScopeActionKeyName
-						keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "{0}/{1}/{2}", partitionName, controllerName, viewName));
+						keyTypes.Add(string.Format("{0}/{1}/{2}", partitionName, controllerName, viewName));
 						// controllerScopeActionKeyName
-						keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "{0}/{1}", controllerName, viewName));
+						keyTypes.Add(string.Format("{0}/{1}", controllerName, viewName));
 						break;
 
 					case ViewTemplateType.Shared:
 						// partitionRootScopeSharedKeyName
-						keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "{0}/Views/Shared/{1}", partitionName, viewName));
+						keyTypes.Add(string.Format("{0}/Views/Shared/{1}", partitionName, viewName));
 						// partitionControllerScopeSharedKeyName
-						keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "{0}/{1}/Shared/{2}", partitionName, controllerName, viewName));
+						keyTypes.Add(string.Format("{0}/{1}/Shared/{2}", partitionName, controllerName, viewName));
 						// controllerScopeSharedKeyName
-						keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "{0}/Shared/{1}", controllerName, viewName));
+						keyTypes.Add(string.Format("{0}/Shared/{1}", controllerName, viewName));
 						// globalScopeSharedKeyName
-						keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "Views/Shared/{0}", viewName));
+						keyTypes.Add(string.Format("Views/Shared/{0}", viewName));
 						break;
 
 					case ViewTemplateType.Fragment:
 						// partitionControllerScopeFragmentKeyName
-						keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "{0}/{1}/Fragments/{2}", partitionName, controllerName, viewName));
+						keyTypes.Add(string.Format("{0}/{1}/Fragments/{2}", partitionName, controllerName, viewName));
 						// partitionRootScopeFragmentsKeyName
-						keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "{0}/Views/Fragments/{1}", partitionName, viewName));
+						keyTypes.Add(string.Format("{0}/Views/Fragments/{1}", partitionName, viewName));
 						// controllerScopeFragmentKeyName
-						keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "{0}/Fragments/{1}", controllerName, viewName));
+						keyTypes.Add(string.Format("{0}/Fragments/{1}", controllerName, viewName));
 						// globalScopeFragmentKeyName
-						keyTypes.Add(string.Format(CultureInfo.InvariantCulture, "Views/Fragments/{0}", viewName));
+						keyTypes.Add(string.Format("Views/Fragments/{0}", viewName));
 						break;
 				}
 
