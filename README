@@ -2,7 +2,7 @@ Aurora - An MVC web framework for .NET
 
 Frank Hale <frankhale@gmail.com>
 
-Date: 23 July 2012
+Date: 25 July 2012
 
 // --------------------
 // --- Feature List ---
@@ -29,7 +29,6 @@ Date: 23 July 2012
 // Aurora.Extra 
 //
 // - My fork of Massive ORM
-// - My fork of the Gravatar URL generator
 // - HTML helpers
 // - Plugin support (can be used by apps but is not integrated at all into the
 //   framework pipeline.)
@@ -39,8 +38,20 @@ Date: 23 July 2012
 // - Active Directory querying so you can authenticate your user against an 
 //   Active Directory user. Typically for use in client certificate 
 //   authentication.
+//
+// Aurora.Misc
+//
+// - My fork of the Gravatar URL generator
+//
  
 Changelog:
+
+25 July 2012
+
+- Code cleanup
+- Added Aurora.Misc which is for stuff that doesn't fit in Aurora.Extra 
+	(eg. stuff that is on the fringe like my Gravatar fork and that wont' be 
+	 all that useful to most people)
 
 24 July 2012
 
@@ -56,14 +67,14 @@ Changelog:
 
 - Aurora.cs has been totally rewritten from scratch:
 
-   AspNetAdapter.cs - Interface to ASP.NET
-   Aurora.cs - Core web framework
-   Aurora.Extra.cs - Everything else
+	 AspNetAdapter.cs - Interface to ASP.NET
+	 Aurora.cs - Core web framework
+	 Aurora.Extra.cs - Everything else
 
-   TODO: Documentation has been ripped out, it will be replaced, for now there
-         is nothing. I'll be uploading a sample application soon. Also the only
-         feature that is not back in the rewrite is Action Filters. I'm working
-         on that.         
+	 TODO: Documentation has been ripped out, it will be replaced, for now there
+				 is nothing. I'll be uploading a sample application soon. Also the only
+				 feature that is not back in the rewrite is Action Filters. I'm working
+				 on that.         
 
 
 ... OLD UPDATES REMOVED ....
@@ -72,7 +83,7 @@ Changelog:
 Feb/March 2011
 
 - Initial concept, went through at least 3 iterations before Aurora was born.
-  
+	
 License: GNU GPL version 3 <http://www.gnu.org/licenses/gpl-3.0.html>
 
 // This program is free software: you can redistribute it and/or modify it under

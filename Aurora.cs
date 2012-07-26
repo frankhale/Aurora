@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 24 July 2012
+// Updated On: 25 July 2012
 //
 // Contact Info:
 //
@@ -43,6 +43,10 @@
 // - Active Directory querying so you can authenticate your user against an 
 //   Active Directory user. Typically for use in client certificate 
 //   authentication.
+//
+// Aurora.Misc
+//
+// - My fork of the Gravatar URL generato
 //
 
 #region LICENSE - GPL version 3 <http://www.gnu.org/licenses/gpl-3.0.html>
@@ -88,6 +92,7 @@ using HtmlAgilityPack;
 using MarkdownSharp;
 using Newtonsoft.Json;
 using Yahoo.Yui.Compressor;
+using System.Web.Caching;
 #endregion
 
 #region ASSEMBLY INFORMATION
@@ -99,7 +104,7 @@ using Yahoo.Yui.Compressor;
 [assembly: AssemblyCopyright("(GNU GPLv3) Copyleft © 2011-2012")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("2.0.1.0")]
+[assembly: AssemblyVersion("2.0.2.0")]
 #endif
 #endregion
 
@@ -372,8 +377,15 @@ namespace Aurora
 		#region ASP.NET ADAPTER STUFF
 		private Dictionary<string, object> app;
 		private Dictionary<string, object> request;
+		private Dictionary<string, string> queryString;
+		private Dictionary<string, string> cookies;
+		private Dictionary<string, string> form;
+		private Dictionary<string, string> payload;
 		private Action<Dictionary<string, object>> response;
-		internal string IPAddress { get; set; }
+		private List<PostedFile> files;
+		private Exception serverError;
+		internal X509Certificate2 clientCertificate { get; private set; }
+		internal string IPAddress { get; private set; }
 		private string path;
 		private string requestType;
 		private string appRoot;
@@ -381,13 +393,6 @@ namespace Aurora
 		private string sessionID;
 		private bool fromRedirectOnly;
 		private bool isSecureConnection;
-		private Dictionary<string, string> queryString;
-		private Dictionary<string, string> cookies;
-		private Dictionary<string, string> form;
-		private Dictionary<string, string> payload;
-		private List<PostedFile> files;
-		private Exception serverError;
-		internal X509Certificate2 clientCertificate;
 		#endregion
 
 		#region SESSION NAMES
@@ -619,8 +624,7 @@ namespace Aurora
 			IViewResult viewResult = null;
 			ViewResponse viewResponse = null;
 
-			if (path == "/" || path == "/default.aspx" || path == "~/")
-				path = "/Index";
+			if (path == "/" || path == "/default.aspx" || path == "~/") path = "/Index";
 
 			if (Config.AllowedFilePattern.IsMatch(path))
 			{
@@ -629,7 +633,6 @@ namespace Aurora
 
 				if (path.StartsWith(Config.SharedResourceFolderPath) || path.EndsWith(".ico"))
 				{
-					string fileName = Path.GetFileName(path);
 					string filePath = MapPath(path);
 
 					if (CanAccessFile(filePath))
@@ -638,6 +641,8 @@ namespace Aurora
 							viewResponse = new FileResult(filePath).Render();
 						else
 						{
+							string fileName = Path.GetFileName(path);
+
 							if (bundles.ContainsKey(fileName))
 								viewResponse = new FileResult(fileName, bundles[fileName].Item2).Render();
 						}
@@ -659,9 +664,10 @@ namespace Aurora
 
 				if (routeInfo != null)
 				{
-					if (requestType == "POST" ||
-						 requestType == "PUT" ||
-						 requestType == "DELETE")
+					if (routeInfo.RequestTypeAttribute is FromRedirectOnlyAttribute && !fromRedirectOnly)
+						return null;
+
+					if (requestType == "POST" || requestType == "PUT" || requestType == "DELETE")
 					{
 						if (routeInfo.RequestTypeAttribute.RequireAntiForgeryToken)
 						{
@@ -674,9 +680,6 @@ namespace Aurora
 							}
 						}
 					}
-
-					if (routeInfo.RequestTypeAttribute is FromRedirectOnlyAttribute && !fromRedirectOnly)
-						return null;
 
 					if (routeInfo.RequestTypeAttribute.SecurityType == ActionSecurity.Secure && currentUser == null ||
 							routeInfo.RequestTypeAttribute.SecurityType == ActionSecurity.Secure && !(currentUser.Roles.Intersect(routeInfo.RequestTypeAttribute.Roles.Split('|')).Count() > 0) &&
@@ -885,7 +888,7 @@ namespace Aurora
 		{
 			var routeSlice = routeInfos.SelectMany(routeInfo => routeInfo.Aliases, (routeInfo, alias) => new { routeInfo, alias })
 																 .Where(x => path.StartsWith(x.alias)).ToList();
-
+			
 			if (routeSlice.Count() > 0)
 			{
 				object model = null;
@@ -1183,7 +1186,7 @@ namespace Aurora
 
 			foreach (Controller c in controllers)
 			{
-				List<MethodInfo> actions = c.GetType().GetMethods().Where(x => x.GetCustomAttributes(typeof(RequestTypeAttribute), false).Count() > 0).ToList();
+				var actions = c.GetType().GetMethods().Where(x => x.GetCustomAttributes(typeof(RequestTypeAttribute), false).Count()>0);
 
 				foreach (MethodInfo action in actions)
 				{
@@ -1356,35 +1359,6 @@ namespace Aurora
 			}
 		}
 
-		//public object GetCache(string key)
-		//{
-		//  if (app.ContainsKey(HttpAdapterConstants.CacheGetCallback) &&
-		//      app[HttpAdapterConstants.CacheGetCallback] is Func<string, string>)
-		//  {
-		//    return (app[HttpAdapterConstants.CacheGetCallback] as Func<string, string>)(key);
-		//  }
-
-		//  return null;
-		//}
-
-		//public void AddCache(string key, object value, DateTime expiry)
-		//{
-		//  if (app.ContainsKey(HttpAdapterConstants.CacheAddCallback) &&
-		//      app[HttpAdapterConstants.CacheAddCallback] is Action<string, object, DateTime>)
-		//  {
-		//    (app[HttpAdapterConstants.CacheGetCallback] as Action<string, object, DateTime>)(key, value, expiry);
-		//  }
-		//}
-
-		//public void RemoveCache(string key)
-		//{
-		//  if (app.ContainsKey(HttpAdapterConstants.CacheRemoveCallback) &&
-		//      app[HttpAdapterConstants.CacheRemoveCallback] is Action<string>)
-		//  {
-		//    (app[HttpAdapterConstants.CacheRemoveCallback] as Action<string>)(key);
-		//  }
-		//}
-
 		public void ResponseRedirect(string path, bool fromRedirectOnly)
 		{
 			if (app.ContainsKey(HttpAdapterConstants.ResponseRedirectCallback) &&
@@ -1420,7 +1394,7 @@ namespace Aurora
 		public RequestTypeAttribute RequestTypeAttribute { get; internal set; }
 		public object[] ActionParams { get; internal set; }
 		public object[] BoundParams { get; internal set; }
-		public IBoundToAction[] IBoundToActionParams { get; set; }
+		public IBoundToAction[] IBoundToActionParams { get; internal set; }
 		public object[] DefaultParams { get; internal set; }
 		public List<Tuple<ActionParameterTransformAttribute, int>> ActionParamTransforms { get; internal set; }
 		public Dictionary<string, object> CachedActionParamTransformInstances { get; internal set; }
@@ -1484,9 +1458,10 @@ namespace Aurora
 		[Hidden]
 		public string Error { get; private set; }
 
-		private bool ValidateRequiredLengthAttribute(RequiredLengthAttribute requiredLengthAttribute, PropertyInfo property, object value)
+		private bool ValidateRequiredLengthAttribute(RequiredLengthAttribute requiredLengthAttribute, PropertyInfo property, object value, out string error)
 		{
 			bool result = false;
+			error = string.Empty;
 
 			if (requiredLengthAttribute != null)
 			{
@@ -1502,14 +1477,15 @@ namespace Aurora
 			}
 
 			if(!result)
-				Error = string.Format("Model Validation Error: {0} has a required length that was not met", property.Name);
+				error = string.Format("{0} has a required length that was not met", property.Name);
 
 			return result;
 		}
 
-		private bool ValidateRequiredAttribute(RequiredAttribute requiredAttribute, PropertyInfo property, object value)
+		private bool ValidateRequiredAttribute(RequiredAttribute requiredAttribute, PropertyInfo property, object value, out string error)
 		{
 			bool result = false;
+			error = string.Empty;
 
 			if (requiredAttribute != null)
 			{
@@ -1527,14 +1503,15 @@ namespace Aurora
 			}
 
 			if (!result)
-				Error = string.Format("Model Validation Error: {0} is a required field", property.Name);
+				error = string.Format("{0} is a required field", property.Name);
 
 			return result;
 		}
 
-		private bool ValidateRegularExpressionAttribute(RegularExpressionAttribute regularExpressionAttribute, PropertyInfo property, object value)
+		private bool ValidateRegularExpressionAttribute(RegularExpressionAttribute regularExpressionAttribute, PropertyInfo property, object value, out string error)
 		{
 			bool result = false;
+			error = string.Empty;
 
 			if (regularExpressionAttribute != null)
 			{
@@ -1552,14 +1529,15 @@ namespace Aurora
 			}
 
 			if(!result)
-				Error = string.Format("Model Validation Error: {0} did not pass regular expression validation", property.Name);
+				error = string.Format("{0} did not pass regular expression validation", property.Name);
 
 			return result;
 		}
 
-		private bool ValidateRangeAttribute(RangeAttribute rangeAttribute, PropertyInfo property, object value)
+		private bool ValidateRangeAttribute(RangeAttribute rangeAttribute, PropertyInfo property, object value, out string error)
 		{
 			bool result = false;
+			error = string.Empty;
 
 			if (rangeAttribute != null)
 			{
@@ -1575,7 +1553,7 @@ namespace Aurora
 			}
 
 			if(!result)
-				Error = string.Format("Model Validation Error: {0} was not within the range specified", property.Name);
+				error = string.Format("{0} was not within the range specified", property.Name);
 
 			return result;
 		}
@@ -1583,6 +1561,7 @@ namespace Aurora
 		internal void Validate(Dictionary<string, string> form)
 		{
 			List<bool> results = new List<bool>();
+			StringBuilder errors = new StringBuilder();
 
 			foreach (PropertyInfo pi in GetPropertiesWithExclusions(GetType(), false))
 			{
@@ -1598,49 +1577,80 @@ namespace Aurora
 
 				object value = pi.GetValue(this, null);
 
+				#region REQUIRED
 				if (requiredAttribute != null)
 				{
 					if (form.Keys.FirstOrDefault(x => x == pi.Name) != null)
 					{
-						requiredResult = ValidateRequiredAttribute(requiredAttribute, pi, value);
+						string error;
+
+						requiredResult = ValidateRequiredAttribute(requiredAttribute, pi, value, out error);
 
 						if (requiredResult)
 							results.Add(true);
 						else
 							results.Add(false);
+
+						if (!string.IsNullOrEmpty(error))
+							errors.AppendLine(error);
 					}
 				}
+				#endregion
 
+				#region REQUIRED LENGTH
 				if (requiredLengthAttribute != null)
 				{
-					requiredLengthResult = ValidateRequiredLengthAttribute(requiredLengthAttribute, pi, value);
+					string error;
+
+					requiredLengthResult = ValidateRequiredLengthAttribute(requiredLengthAttribute, pi, value, out error);
 
 					if (requiredLengthResult)
 						results.Add(true);
 					else
 						results.Add(false);
-				}
 
+					if (!string.IsNullOrEmpty(error))
+						errors.AppendLine(error);
+				}
+				#endregion
+
+				#region REGULAR EXPRESSION
 				if (regularExpressionAttribute != null)
 				{
-					regularExpressionResult = ValidateRegularExpressionAttribute(regularExpressionAttribute, pi, value);
+					string error;
+
+					regularExpressionResult = ValidateRegularExpressionAttribute(regularExpressionAttribute, pi, value, out error);
 
 					if (regularExpressionResult)
 						results.Add(true);
 					else
 						results.Add(false);
-				}
 
+					if (!string.IsNullOrEmpty(error))
+						errors.AppendLine(error);
+				}
+				#endregion
+
+				#region RANGE
 				if (rangeAttribute != null)
 				{
-					rangeResult = ValidateRangeAttribute(rangeAttribute, pi, value);
+					string error;
+
+					rangeResult = ValidateRangeAttribute(rangeAttribute, pi, value, out error);
 
 					if (rangeResult)
 						results.Add(true);
 					else
 						results.Add(false);
+
+					if (!string.IsNullOrEmpty(error))
+						errors.AppendLine(error);
 				}
+				#endregion
 			}
+
+			if (errors.Length > 0)
+				Error = errors.ToString();
 
 			var finalResult = results.Where(x => x == false);
 
@@ -1700,17 +1710,14 @@ namespace Aurora
 		public string Path { get; set; }
 		public RouteInfo RouteInfo { get; set; }
 		public object Data { get; set; }
-
-		public RouteHandlerEventArgs() { }
 	}
 	#endregion
 
 	public abstract class BaseController
 	{
 		internal Engine engine;
-
+		
 		internal bool OnInitComplete { get; set; }
-
 		public string IPAddress { get { return engine.IPAddress; } }
 		public User CurrentUser { get { return engine.currentUser; } }
 		public X509Certificate2 ClientCertificate { get { return engine.clientCertificate; } }
@@ -1965,10 +1972,7 @@ namespace Aurora
 				Dictionary<string, object> _viewTags = DViewTags.GetDynamicDictionary();
 
 				if (_viewTags != null)
-				{
-					viewTags = _viewTags.ToDictionary(k => k.Key,
-						k => (k.Value != null) ? k.Value.ToString() : string.Empty);
-				}
+					viewTags = _viewTags.ToDictionary(k => k.Key, k => (k.Value != null) ? k.Value.ToString() : string.Empty);
 			}
 
 			return viewTags;
@@ -2017,17 +2021,10 @@ namespace Aurora
 				Dictionary<string, object> _fragTags = DFragTags.GetDynamicDictionary(fragmentName);
 
 				if (_fragTags != null)
-				{
 					fragTags = _fragTags.ToDictionary(k => k.Key, k => k.Value.ToString());
-				}
 			}
-			else
-			{
-				if (FragTags.ContainsKey(fragmentName))
-				{
+			else if (FragTags.ContainsKey(fragmentName))
 					fragTags = FragTags[fragmentName];
-				}
-			}
 
 			return RenderFragment(fragmentName, fragTags);
 		}
@@ -2280,20 +2277,11 @@ namespace Aurora
 			foreach (string viewRoot in viewRoots)
 			{
 				if (Directory.Exists(viewRoot))
-				{
-					DirectoryInfo rootDir = new DirectoryInfo(viewRoot);
-
-					var files = rootDir.GetAllFiles().Where(x => x.Extension == ".html");
-
-					foreach (FileInfo fi in files)
+					foreach (FileInfo fi in new DirectoryInfo(viewRoot).GetAllFiles().Where(x => x.Extension == ".html"))
 						templates.Add(Load(fi));
-				}
 			}
 
-			if (templates.Count > 0)
-				return templates;
-
-			return null;
+			return templates;
 		}
 
 		public ViewTemplate Load(FileInfo fi)
@@ -2535,8 +2523,8 @@ namespace Aurora
 
 	internal class BundleDirective : IViewCompilerDirectiveHandler
 	{
-		bool debugMode;
-		Func<string, string[]> getBundleFiles;
+		private bool debugMode;
+		private Func<string, string[]> getBundleFiles;
 
 		private static string cssIncludeTag = @"<link href=""{0}"" rel=""stylesheet"" type=""text/css"" />";
 		private static string jsIncludeTag = @"<script src=""{0}"" type=""text/javascript""></script>";
@@ -2640,6 +2628,17 @@ namespace Aurora
 		private List<CompiledView> compiledViews;
 		private Dictionary<string, List<string>> viewDependencies;
 		private Dictionary<string, List<string>> templateKeyNames;
+
+		private static string partitionControllerScopeActionKeyName = "{0}/{1}/{2}";
+		private static string controllerScopeActionKeyName = "{0}/{1}";
+		private static string partitionRootScopeSharedKeyName = "{0}/Views/Shared/{1}";
+		private static string partitionControllerScopeSharedKeyName = "{0}/{1}/Shared/{2}";
+		private static string controllerScopeSharedKeyName = "{0}/Shared/{1}";
+		private static string globalScopeSharedKeyName = "Views/Shared/{0}";
+		private static string partitionControllerScopeFragmentKeyName = "{0}/{1}/Fragments/{2}";
+		private static string partitionRootScopeFragmentsKeyName = "{0}/Views/Fragments/{1}";
+		private static string controllerScopeFragmentKeyName = "{0}/Fragments/{1}";
+		private static string globalScopeFragmentKeyName = "Views/Fragments/{0}";
 
 		private static Regex directiveTokenRE = new Regex(@"(\%\%(?<directive>[a-zA-Z0-9]+)=(?<value>(\S|\.)+)\%\%)", RegexOptions.Compiled);
 		private static Regex tagRE = new Regex(@"{({|\||\!)([\w]+)(}|\!|\|)}", RegexOptions.Compiled);
@@ -2825,9 +2824,6 @@ namespace Aurora
 						value.Length = 0;
 						value.Insert(0, match.Groups["value"].Value);
 
-						string _directive = directive.ToString();
-						string _value = value.ToString();
-
 						// process directive handlers
 						foreach (IViewCompilerDirectiveHandler handler in x)
 						{
@@ -2835,8 +2831,8 @@ namespace Aurora
 								handler.Process(new ViewCompilerDirectiveInfo()
 								{
 									Match = match,
-									Directive = _directive,
-									Value = _value,
+									Directive = directive.ToString(),
+									Value = value.ToString(),
 									Content = pageContent,
 									ViewTemplates = viewTemplates,
 									DetermineKeyName = determineKeyName,
@@ -2886,32 +2882,22 @@ namespace Aurora
 				switch (viewType)
 				{
 					case ViewTemplateType.Action:
-						// partitionControllerScopeActionKeyName
-						keyTypes.Add(string.Format("{0}/{1}/{2}", partitionName, controllerName, viewName));
-						// controllerScopeActionKeyName
-						keyTypes.Add(string.Format("{0}/{1}", controllerName, viewName));
+						keyTypes.Add(string.Format(partitionControllerScopeActionKeyName, partitionName, controllerName, viewName));
+						keyTypes.Add(string.Format(controllerScopeActionKeyName, controllerName, viewName));
 						break;
 
 					case ViewTemplateType.Shared:
-						// partitionRootScopeSharedKeyName
-						keyTypes.Add(string.Format("{0}/Views/Shared/{1}", partitionName, viewName));
-						// partitionControllerScopeSharedKeyName
-						keyTypes.Add(string.Format("{0}/{1}/Shared/{2}", partitionName, controllerName, viewName));
-						// controllerScopeSharedKeyName
-						keyTypes.Add(string.Format("{0}/Shared/{1}", controllerName, viewName));
-						// globalScopeSharedKeyName
-						keyTypes.Add(string.Format("Views/Shared/{0}", viewName));
+						keyTypes.Add(string.Format(partitionRootScopeSharedKeyName, partitionName, viewName));
+						keyTypes.Add(string.Format(partitionControllerScopeSharedKeyName, partitionName, controllerName, viewName));
+						keyTypes.Add(string.Format(controllerScopeSharedKeyName, controllerName, viewName));
+						keyTypes.Add(string.Format(globalScopeSharedKeyName, viewName));
 						break;
 
 					case ViewTemplateType.Fragment:
-						// partitionControllerScopeFragmentKeyName
-						keyTypes.Add(string.Format("{0}/{1}/Fragments/{2}", partitionName, controllerName, viewName));
-						// partitionRootScopeFragmentsKeyName
-						keyTypes.Add(string.Format("{0}/Views/Fragments/{1}", partitionName, viewName));
-						// controllerScopeFragmentKeyName
-						keyTypes.Add(string.Format("{0}/Fragments/{1}", controllerName, viewName));
-						// globalScopeFragmentKeyName
-						keyTypes.Add(string.Format("Views/Fragments/{0}", viewName));
+						keyTypes.Add(string.Format(partitionControllerScopeFragmentKeyName, partitionName, controllerName, viewName));
+						keyTypes.Add(string.Format(partitionRootScopeFragmentsKeyName, partitionName, viewName));
+						keyTypes.Add(string.Format(controllerScopeFragmentKeyName, controllerName, viewName));
+						keyTypes.Add(string.Format(globalScopeFragmentKeyName, viewName));
 						break;
 				}
 
@@ -3004,8 +2990,6 @@ namespace Aurora
 				viewTemplates.Remove(viewTemplates.Find(x => x.FullName == changedTemplate.FullName));
 				viewTemplates.Add(changedTemplate);
 
-				viewCompiler = new ViewCompiler(viewTemplates, compiledViews, viewDependencies, dirHandlers, substitutionHandlers);
-
 				CompiledView cv = compiledViews.FirstOrDefault(x => x.FullName == changedTemplate.FullName && x.TemplateMD5sum != changedTemplate.MD5sum);
 
 				if (cv != null)
@@ -3019,6 +3003,7 @@ namespace Aurora
 					}
 					else
 					{
+						viewCompiler = new ViewCompiler(viewTemplates, compiledViews, viewDependencies, dirHandlers, substitutionHandlers);
 						viewCompiler.RecompileDependencies(changedTemplate.FullName, changedTemplate.Partition, changedTemplate.Controller);
 						viewCompiler.Compile(changedTemplate.Partition, changedTemplate.Controller, changedTemplate.Name, changedTemplate.TemplateType);
 					}
@@ -3036,35 +3021,15 @@ namespace Aurora
 		{
 			try
 			{
-				using (FileStream file = new FileStream(filePath, FileMode.Append, FileAccess.Write))
-				{
-					file.Close();
-					return true;
-				}
+				FileStream file = new FileStream(filePath, FileMode.Append, FileAccess.Write);
+				file.Close();
+				return true;
 			}
 			catch (IOException)
 			{
 				return false;
 			}
 		}
-
-		//public void CompileNewFiles()
-		//{
-		//  var newTemplates = from vt in viewTemplates
-		//                     join cv in viewCompiler.CompiledViews
-		//                       on vt.FullName equals cv.FullName into joinedNames
-		//                     from cv in joinedNames.DefaultIfEmpty()
-		//                     where cv == null
-		//                     select vt;
-		//
-		//  if (newTemplates.Count() > 0)
-		//  {
-		//    foreach (ViewTemplate vt in newTemplates)
-		//    {
-		//      viewCompiler.Compile(vt.Partition, vt.Controller, vt.Name);
-		//    }
-		//  }
-		//}
 
 		public string LoadView(string partitionName, string controllerName, string viewName, ViewTemplateType viewType, Dictionary<string, string> tags)
 		{
@@ -3095,25 +3060,17 @@ namespace Aurora
 			bool isEmptyString = false;
 
 			if (t == null)
-			{
 				isNull = true;
-			}
 			else if (t is string)
 			{
 				if ((t as string) == string.Empty)
-				{
 					isEmptyString = true;
-				}
 			}
 
 			if (isNull)
-			{
 				throw new ArgumentNullException(argName, message);
-			}
 			else if (isEmptyString)
-			{
 				throw new ArgumentException(argName, message);
-			}
 		}
 
 		/// <summary>
@@ -3133,9 +3090,7 @@ namespace Aurora
 			StringBuilder sb = new StringBuilder();
 
 			for (int i = 0; i < hash.Length; i++)
-			{
 				sb.Append(hash[i].ToString("X2"));
-			}
 
 			return sb.ToString();
 		}
@@ -3150,51 +3105,29 @@ namespace Aurora
 
 				for (int i = 0; i < parms.Length; i++)
 				{
-					#region INT32 OR 64
 					if (parms[i].IsInt32())
-					{
 						_parms[i] = Convert.ToInt32(parms[i], CultureInfo.InvariantCulture);
-					}
 					else if (parms[i].IsLong())
-					{
 						_parms[i] = Convert.ToInt64(parms[i], CultureInfo.InvariantCulture);
-					}
-					#endregion
-					#region DOUBLE
 					else if (parms[i].IsDouble())
-					{
 						_parms[i] = Convert.ToDouble(parms[i], CultureInfo.InvariantCulture);
-					}
-					#endregion
-					#region BOOLEAN
 					else if (parms[i].ToLowerInvariant() == "true" ||
 									parms[i].ToLowerInvariant() == "false" ||
 									parms[i].ToLowerInvariant() == "on" || // HTML checkbox value
 									parms[i].ToLowerInvariant() == "off" || // HTML checkbox value
 									parms[i].ToLowerInvariant() == "checked") // HTML checkbox value
 					{
-						if (parms[i].ToLowerInvariant() == "on" || parms[i].ToLowerInvariant() == "checked")
-						{
+						if (parms[i].ToLower() == "on" || parms[i].ToLower() == "checked")
 							parms[i] = "true";
-						}
-						else if (parms[i].ToLowerInvariant() == "off")
-						{
+						else if (parms[i].ToLower() == "off")
 							parms[i] = "false";
-						}
 
-						_parms[i] = Convert.ToBoolean(parms[i], CultureInfo.InvariantCulture);
+						_parms[i] = Convert.ToBoolean(parms[i]);
 					}
-					#endregion
-					#region DATETIME
 					else if (parms[i].IsDate(out dt))
-					{
 						_parms[i] = dt.Value;
-					}
-					#endregion
-					#region DEFAULT
 					else
 						_parms[i] = parms[i];
-					#endregion
 				}
 
 				return _parms;
@@ -3205,35 +3138,21 @@ namespace Aurora
 
 		public static string NewLinesToBR(this string value)
 		{
-			if (string.IsNullOrEmpty(value))
-			{
-				throw new ArgumentNullException("value");
-			}
-
 			return value.Trim().Replace("\n", "<br />");
 		}
 
 		public static string StripHtml(this string value)
 		{
-			if (string.IsNullOrEmpty(value))
-			{
-				throw new ArgumentNullException("value");
-			}
-
 			HtmlDocument htmlDoc = new HtmlDocument();
 			htmlDoc.LoadHtml(value);
 
 			if (htmlDoc == null)
-			{
 				return value;
-			}
 
 			StringBuilder sanitizedString = new StringBuilder();
 
 			foreach (var node in htmlDoc.DocumentNode.ChildNodes)
-			{
 				sanitizedString.Append(node.InnerText);
-			}
 
 			return sanitizedString.ToString();
 		}
@@ -3307,9 +3226,7 @@ namespace Aurora
 			long x = 0;
 
 			if (Int64.TryParse(value, out x))
-			{
 				return true;
-			}
 
 			return false;
 		}
@@ -3337,15 +3254,15 @@ namespace Aurora
 
 			Queue<string> queue = new Queue<string>();
 			queue.Enqueue(path);
+
 			while (queue.Count > 0)
 			{
 				path = queue.Dequeue();
+
 				try
 				{
 					foreach (string subDir in Directory.GetDirectories(path))
-					{
 						queue.Enqueue(subDir);
-					}
 				}
 				catch (Exception ex)
 				{
@@ -3353,6 +3270,7 @@ namespace Aurora
 				}
 
 				FileInfo[] fileInfos = null;
+
 				try
 				{
 					fileInfos = new DirectoryInfo(path).GetFiles();
@@ -3361,12 +3279,11 @@ namespace Aurora
 				{
 					throw;
 				}
+
 				if (fileInfos != null)
 				{
 					for (int i = 0; i < fileInfos.Length; i++)
-					{
 						yield return fileInfos[i];
-					}
 				}
 			}
 		}
@@ -3381,9 +3298,7 @@ namespace Aurora
 		public bool IsEmpty()
 		{
 			if (_members.Keys.Count() > 0)
-			{
 				return false;
-			}
 
 			return true;
 		}
@@ -3396,10 +3311,8 @@ namespace Aurora
 		public IEnumerable<string> GetDynamicMemberNames(string key)
 		{
 			if (_members.ContainsKey(key))
-			{
 				if (_members[key] is DynamicDictionary)
 					return (_members[key] as DynamicDictionary)._members.Keys;
-			}
 
 			return null;
 		}
@@ -3412,10 +3325,8 @@ namespace Aurora
 		public Dictionary<string, object> GetDynamicDictionary(string key)
 		{
 			if (_members.ContainsKey(key))
-			{
 				if (_members[key] is DynamicDictionary)
 					return (_members[key] as DynamicDictionary)._members;
-			}
 
 			return null;
 		}
@@ -3423,13 +3334,9 @@ namespace Aurora
 		public override bool TrySetMember(SetMemberBinder binder, object value)
 		{
 			if (!_members.ContainsKey(binder.Name))
-			{
 				_members.Add(binder.Name, value);
-			}
 			else
-			{
 				_members[binder.Name] = value;
-			}
 
 			return true;
 		}
@@ -3437,13 +3344,9 @@ namespace Aurora
 		public override bool TryGetMember(GetMemberBinder binder, out object result)
 		{
 			if (_members.ContainsKey(binder.Name))
-			{
 				result = _members[binder.Name];
-			}
 			else
-			{
 				result = _members[binder.Name] = new DynamicDictionary();
-			}
 
 			return true;
 		}

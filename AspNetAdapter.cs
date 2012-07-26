@@ -97,7 +97,7 @@ using System.Diagnostics;
 [assembly: AssemblyCopyright("(GNU GPLv3) Copyleft © 2012")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("0.0.1.0")]
+[assembly: AssemblyVersion("0.0.2.0")]
 #endif
 #endregion
 
@@ -172,10 +172,6 @@ namespace AspNetAdapter
 		public const string UserSessionStoreRemoveCallback = "UserSessionStoreRemoveCallback";
 		public const string UserSessionStoreGetCallback = "UserSessionStoreGetCallback";
 		public const string UserSessionStoreAbandonCallback = "UserSessionStoreAbandonCallback";
-
-		public const string CacheAddCallback = "CacheAddCallback";
-		public const string CacheRemoveCallback = "CacheRemoveCallback";
-		public const string CacheGetCallback = "CacheGetCallback";
 		#endregion
 
 		#region REQUEST
@@ -243,9 +239,7 @@ namespace AspNetAdapter
 				if (apps != null)
 				{
 					if (apps.Count() > 1)
-					{
 						throw new Exception("The executing assembly can contain only one application utilizing AspNetAdapter");
-					}
 
 					adapterApp = apps.FirstOrDefault() as Type;
 
@@ -253,11 +247,11 @@ namespace AspNetAdapter
 					context.Application[AspNetApplicationTypeSessionName] = adapterApp;
 					context.Application.UnLock();
 				}
+				else
+					throw new Exception("Could not find any apps utilizing AspNetAdapter");
 			}
 			else
-			{
 				adapterApp = ctx.Application[AspNetApplicationTypeSessionName] as Type;
-			}
 
 			debugMode = IsAssemblyDebugBuild(adapterApp.Assembly);
 
@@ -307,9 +301,6 @@ namespace AspNetAdapter
 			application[HttpAdapterConstants.UserSessionStoreRemoveCallback] = new Action<string>(UserSessionStoreRemoveCallback);
 			application[HttpAdapterConstants.UserSessionStoreGetCallback] = new Func<string, object>(UserSessionStoreGetCallback);
 			application[HttpAdapterConstants.UserSessionStoreAbandonCallback] = new Action(UserSessionStoreAbandonCallback);
-			application[HttpAdapterConstants.CacheAddCallback] = new Action<string, object, DateTime>(CacheAddCallback);
-			application[HttpAdapterConstants.CacheRemoveCallback] = new Action<string>(CacheRemoveCallback);
-			application[HttpAdapterConstants.CacheGetCallback] = new Func<string, object>(CacheGetCallback);
 			application[HttpAdapterConstants.ResponseRedirectCallback] = new Action<string, Dictionary<string,string>>(ResponseRedirectCallback);
 			application[HttpAdapterConstants.ServerError] = context.Server.GetLastError();
 
@@ -539,7 +530,7 @@ namespace AspNetAdapter
 		}
 		#endregion
 
-		#region MISCELLANEOUS - CACHE / REWRITE PATH
+		#region MISCELLANEOUS
 		private void ResponseRedirectCallback(string path, Dictionary<string,string> headers)
 		{
 			if (headers != null)
@@ -549,21 +540,6 @@ namespace AspNetAdapter
 			}
 
 			context.Response.Redirect(path);
-		}
-
-		private void CacheAddCallback(string key, object value, DateTime expiry)
-		{
-			context.Cache.Add(key, value, null, expiry, System.Web.Caching.Cache.NoSlidingExpiration, CacheItemPriority.Normal, null);
-		}
-
-		private void CacheRemoveCallback(string key)
-		{
-			context.Cache.Remove(key);
-		}
-
-		private object CacheGetCallback(string key)
-		{
-			return context.Cache[key];
 		}
 		#endregion
 
