@@ -2,7 +2,7 @@ Aurora - An MVC web framework for .NET
 
 Frank Hale <frankhale@gmail.com>
 
-Date: 25 July 2012
+Date: 26 July 2012
 
 // --------------------
 // --- Feature List ---
@@ -45,6 +45,13 @@ Date: 25 July 2012
 //
  
 Changelog:
+
+26 July 2012
+
+- Condensed all the Http request attributes into a single Http attribute
+- Did some work on the BaseController/Controller and FrontController events
+- The OnCheckRoles event actually gets called now
+- Miscellaneous code cleanup
 
 25 July 2012
 

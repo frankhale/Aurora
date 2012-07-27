@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 25 July 2012
+// Updated On: 26 July 2012
 //
 // Contact Info:
 //
@@ -46,7 +46,7 @@
 //
 // Aurora.Misc
 //
-// - My fork of the Gravatar URL generato
+// - My fork of the Gravatar URL generator
 //
 
 #region LICENSE - GPL version 3 <http://www.gnu.org/licenses/gpl-3.0.html>
@@ -80,7 +80,6 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -92,11 +91,12 @@ using HtmlAgilityPack;
 using MarkdownSharp;
 using Newtonsoft.Json;
 using Yahoo.Yui.Compressor;
-using System.Web.Caching;
 #endregion
 
 #region ASSEMBLY INFORMATION
 #if LIBRARY
+using System.Runtime.InteropServices;
+
 [assembly: AssemblyTitle("Aurora")]
 [assembly: AssemblyDescription("An MVC web framework for .NET")]
 [assembly: AssemblyCompany("Frank Hale")]
@@ -104,7 +104,7 @@ using System.Web.Caching;
 [assembly: AssemblyCopyright("(GNU GPLv3) Copyleft © 2011-2012")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("2.0.2.0")]
+[assembly: AssemblyVersion("2.0.3.0")]
 #endif
 #endregion
 
@@ -113,25 +113,20 @@ namespace Aurora
 	#region CONFIGURATION
 	public static class Config
 	{
-		static Config()
-		{
-			MimeTypes = new Dictionary<string, string>()
-				{
-					{ ".js",  "application/x-javascript" },  
-					{ ".css", "text/css" },
-					{ ".png", "image/png" },
-					{ ".jpg", "image/jpg" },
-					{ ".gif", "image/gif" },
-					{ ".ico", "image/x-icon" },
-					{ ".csv", "test/plain"},
-					{ ".xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
-					{ ".pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"}
-				};
-		}
-
-		public static Regex AllowedFilePattern = new Regex(@"\.(js|css|png|jpg|gif|ico|pptx|xlsx|csv)$", RegexOptions.Compiled);
-		public static string SharedResourceFolderPath = "/Resources";
-		public static Dictionary<string, string> MimeTypes;
+		internal static Regex AllowedFilePattern = new Regex(@"\.(js|css|png|jpg|gif|ico|pptx|xlsx|csv)$", RegexOptions.Compiled);
+		internal static string SharedResourceFolderPath = "/Resources";
+		internal static Dictionary<string, string> MimeTypes = new Dictionary<string, string>()
+			{
+				{ ".js",  "application/x-javascript" },  
+				{ ".css", "text/css" },
+				{ ".png", "image/png" },
+				{ ".jpg", "image/jpg" },
+				{ ".gif", "image/gif" },
+				{ ".ico", "image/x-icon" },
+				{ ".csv", "test/plain"},
+				{ ".xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
+				{ ".pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"}
+			};
 	}
 	#endregion
 
@@ -143,7 +138,16 @@ namespace Aurora
 	}
 
 	#region HTTP REQUEST
-	public abstract class RequestTypeAttribute : Attribute
+	public enum ActionType
+	{
+		Get,
+		Post,
+		Put,
+		Delete,
+		FromRedirectOnly
+	}
+
+	public class HttpAttribute : Attribute
 	{
 		public bool RequireAntiForgeryToken { get; set; }
 		public string RedirectWithoutAuthorizationTo { get; set; }
@@ -151,106 +155,17 @@ namespace Aurora
 		public string RouteAlias { get; set; }
 		public string Roles { get; set; }
 		public bool HttpsOnly { get; set; }
-		public string RequestType { get; private set; }
+		public ActionType ActionType { get; private set; }
 
-		protected RequestTypeAttribute(string requestType)
+		public HttpAttribute(ActionType actionType) : this(actionType, string.Empty, ActionSecurity.None) { }
+
+		public HttpAttribute(ActionType actionType, string alias) : this(actionType, alias, ActionSecurity.None) { }
+
+		public HttpAttribute(ActionType actionType, string alias, ActionSecurity actionSecurity)
 		{
-			SecurityType = ActionSecurity.None;
-			RequestType = requestType;
-			Roles = string.Empty;
-		}
-	}
-
-	[AttributeUsage(AttributeTargets.Method)]
-	public sealed class FromRedirectOnlyAttribute : RequestTypeAttribute
-	{
-		public FromRedirectOnlyAttribute(string routeAlias)
-			: base("GET")
-		{
-			RouteAlias = routeAlias;
-		}
-	}
-
-	[AttributeUsage(AttributeTargets.Method)]
-	public sealed class HttpGetAttribute : RequestTypeAttribute
-	{
-		public HttpGetAttribute() : base("GET") { }
-		public HttpGetAttribute(ActionSecurity sec) : this(string.Empty, sec) { }
-
-		public HttpGetAttribute(string routeAlias)
-			: base("GET")
-		{
-			RouteAlias = routeAlias;
-		}
-		
-		public HttpGetAttribute(string routeAlias, ActionSecurity sec)
-			: base("GET")
-		{
-			SecurityType = sec;
-			RouteAlias = routeAlias;
-		}
-	}
-
-	[AttributeUsage(AttributeTargets.Method)]
-	public sealed class HttpPostAttribute : RequestTypeAttribute
-	{
-		public HttpPostAttribute() : base("POST") { }
-		public HttpPostAttribute(ActionSecurity sec) : this(string.Empty, sec) { }
-
-		public HttpPostAttribute(string routeAlias)
-			: base("POST")
-		{
-			RouteAlias = routeAlias;
-			RequireAntiForgeryToken = true;
-		}
-
-		public HttpPostAttribute(string routeAlias, ActionSecurity sec)
-			: base("POST")
-		{
-			SecurityType = sec;
-			RouteAlias = routeAlias;
-		}
-	}
-
-	[AttributeUsage(AttributeTargets.Method)]
-	public sealed class HttpPutAttribute : RequestTypeAttribute
-	{
-		public HttpPutAttribute() : base("PUT") { }
-		public HttpPutAttribute(ActionSecurity sec) : this(string.Empty, sec) { }
-
-		public HttpPutAttribute(string routeAlias)
-			: base("PUT")
-		{
-			RouteAlias = routeAlias;
-			RequireAntiForgeryToken = true;
-		}
-
-		public HttpPutAttribute(string routeAlias, ActionSecurity sec)
-			: base("PUT")
-		{
-			SecurityType = sec;
-			RouteAlias = routeAlias;
-		}
-	}
-
-	[AttributeUsage(AttributeTargets.Method)]
-	public sealed class HttpDeleteAttribute : RequestTypeAttribute
-	{
-		public HttpDeleteAttribute() : base("DELETE") { }
-		public HttpDeleteAttribute(ActionSecurity sec) : this(string.Empty, sec) { }
-
-		public HttpDeleteAttribute(string routeAlias)
-			: base("DELETE")
-		{
-			RouteAlias = routeAlias;
-			RequireAntiForgeryToken = true;
-		}
-
-		public HttpDeleteAttribute(string routeAlias, ActionSecurity sec)
-			: base("DELETE")
-		{
-			SecurityType = sec;
-			RouteAlias = routeAlias;
+			SecurityType = actionSecurity;
+			RouteAlias = alias;
+			ActionType = actionType;
 		}
 	}
 	#endregion
@@ -324,10 +239,7 @@ namespace Aurora
 	[AttributeUsage(AttributeTargets.Property | AttributeTargets.Field)]
 	public sealed class RequiredAttribute : ModelValidationBaseAttribute
 	{
-		public RequiredAttribute(string errorMessage)
-			: base(errorMessage)
-		{
-		}
+		public RequiredAttribute(string errorMessage) : base(errorMessage) { }
 	}
 
 	[AttributeUsage(AttributeTargets.Property | AttributeTargets.Field)]
@@ -374,6 +286,22 @@ namespace Aurora
 	#region FRAMEWORK ENGINE
 	internal class Engine : IAspNetAdapterApplication
 	{
+		#region SESSION NAMES
+		private static string viewEngineSessionName = "__ViewEngine";
+		private static string fromRedirectOnlySessionName = "__FromRedirectOnly";
+		private static string controllerInstancesSessionName = "__Controllers";
+		private static string frontControllerInstanceSessionName = "__FrontController";
+		private static string routeInfosSessionName = "__RouteInfos";
+		private static string actionBindingsSessionName = "__ActionBindings";
+		private static string usersSessionName = "__Users";
+		private static string currentUserSessionName = "__CurrentUser";
+		private static string antiForgeryTokensSessionName = "__AntiForgeryTokens";
+		private static string bundlesTokenSessionName = "__Bundles";
+		private static string modelsSessionName = "__Models";
+		private static string protectedFilesSessionName = "__ProtectedFiles";
+		private static string controllersSessionSessionName = "__ControllersSession";
+		#endregion
+
 		#region ASP.NET ADAPTER STUFF
 		private Dictionary<string, object> app;
 		private Dictionary<string, object> request;
@@ -395,23 +323,8 @@ namespace Aurora
 		private bool isSecureConnection;
 		#endregion
 
-		#region SESSION NAMES
-		private static string viewEngineSessionName = "__ViewEngine";
-		private static string fromRedirectOnlySessionName = "__FromRedirectOnly";
-		private static string controllerInstancesSessionName = "__Controllers";
-		private static string frontControllerInstanceSessionName = "__FrontController";
-		private static string routeInfosSessionName = "__RouteInfos";
-		private static string actionBindingsSessionName = "__ActionBindings";
-		private static string usersSessionName = "__Users";
-		private static string currentUserSessionName = "__CurrentUser";
-		private static string antiForgeryTokensSessionName = "__AntiForgeryTokens";
-		private static string bundlesTokenSessionName = "__Bundles";
-		private static string modelsSessionName = "__Models";
-		private static string protectedFilesSessionName = "__ProtectedFiles";
-		private static string controllersSessionSessionName = "__ControllersSession";
-		#endregion
-
 		#region MISCELLANEOUS VARIABLES
+		private static string antiForgeryTokenName = "AntiForgeryToken";
 		private bool debugMode;
 		internal ViewEngine ViewEngine;
 		private FrontController frontController;
@@ -419,13 +332,12 @@ namespace Aurora
 		internal List<RouteInfo> routeInfos;
 		private List<string> antiForgeryTokens;
 		private List<User> users;
+		private List<Type> models;
 		private Dictionary<string, Dictionary<string, List<object>>> actionBindings;
 		private Dictionary<string, Tuple<List<string>, string>> bundles;
-		internal User currentUser;
-		private List<Type> models;
 		private Dictionary<string, string> protectedFiles;
 		private Dictionary<string, object> controllersSession;
-		private static string antiForgeryTokenName = "AntiForgeryToken";
+		internal User currentUser;
 		#endregion
 
 		#region FRAMEWORK METHODS
@@ -474,10 +386,39 @@ namespace Aurora
 				routeInfos = new List<RouteInfo>();
 			#endregion
 
-			#region INITIALIZE CONTROLLERS SESSION STORE
+			#region INITIALIZE USERS
+			if (users == null)
+			{
+				users = new List<User>();
+
+				AddApplication(usersSessionName, users);
+			}
+			else
+				currentUser = GetSession(currentUserSessionName) as User;
+			#endregion
+
+			#region INITIALIZE ANTIFORGERYTOKENS
+			if (antiForgeryTokens == null)
+			{
+				antiForgeryTokens = new List<string>();
+
+				AddApplication(antiForgeryTokensSessionName, antiForgeryTokens);
+			}
+			#endregion
+
+			#region INITIALIZE MODELS
+			if (models == null)
+			{
+				models = GetTypeList(typeof(Model));
+
+				AddApplication(modelsSessionName, models);
+			}
+			#endregion
+
+			#region INITIALIZE CONTROLLERS SESSION
 			controllersSession = new Dictionary<string, object>();
 
-			AddSession(controllersSessionSessionName, controllersSession);
+			AddApplication(controllersSessionSessionName, controllersSession);
 			#endregion
 
 			#region INITIALIZE PROTECTED FILES
@@ -498,7 +439,16 @@ namespace Aurora
 			}
 			#endregion
 
-			#region INTIALIZE FRONT CONTROLLER INSTANCE
+			#region INITIALIZE BUNDLES
+			if (bundles == null)
+			{
+				bundles = new Dictionary<string, Tuple<List<string>, string>>();
+
+				AddApplication(bundlesTokenSessionName, bundles);
+			}
+			#endregion
+
+			#region INTIALIZE FRONT CONTROLLER
 			if (frontController == null)
 			{
 				frontController = GetFrontControllerInstance();
@@ -520,53 +470,11 @@ namespace Aurora
 				controllers.ForEach(c => c.Refresh(this));
 			#endregion
 
-			#region INITIALIZE BUNDLES
-			if (bundles == null)
-			{
-				bundles = new Dictionary<string, Tuple<List<string>, string>>();
+			#region RUN ALL CONTROLLER ONINIT METHODS
+			if (frontController != null)
+				frontController.RaiseEvent(EventType.OnInit);
 
-				AddApplication(bundlesTokenSessionName, bundles);
-			}
-			#endregion
-
-			#region INITIALIZE ANTIFORGERYTOKENS
-			if (antiForgeryTokens == null)
-			{
-				antiForgeryTokens = new List<string>();
-
-				AddApplication(antiForgeryTokensSessionName, antiForgeryTokens);
-			}
-			#endregion
-
-			#region INITIALIZE USERS
-			if (users == null)
-			{
-				users = new List<User>();
-
-				AddApplication(usersSessionName, users);
-			}
-			else
-				currentUser = GetSession(currentUserSessionName) as User;
-			#endregion
-
-			#region INITIALIZE MODELS
-			if (models == null)
-			{
-				models = GetTypeList(typeof(Model));
-
-				AddApplication(modelsSessionName, models);
-			}
-			#endregion
-
-			#region RUN CONTROLLER ONINIT METHODS
-			if (!frontController.OnInitComplete)
-				frontController.InvokeOnInit();
-
-			foreach (Controller c in controllers)
-			{
-				if (!c.OnInitComplete)
-					c.InvokeOnInit();
-			}
+			controllers.ForEach(x => x.RaiseEvent(EventType.OnInit));
 			#endregion
 
 			#region INITIALIZE ROUTEINFOS
@@ -597,6 +505,13 @@ namespace Aurora
 			}
 			#endregion
 
+			#region RUN ALL CONTROLLER ONREADY METHODS
+			if (frontController != null)
+				frontController.RaiseEvent(EventType.OnReady);
+
+			controllers.ForEach(x => x.RaiseEvent(EventType.OnReady));
+			#endregion
+
 			#region PROCESS REQUEST / RENDER RESPONSE
 			if (serverError == null)
 			{
@@ -618,13 +533,14 @@ namespace Aurora
 			#endregion
 		}
 
+		#region PRIVATE METHODS
 		private ViewResponse ProcessRequest()
 		{
 			RouteInfo routeInfo = null;
 			IViewResult viewResult = null;
 			ViewResponse viewResponse = null;
 
-			if (path == "/" || path == "/default.aspx" || path == "~/") path = "/Index";
+			if (path == "/" || path.ToLower() == "/default.aspx" || path == "~/") path = "/Index";
 
 			if (Config.AllowedFilePattern.IsMatch(path))
 			{
@@ -664,10 +580,12 @@ namespace Aurora
 
 				if (routeInfo != null)
 				{
-					if (routeInfo.RequestTypeAttribute is FromRedirectOnlyAttribute && !fromRedirectOnly)
+					if (routeInfo.RequestTypeAttribute.ActionType == ActionType.FromRedirectOnly && !fromRedirectOnly)
 						return null;
 
-					if (requestType == "POST" || requestType == "PUT" || requestType == "DELETE")
+					if (routeInfo.RequestTypeAttribute.ActionType == ActionType.Post ||
+						 routeInfo.RequestTypeAttribute.ActionType == ActionType.Put ||
+						 routeInfo.RequestTypeAttribute.ActionType == ActionType.Delete)
 					{
 						if (routeInfo.RequestTypeAttribute.RequireAntiForgeryToken)
 						{
@@ -681,9 +599,11 @@ namespace Aurora
 						}
 					}
 
-					if (routeInfo.RequestTypeAttribute.SecurityType == ActionSecurity.Secure && currentUser == null ||
-							routeInfo.RequestTypeAttribute.SecurityType == ActionSecurity.Secure && !(currentUser.Roles.Intersect(routeInfo.RequestTypeAttribute.Roles.Split('|')).Count() > 0) &&
-							routeInfo.Controller.InvokeCheckRoles(routeInfo))
+					if (routeInfo.RequestTypeAttribute.SecurityType == ActionSecurity.Secure &&
+							routeInfo.RequestTypeAttribute.SecurityType == ActionSecurity.Secure && currentUser == null ||
+							routeInfo.RequestTypeAttribute.SecurityType == ActionSecurity.Secure && routeInfo.RequestTypeAttribute.Roles == null ||
+							routeInfo.RequestTypeAttribute.SecurityType == ActionSecurity.Secure && !(currentUser.Roles.Intersect(routeInfo.RequestTypeAttribute.Roles.Split('|')).Count() > 0) ||
+							routeInfo.RequestTypeAttribute.SecurityType == ActionSecurity.Secure && routeInfo.Controller.RaiseCheckRoles(new CheckRolesHandlerEventArgs() { RouteInfo = routeInfo }))
 					{
 						RaiseEventOnFrontController(RouteHandlerEventType.FailedSecurity, path, routeInfo, null);
 
@@ -701,7 +621,7 @@ namespace Aurora
 						RaiseEventOnFrontController(RouteHandlerEventType.Pre, path, routeInfo, null);
 						routeInfo.Controller.RaiseEvent(RouteHandlerEventType.Pre, path, routeInfo);
 
-						if (routeInfo.RequestTypeAttribute is FromRedirectOnlyAttribute && fromRedirectOnly)
+						if (routeInfo.RequestTypeAttribute.ActionType == ActionType.FromRedirectOnly && fromRedirectOnly)
 							RemoveSession(fromRedirectOnlySessionName);
 
 						foreach (IBoundToAction bta in routeInfo.IBoundToActionParams)
@@ -752,7 +672,7 @@ namespace Aurora
 		private ViewResponse GetErrorViewResponse(string error, string stackTrace)
 		{
 			if (!string.IsNullOrEmpty(stackTrace))
-				stackTrace = string.Format("<hr/><pre>{0}</pre>", stackTrace);
+				stackTrace = string.Format("<p><pre>{0}</pre></p>", stackTrace);
 
 			string errorView = ViewEngine.LoadView("Views", "Shared", "Error", ViewTemplateType.Shared, new Dictionary<string, string>()
 					{
@@ -782,7 +702,14 @@ namespace Aurora
 				});
 			}
 			else
-				ResponseRedirect(viewResponse.RedirectTo, false);
+			{
+				RouteInfo redirectRoute = FindRoute(viewResponse.RedirectTo);
+
+				if (redirectRoute != null && redirectRoute.RequestTypeAttribute.ActionType == ActionType.FromRedirectOnly)
+					ResponseRedirect(viewResponse.RedirectTo, true);
+				else
+					ResponseRedirect(viewResponse.RedirectTo, false);
+			}
 		}
 
 		private string[] GetViewRoots()
@@ -795,158 +722,6 @@ namespace Aurora
 			viewRoots.AddRange(controllers.SelectMany(x => x.GetType().GetCustomAttributes(typeof(PartitionAttribute), false)).Select(x => string.Format(@"{0}\{1}", appRoot, (x as PartitionAttribute).Name)));
 
 			return viewRoots.ToArray();
-		}
-
-		internal void ProtectFile(string path, string roles)
-		{
-			path.ThrowIfArgumentNull();
-			roles.ThrowIfArgumentNull();
-
-			protectedFiles[string.Format(@"{0}\{1}", appRoot, path)] = roles;
-		}
-
-		internal bool CanAccessFile(string path)
-		{
-			path.ThrowIfArgumentNull();
-
-			if (protectedFiles.ContainsKey(path))
-				return (currentUser != null && currentUser.Roles.Intersect(protectedFiles[path].Split('|')).Count() > 0) ? true : false;
-
-			return true;
-		}
-
-		internal void AddBundle(string name, string[] paths)
-		{
-			string compressedFile = null;
-			StringBuilder combinedFiles = new StringBuilder();
-
-			paths = paths.Where(x => File.Exists(appRoot + x.Replace('/', '\\')) &&
-															 Path.GetExtension(x) == ".css" ||
-															 Path.GetExtension(x) == ".js").ToArray();
-
-			if (!debugMode)
-			{
-				foreach (string p in paths)
-					combinedFiles.AppendLine(File.ReadAllText(appRoot + p));
-
-				if (Path.GetExtension(name) == ".js")
-					compressedFile = new JavaScriptCompressor().Compress(combinedFiles.ToString());
-				else if (Path.GetExtension(name) == ".css")
-					compressedFile = new CssCompressor().Compress(combinedFiles.ToString());
-			}
-
-			bundles[name] = new Tuple<List<string>, string>(paths.ToList(), compressedFile);
-		}
-
-		internal string[] GetBundleFiles(string name)
-		{
-			if (bundles.ContainsKey(name))
-				return bundles[name].Item1.ToArray();
-
-			return null;
-		}
-
-		internal void AddBinding(string controllerName, string actionName, object bindInstance)
-		{
-			if (!actionBindings.ContainsKey(controllerName))
-				actionBindings[controllerName] = new Dictionary<string, List<object>>();
-
-			if (!actionBindings[controllerName].ContainsKey(actionName))
-				actionBindings[controllerName][actionName] = new List<object>();
-
-			if (!actionBindings[controllerName][actionName].Contains(bindInstance))
-				actionBindings[controllerName][actionName].Add(bindInstance);
-		}
-
-		internal void AddBinding(string controllerName, string[] actionNames, object bindInstance)
-		{
-			foreach (string actionName in actionNames)
-				AddBinding(controllerName, actionName, bindInstance);
-		}
-
-		internal void AddBinding(string controllerName, string[] actionNames, object[] bindInstances)
-		{
-			foreach (string actionName in actionNames)
-				foreach (object bindInstance in bindInstances)
-					AddBinding(controllerName, actionName, bindInstance);
-		}
-
-		internal void AddBindingForAllActions(string controllerName, object bindInstance)
-		{
-			foreach (string actionName in GetControllerActionNames(controllerName))
-				AddBinding(controllerName, actionName, bindInstance);
-		}
-
-		internal void AddBindingsForAllActions(string controllerName, object[] bindInstances)
-		{
-			foreach (string actionName in GetControllerActionNames(controllerName))
-				foreach (object bindInstance in bindInstances)
-					AddBinding(controllerName, actionName, bindInstance);
-		}
-
-		internal RouteInfo FindRoute(string path)
-		{
-			var routeSlice = routeInfos.SelectMany(routeInfo => routeInfo.Aliases, (routeInfo, alias) => new { routeInfo, alias })
-																 .Where(x => path.StartsWith(x.alias)).ToList();
-			
-			if (routeSlice.Count() > 0)
-			{
-				object model = null;
-				List<object> allParams = new List<object>();
-
-				object[] urlParams = path.Replace(routeSlice[0].alias, string.Empty).Split('/').Where(x => !string.IsNullOrEmpty(x)).Select(x => HttpUtility.UrlEncode(x)).ToArray().ToObjectArray();
-
-				allParams.AddRange(routeSlice[0].routeInfo.BoundParams);
-				allParams.AddRange(urlParams);
-				allParams.AddRange(routeSlice[0].routeInfo.DefaultParams);
-
-				if (requestType == "POST")
-				{
-					model = PayloadToModel(form);
-					object[] formParams = (model != null) ? new object[] { model } : form.Values.ToArray().ToObjectArray();
-					allParams.AddRange(formParams);
-				}
-				else if (requestType == "PUT" || requestType == "DELETE")
-				{
-					model = PayloadToModel(payload);
-					object[] payloadParams = (model != null) ? new object[] { model } : payload.Values.ToArray().ToObjectArray();
-					allParams.AddRange(payloadParams);
-				}
-
-				object[] finalParams = allParams.ToArray();
-
-				foreach (RouteInfo routeInfo in routeSlice.Where(x => x.routeInfo.Action.GetParameters().Count() >= finalParams.Count()).Select(x => x.routeInfo))
-				{
-					Type[] finalParamTypes = finalParams.Select(x => x.GetType()).ToArray();
-					Type[] actionParamTypes = routeInfo.Action.GetParameters()
-						// ActionFilterResults aren't known at this point
-						.Where(x => x.ParameterType.GetInterface("IActionFilterResult") == null)
-						.Select(x => x.ParameterType).ToArray();
-
-					if (routeInfo.ActionParamTransforms != null)
-						foreach (var apt in routeInfo.ActionParamTransforms)
-							finalParamTypes[apt.Item2] = actionParamTypes[apt.Item2];
-
-					for (int i = 0; i < routeSlice[0].routeInfo.BoundParams.Count(); i++)
-					{
-						if (actionParamTypes[i].IsInterface)
-							if (finalParamTypes[i].GetInterface(actionParamTypes[i].Name) != null)
-							{
-								finalParamTypes[i] = actionParamTypes[i];
-								break;
-							}
-					}
-
-					if (finalParamTypes.SequenceEqual(actionParamTypes))
-					{
-						routeInfo.ActionParams = finalParams;
-
-						return routeInfo;
-					}
-				}
-			}
-
-			return null;
 		}
 
 		private object PayloadToModel(Dictionary<string, string> payload)
@@ -1045,7 +820,7 @@ namespace Aurora
 			controllerName.ThrowIfArgumentNull();
 
 			return controllers.FirstOrDefault(x => x.GetType().Name == controllerName).GetType().GetMethods()
-																							 .Where(x => x.GetCustomAttributes(typeof(RequestTypeAttribute), false).Count() > 0)
+																							 .Where(x => x.GetCustomAttributes(typeof(HttpAttribute), false).Count() > 0)
 																							 .Select(x => x.Name).ToList();
 		}
 
@@ -1068,6 +843,198 @@ namespace Aurora
 				fc = FrontController.CreateInstance(frontController[0], this);
 
 			return fc;
+		}
+
+		private List<RouteInfo> GetRouteInfos()
+		{
+			List<RouteInfo> routeInfos = new List<RouteInfo>();
+
+			foreach (Controller c in controllers)
+			{
+				var actions = c.GetType().GetMethods().Where(x => x.GetCustomAttributes(typeof(HttpAttribute), false).Count() > 0);
+
+				foreach (MethodInfo action in actions)
+				{
+					List<string> aliases = action.GetCustomAttributes(typeof(AliasAttribute), false).Select(x => (x as AliasAttribute).Alias).ToList();
+					HttpAttribute rta = (HttpAttribute)action.GetCustomAttributes(typeof(HttpAttribute), false).FirstOrDefault();
+
+					if (string.IsNullOrEmpty(rta.RouteAlias))
+						aliases.Add(string.Format("/{0}/{1}", c.GetType().Name, action.Name));
+					else
+						aliases.Add(rta.RouteAlias);
+
+					AddRoute(routeInfos, c, action, aliases, null);
+				}
+			}
+
+			return routeInfos;
+		}
+
+		private RouteInfo RaiseEventOnFrontController(RouteHandlerEventType eventType, string path, RouteInfo routeInfo, object data)
+		{
+			if (frontController != null)
+				return frontController.RaiseEvent(eventType, path, routeInfo, data);
+
+			return null;
+		}
+
+		private string CreateToken()
+		{
+			return (Guid.NewGuid().ToString() + Guid.NewGuid().ToString()).Replace("-", string.Empty);
+		}
+		#endregion
+
+		#region INTERNAL METHODS
+		internal void ProtectFile(string path, string roles)
+		{
+			path.ThrowIfArgumentNull();
+			roles.ThrowIfArgumentNull();
+
+			protectedFiles[string.Format(@"{0}\{1}", appRoot, path)] = roles;
+		}
+
+		internal bool CanAccessFile(string path)
+		{
+			path.ThrowIfArgumentNull();
+
+			if (protectedFiles.ContainsKey(path))
+				return (currentUser != null && currentUser.Roles.Intersect(protectedFiles[path].Split('|')).Count() > 0) ? true : false;
+
+			return true;
+		}
+
+		internal void AddBundle(string name, string[] paths)
+		{
+			string compressedFile = null;
+			StringBuilder combinedFiles = new StringBuilder();
+
+			paths = paths.Where(x => File.Exists(appRoot + x.Replace('/', '\\')) &&
+															 Path.GetExtension(x) == ".css" ||
+															 Path.GetExtension(x) == ".js").ToArray();
+
+			if (!debugMode)
+			{
+				foreach (string p in paths)
+					combinedFiles.AppendLine(File.ReadAllText(appRoot + p));
+
+				if (Path.GetExtension(name) == ".js")
+					compressedFile = new JavaScriptCompressor().Compress(combinedFiles.ToString());
+				else if (Path.GetExtension(name) == ".css")
+					compressedFile = new CssCompressor().Compress(combinedFiles.ToString());
+			}
+
+			bundles[name] = new Tuple<List<string>, string>(paths.ToList(), compressedFile);
+		}
+
+		internal string[] GetBundleFiles(string name)
+		{
+			if (bundles.ContainsKey(name))
+				return bundles[name].Item1.ToArray();
+
+			return null;
+		}
+
+		internal void AddBinding(string controllerName, string actionName, object bindInstance)
+		{
+			if (!actionBindings.ContainsKey(controllerName))
+				actionBindings[controllerName] = new Dictionary<string, List<object>>();
+
+			if (!actionBindings[controllerName].ContainsKey(actionName))
+				actionBindings[controllerName][actionName] = new List<object>();
+
+			if (!actionBindings[controllerName][actionName].Contains(bindInstance))
+				actionBindings[controllerName][actionName].Add(bindInstance);
+		}
+
+		internal void AddBinding(string controllerName, string[] actionNames, object bindInstance)
+		{
+			foreach (string actionName in actionNames)
+				AddBinding(controllerName, actionName, bindInstance);
+		}
+
+		internal void AddBinding(string controllerName, string[] actionNames, object[] bindInstances)
+		{
+			foreach (string actionName in actionNames)
+				foreach (object bindInstance in bindInstances)
+					AddBinding(controllerName, actionName, bindInstance);
+		}
+
+		internal void AddBindingForAllActions(string controllerName, object bindInstance)
+		{
+			foreach (string actionName in GetControllerActionNames(controllerName))
+				AddBinding(controllerName, actionName, bindInstance);
+		}
+
+		internal void AddBindingsForAllActions(string controllerName, object[] bindInstances)
+		{
+			foreach (string actionName in GetControllerActionNames(controllerName))
+				foreach (object bindInstance in bindInstances)
+					AddBinding(controllerName, actionName, bindInstance);
+		}
+
+		internal RouteInfo FindRoute(string path)
+		{
+			var routeSlice = routeInfos.SelectMany(routeInfo => routeInfo.Aliases, (routeInfo, alias) => new { routeInfo, alias })
+																 .Where(x => path.StartsWith(x.alias)).ToList();
+
+			if (routeSlice.Count() > 0)
+			{
+				object model = null;
+				List<object> allParams = new List<object>();
+
+				object[] urlParams = path.Replace(routeSlice[0].alias, string.Empty).Split('/').Where(x => !string.IsNullOrEmpty(x)).Select(x => HttpUtility.UrlEncode(x)).ToArray().ToObjectArray();
+
+				allParams.AddRange(routeSlice[0].routeInfo.BoundParams);
+				allParams.AddRange(urlParams);
+				allParams.AddRange(routeSlice[0].routeInfo.DefaultParams);
+
+				if (requestType == "POST")
+				{
+					model = PayloadToModel(form);
+					object[] formParams = (model != null) ? new object[] { model } : form.Values.ToArray().ToObjectArray();
+					allParams.AddRange(formParams);
+				}
+				else if (requestType == "PUT" || requestType == "DELETE")
+				{
+					model = PayloadToModel(payload);
+					object[] payloadParams = (model != null) ? new object[] { model } : payload.Values.ToArray().ToObjectArray();
+					allParams.AddRange(payloadParams);
+				}
+
+				object[] finalParams = allParams.ToArray();
+
+				foreach (RouteInfo routeInfo in routeSlice.Where(x => x.routeInfo.Action.GetParameters().Count() >= finalParams.Count()).Select(x => x.routeInfo))
+				{
+					Type[] finalParamTypes = finalParams.Select(x => x.GetType()).ToArray();
+					Type[] actionParamTypes = routeInfo.Action.GetParameters()
+						// ActionFilterResults aren't known at this point
+						.Where(x => x.ParameterType.GetInterface("IActionFilterResult") == null)
+						.Select(x => x.ParameterType).ToArray();
+
+					if (routeInfo.ActionParamTransforms != null)
+						foreach (var apt in routeInfo.ActionParamTransforms)
+							finalParamTypes[apt.Item2] = actionParamTypes[apt.Item2];
+
+					for (int i = 0; i < routeSlice[0].routeInfo.BoundParams.Count(); i++)
+					{
+						if (actionParamTypes[i].IsInterface)
+							if (finalParamTypes[i].GetInterface(actionParamTypes[i].Name) != null)
+							{
+								finalParamTypes[i] = actionParamTypes[i];
+								break;
+							}
+					}
+
+					if (finalParamTypes.SequenceEqual(actionParamTypes))
+					{
+						routeInfo.ActionParams = finalParams;
+
+						return routeInfo;
+					}
+				}
+			}
+
+			return null;
 		}
 
 		internal ActionParameterInfo GetActionParameterTransforms(ParameterInfo[] actionParams, List<object> bindings)
@@ -1132,15 +1099,12 @@ namespace Aurora
 
 		internal void AddRoute(List<RouteInfo> routeInfos, Controller c, MethodInfo action, List<string> aliases, string defaultParams)
 		{
-			//if (routeInfos.Where(x => x.Aliases.Intersect(aliases).Count() > 0).Count() > 0)
-			//	return;
-
 			if (action != null)
 			{
 				List<object> bindings = null;
 				ActionParameterInfo actionParameterInfo = null;
 				Dictionary<string, object> cachedActionParamTransformInstances = new Dictionary<string, object>();
-				RequestTypeAttribute rta = (RequestTypeAttribute)action.GetCustomAttributes(typeof(RequestTypeAttribute), false).FirstOrDefault();
+				HttpAttribute rta = (HttpAttribute)action.GetCustomAttributes(typeof(HttpAttribute), false).FirstOrDefault();
 
 				if (actionBindings.ContainsKey(c.GetType().Name))
 					if (actionBindings[c.GetType().Name].ContainsKey(action.Name))
@@ -1174,53 +1138,15 @@ namespace Aurora
 
 			if (c != null)
 			{
-				MethodInfo action = c.GetType().GetMethods().FirstOrDefault(x => x.GetCustomAttributes(typeof(RequestTypeAttribute), false).Count() > 0 && x.Name == actionName);
+				MethodInfo action = c.GetType().GetMethods().FirstOrDefault(x => x.GetCustomAttributes(typeof(HttpAttribute), false).Count() > 0 && x.Name == actionName);
 
 				AddRoute(routeInfos, c, action, new List<string> { alias }, defaultParams);
 			}
 		}
 
-		private List<RouteInfo> GetRouteInfos()
-		{
-			List<RouteInfo> routeInfos = new List<RouteInfo>();
-
-			foreach (Controller c in controllers)
-			{
-				var actions = c.GetType().GetMethods().Where(x => x.GetCustomAttributes(typeof(RequestTypeAttribute), false).Count()>0);
-
-				foreach (MethodInfo action in actions)
-				{
-					List<string> aliases = action.GetCustomAttributes(typeof(AliasAttribute), false).Select(x => (x as AliasAttribute).Alias).ToList();
-					RequestTypeAttribute rta = (RequestTypeAttribute)action.GetCustomAttributes(typeof(RequestTypeAttribute), false).FirstOrDefault();
-
-					if (string.IsNullOrEmpty(rta.RouteAlias))
-						aliases.Add(string.Format("/{0}/{1}", c.GetType().Name, action.Name));
-					else
-						aliases.Add(rta.RouteAlias);
-
-					AddRoute(routeInfos, c, action, aliases, null);
-				}
-			}
-
-			return routeInfos;
-		}
-
 		internal List<string> GetAllRouteAliases()
 		{
 			return routeInfos.SelectMany(x => x.Aliases).ToList();
-		}
-
-		private RouteInfo RaiseEventOnFrontController(RouteHandlerEventType eventType, string path, RouteInfo routeInfo, object data)
-		{
-			if (frontController != null)
-				return frontController.RaiseEvent(eventType, path, routeInfo, data);
-
-			return null;
-		}
-
-		private string CreateToken()
-		{
-			return (Guid.NewGuid().ToString() + Guid.NewGuid().ToString()).Replace("-", string.Empty);
 		}
 
 		internal string CreateAntiForgeryToken()
@@ -1298,6 +1224,7 @@ namespace Aurora
 		{
 			return appRoot + path.Replace('/', '\\');
 		}
+		#endregion
 		#endregion
 
 		#region ASP.NET ADAPTER CALLBACKS
@@ -1391,7 +1318,7 @@ namespace Aurora
 		public List<string> Aliases { get; internal set; }
 		public MethodInfo Action { get; internal set; }
 		public Controller Controller { get; internal set; }
-		public RequestTypeAttribute RequestTypeAttribute { get; internal set; }
+		public HttpAttribute RequestTypeAttribute { get; internal set; }
 		public object[] ActionParams { get; internal set; }
 		public object[] BoundParams { get; internal set; }
 		public IBoundToAction[] IBoundToActionParams { get; internal set; }
@@ -1476,7 +1403,7 @@ namespace Aurora
 				}
 			}
 
-			if(!result)
+			if (!result)
 				error = string.Format("{0} has a required length that was not met", property.Name);
 
 			return result;
@@ -1528,7 +1455,7 @@ namespace Aurora
 					result = false;
 			}
 
-			if(!result)
+			if (!result)
 				error = string.Format("{0} did not pass regular expression validation", property.Name);
 
 			return result;
@@ -1552,7 +1479,7 @@ namespace Aurora
 					result = false;
 			}
 
-			if(!result)
+			if (!result)
 				error = string.Format("{0} was not within the range specified", property.Name);
 
 			return result;
@@ -1654,7 +1581,7 @@ namespace Aurora
 
 			var finalResult = results.Where(x => x == false);
 
-			IsValid = (finalResult.Count()>0) ? false : true;
+			IsValid = (finalResult.Count() > 0) ? false : true;
 		}
 
 		internal static List<PropertyInfo> GetPropertiesNotRequiredToPost(Type t)
@@ -1690,7 +1617,14 @@ namespace Aurora
 
 	#region CONTROLLERS
 
-	#region ACTION HANDLER
+	#region EVENT ASSETS
+	internal enum EventType
+	{
+		OnReady,
+		OnInit,
+		CheckRoles
+	}
+
 	internal enum RouteHandlerEventType
 	{
 		Pre,
@@ -1698,11 +1632,16 @@ namespace Aurora
 		PreRoute,
 		PostRoute,
 		Static,
-		CachedViewResult,
 		PassedSecurity,
 		FailedSecurity,
 		MissingRoute,
 		Error
+	}
+
+	public class CheckRolesHandlerEventArgs : EventArgs
+	{
+		public bool Result { get; set; }
+		public RouteInfo RouteInfo { get; set; }
 	}
 
 	public class RouteHandlerEventArgs : EventArgs
@@ -1716,22 +1655,45 @@ namespace Aurora
 	public abstract class BaseController
 	{
 		internal Engine engine;
-		
-		internal bool OnInitComplete { get; set; }
+
 		public string IPAddress { get { return engine.IPAddress; } }
 		public User CurrentUser { get { return engine.currentUser; } }
 		public X509Certificate2 ClientCertificate { get { return engine.clientCertificate; } }
 
-		protected virtual void OnInit() { }
-		protected virtual bool CheckRoles(RouteInfo routeInfo) { return true; }
+		protected event EventHandler OnReadyEvent;
+		protected event EventHandler OnInit;
+		protected event EventHandler<CheckRolesHandlerEventArgs> OnCheckRoles;
 
-		internal void InvokeOnInit()
+		internal bool RaiseCheckRoles(CheckRolesHandlerEventArgs checkRolesHandlerEventArgs)
 		{
-			OnInit();
-			OnInitComplete = true;
+			if (OnCheckRoles != null)
+			{
+				OnCheckRoles(this, checkRolesHandlerEventArgs);
+
+				return checkRolesHandlerEventArgs.Result;
+			}
+
+			return true;
 		}
 
-		internal bool InvokeCheckRoles(RouteInfo routeInfo) { return CheckRoles(routeInfo); }
+		internal void RaiseEvent(EventType eventType)
+		{
+			switch (eventType)
+			{
+				case EventType.OnReady:
+					if (OnReadyEvent != null)
+						OnReadyEvent(this, null);
+					break;
+
+				case EventType.OnInit:
+					if (OnInit != null)
+					{
+						OnInit(this, null);
+						OnInit = null;
+					}
+					break;
+			}
+		}
 
 		internal void Refresh(Engine engine)
 		{
@@ -1828,6 +1790,16 @@ namespace Aurora
 			engine.ProtectFile(path, roles);
 		}
 
+		protected void AddApplication(string key, object value)
+		{
+			engine.AddApplication(key, value);
+		}
+
+		protected object GetApplication(string key)
+		{
+			return engine.GetApplication(key);
+		}
+
 		protected void AddSession(string key, object value)
 		{
 			engine.AddControllerSession(key, value);
@@ -1846,16 +1818,15 @@ namespace Aurora
 
 	public abstract class FrontController : BaseController
 	{
-		public event EventHandler<RouteHandlerEventArgs> PreActionEvent = (sender, args) => { };
-		public event EventHandler<RouteHandlerEventArgs> PostActionEvent = (sender, args) => { };
-		public event EventHandler<RouteHandlerEventArgs> StaticRouteEvent = (sender, args) => { };
-		public event EventHandler<RouteHandlerEventArgs> CachedViewResultEvent = (sender, args) => { };
-		public event EventHandler<RouteHandlerEventArgs> PreRouteDeterminationEvent = (sender, args) => { };
-		public event EventHandler<RouteHandlerEventArgs> PostRouteDeterminationEvent = (sender, args) => { };
-		public event EventHandler<RouteHandlerEventArgs> PassedSecurityEvent = (sender, args) => { };
-		public event EventHandler<RouteHandlerEventArgs> FailedSecurityEvent = (sender, args) => { };
-		public event EventHandler<RouteHandlerEventArgs> MissingRouteEvent = (sender, args) => { };
-		public event EventHandler<RouteHandlerEventArgs> ErrorEvent = (sender, args) => { };
+		protected event EventHandler<RouteHandlerEventArgs> OnPreActionEvent;
+		protected event EventHandler<RouteHandlerEventArgs> OnPostActionEvent;
+		protected event EventHandler<RouteHandlerEventArgs> OnStaticRouteEvent;
+		protected event EventHandler<RouteHandlerEventArgs> OnPreRouteDeterminationEvent;
+		protected event EventHandler<RouteHandlerEventArgs> OnPostRouteDeterminationEvent;
+		protected event EventHandler<RouteHandlerEventArgs> OnPassedSecurityEvent;
+		protected event EventHandler<RouteHandlerEventArgs> OnFailedSecurityEvent;
+		protected event EventHandler<RouteHandlerEventArgs> OnMissingRouteEvent;
+		protected event EventHandler<RouteHandlerEventArgs> OnErrorEvent;
 
 		internal static FrontController CreateInstance(Type type, Engine engine)
 		{
@@ -1880,46 +1851,53 @@ namespace Aurora
 			switch (type)
 			{
 				case RouteHandlerEventType.Pre:
-					PreActionEvent(this, args);
+					if(OnPreActionEvent!=null)
+						OnPreActionEvent(this, args);
 					break;
 
 				case RouteHandlerEventType.Post:
-					PostActionEvent(this, args);
+					if(OnPostActionEvent!=null)
+						OnPostActionEvent(this, args);
 					break;
 
 				case RouteHandlerEventType.PreRoute:
-					PreRouteDeterminationEvent(this, args);
+					if(OnPreRouteDeterminationEvent!=null)
+						OnPreRouteDeterminationEvent(this, args);
 					break;
 
 				case RouteHandlerEventType.PostRoute:
-					PostRouteDeterminationEvent(this, args);
+					if(OnPostRouteDeterminationEvent!=null)
+						OnPostRouteDeterminationEvent(this, args);
 					break;
 
 				case RouteHandlerEventType.Static:
-					StaticRouteEvent(this, args);
-					break;
-
-				case RouteHandlerEventType.CachedViewResult:
-					CachedViewResultEvent(this, args);
+					if(OnStaticRouteEvent!=null)
+						OnStaticRouteEvent(this, args);
 					break;
 
 				case RouteHandlerEventType.PassedSecurity:
-					PassedSecurityEvent(this, args);
+					if(OnPassedSecurityEvent!=null)
+						OnPassedSecurityEvent(this, args);
 					break;
 
 				case RouteHandlerEventType.FailedSecurity:
-					FailedSecurityEvent(this, args);
+					if(OnFailedSecurityEvent!=null)
+						OnFailedSecurityEvent(this, args);
 					break;
 
 				case RouteHandlerEventType.MissingRoute:
-					MissingRouteEvent(this, args);
+					if (OnMissingRouteEvent != null)
+					{
+						OnMissingRouteEvent(this, args);
 
-					if (args.RouteInfo != null)
-						route = args.RouteInfo;
+						if (args.RouteInfo != null)
+							route = args.RouteInfo;
+					}
 					break;
 
 				case RouteHandlerEventType.Error:
-					ErrorEvent(this, args);
+					if(OnErrorEvent!=null)
+						OnErrorEvent(this, args);
 					break;
 			}
 
@@ -1936,8 +1914,8 @@ namespace Aurora
 		protected dynamic DViewTags { get; private set; }
 		protected dynamic DFragTags { get; private set; }
 
-		public event EventHandler<RouteHandlerEventArgs> PreActionEvent = (sender, args) => { };
-		public event EventHandler<RouteHandlerEventArgs> PostActionEvent = (sender, args) => { };
+		protected event EventHandler<RouteHandlerEventArgs> OnPreActionEvent;
+		protected event EventHandler<RouteHandlerEventArgs> OnPostActionEvent;
 
 		protected Controller()
 		{
@@ -1990,11 +1968,13 @@ namespace Aurora
 			switch (type)
 			{
 				case RouteHandlerEventType.Pre:
-					PreActionEvent(this, args);
+					if(OnPreActionEvent!=null)
+						OnPreActionEvent(this, args);
 					break;
 
 				case RouteHandlerEventType.Post:
-					PostActionEvent(this, args);
+					if(OnPostActionEvent!=null)
+						OnPostActionEvent(this, args);
 					break;
 			}
 		}
@@ -2024,7 +2004,7 @@ namespace Aurora
 					fragTags = _fragTags.ToDictionary(k => k.Key, k => k.Value.ToString());
 			}
 			else if (FragTags.ContainsKey(fragmentName))
-					fragTags = FragTags[fragmentName];
+				fragTags = FragTags[fragmentName];
 
 			return RenderFragment(fragmentName, fragTags);
 		}

@@ -2047,9 +2047,7 @@ namespace Aurora.Extra
 			set
 			{
 				if (base.BaseGet(index) != null)
-				{
 					base.BaseRemoveAt(index);
-				}
 
 				this.BaseAdd(index, value);
 			}
@@ -2175,9 +2173,7 @@ namespace Aurora.Extra
 		internal static ActiveDirectoryUser LookupUser(ActiveDirectorySearchType searchType, string data, bool global)
 		{
 			if (string.IsNullOrEmpty(searchType.GetMetadata()))
-			{
 				throw new ArgumentNullException("searchType", ADSearchCriteriaIsNullOrEmptyError);
-			}
 
 			if (ActiveDirectorySearchInfos.Length > 0)
 			{
@@ -2194,32 +2190,22 @@ namespace Aurora.Extra
 					catch
 					{
 						if (i < ActiveDirectorySearchInfos.Length - 1)
-						{
 							continue;
-						}
 						else
-						{
 							throw;
-						}
 					}
 				}
 			}
 			else
 			{
 				if (string.IsNullOrEmpty(ADSearchUser) || string.IsNullOrEmpty(ADSearchPW))
-				{
 					throw new Exception(ADUserOrPWError);
-				}
 
 				if (string.IsNullOrEmpty(ADSearchRoot))
-				{
 					throw new Exception(ADSearchRootIsNullOrEmpty);
-				}
 
 				if (string.IsNullOrEmpty(ADSearchDomain))
-				{
 					throw new Exception(ADSearchDomainIsNullorEmpty);
-				}
 
 				return LookupUser(searchType, data, global,
 						ADSearchDomain,
@@ -2236,9 +2222,7 @@ namespace Aurora.Extra
 			ActiveDirectoryUser user = null;
 
 			if (string.IsNullOrEmpty(data))
-			{
 				throw new ArgumentNullException("data", ActiveDirectorySearchCriteriaNullOrEmpty);
-			}
 
 			try
 			{
@@ -2286,9 +2270,7 @@ namespace Aurora.Extra
 									}
 
 									if (result != null)
-									{
 										break;
-									}
 								}
 								catch (Exception)
 								{
@@ -2297,15 +2279,11 @@ namespace Aurora.Extra
 							}
 						}
 						else
-						{
 							throw;
-						}
 					}
 
 					if (result != null)
-					{
 						user = GetUser(result.GetDirectoryEntry());
-					}
 				}
 			}
 			catch (DirectoryServicesCOMException)
@@ -2423,9 +2401,7 @@ namespace Aurora.Extra
 			if (user.Properties.Contains("proxyAddresses"))
 			{
 				foreach (string addr in user.Properties["proxyAddresses"])
-				{
 					addresses.Add(Regex.Replace(addr, @"\s+", string.Empty, RegexOptions.IgnoreCase).Trim());
-				}
 			}
 
 			return addresses;
@@ -2436,9 +2412,7 @@ namespace Aurora.Extra
 			foreach (string p in GetProxyAddresses(user))
 			{
 				if (p.StartsWith("SMTP:", StringComparison.Ordinal))
-				{
 					return p.Replace("SMTP:", string.Empty).ToLowerInvariant();
-				}
 			}
 
 			return null;
