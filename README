@@ -2,7 +2,7 @@ Aurora - An MVC web framework for .NET
 
 Frank Hale <frankhale@gmail.com>
 
-Date: 26 July 2012
+Date: 29 July 2012
 
 // --------------------
 // --- Feature List ---
@@ -46,6 +46,11 @@ Date: 26 July 2012
  
 Changelog:
 
+29 July 2012
+
+- Routes that are added from a controller now reflect that they are dynamic
+	routes and RemoveRoute will now properly dispose of them when called.
+
 26 July 2012
 
 - Condensed all the Http request attributes into a single Http attribute
@@ -79,9 +84,9 @@ Changelog:
 	 Aurora.Extra.cs - Everything else
 
 	 TODO: Documentation has been ripped out, it will be replaced, for now there
-				 is nothing. I'll be uploading a sample application soon. Also the only
-				 feature that is not back in the rewrite is Action Filters. I'm working
-				 on that.         
+				is nothing. I'll be uploading a sample application soon. Also the only
+				feature that is not back in the rewrite is Action Filters. I'm working
+				on that.         
 
 
 ... OLD UPDATES REMOVED ....

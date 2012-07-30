@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 26 July 2012
+// Updated On: 29 July 2012
 //
 // Contact Info:
 //
@@ -104,7 +104,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyCopyright("(GNU GPLv3) Copyleft © 2011-2012")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("2.0.3.0")]
+[assembly: AssemblyVersion("2.0.4.0")]
 #endif
 #endregion
 
@@ -863,7 +863,7 @@ namespace Aurora
 					else
 						aliases.Add(rta.RouteAlias);
 
-					AddRoute(routeInfos, c, action, aliases, null);
+					AddRoute(routeInfos, c, action, aliases, null, false);
 				}
 			}
 
@@ -1097,7 +1097,7 @@ namespace Aurora
 				routeInfos.Remove(routeInfo);
 		}
 
-		internal void AddRoute(List<RouteInfo> routeInfos, Controller c, MethodInfo action, List<string> aliases, string defaultParams)
+		internal void AddRoute(List<RouteInfo> routeInfos, Controller c, MethodInfo action, List<string> aliases, string defaultParams, bool dynamic)
 		{
 			if (action != null)
 			{
@@ -1123,12 +1123,12 @@ namespace Aurora
 					DefaultParams = (!string.IsNullOrEmpty(defaultParams)) ? defaultParams.Split('/').ToObjectArray() : new object[] { },
 					ActionParamTransforms = (actionParameterInfo.ActionParamTransforms.Count() > 0) ? actionParameterInfo.ActionParamTransforms : null,
 					CachedActionParamTransformInstances = actionParameterInfo.ActionParamTransformInstances,
-					Dynamic = string.IsNullOrEmpty(defaultParams) ? true : false
+					Dynamic = dynamic
 				});
 			}
 		}
 
-		internal void AddRoute(List<RouteInfo> routeInfos, string alias, string controllerName, string actionName, string defaultParams)
+		internal void AddRoute(List<RouteInfo> routeInfos, string alias, string controllerName, string actionName, string defaultParams, bool dynamic)
 		{
 			alias.ThrowIfArgumentNull();
 			controllerName.ThrowIfArgumentNull();
@@ -1140,7 +1140,7 @@ namespace Aurora
 			{
 				MethodInfo action = c.GetType().GetMethods().FirstOrDefault(x => x.GetCustomAttributes(typeof(HttpAttribute), false).Count() > 0 && x.Name == actionName);
 
-				AddRoute(routeInfos, c, action, new List<string> { alias }, defaultParams);
+				AddRoute(routeInfos, c, action, new List<string> { alias }, defaultParams, dynamic);
 			}
 		}
 
@@ -1707,7 +1707,7 @@ namespace Aurora
 
 		protected void AddRoute(string alias, string actionName, string defaultParams)
 		{
-			engine.AddRoute(engine.routeInfos, alias, this.GetType().Name, actionName, defaultParams);
+			engine.AddRoute(engine.routeInfos, alias, this.GetType().Name, actionName, defaultParams, true);
 		}
 
 		protected void RemoveRoute(string alias)
