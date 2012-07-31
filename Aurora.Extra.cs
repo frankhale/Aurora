@@ -1,7 +1,7 @@
 ﻿//
 // Aurora.Extra - Additional bits that may be useful in your applications      
 //
-// Updated On: 24 July 2012
+// Updated On: 30 July 2012
 //
 // Contact Info:
 //
@@ -13,8 +13,8 @@
 // GPL version 3 <http://www.gnu.org/licenses/gpl-3.0.html> (see below)
 //
 // NON-GPL code = my fork of Rob Conery's Massive which is under the 
-//                "New BSD License" and my Gravatar fork for which the original 
-//                author did not include a license.
+//                "New BSD License"
+//
 
 #region LICENSE - GPL version 3 <http://www.gnu.org/licenses/gpl-3.0.html>
 //
@@ -88,22 +88,6 @@ namespace Aurora.Extra
 		public MetadataAttribute(string metadata)
 		{
 			Metadata = metadata;
-		}
-	}
-
-	[AttributeUsage(AttributeTargets.Field)]
-	public sealed class UniqueIdAttribute : Attribute
-	{
-		internal string Id { get; set; }
-
-		public UniqueIdAttribute() 
-		{
-			Id = Guid.NewGuid().ToString().Replace("-", "").Substring(0, 16);
-		}
-
-		private string GenerateID()
-		{
-			return Guid.NewGuid().ToString().Replace("-", "").Substring(0, 16);
 		}
 	}
 
@@ -221,18 +205,6 @@ namespace Aurora.Extra
 					return mda.Metadata;
 				}
 			}
-
-			return null;
-		}
-
-		public static string GetUniqueId(this Enum obj)
-		{
-			obj.ThrowIfArgumentNull();
-
-			UniqueIdAttribute uid = (UniqueIdAttribute)obj.GetType().GetField(obj.ToString()).GetCustomAttributes(false).FirstOrDefault(x => x is UniqueIdAttribute);
-
-			if (uid != null)
-				return uid.Id;
 
 			return null;
 		}
@@ -2064,7 +2036,7 @@ namespace Aurora.Extra
 		}
 	}
 
-	public class WebConfig : ConfigurationSection
+	public class ActiveDirectoryWebConfig : ConfigurationSection
 	{
 		[ConfigurationProperty("EncryptionKey", DefaultValue = "", IsRequired = false)]
 		public string EncryptionKey
@@ -2138,7 +2110,7 @@ namespace Aurora.Extra
 
 	public static class ActiveDirectory
 	{
-		public static WebConfig webConfig = ConfigurationManager.GetSection("ActiveDirectory") as WebConfig;
+		public static ActiveDirectoryWebConfig webConfig = ConfigurationManager.GetSection("ActiveDirectory") as ActiveDirectoryWebConfig;
 
 		public static string ADSearchUser = (webConfig == null) ? null : (!string.IsNullOrEmpty(webConfig.ADSearchUser) && !string.IsNullOrEmpty(webConfig.EncryptionKey)) ? Encryption.Decrypt(webConfig.ADSearchUser, webConfig.EncryptionKey) : null;
 		public static string ADSearchPW = (webConfig == null) ? null : (!string.IsNullOrEmpty(webConfig.ADSearchPW) && !string.IsNullOrEmpty(webConfig.EncryptionKey)) ? Encryption.Decrypt(webConfig.ADSearchPW, webConfig.EncryptionKey) : null;
@@ -2447,7 +2419,6 @@ namespace Aurora.Extra
 			ValidateClientCertificate();
 		}
 
-#if !DEBUG
 		private string GetCACIDFromCN()
 		{
 			if (controller.ClientCertificate == null)
@@ -2484,7 +2455,6 @@ namespace Aurora.Extra
 			else
 				throw new Exception(string.Format("The CAC ID was not in the expected format within the common name (last.first.middle.cacid), actual CN = {0}", cn));
 		}
-#endif
 
 		private void ValidateClientCertificate()
 		{

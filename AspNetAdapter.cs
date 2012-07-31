@@ -1,7 +1,7 @@
 ﻿// AspNetAdapter - A thin generic wrapper that exposes some ASP.NET stuff in a
 //                 a nice simple way.
 //
-// Updated On: 23 July 2012
+// Updated On: 30 July 2012
 //
 // Contact Info:
 //
@@ -137,7 +137,7 @@ namespace AspNetAdapter
 		{
 			HttpContext context = HttpContext.Current;
 			new HttpContextAdapter(context);
-			context.Server.ClearError();			
+			context.Server.ClearError();
 		}
 	}
 	#endregion
@@ -190,6 +190,7 @@ namespace AspNetAdapter
 		public const string RequestFormCallback = "RequestFormCallback";
 		public const string RequestClientCertificate = "RequestClientCertificate";
 		public const string RequestFiles = "RequestFiles";
+		public const string RequestUrl = "RequestUrl";
 		#endregion
 
 		#region RESPONSE
@@ -215,6 +216,9 @@ namespace AspNetAdapter
 
 	public class HttpContextAdapter
 	{
+		private static object syncInitLock = new object();
+
+		private bool firstRun;
 		private readonly HttpContext context;
 		private bool debugMode;
 		private static string AspNetApplicationTypeSessionName = "__AspNetApplicationType";
@@ -224,13 +228,17 @@ namespace AspNetAdapter
 		public HttpContextAdapter(HttpContext ctx)
 		{
 			context = ctx;
-		 
+
+			firstRun = Convert.ToBoolean(context.Application["__SyncInitLock"]);
+
 			SetupUnvalidatedFormAndQueryStringCollections();
 
 			Type adapterApp = null;
 
 			if (context.Application[AspNetApplicationTypeSessionName] == null)
 			{
+				context.Application["__SyncInitLock"] = true;
+
 				// Look for a class inside the executing assembly that implements IAspNetAdapterApplication
 				var apps = (from assembly in AppDomain.CurrentDomain.GetAssemblies().Where(x => x.GetName().Name != "DotNetOpenAuth")
 										from type in assembly.GetTypes().Where(x => x.GetInterfaces().FirstOrDefault(i => i.UnderlyingSystemType == typeof(IAspNetAdapterApplication)) != null)
@@ -259,9 +267,18 @@ namespace AspNetAdapter
 			Dictionary<string, object> request = InitializeRequestDictionary();
 
 			IAspNetAdapterApplication _appInstance = (IAspNetAdapterApplication)Activator.CreateInstance(adapterApp);
-			_appInstance.Init(app, request, ResponseCallback);
+
+			if (firstRun)
+			{
+				lock (syncInitLock)
+				{
+					_appInstance.Init(app, request, ResponseCallback);
+				}
+			}
+			else
+				_appInstance.Init(app, request, ResponseCallback);
 		}
-	 
+
 		#region REQUEST/APPLICATION DICTIONARY INITIALIZATION
 		private Dictionary<string, object> InitializeRequestDictionary()
 		{
@@ -274,7 +291,7 @@ namespace AspNetAdapter
 			request[HttpAdapterConstants.RequestHeaders] = StringToDictionary(context.Request.ServerVariables["ALL_HTTP"], '\n', ':');
 			request[HttpAdapterConstants.RequestMethod] = context.Request.HttpMethod;
 			request[HttpAdapterConstants.RequestPathBase] = context.Request.PhysicalApplicationPath.TrimEnd('\\');
-			request[HttpAdapterConstants.RequestPath] = (context.Request.Path.Length>1) ? context.Request.Path.TrimEnd('/') : context.Request.Path;
+			request[HttpAdapterConstants.RequestPath] = (context.Request.Path.Length > 1) ? context.Request.Path.TrimEnd('/') : context.Request.Path;
 			request[HttpAdapterConstants.RequestQueryString] = NameValueCollectionToDictionary(context.Request.QueryString);
 			request[HttpAdapterConstants.RequestQueryStringCallback] = new Func<string, bool, string>(RequestQueryStringGetCallback);
 			request[HttpAdapterConstants.RequestCookie] = StringToDictionary(context.Request.ServerVariables["HTTP_COOKIE"], ';', '=');
@@ -284,7 +301,8 @@ namespace AspNetAdapter
 			request[HttpAdapterConstants.RequestIPAddress] = GetIPAddress();
 			request[HttpAdapterConstants.RequestClientCertificate] = (context.Request.ClientCertificate != null) ? new X509Certificate2(context.Request.ClientCertificate.Certificate) : null;
 			request[HttpAdapterConstants.RequestFiles] = GetRequestFiles();
-			
+			request[HttpAdapterConstants.RequestUrl] = context.Request.Url.Authority;
+
 			return request;
 		}
 
@@ -301,7 +319,7 @@ namespace AspNetAdapter
 			application[HttpAdapterConstants.UserSessionStoreRemoveCallback] = new Action<string>(UserSessionStoreRemoveCallback);
 			application[HttpAdapterConstants.UserSessionStoreGetCallback] = new Func<string, object>(UserSessionStoreGetCallback);
 			application[HttpAdapterConstants.UserSessionStoreAbandonCallback] = new Action(UserSessionStoreAbandonCallback);
-			application[HttpAdapterConstants.ResponseRedirectCallback] = new Action<string, Dictionary<string,string>>(ResponseRedirectCallback);
+			application[HttpAdapterConstants.ResponseRedirectCallback] = new Action<string, Dictionary<string, string>>(ResponseRedirectCallback);
 			application[HttpAdapterConstants.ServerError] = context.Server.GetLastError();
 
 			return application;
@@ -419,25 +437,25 @@ namespace AspNetAdapter
 		{
 			response.ThrowIfArgumentNull();
 
-			if(!(response.ContainsKey(HttpAdapterConstants.ResponseStatus) ||
+			if (!(response.ContainsKey(HttpAdapterConstants.ResponseStatus) ||
 					response.ContainsKey(HttpAdapterConstants.ResponseContentType) ||
 					response.ContainsKey(HttpAdapterConstants.ResponseBody)))
 				throw new Exception("The response dictionary must include an http status code, content type and content");
-			
+
 			context.Response.ClearHeaders();
 			context.Response.ClearContent();
-			
+
 			context.Response.AddHeader("X_FRAME_OPTIONS", "SAMEORIGIN");
 
 			context.Response.StatusCode = (int)response[HttpAdapterConstants.ResponseStatus];
 			context.Response.ContentType = response[HttpAdapterConstants.ResponseContentType].ToString();
 
-			if (response[HttpAdapterConstants.ResponseHeaders]!=null)
+			if (response[HttpAdapterConstants.ResponseHeaders] != null)
 			{
 				foreach (KeyValuePair<string, string> kvp in (response[HttpAdapterConstants.ResponseHeaders] as Dictionary<string, string>))
 					context.Response.AddHeader(kvp.Key, kvp.Value);
 			}
-						
+
 			try
 			{
 				if (response[HttpAdapterConstants.ResponseBody] is string)
@@ -531,7 +549,7 @@ namespace AspNetAdapter
 		#endregion
 
 		#region MISCELLANEOUS
-		private void ResponseRedirectCallback(string path, Dictionary<string,string> headers)
+		private void ResponseRedirectCallback(string path, Dictionary<string, string> headers)
 		{
 			if (headers != null)
 			{
