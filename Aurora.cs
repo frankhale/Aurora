@@ -19,15 +19,13 @@
 // - URL parameters bind to action method parameters automatically 
 // - Posted forms binds to post models or action parameters automatically 
 // - Actions can have bound parameters that are bound to actions at runtime
-// - Actions can be segregated based on HttpGet, HttpPost, HttpPut and 
-//   HttpDelete attributes and you can secure them with the Secure named 
-//   parameter. Actions without a designation will not be invoked from a URL.  
+// - Actions can be segregated based on Get, Post, Put and 
+//   Delete action type and you can secure them with the Secure named parameter.
+//   Actions without a designation will not be invoked from a URL.
 // - Actions can have filters with optional filter results that bind to action
-//   parameters.
+//   parameters.  
 // - Actions can have aliases. Aliases can also be added dynamically at runtime
 //   along with default parameters.
-// - Actions can be invoked on a special basis if they are designated with the
-//   [FromRedirectOnly] attribute.
 // - Bundling/Minifying of Javascript and CSS.
 //
 // Aurora.Extra 
