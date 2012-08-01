@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 30 July 2012
+// Updated On: 31 July 2012
 //
 // Contact Info:
 //
@@ -27,24 +27,6 @@
 // - Actions can have aliases. Aliases can also be added dynamically at runtime
 //   along with default parameters.
 // - Bundling/Minifying of Javascript and CSS.
-//
-// Aurora.Extra 
-//
-// - My fork of Massive ORM
-// - My fork of the Gravatar URL generator
-// - HTML helpers
-// - Plugin support (can be used by apps but is not integrated at all into the
-//   framework pipeline.)
-// - OpenID authentication which is as easy as calling two methods. One 
-//   to initiate the login with the provider and then one to finalize 
-//   authentication.
-// - Active Directory querying so you can authenticate your user against an 
-//   Active Directory user. Typically for use in client certificate 
-//   authentication.
-//
-// Aurora.Misc
-//
-// - My fork of the Gravatar URL generator
 //
 
 #region LICENSE - GPL version 3 <http://www.gnu.org/licenses/gpl-3.0.html>
@@ -102,7 +84,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyCopyright("(GNU GPLv3) Copyleft © 2011-2012")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("2.0.5.0")]
+[assembly: AssemblyVersion("2.0.6.0")]
 #endif
 #endregion
 
@@ -982,7 +964,7 @@ namespace Aurora
 		internal RouteInfo FindRoute(string path)
 		{
 			var routeSlice = routeInfos.SelectMany(routeInfo => routeInfo.Aliases, (routeInfo, alias) => new { routeInfo, alias })
-																 .Where(x => path.StartsWith(x.alias)).ToList();
+																 .OrderByDescending(x => x.alias.Length).Where(x => path.StartsWith(x.alias)).ToList();
 
 			if (routeSlice.Count() > 0)
 			{
@@ -1010,7 +992,9 @@ namespace Aurora
 
 				object[] finalParams = allParams.ToArray();
 
-				foreach (RouteInfo routeInfo in routeSlice.Where(x => x.routeInfo.Action.GetParameters().Count() >= finalParams.Count()).Select(x => x.routeInfo))
+				foreach (RouteInfo routeInfo in
+					routeSlice.Where(x => x.routeInfo.Action.GetParameters().Count() >=
+						finalParams.Count()).Select(x => x.routeInfo))
 				{
 					Type[] finalParamTypes = finalParams.Select(x => x.GetType()).ToArray();
 					Type[] actionParamTypes = routeInfo.Action.GetParameters()
@@ -2089,10 +2073,10 @@ namespace Aurora
 
 	public class ViewResult : IViewResult
 	{
-		private IViewEngine viewEngine;
 		private string partitionName;
 		private string controllerName;
 		private string viewName;
+		private IViewEngine viewEngine;
 		private Dictionary<string, string> viewTags;
 
 		public ViewResult(IViewEngine viewEngine, string partitionName, string controllerName, string viewName, Dictionary<string, string> viewTags)
@@ -2114,15 +2098,13 @@ namespace Aurora
 			return new ViewResponse()
 			{
 				ContentType = "text/html",
-				Content = view,
-				Headers = new Dictionary<string, string>()
+				Content = view
 			};
 		}
 	}
 
 	public class FileResult : IViewResult
 	{
-
 		private string path;
 		private byte[] file;
 		private string fileName;
@@ -3042,31 +3024,14 @@ namespace Aurora
 		public static void ThrowIfArgumentNull<T>(this T t, string message = null)
 		{
 			string argName = t.GetType().Name;
-			bool isNull = false;
-			bool isEmptyString = false;
 
 			if (t == null)
-				isNull = true;
-			else if (t is string)
-			{
-				if ((t as string) == string.Empty)
-					isEmptyString = true;
-			}
-
-			if (isNull)
 				throw new ArgumentNullException(argName, message);
-			else if (isEmptyString)
+			else if ((t is string) && (t as string) == string.Empty)
 				throw new ArgumentException(argName, message);
 		}
 
-		/// <summary>
-		/// Calculates the MD5sum of a string
-		/// <remarks>
-		/// from http://blogs.msdn.com/b/csharpfaq/archive/2006/10/09/how-do-i-calculate-a-md5-hash-from-a-string_3f00_.aspx
-		/// </remarks>
-		/// </summary>
-		/// <param name="input">The input string</param>
-		/// <returns>An MD5sum</returns>
+		// from: http://blogs.msdn.com/b/csharpfaq/archive/2006/10/09/how-do-i-calculate-a-md5-hash-from-a-string_3f00_.aspx
 		public static string CalculateMD5sum(this string input)
 		{
 			MD5 md5 = System.Security.Cryptography.MD5.Create();
