@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 31 July 2012
+// Updated On: 1 August 2012
 //
 // Contact Info:
 //
@@ -84,7 +84,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyCopyright("(GNU GPLv3) Copyleft © 2011-2012")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("2.0.6.0")]
+[assembly: AssemblyVersion("2.0.7.0")]
 #endif
 #endregion
 
@@ -370,7 +370,7 @@ namespace Aurora
 				AddApplication(usersSessionName, users);
 			}
 			else
-				currentUser = GetSession(currentUserSessionName) as User;
+				currentUser = users.FirstOrDefault(x => x.SessionId == sessionID);
 			#endregion
 
 			#region INITIALIZE ANTIFORGERYTOKENS
@@ -449,7 +449,7 @@ namespace Aurora
 			#endregion
 
 			#region INITIALIZE ROUTEINFOS
-			if (routeInfos.Count() == 0)
+			if (GetApplication(routeInfosSessionName) == null)
 			{
 				routeInfos.AddRange(GetRouteInfos());
 				AddApplication(routeInfosSessionName, routeInfos);
@@ -473,13 +473,6 @@ namespace Aurora
 
 				AddApplication(viewEngineSessionName, ViewEngine);
 			}
-			#endregion
-
-			#region RUN ALL CONTROLLER ONREADY METHODS
-			if (frontController != null)
-				frontController.RaiseEvent(EventType.OnReady);
-
-			controllers.ForEach(x => x.RaiseEvent(EventType.OnReady));
 			#endregion
 
 			#region PROCESS REQUEST / RENDER RESPONSE
@@ -554,8 +547,8 @@ namespace Aurora
 						return null;
 
 					if (routeInfo.RequestTypeAttribute.ActionType == ActionType.Post ||
-						 routeInfo.RequestTypeAttribute.ActionType == ActionType.Put ||
-						 routeInfo.RequestTypeAttribute.ActionType == ActionType.Delete)
+							 routeInfo.RequestTypeAttribute.ActionType == ActionType.Put ||
+							 routeInfo.RequestTypeAttribute.ActionType == ActionType.Delete)
 					{
 						if (routeInfo.RequestTypeAttribute.RequireAntiForgeryToken)
 						{
@@ -570,10 +563,10 @@ namespace Aurora
 					}
 
 					if (routeInfo.RequestTypeAttribute.SecurityType == ActionSecurity.Secure &&
-							routeInfo.RequestTypeAttribute.SecurityType == ActionSecurity.Secure && currentUser == null ||
-							routeInfo.RequestTypeAttribute.SecurityType == ActionSecurity.Secure && routeInfo.RequestTypeAttribute.Roles == null ||
-							routeInfo.RequestTypeAttribute.SecurityType == ActionSecurity.Secure && !(currentUser.Roles.Intersect(routeInfo.RequestTypeAttribute.Roles.Split('|')).Count() > 0) ||
-							routeInfo.RequestTypeAttribute.SecurityType == ActionSecurity.Secure && routeInfo.Controller.RaiseCheckRoles(new CheckRolesHandlerEventArgs() { RouteInfo = routeInfo }))
+									routeInfo.RequestTypeAttribute.SecurityType == ActionSecurity.Secure && currentUser == null ||
+									routeInfo.RequestTypeAttribute.SecurityType == ActionSecurity.Secure && routeInfo.RequestTypeAttribute.Roles == null ||
+									routeInfo.RequestTypeAttribute.SecurityType == ActionSecurity.Secure && !(currentUser.Roles.Intersect(routeInfo.RequestTypeAttribute.Roles.Split('|')).Count() > 0) ||
+									routeInfo.RequestTypeAttribute.SecurityType == ActionSecurity.Secure && routeInfo.Controller.RaiseCheckRoles(new CheckRolesHandlerEventArgs() { RouteInfo = routeInfo }))
 					{
 						RaiseEventOnFrontController(RouteHandlerEventType.FailedSecurity, path, routeInfo, null);
 
@@ -594,8 +587,9 @@ namespace Aurora
 						if (routeInfo.RequestTypeAttribute.ActionType == ActionType.FromRedirectOnly && fromRedirectOnly)
 							RemoveSession(fromRedirectOnlySessionName);
 
-						foreach (IBoundToAction bta in routeInfo.IBoundToActionParams)
-							bta.Initialize(routeInfo.Controller);
+						if (routeInfo.IBoundToActionParams != null)
+							foreach (IBoundToAction bta in routeInfo.IBoundToActionParams)
+								bta.Initialize(routeInfo.Controller);
 
 						if (routeInfo.ActionParamTransforms != null)
 						{
@@ -751,7 +745,7 @@ namespace Aurora
 						propertyValue = GetValidatedFormValue(p.Name);
 
 					if (p.PropertyType == typeof(int) ||
-							p.PropertyType == typeof(int?))
+									p.PropertyType == typeof(int?))
 					{
 						if (propertyValue.IsInt32())
 							p.SetValue(result, Convert.ToInt32(propertyValue), null);
@@ -809,8 +803,8 @@ namespace Aurora
 			controllerName.ThrowIfArgumentNull();
 
 			return controllers.FirstOrDefault(x => x.GetType().Name == controllerName).GetType().GetMethods()
-																							 .Where(x => x.GetCustomAttributes(typeof(HttpAttribute), false).Count() > 0)
-																							 .Select(x => x.Name).ToList();
+																																											 .Where(x => x.GetCustomAttributes(typeof(HttpAttribute), false).Count() > 0)
+																																											 .Select(x => x.Name).ToList();
 		}
 
 		private List<Controller> GetControllerInstances()
@@ -898,8 +892,8 @@ namespace Aurora
 			StringBuilder combinedFiles = new StringBuilder();
 
 			paths = paths.Where(x => File.Exists(appRoot + x.Replace('/', '\\')) &&
-															 Path.GetExtension(x) == ".css" ||
-															 Path.GetExtension(x) == ".js").ToArray();
+																											 Path.GetExtension(x) == ".css" ||
+																											 Path.GetExtension(x) == ".js").ToArray();
 
 			if (!debugMode)
 			{
@@ -963,63 +957,53 @@ namespace Aurora
 
 		internal RouteInfo FindRoute(string path)
 		{
-			var routeSlice = routeInfos.SelectMany(routeInfo => routeInfo.Aliases, (routeInfo, alias) => new { routeInfo, alias })
-																 .OrderByDescending(x => x.alias.Length).Where(x => path.StartsWith(x.alias)).ToList();
+			var routeSlice = routeInfos.SelectMany(routeInfo =>
+					routeInfo.Aliases, (routeInfo, alias) =>
+						new { routeInfo, alias }).OrderByDescending(x => x.alias.Length).Where(x => path.StartsWith(x.alias)).ToList();
 
 			if (routeSlice.Count() > 0)
 			{
-				object model = null;
-				List<object> allParams = new List<object>();
+				List<object> allParams = new List<object>()
+																	.Concat(routeSlice[0].routeInfo.BoundParams)
+																	.Concat(path.Replace(routeSlice[0].alias, string.Empty).Split('/').Where(x => !string.IsNullOrEmpty(x)).Select(x => HttpUtility.UrlEncode(x)).ToArray().ToObjectArray())
+																	.Concat(routeSlice[0].routeInfo.DefaultParams)
+																	.ToList();
 
-				object[] urlParams = path.Replace(routeSlice[0].alias, string.Empty).Split('/').Where(x => !string.IsNullOrEmpty(x)).Select(x => HttpUtility.UrlEncode(x)).ToArray().ToObjectArray();
-
-				allParams.AddRange(routeSlice[0].routeInfo.BoundParams);
-				allParams.AddRange(urlParams);
-				allParams.AddRange(routeSlice[0].routeInfo.DefaultParams);
+				Func<Dictionary<string, string>, object[]> getModelOrParams =
+					_payload =>
+					{
+						object model = PayloadToModel(_payload);
+						object[] payloadParams = (model != null) ? new object[] { model } : _payload.Values.Where(x => !antiForgeryTokens.Contains(x)).ToArray().ToObjectArray();
+						return payloadParams;
+					};
 
 				if (requestType == "POST")
-				{
-					model = PayloadToModel(form);
-					object[] formParams = (model != null) ? new object[] { model } : form.Values.Where(x => !antiForgeryTokens.Contains(x)).ToArray().ToObjectArray();
-					allParams.AddRange(formParams);
-				}
+					allParams.AddRange(getModelOrParams(form));
 				else if (requestType == "PUT" || requestType == "DELETE")
-				{
-					model = PayloadToModel(payload);
-					object[] payloadParams = (model != null) ? new object[] { model } : payload.Values.Where(x => !antiForgeryTokens.Contains(x)).ToArray().ToObjectArray();
-					allParams.AddRange(payloadParams);
-				}
+					allParams.AddRange(getModelOrParams(payload));
 
 				object[] finalParams = allParams.ToArray();
 
 				foreach (RouteInfo routeInfo in
-					routeSlice.Where(x => x.routeInfo.Action.GetParameters().Count() >=
-						finalParams.Count()).Select(x => x.routeInfo))
+						routeSlice.Where(x => x.routeInfo.Action.GetParameters().Count() >=
+								finalParams.Count()).Select(x => x.routeInfo))
 				{
 					Type[] finalParamTypes = finalParams.Select(x => x.GetType()).ToArray();
 					Type[] actionParamTypes = routeInfo.Action.GetParameters()
-						// ActionFilterResults aren't known at this point
-						.Where(x => x.ParameterType.GetInterface("IActionFilterResult") == null)
-						.Select(x => x.ParameterType).ToArray();
+																										.Where(x => x.ParameterType.GetInterface("IActionFilterResult") == null)
+																										.Select(x => x.ParameterType).ToArray();
 
 					if (routeInfo.ActionParamTransforms != null)
 						foreach (var apt in routeInfo.ActionParamTransforms)
 							finalParamTypes[apt.Item2] = actionParamTypes[apt.Item2];
 
 					for (int i = 0; i < routeSlice[0].routeInfo.BoundParams.Count(); i++)
-					{
-						if (actionParamTypes[i].IsInterface)
-							if (finalParamTypes[i].GetInterface(actionParamTypes[i].Name) != null)
-							{
-								finalParamTypes[i] = actionParamTypes[i];
-								break;
-							}
-					}
+						if (actionParamTypes[i].IsInterface && finalParamTypes[i].GetInterface(actionParamTypes[i].Name) != null)
+							finalParamTypes[i] = actionParamTypes[i];
 
 					if (finalParamTypes.SequenceEqual(actionParamTypes))
 					{
 						routeInfo.ActionParams = finalParams;
-
 						return routeInfo;
 					}
 				}
@@ -1034,8 +1018,8 @@ namespace Aurora
 			Dictionary<string, object> cachedActionParamTransformInstances = new Dictionary<string, object>();
 
 			List<Tuple<ActionParameterTransformAttribute, int>> actionParameterTransforms = actionParams
-				.Select((x, i) => new Tuple<ActionParameterTransformAttribute, int>((ActionParameterTransformAttribute)x.GetCustomAttributes(typeof(ActionParameterTransformAttribute), false).FirstOrDefault(), i))
-				.Where(x => x.Item1 != null).ToList();
+					.Select((x, i) => new Tuple<ActionParameterTransformAttribute, int>((ActionParameterTransformAttribute)x.GetCustomAttributes(typeof(ActionParameterTransformAttribute), false).FirstOrDefault(), i))
+					.Where(x => x.Item1 != null).ToList();
 
 			foreach (var apt in actionParameterTransforms)
 			{
@@ -1065,7 +1049,7 @@ namespace Aurora
 		{
 			List<IActionFilterResult> results = new List<IActionFilterResult>();
 			List<ActionFilterAttribute> actionFilterAttributes =
-				routeInfo.Action.GetCustomAttributes(typeof(ActionFilterAttribute), false).Cast<ActionFilterAttribute>().ToList();
+					routeInfo.Action.GetCustomAttributes(typeof(ActionFilterAttribute), false).Cast<ActionFilterAttribute>().ToList();
 
 			foreach (ActionFilterAttribute afa in actionFilterAttributes)
 			{
@@ -1130,7 +1114,6 @@ namespace Aurora
 			if (c != null)
 			{
 				MethodInfo action = c.GetType().GetMethods().FirstOrDefault(x => x.GetCustomAttributes(typeof(HttpAttribute), false).Count() > 0 && x.Name == actionName);
-
 				AddRoute(routeInfos, c, action, new List<string> { alias }, defaultParams, dynamic);
 			}
 		}
@@ -1154,8 +1137,13 @@ namespace Aurora
 			id.ThrowIfArgumentNull();
 			roles.ThrowIfArgumentNull();
 
-			if (currentUser != null)
+			if (currentUser != null && currentUser.SessionId == sessionID)
 				return;
+
+			User alreadyLoggedInWithDiffSession = users.FirstOrDefault(x => x.Name == id);
+
+			if (alreadyLoggedInWithDiffSession != null)
+				users.Remove(alreadyLoggedInWithDiffSession);
 
 			string authToken = CreateToken();
 			DateTime expiration = DateTime.Now.Add(TimeSpan.FromHours(8));
@@ -1171,7 +1159,7 @@ namespace Aurora
 			{
 				AuthenticationCookie = authCookie,
 				SessionId = sessionID,
-				//ClientCertificate = request
+				ClientCertificate = clientCertificate,
 				IPAddress = IPAddress,
 				LogOnDate = DateTime.Now,
 				Name = id,
@@ -1181,8 +1169,6 @@ namespace Aurora
 			users.Add(u);
 
 			currentUser = u;
-
-			AddSession(currentUserSessionName, u);
 		}
 
 		internal bool LogOff()
@@ -1222,7 +1208,7 @@ namespace Aurora
 		public object GetApplication(string key)
 		{
 			if (app.ContainsKey(HttpAdapterConstants.ApplicationSessionStoreGetCallback) &&
-					app[HttpAdapterConstants.ApplicationSessionStoreGetCallback] is Func<string, object>)
+							app[HttpAdapterConstants.ApplicationSessionStoreGetCallback] is Func<string, object>)
 			{
 				return (app[HttpAdapterConstants.ApplicationSessionStoreGetCallback] as Func<string, object>)(key);
 			}
@@ -1233,7 +1219,7 @@ namespace Aurora
 		public void AddApplication(string key, object value)
 		{
 			if (app.ContainsKey(HttpAdapterConstants.ApplicationSessionStoreAddCallback) &&
-					app[HttpAdapterConstants.ApplicationSessionStoreAddCallback] is Action<string, object>)
+							app[HttpAdapterConstants.ApplicationSessionStoreAddCallback] is Action<string, object>)
 			{
 				(app[HttpAdapterConstants.ApplicationSessionStoreAddCallback] as Action<string, object>)(key, value);
 			}
@@ -1242,7 +1228,7 @@ namespace Aurora
 		public object GetSession(string key)
 		{
 			if (app.ContainsKey(HttpAdapterConstants.UserSessionStoreGetCallback) &&
-					app[HttpAdapterConstants.UserSessionStoreGetCallback] is Func<string, object>)
+							app[HttpAdapterConstants.UserSessionStoreGetCallback] is Func<string, object>)
 			{
 				return (app[HttpAdapterConstants.UserSessionStoreGetCallback] as Func<string, object>)(key);
 			}
@@ -1253,7 +1239,7 @@ namespace Aurora
 		public void AddSession(string key, object value)
 		{
 			if (app.ContainsKey(HttpAdapterConstants.UserSessionStoreAddCallback) &&
-					app[HttpAdapterConstants.UserSessionStoreAddCallback] is Action<string, object>)
+							app[HttpAdapterConstants.UserSessionStoreAddCallback] is Action<string, object>)
 			{
 				(app[HttpAdapterConstants.UserSessionStoreAddCallback] as Action<string, object>)(key, value);
 			}
@@ -1262,7 +1248,7 @@ namespace Aurora
 		public void RemoveSession(string key)
 		{
 			if (app.ContainsKey(HttpAdapterConstants.UserSessionStoreRemoveCallback) &&
-					app[HttpAdapterConstants.UserSessionStoreRemoveCallback] is Action<string>)
+							app[HttpAdapterConstants.UserSessionStoreRemoveCallback] is Action<string>)
 			{
 				(app[HttpAdapterConstants.UserSessionStoreRemoveCallback] as Action<string>)(key);
 			}
@@ -1271,7 +1257,7 @@ namespace Aurora
 		public void AbandonSession()
 		{
 			if (app.ContainsKey(HttpAdapterConstants.UserSessionStoreAbandonCallback) &&
-					app[HttpAdapterConstants.UserSessionStoreAbandonCallback] is Action)
+							app[HttpAdapterConstants.UserSessionStoreAbandonCallback] is Action)
 			{
 				(app[HttpAdapterConstants.UserSessionStoreAbandonCallback] as Action)();
 			}
@@ -1280,7 +1266,7 @@ namespace Aurora
 		public void ResponseRedirect(string path, bool fromRedirectOnly)
 		{
 			if (app.ContainsKey(HttpAdapterConstants.ResponseRedirectCallback) &&
-				app[HttpAdapterConstants.ResponseRedirectCallback] is Action<string, Dictionary<string, string>>)
+					app[HttpAdapterConstants.ResponseRedirectCallback] is Action<string, Dictionary<string, string>>)
 			{
 				if (fromRedirectOnly)
 					AddSession(fromRedirectOnlySessionName, fromRedirectOnly);
@@ -1292,7 +1278,7 @@ namespace Aurora
 		public string GetValidatedFormValue(string key)
 		{
 			if (request.ContainsKey(HttpAdapterConstants.RequestFormCallback) &&
-					request[HttpAdapterConstants.RequestFormCallback] is Func<string, bool, string>)
+							request[HttpAdapterConstants.RequestFormCallback] is Func<string, bool, string>)
 			{
 				return (request[HttpAdapterConstants.RequestFormCallback] as Func<string, bool, string>)(key, true);
 			}
@@ -1386,12 +1372,7 @@ namespace Aurora
 				string sValue = value as string;
 
 				if (!string.IsNullOrEmpty(sValue))
-				{
-					if (sValue.Length >= requiredLengthAttribute.Length)
-						result = true;
-					else
-						result = false;
-				}
+					result = (sValue.Length >= requiredLengthAttribute.Length) ? true : false;
 			}
 
 			if (!result)
@@ -1408,12 +1389,7 @@ namespace Aurora
 			if (requiredAttribute != null)
 			{
 				if (value is string)
-				{
-					if (!string.IsNullOrEmpty(value as string))
-						result = true;
-					else
-						result = false;
-				}
+					result = (!string.IsNullOrEmpty(value as string)) ? true : false;
 				else if (value != null)
 					result = true;
 				else
@@ -1436,12 +1412,7 @@ namespace Aurora
 				string sValue = value as string;
 
 				if (!string.IsNullOrEmpty(sValue))
-				{
-					if (regularExpressionAttribute.Pattern.IsMatch(sValue))
-						result = true;
-					else
-						result = false;
-				}
+					result = (regularExpressionAttribute.Pattern.IsMatch(sValue)) ? true : false;
 				else
 					result = false;
 			}
@@ -1460,12 +1431,7 @@ namespace Aurora
 			if (rangeAttribute != null)
 			{
 				if (value.GetType().IsAssignableFrom(typeof(Int64)))
-				{
-					if (((Int64)value).InRange(rangeAttribute.Min, rangeAttribute.Max))
-						result = true;
-					else
-						result = false;
-				}
+					result = (((Int64)value).InRange(rangeAttribute.Min, rangeAttribute.Max)) ? true : false;
 				else
 					result = false;
 			}
@@ -1611,7 +1577,6 @@ namespace Aurora
 	#region EVENT ASSETS
 	internal enum EventType
 	{
-		OnReady,
 		OnInit,
 		CheckRoles
 	}
@@ -1652,7 +1617,6 @@ namespace Aurora
 		public X509Certificate2 ClientCertificate { get { return engine.clientCertificate; } }
 		public Dictionary<string, object> Request;
 
-		protected event EventHandler OnReadyEvent;
 		protected event EventHandler OnInit;
 		protected event EventHandler<CheckRolesHandlerEventArgs> OnCheckRoles;
 
@@ -1672,11 +1636,6 @@ namespace Aurora
 		{
 			switch (eventType)
 			{
-				case EventType.OnReady:
-					if (OnReadyEvent != null)
-						OnReadyEvent(this, null);
-					break;
-
 				case EventType.OnInit:
 					if (OnInit != null)
 					{
@@ -2226,7 +2185,7 @@ namespace Aurora
 		private string[] viewRoots;
 		private string sharedHint = @"shared\";
 		private string fragmentsHint = @"fragments\";
-		private static Regex commentBlockRE = new Regex(@"\@\@(?<block>[\s\w\p{P}\p{S}]+?)\@\@");
+		private static Regex commentBlockRE = new Regex(@"\@\@(?<block>[\s\w\p{P}\p{S}]+?)\@\@", RegexOptions.Compiled);
 
 		public ViewTemplateLoader(string appRoot, string[] viewRoots)
 		{
@@ -2273,10 +2232,8 @@ namespace Aurora
 			MatchCollection comments = commentBlockRE.Matches(templateBuilder.ToString());
 
 			if (comments.Count > 0)
-			{
 				foreach (Match comment in comments)
 					templateBuilder.Replace(comment.Value, string.Empty);
-			}
 			#endregion
 
 			ViewTemplateType templateType = ViewTemplateType.Action;
@@ -2290,7 +2247,7 @@ namespace Aurora
 			string controller = null;
 
 			if (templateType == ViewTemplateType.Action ||
-					templateType == ViewTemplateType.Shared)
+							templateType == ViewTemplateType.Shared)
 			{
 				string[] keyParts = templateKeyName.Split('/');
 
@@ -2422,9 +2379,9 @@ namespace Aurora
 			string tokenName = "%%AntiForgeryToken%%";
 
 			var tokens = Regex.Matches(content.ToString(), tokenName)
-									.Cast<Match>()
-									.Select(m => new { Start = m.Index, End = m.Length })
-									.Reverse();
+												.Cast<Match>()
+												.Select(m => new { Start = m.Index, End = m.Length })
+												.Reverse();
 
 			foreach (var t in tokens)
 				content.Replace(tokenName, createAntiForgeryToken(), t.Start, t.End);
@@ -2589,8 +2546,7 @@ namespace Aurora
 	{
 		private List<IViewCompilerDirectiveHandler> directiveHandlers;
 		private List<IViewCompilerSubstitutionHandler> substitutionHandlers;
-
-		private static Markdown Markdown = new Markdown();
+		
 		private List<ViewTemplate> viewTemplates;
 		private List<CompiledView> compiledViews;
 		private Dictionary<string, List<string>> viewDependencies;
@@ -2618,10 +2574,10 @@ namespace Aurora
 		private StringBuilder value = new StringBuilder();
 
 		public ViewCompiler(List<ViewTemplate> viewTemplates,
-												List<CompiledView> compiledViews,
-												Dictionary<string, List<string>> viewDependencies,
-												List<IViewCompilerDirectiveHandler> directiveHandlers,
-												List<IViewCompilerSubstitutionHandler> substitutionHandlers)
+																						List<CompiledView> compiledViews,
+																						Dictionary<string, List<string>> viewDependencies,
+																						List<IViewCompilerDirectiveHandler> directiveHandlers,
+																						List<IViewCompilerSubstitutionHandler> substitutionHandlers)
 		{
 			this.viewTemplates = viewTemplates;
 			this.compiledViews = compiledViews;
@@ -2738,7 +2694,7 @@ namespace Aurora
 									else if (m.Value.StartsWith(tagEncodingHint, StringComparison.Ordinal))
 										compiledViewSB.Replace(m.Value, HttpUtility.HtmlEncode(tag.Value.Trim()));
 									else if (m.Value.StartsWith(markdownEncodingHint, StringComparison.Ordinal))
-										compiledViewSB.Replace(m.Value, Markdown.Transform(tag.Value.Trim()));
+										compiledViewSB.Replace(m.Value, tag.Value.Trim().ToMarkdown());
 								}
 							}
 						}
@@ -2747,10 +2703,8 @@ namespace Aurora
 					MatchCollection leftoverMatches = tagRE.Matches(compiledViewSB.ToString());
 
 					if (leftoverMatches != null)
-					{
 						foreach (Match match in leftoverMatches)
 							compiledViewSB.Replace(match.Value, string.Empty);
-					}
 				}
 
 				compiledView.Render = compiledViewSB.ToString();
@@ -2768,58 +2722,52 @@ namespace Aurora
 			if (!viewDependencies.ContainsKey(fullViewName))
 				viewDependencies[fullViewName] = new List<string>();
 
-			Func<string, string> determineKeyName = new Func<string, string>((x) =>
+			Func<string, string> determineKeyName = x =>
 			{
 				return DetermineKeyName(partitionName, controllerName, x, ViewTemplateType.Shared);
-			});
+			};
 
-			Action<string> addPageDependency = new Action<string>((x) =>
+			Action<string> addPageDependency = x =>
 			{
 				viewDependencies[fullViewName].Add(x);
-			});
+			};
 
 			Action<IEnumerable<IViewCompilerDirectiveHandler>> performCompilerPass =
-				new Action<IEnumerable<IViewCompilerDirectiveHandler>>((x) =>
-				{
-					MatchCollection dirMatches = directiveTokenRE.Matches(pageContent.ToString());
-
-					foreach (Match match in dirMatches)
+					new Action<IEnumerable<IViewCompilerDirectiveHandler>>((x) =>
 					{
-						directive.Clear();
-						directive.Insert(0, match.Groups["directive"].Value);
+						MatchCollection dirMatches = directiveTokenRE.Matches(pageContent.ToString());
 
-						value.Clear();
-						value.Insert(0, match.Groups["value"].Value);
-
-						foreach (IViewCompilerDirectiveHandler handler in x)
+						foreach (Match match in dirMatches)
 						{
-							pageContent.Replace(pageContent.ToString(),
-								handler.Process(new ViewCompilerDirectiveInfo()
-								{
-									Match = match,
-									Directive = directive.ToString(),
-									Value = value.ToString(),
-									Content = pageContent,
-									ViewTemplates = viewTemplates,
-									DetermineKeyName = determineKeyName,
-									AddPageDependency = addPageDependency
-								}).ToString());
+							directive.Clear();
+							directive.Insert(0, match.Groups["directive"].Value);
+
+							value.Clear();
+							value.Insert(0, match.Groups["value"].Value);
+
+							foreach (IViewCompilerDirectiveHandler handler in x)
+							{
+								pageContent.Replace(pageContent.ToString(),
+										handler.Process(new ViewCompilerDirectiveInfo()
+										{
+											Match = match,
+											Directive = directive.ToString(),
+											Value = value.ToString(),
+											Content = pageContent,
+											ViewTemplates = viewTemplates,
+											DetermineKeyName = determineKeyName,
+											AddPageDependency = addPageDependency
+										}).ToString());
+							}
 						}
-					}
-				});
+					});
 
-			#region PROCESS DIRECTIVES (1ST PASS COMPILE)
 			performCompilerPass(directiveHandlers.Where(x => x.Type == DirectiveProcessType.Compile));
-			#endregion
 
-			#region PROCESS SUBSTITUTIONS
 			foreach (IViewCompilerSubstitutionHandler sub in substitutionHandlers.Where(x => x.Type == DirectiveProcessType.Compile))
 				pageContent = sub.Process(pageContent);
-			#endregion
 
-			#region PROCESS DIRECTIVES (2ND PASS COMPILE)
 			performCompilerPass(directiveHandlers.Where(x => x.Type == DirectiveProcessType.AfterCompile));
-			#endregion
 
 			return pageContent;
 		}
@@ -2921,8 +2869,7 @@ namespace Aurora
 			watcher.Changed += new FileSystemEventHandler(OnChanged);
 			watcher.IncludeSubdirectories = true;
 			watcher.EnableRaisingEvents = true;
-
-			// We'd either new up these or look for a cached copy in the application store
+			
 			viewTemplates = new List<ViewTemplate>();
 			compiledViews = new List<CompiledView>();
 			viewDependencies = new Dictionary<string, List<string>>();
@@ -3063,10 +3010,10 @@ namespace Aurora
 					else if (parms[i].IsDouble())
 						_parms[i] = Convert.ToDouble(parms[i]);
 					else if (parms[i].ToLowerInvariant() == "true" ||
-									parms[i].ToLowerInvariant() == "false" ||
-									parms[i].ToLowerInvariant() == "on" || // HTML checkbox value
-									parms[i].ToLowerInvariant() == "off" || // HTML checkbox value
-									parms[i].ToLowerInvariant() == "checked") // HTML checkbox value
+													parms[i].ToLowerInvariant() == "false" ||
+													parms[i].ToLowerInvariant() == "on" || // HTML checkbox value
+													parms[i].ToLowerInvariant() == "off" || // HTML checkbox value
+													parms[i].ToLowerInvariant() == "checked") // HTML checkbox value
 					{
 						if (parms[i].ToLower() == "on" || parms[i].ToLower() == "checked")
 							parms[i] = "true";

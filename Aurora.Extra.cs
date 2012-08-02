@@ -1,7 +1,7 @@
 ﻿//
 // Aurora.Extra - Additional bits that may be useful in your applications      
 //
-// Updated On: 30 July 2012
+// Updated On: 1 August 2012
 //
 // Contact Info:
 //
@@ -505,20 +505,14 @@ namespace Aurora.Extra
 					DescriptiveNameAttribute pn = (DescriptiveNameAttribute)p.GetCustomAttributes(typeof(DescriptiveNameAttribute), false).FirstOrDefault();
 
 					if ((IgnoreColumns != null) && IgnoreColumns.Contains(p.Name))
-					{
 						continue;
-					}
 
 					if (pn != null)
 					{
 						if (pn.Op == DescriptiveNameOperation.SplitCamelCase)
-						{
 							PropertyNames.Add(CultureInfo.InvariantCulture.TextInfo.ToTitleCase(pn.PerformOperation(p.Name)));
-						}
 						else
-						{
 							PropertyNames.Add(pn.Name);
-						}
 
 						hasDescriptiveNames.Add(p.Name);
 					}
@@ -529,18 +523,12 @@ namespace Aurora.Extra
 				if (ColumnTransforms != null)
 				{
 					foreach (ColumnTransform<T> addColumn in ColumnTransforms)
-					{
 						if ((!PropertyNames.Contains(addColumn.ColumnName)) && (!hasDescriptiveNames.Contains(addColumn.ColumnName)))
-						{
 							PropertyNames.Add(addColumn.ColumnName);
-						}
-					}
 				}
 
 				if (PropertyNames.Count > 0)
-				{
 					return PropertyNames;
-				}
 			}
 
 			return null;
@@ -571,26 +559,18 @@ namespace Aurora.Extra
 				string alternatingColor = string.Empty;
 
 				if (RowTransforms != null)
-				{
 					foreach (RowTransform<T> rt in RowTransforms)
-					{
 						rowClass = rt.Result(i);
-					}
-				}
 
 				if (AlternateRowColorEnabled && !string.IsNullOrEmpty(AlternateRowColor) && (i & 1) != 0)
-				{
-					alternatingColor = string.Format(CultureInfo.CurrentCulture, "bgcolor=\"{0}\"", AlternateRowColor);
-				}
+					alternatingColor = string.Format("bgcolor=\"{0}\"", AlternateRowColor);
 
 				html.AppendFormat("<tr {0} {1}>", rowClass, alternatingColor);
 
 				foreach (PropertyInfo pn in PropertyInfos)
 				{
 					if ((IgnoreColumns != null) && IgnoreColumns.Contains(pn.Name))
-					{
 						continue;
-					}
 
 					if (pn.CanRead)
 					{
@@ -600,22 +580,16 @@ namespace Aurora.Extra
 						StringFormatAttribute sfa = (StringFormatAttribute)Attribute.GetCustomAttribute(pn, typeof(StringFormatAttribute));
 
 						if (sfa != null)
-						{
-							value = string.Format(CultureInfo.CurrentCulture, sfa.Format, o);
-						}
+							value = string.Format(sfa.Format, o);
 						else
-						{
 							value = (o == null) ? ((displayNull) ? "NULL" : string.Empty) : o.ToString();
-						}
 
 						if (o is DateTime)
 						{
 							DateFormatAttribute dfa = (DateFormatAttribute)Attribute.GetCustomAttribute(pn, typeof(DateFormatAttribute));
 
 							if (dfa != null)
-							{
-								value = ((DateTime)o).ToString(dfa.Format, CultureInfo.CurrentCulture);
-							}
+								value = ((DateTime)o).ToString(dfa.Format);
 						}
 
 						if (ColumnTransforms != null)
@@ -623,9 +597,7 @@ namespace Aurora.Extra
 							ColumnTransform<T> transform = (ColumnTransform<T>)ColumnTransforms.FirstOrDefault(x => x.ColumnName == pn.Name && x.TransformType == ColumnTransformType.Existing);
 
 							if (transform != null)
-							{
 								value = transform.Result(i);
-							}
 						}
 
 						html.AppendFormat("<td>{0}</td>", value);
@@ -635,9 +607,7 @@ namespace Aurora.Extra
 				if (ColumnTransforms != null)
 				{
 					foreach (ColumnTransform<T> ct in ColumnTransforms.Where(x => x.TransformType == ColumnTransformType.New))
-					{
 						html.AppendFormat("<td>{0}</td>", ct.Result(i));
-					}
 				}
 
 				html.Append("</tr>");
@@ -744,7 +714,7 @@ namespace Aurora.Extra
 
 		public override string ToString()
 		{
-			return string.Format(CultureInfo.CurrentCulture, "<a {0} href=\"{1}\">{2}</a>", CondenseAttribs(), Url, Description);
+			return string.Format("<a {0} href=\"{1}\">{2}</a>", CondenseAttribs(), Url, Description);
 		}
 	}
 
@@ -762,20 +732,20 @@ namespace Aurora.Extra
 		{
 			if (InputType == HtmlInputType.TextArea)
 			{
-				return string.Format(CultureInfo.CurrentCulture, InputType.GetMetadata(), CondenseAttribs(), string.Empty);
+				return string.Format(InputType.GetMetadata(), CondenseAttribs(), string.Empty);
 			}
 
-			return string.Format(CultureInfo.CurrentCulture, InputType.GetMetadata(), CondenseAttribs());
+			return string.Format(InputType.GetMetadata(), CondenseAttribs());
 		}
 
 		public string ToString(string text)
 		{
 			if (InputType == HtmlInputType.TextArea)
 			{
-				return string.Format(CultureInfo.CurrentCulture, InputType.GetMetadata(), CondenseAttribs(), text);
+				return string.Format(InputType.GetMetadata(), CondenseAttribs(), text);
 			}
 
-			return string.Format(CultureInfo.CurrentCulture, InputType.GetMetadata(), CondenseAttribs());
+			return string.Format(InputType.GetMetadata(), CondenseAttribs());
 		}
 	}
 
@@ -897,7 +867,7 @@ namespace Aurora.Extra
 
 		public override string ToString()
 		{
-			return string.Format(CultureInfo.CurrentCulture, "<input type=\"checkbox\" id=\"{0}\" name=\"{1}\" class=\"{2}\" {3} {4} />", ID, Name, CssClass, Check, Enabled);
+			return string.Format("<input type=\"checkbox\" id=\"{0}\" name=\"{1}\" class=\"{2}\" {3} {4} />", ID, Name, CssClass, Check, Enabled);
 		}
 	}
 
@@ -921,7 +891,7 @@ namespace Aurora.Extra
 
 		public override string ToString()
 		{
-			return string.Format(CultureInfo.CurrentCulture, "<img src=\"{0}\" {1}/>", Src, CondenseAttribs());
+			return string.Format("<img src=\"{0}\" {1}/>", Src, CondenseAttribs());
 		}
 	}
 	#endregion
@@ -2203,7 +2173,7 @@ namespace Aurora.Extra
 					searchRootDE.AuthenticationType = AuthenticationTypes.Secure | AuthenticationTypes.Sealing | AuthenticationTypes.Signing;
 					searchRootDE.Username = adSearchUser;
 					searchRootDE.Password = adSearchPW;
-					searchRootDE.Path = (global) ? string.Format(CultureInfo.InvariantCulture, "GC://{0}", adSearchDomain) : adSearchRoot;
+					searchRootDE.Path = (global) ? string.Format("GC://{0}", adSearchDomain) : adSearchRoot;
 
 					SearchResult result = null;
 
@@ -2212,7 +2182,7 @@ namespace Aurora.Extra
 						using (DirectorySearcher searcher = new DirectorySearcher())
 						{
 							searcher.SearchRoot = searchRootDE;
-							searcher.Filter = string.Format(CultureInfo.InvariantCulture, searchType.GetMetadata(), data);
+							searcher.Filter = string.Format(searchType.GetMetadata(), data);
 
 							result = searcher.FindOne();
 						}
@@ -2236,7 +2206,7 @@ namespace Aurora.Extra
 									using (DirectorySearcher searcher = dc.GetDirectorySearcher())
 									{
 										searcher.SearchRoot = searchRootDE;
-										searcher.Filter = string.Format(CultureInfo.InvariantCulture, searchType.GetMetadata(), data);
+										searcher.Filter = string.Format(searchType.GetMetadata(), data);
 
 										result = searcher.FindOne();
 									}

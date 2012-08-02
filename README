@@ -2,7 +2,7 @@ Aurora - An MVC web framework for .NET
 
 Frank Hale <frankhale@gmail.com>
 
-Date: 31 July 2012
+Date: 1 August 2012
 
 // --------------------
 // --- Feature List ---
@@ -43,6 +43,11 @@ Date: 31 July 2012
 //
  
 Changelog:
+
+1 July 2012
+
+- Code cleanup! The name of the game is code refinement, no new feature adds,
+	just trying to get everything totally working as advertised!
 
 31 July 2012
 
