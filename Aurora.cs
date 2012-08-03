@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 1 August 2012
+// Updated On: 2 August 2012
 //
 // Contact Info:
 //
@@ -56,7 +56,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Dynamic;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -67,7 +66,6 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Web;
 using AspNetAdapter;
-using HtmlAgilityPack;
 using MarkdownSharp;
 using Newtonsoft.Json;
 using Yahoo.Yui.Compressor;
@@ -84,32 +82,12 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyCopyright("(GNU GPLv3) Copyleft © 2011-2012")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("2.0.7.0")]
+[assembly: AssemblyVersion("2.0.8.0")]
 #endif
 #endregion
 
 namespace Aurora
 {
-	#region CONFIGURATION
-	public static class Config
-	{
-		internal static Regex AllowedFilePattern = new Regex(@"\.(js|css|png|jpg|gif|ico|pptx|xlsx|csv)$", RegexOptions.Compiled);
-		internal static string SharedResourceFolderPath = "/Resources";
-		internal static Dictionary<string, string> MimeTypes = new Dictionary<string, string>()
-			{
-				{ ".js",  "application/x-javascript" },  
-				{ ".css", "text/css" },
-				{ ".png", "image/png" },
-				{ ".jpg", "image/jpg" },
-				{ ".gif", "image/gif" },
-				{ ".ico", "image/x-icon" },
-				{ ".csv", "test/plain"},
-				{ ".xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
-				{ ".pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"}
-			};
-	}
-	#endregion
-
 	#region ATTRIBUTES
 	public enum ActionSecurity
 	{
@@ -297,10 +275,13 @@ namespace Aurora
 		private string viewRoot;
 		private string sessionID;
 		private bool fromRedirectOnly;
-		private bool isSecureConnection;
 		#endregion
 
 		#region MISCELLANEOUS VARIABLES
+		private static Regex allowedFilePattern = new Regex(@"\.(js|css|png|jpg|gif|ico|pptx|xlsx|csv)$", RegexOptions.Compiled);
+		private static string sharedResourceFolderPath = "/Resources";
+		private static string compiledViewsCacheFolderPath = "/Views/Cache";
+		private static string compiledViewsCacheFileName = "viewsCache.json";
 		private static string antiForgeryTokenName = "AntiForgeryToken";
 		private bool debugMode;
 		internal ViewEngine ViewEngine;
@@ -337,7 +318,6 @@ namespace Aurora
 			files = request[HttpAdapterConstants.RequestFiles] as List<PostedFile>;
 			queryString = request[HttpAdapterConstants.RequestQueryString] as Dictionary<string, string>;
 			fromRedirectOnly = Convert.ToBoolean(GetSession(fromRedirectOnlySessionName));
-			isSecureConnection = Convert.ToBoolean(request[HttpAdapterConstants.RequestIsSecure]);
 			debugMode = Convert.ToBoolean(app[HttpAdapterConstants.DebugMode]);
 			serverError = app[HttpAdapterConstants.ServerError] as Exception;
 			int httpStatus = 200;
@@ -347,13 +327,13 @@ namespace Aurora
 
 			#region GET OBJECTS FROM APPLICATION SESSION STORE
 			ViewEngine = GetApplication(viewEngineSessionName) as ViewEngine;
-			controllers = GetApplication(controllerInstancesSessionName) as List<Controller>;
-			frontController = GetApplication(frontControllerInstanceSessionName) as FrontController;
-			routeInfos = GetApplication(routeInfosSessionName) as List<RouteInfo>;
-			actionBindings = GetApplication(actionBindingsSessionName) as Dictionary<string, Dictionary<string, List<object>>>;
+			controllers = GetSession(controllerInstancesSessionName) as List<Controller>;
+			frontController = GetSession(frontControllerInstanceSessionName) as FrontController;
+			routeInfos = GetSession(routeInfosSessionName) as List<RouteInfo>;
+			actionBindings = GetSession(actionBindingsSessionName) as Dictionary<string, Dictionary<string, List<object>>>;
 			users = GetApplication(usersSessionName) as List<User>;
 			antiForgeryTokens = GetApplication(antiForgeryTokensSessionName) as List<string>;
-			bundles = GetApplication(bundlesTokenSessionName) as Dictionary<string, Tuple<List<string>, string>>;
+			bundles = GetSession(bundlesTokenSessionName) as Dictionary<string, Tuple<List<string>, string>>;
 			models = GetApplication(modelsSessionName) as List<Type>;
 			fromRedirectOnly = Convert.ToBoolean(GetSession(fromRedirectOnlySessionName));
 			protectedFiles = GetSession(protectedFilesSessionName) as Dictionary<string, string>;
@@ -409,7 +389,7 @@ namespace Aurora
 			if (actionBindings == null)
 			{
 				actionBindings = new Dictionary<string, Dictionary<string, List<object>>>();
-				AddApplication(actionBindingsSessionName, actionBindings);
+				AddSession(actionBindingsSessionName, actionBindings);
 			}
 			#endregion
 
@@ -417,7 +397,7 @@ namespace Aurora
 			if (bundles == null)
 			{
 				bundles = new Dictionary<string, Tuple<List<string>, string>>();
-				AddApplication(bundlesTokenSessionName, bundles);
+				AddSession(bundlesTokenSessionName, bundles);
 			}
 			#endregion
 
@@ -425,7 +405,7 @@ namespace Aurora
 			if (frontController == null)
 			{
 				frontController = GetFrontControllerInstance();
-				AddApplication(frontControllerInstanceSessionName, frontController);
+				AddSession(frontControllerInstanceSessionName, frontController);
 			}
 			else
 				frontController.Refresh(this);
@@ -435,7 +415,7 @@ namespace Aurora
 			if (controllers == null)
 			{
 				controllers = GetControllerInstances();
-				AddApplication(controllerInstancesSessionName, controllers);
+				AddSession(controllerInstancesSessionName, controllers);
 			}
 			else
 				controllers.ForEach(c => c.Refresh(this));
@@ -449,10 +429,10 @@ namespace Aurora
 			#endregion
 
 			#region INITIALIZE ROUTEINFOS
-			if (GetApplication(routeInfosSessionName) == null)
+			if (GetSession(routeInfosSessionName) == null)
 			{
 				routeInfos.AddRange(GetRouteInfos());
-				AddApplication(routeInfosSessionName, routeInfos);
+				AddSession(routeInfosSessionName, routeInfos);
 			}
 			#endregion
 
@@ -465,11 +445,32 @@ namespace Aurora
 				dirHandlers.Add(new MasterPageDirective());
 				dirHandlers.Add(new PlaceHolderDirective());
 				dirHandlers.Add(new PartialPageDirective());
-				dirHandlers.Add(new BundleDirective(debugMode, GetBundleFiles));
+				dirHandlers.Add(new BundleDirective(debugMode, sharedResourceFolderPath, GetBundleFiles));
 				substitutionHandlers.Add(new AntiForgeryTokenSubstitution(CreateAntiForgeryToken));
 				substitutionHandlers.Add(new HeadSubstitution());
 
-				ViewEngine = new ViewEngine(appRoot, GetViewRoots(), dirHandlers, substitutionHandlers);
+				string cachePath = MapPath(compiledViewsCacheFolderPath);
+				string cacheFilePath = string.Join("/", cachePath, compiledViewsCacheFileName);
+				string viewCache = null;
+
+				try
+				{
+					if (!Directory.Exists(cachePath))
+						Directory.CreateDirectory(cachePath);
+					else if (File.Exists(cacheFilePath))
+						viewCache = File.ReadAllText(cacheFilePath);
+				}
+				catch { }
+
+				ViewEngine = new ViewEngine(appRoot, GetViewRoots(), dirHandlers, substitutionHandlers, viewCache);
+
+				try
+				{
+					if (string.IsNullOrEmpty(viewCache))
+						using (StreamWriter cacheWriter = new StreamWriter(cacheFilePath))
+							cacheWriter.Write(ViewEngine.GetCache());
+				}
+				catch { }
 
 				AddApplication(viewEngineSessionName, ViewEngine);
 			}
@@ -505,19 +506,19 @@ namespace Aurora
 
 			if (path == "/" || path.ToLower() == "/default.aspx" || path == "~/") path = "/Index";
 
-			if (Config.AllowedFilePattern.IsMatch(path))
+			if (allowedFilePattern.IsMatch(path))
 			{
 				#region FILE RESPONSE
 				RaiseEventOnFrontController(RouteHandlerEventType.Static, path, null, null);
 
-				if (path.StartsWith(Config.SharedResourceFolderPath) || path.EndsWith(".ico"))
+				if (path.StartsWith(sharedResourceFolderPath) || path.EndsWith(".ico"))
 				{
 					string filePath = MapPath(path);
 
 					if (CanAccessFile(filePath))
 					{
 						if (File.Exists(filePath))
-							viewResponse = new FileResult(filePath).Render();
+							viewResponse = new FileResult(allowedFilePattern, filePath).Render();
 						else
 						{
 							string fileName = Path.GetFileName(path);
@@ -834,23 +835,80 @@ namespace Aurora
 
 			foreach (Controller c in controllers)
 			{
-				var actions = c.GetType().GetMethods().Where(x => x.GetCustomAttributes(typeof(HttpAttribute), false).Count() > 0);
+				var actions = c.GetType().GetMethods()
+					.Where(x => x.GetCustomAttributes(typeof(HttpAttribute), false).FirstOrDefault() != null)
+					.Select(x =>
+						new
+						{
+							Method = x,
+							Attribute = (HttpAttribute)x.GetCustomAttributes(typeof(HttpAttribute), false).FirstOrDefault(),
+							Aliases = x.GetCustomAttributes(typeof(AliasAttribute), false).Select(a => (a as AliasAttribute).Alias).ToList()
+						});
 
-				foreach (MethodInfo action in actions)
+				foreach (var action in actions)
 				{
-					List<string> aliases = action.GetCustomAttributes(typeof(AliasAttribute), false).Select(x => (x as AliasAttribute).Alias).ToList();
-					HttpAttribute rta = (HttpAttribute)action.GetCustomAttributes(typeof(HttpAttribute), false).FirstOrDefault();
-
-					if (string.IsNullOrEmpty(rta.RouteAlias))
-						aliases.Add(string.Format("/{0}/{1}", c.GetType().Name, action.Name));
+					if (string.IsNullOrEmpty(action.Attribute.RouteAlias))
+						action.Aliases.Add(string.Format("/{0}/{1}", c.GetType().Name, action.Method.Name));
 					else
-						aliases.Add(rta.RouteAlias);
+						action.Aliases.Add(action.Attribute.RouteAlias);
 
-					AddRoute(routeInfos, c, action, aliases, null, false);
+					AddRoute(routeInfos, c, action.Method, action.Aliases, null, false);
 				}
 			}
 
 			return routeInfos;
+		}
+
+		private ActionParameterInfo GetActionParameterTransforms(ParameterInfo[] actionParams, List<object> bindings)
+		{
+			ActionParameterInfo actionParameterInfo = new ActionParameterInfo();
+			Dictionary<string, object> cachedActionParamTransformInstances = new Dictionary<string, object>();
+
+			List<Tuple<ActionParameterTransformAttribute, int>> actionParameterTransforms = actionParams
+					.Select((x, i) => new Tuple<ActionParameterTransformAttribute, int>((ActionParameterTransformAttribute)x.GetCustomAttributes(typeof(ActionParameterTransformAttribute), false).FirstOrDefault(), i))
+					.Where(x => x.Item1 != null).ToList();
+
+			foreach (var apt in actionParameterTransforms)
+			{
+				Type actionTransformClassType = (from assembly in AppDomain.CurrentDomain.GetAssemblies().Where(x => x.GetName().Name != "DotNetOpenAuth")
+																				 from type in assembly.GetTypes().Where(x => x.GetInterface(typeof(IActionParamTransform<,>).Name) != null && x.Name == apt.Item1.TransformName)
+																				 select type).FirstOrDefault();
+
+				if (actionTransformClassType != null)
+				{
+					object instance = Activator.CreateInstance(actionTransformClassType, (bindings != null) ? bindings.ToArray() : null);
+					MethodInfo transformMethod = actionTransformClassType.GetMethod("Transform");
+
+					cachedActionParamTransformInstances[apt.Item1.TransformName] = new Tuple<MethodInfo, object>(transformMethod, instance);
+				}
+			}
+
+			if (!(cachedActionParamTransformInstances.Count() > 0))
+				cachedActionParamTransformInstances = null;
+
+			actionParameterInfo.ActionParamTransforms = actionParameterTransforms;
+			actionParameterInfo.ActionParamTransformInstances = cachedActionParamTransformInstances;
+
+			return actionParameterInfo;
+		}
+
+		private IActionFilterResult[] ProcessAnyActionFilters(RouteInfo routeInfo)
+		{
+			List<IActionFilterResult> results = new List<IActionFilterResult>();
+			List<ActionFilterAttribute> actionFilterAttributes =
+					routeInfo.Action.GetCustomAttributes(typeof(ActionFilterAttribute), false).Cast<ActionFilterAttribute>().ToList();
+
+			foreach (ActionFilterAttribute afa in actionFilterAttributes)
+			{
+				afa.Init(this);
+				afa.Controller = routeInfo.Controller;
+				afa.OnFilter(routeInfo);
+
+				if (afa.FilterResult != null)
+					results.Add(afa.FilterResult);
+			}
+
+			return results.ToArray();
 		}
 
 		private RouteInfo RaiseEventOnFrontController(RouteHandlerEventType eventType, string path, RouteInfo routeInfo, object data)
@@ -895,16 +953,13 @@ namespace Aurora
 																											 Path.GetExtension(x) == ".css" ||
 																											 Path.GetExtension(x) == ".js").ToArray();
 
-			if (!debugMode)
-			{
-				foreach (string p in paths)
-					combinedFiles.AppendLine(File.ReadAllText(appRoot + p));
+			foreach (string p in paths)
+				combinedFiles.AppendLine(File.ReadAllText(appRoot + p));
 
-				if (Path.GetExtension(name) == ".js")
-					compressedFile = new JavaScriptCompressor().Compress(combinedFiles.ToString());
-				else if (Path.GetExtension(name) == ".css")
-					compressedFile = new CssCompressor().Compress(combinedFiles.ToString());
-			}
+			if (Path.GetExtension(name) == ".js")
+				compressedFile = new JavaScriptCompressor().Compress(combinedFiles.ToString());
+			else if (Path.GetExtension(name) == ".css")
+				compressedFile = new CssCompressor().Compress(combinedFiles.ToString());
 
 			bundles[name] = new Tuple<List<string>, string>(paths.ToList(), compressedFile);
 		}
@@ -1012,58 +1067,6 @@ namespace Aurora
 			return null;
 		}
 
-		internal ActionParameterInfo GetActionParameterTransforms(ParameterInfo[] actionParams, List<object> bindings)
-		{
-			ActionParameterInfo actionParameterInfo = new ActionParameterInfo();
-			Dictionary<string, object> cachedActionParamTransformInstances = new Dictionary<string, object>();
-
-			List<Tuple<ActionParameterTransformAttribute, int>> actionParameterTransforms = actionParams
-					.Select((x, i) => new Tuple<ActionParameterTransformAttribute, int>((ActionParameterTransformAttribute)x.GetCustomAttributes(typeof(ActionParameterTransformAttribute), false).FirstOrDefault(), i))
-					.Where(x => x.Item1 != null).ToList();
-
-			foreach (var apt in actionParameterTransforms)
-			{
-				Type actionTransformClassType = (from assembly in AppDomain.CurrentDomain.GetAssemblies().Where(x => x.GetName().Name != "DotNetOpenAuth")
-																				 from type in assembly.GetTypes().Where(x => x.GetInterface(typeof(IActionParamTransform<,>).Name) != null && x.Name == apt.Item1.TransformName)
-																				 select type).FirstOrDefault();
-
-				if (actionTransformClassType != null)
-				{
-					object instance = Activator.CreateInstance(actionTransformClassType, (bindings != null) ? bindings.ToArray() : null);
-					MethodInfo transformMethod = actionTransformClassType.GetMethod("Transform");
-
-					cachedActionParamTransformInstances[apt.Item1.TransformName] = new Tuple<MethodInfo, object>(transformMethod, instance);
-				}
-			}
-
-			if (!(cachedActionParamTransformInstances.Count() > 0))
-				cachedActionParamTransformInstances = null;
-
-			actionParameterInfo.ActionParamTransforms = actionParameterTransforms;
-			actionParameterInfo.ActionParamTransformInstances = cachedActionParamTransformInstances;
-
-			return actionParameterInfo;
-		}
-
-		internal IActionFilterResult[] ProcessAnyActionFilters(RouteInfo routeInfo)
-		{
-			List<IActionFilterResult> results = new List<IActionFilterResult>();
-			List<ActionFilterAttribute> actionFilterAttributes =
-					routeInfo.Action.GetCustomAttributes(typeof(ActionFilterAttribute), false).Cast<ActionFilterAttribute>().ToList();
-
-			foreach (ActionFilterAttribute afa in actionFilterAttributes)
-			{
-				afa.Init(this);
-				afa.Controller = routeInfo.Controller;
-				afa.OnFilter(routeInfo);
-
-				if (afa.FilterResult != null)
-					results.Add(afa.FilterResult);
-			}
-
-			return results.ToArray();
-		}
-
 		internal void RemoveRoute(string alias)
 		{
 			RouteInfo routeInfo = routeInfos.FirstOrDefault(x => x.Aliases.FirstOrDefault(a => a == alias) != null);
@@ -1168,6 +1171,8 @@ namespace Aurora
 
 			users.Add(u);
 
+			AddSession("CURRENT_USER", u);
+
 			currentUser = u;
 		}
 
@@ -1209,9 +1214,7 @@ namespace Aurora
 		{
 			if (app.ContainsKey(HttpAdapterConstants.ApplicationSessionStoreGetCallback) &&
 							app[HttpAdapterConstants.ApplicationSessionStoreGetCallback] is Func<string, object>)
-			{
 				return (app[HttpAdapterConstants.ApplicationSessionStoreGetCallback] as Func<string, object>)(key);
-			}
 
 			return null;
 		}
@@ -1220,18 +1223,14 @@ namespace Aurora
 		{
 			if (app.ContainsKey(HttpAdapterConstants.ApplicationSessionStoreAddCallback) &&
 							app[HttpAdapterConstants.ApplicationSessionStoreAddCallback] is Action<string, object>)
-			{
 				(app[HttpAdapterConstants.ApplicationSessionStoreAddCallback] as Action<string, object>)(key, value);
-			}
 		}
 
 		public object GetSession(string key)
 		{
 			if (app.ContainsKey(HttpAdapterConstants.UserSessionStoreGetCallback) &&
 							app[HttpAdapterConstants.UserSessionStoreGetCallback] is Func<string, object>)
-			{
 				return (app[HttpAdapterConstants.UserSessionStoreGetCallback] as Func<string, object>)(key);
-			}
 
 			return null;
 		}
@@ -1240,27 +1239,21 @@ namespace Aurora
 		{
 			if (app.ContainsKey(HttpAdapterConstants.UserSessionStoreAddCallback) &&
 							app[HttpAdapterConstants.UserSessionStoreAddCallback] is Action<string, object>)
-			{
 				(app[HttpAdapterConstants.UserSessionStoreAddCallback] as Action<string, object>)(key, value);
-			}
 		}
 
 		public void RemoveSession(string key)
 		{
 			if (app.ContainsKey(HttpAdapterConstants.UserSessionStoreRemoveCallback) &&
 							app[HttpAdapterConstants.UserSessionStoreRemoveCallback] is Action<string>)
-			{
 				(app[HttpAdapterConstants.UserSessionStoreRemoveCallback] as Action<string>)(key);
-			}
 		}
 
 		public void AbandonSession()
 		{
 			if (app.ContainsKey(HttpAdapterConstants.UserSessionStoreAbandonCallback) &&
 							app[HttpAdapterConstants.UserSessionStoreAbandonCallback] is Action)
-			{
 				(app[HttpAdapterConstants.UserSessionStoreAbandonCallback] as Action)();
-			}
 		}
 
 		public void ResponseRedirect(string path, bool fromRedirectOnly)
@@ -1279,9 +1272,7 @@ namespace Aurora
 		{
 			if (request.ContainsKey(HttpAdapterConstants.RequestFormCallback) &&
 							request[HttpAdapterConstants.RequestFormCallback] is Func<string, bool, string>)
-			{
 				return (request[HttpAdapterConstants.RequestFormCallback] as Func<string, bool, string>)(key, true);
-			}
 
 			return null;
 		}
@@ -1328,6 +1319,7 @@ namespace Aurora
 		private Engine engine;
 		internal Controller Controller { get; set; }
 		public IActionFilterResult FilterResult { get; set; }
+		public User CurrentUser { get { return engine.currentUser; } }
 		public abstract void OnFilter(RouteInfo routeInfo);
 
 		internal void Init(Engine engine)
@@ -1343,6 +1335,16 @@ namespace Aurora
 		public void RedirectOnly(string alias)
 		{
 			engine.ResponseRedirect(alias, true);
+		}
+
+		public void LogOn(string id, string[] roles)
+		{
+			engine.LogOn(id, roles);
+		}
+
+		public void LogOff()
+		{
+			engine.LogOff();
 		}
 	}
 	#endregion
@@ -1612,10 +1614,9 @@ namespace Aurora
 	{
 		internal Engine engine;
 
+		public Dictionary<string, object> Request { get { return engine.request.ToDictionary(x => x.Key, x => x.Value); } }
 		public User CurrentUser { get { return engine.currentUser; } }
-
 		public X509Certificate2 ClientCertificate { get { return engine.clientCertificate; } }
-		public Dictionary<string, object> Request;
 
 		protected event EventHandler OnInit;
 		protected event EventHandler<CheckRolesHandlerEventArgs> OnCheckRoles;
@@ -1646,7 +1647,7 @@ namespace Aurora
 			}
 		}
 
-		internal void Refresh(Engine engine)
+		internal virtual void Refresh(Engine engine)
 		{
 			this.engine = engine;
 		}
@@ -1782,9 +1783,7 @@ namespace Aurora
 		internal static FrontController CreateInstance(Type type, Engine engine)
 		{
 			FrontController controller = (FrontController)Activator.CreateInstance(type);
-
 			controller.engine = engine;
-			controller.Request = engine.request.ToDictionary(x => x.Key, x => x.Value);
 
 			return controller;
 		}
@@ -1842,8 +1841,7 @@ namespace Aurora
 					{
 						OnMissingRouteEvent(this, args);
 
-						if (args.RouteInfo != null)
-							route = args.RouteInfo;
+						route = args.RouteInfo;
 					}
 					break;
 
@@ -1863,8 +1861,8 @@ namespace Aurora
 
 		protected Dictionary<string, string> ViewTags { get; private set; }
 		protected Dictionary<string, Dictionary<string, string>> FragTags { get; private set; }
-		protected dynamic DViewTags { get; private set; }
-		protected dynamic DFragTags { get; private set; }
+		protected dynamic ViewBag { get; private set; }
+		protected dynamic FragBag { get; private set; }
 
 		protected event EventHandler<RouteHandlerEventArgs> OnPreActionEvent;
 		protected event EventHandler<RouteHandlerEventArgs> OnPostActionEvent;
@@ -1873,14 +1871,21 @@ namespace Aurora
 		{
 			ViewTags = new Dictionary<string, string>();
 			FragTags = new Dictionary<string, Dictionary<string, string>>();
-			DFragTags = new DynamicDictionary();
-			DViewTags = new DynamicDictionary();
+			FragBag = new DynamicDictionary();
+			ViewBag = new DynamicDictionary();
+		}
+
+		internal override void Refresh(Engine engine)
+		{
+			base.Refresh(engine);
+
+			initializeViewTags();
 		}
 
 		internal void init(Engine engine)
 		{
 			this.engine = engine;
-			Request = engine.request.ToDictionary(x => x.Key, x => x.Value);
+
 			initializeViewTags();
 
 			PartitionAttribute partitionAttrib = (PartitionAttribute)this.GetType().GetCustomAttributes(false).FirstOrDefault(x => x.GetType() == typeof(PartitionAttribute));
@@ -1900,9 +1905,9 @@ namespace Aurora
 		{
 			Dictionary<string, string> viewTags = ViewTags;
 
-			if (!DViewTags.IsEmpty())
+			if (!ViewBag.IsEmpty())
 			{
-				Dictionary<string, object> _viewTags = DViewTags.GetDynamicDictionary();
+				Dictionary<string, object> _viewTags = ViewBag.GetDynamicDictionary();
 
 				if (_viewTags != null)
 					viewTags = _viewTags.ToDictionary(k => k.Key, k => (k.Value != null) ? k.Value.ToString() : string.Empty);
@@ -1939,9 +1944,9 @@ namespace Aurora
 		{
 			Dictionary<string, string> fragTags = null;
 
-			if (!DFragTags.IsEmpty())
+			if (!FragBag.IsEmpty())
 			{
-				Dictionary<string, object> _fragTags = DFragTags.GetDynamicDictionary(fragmentName);
+				Dictionary<string, object> _fragTags = FragBag.GetDynamicDictionary(fragmentName);
 
 				if (_fragTags != null)
 					fragTags = _fragTags.ToDictionary(k => k.Key, k => k.Value.ToString());
@@ -1974,8 +1979,6 @@ namespace Aurora
 		public ViewResult View(string controllerName, string actionName)
 		{
 			Dictionary<string, string> viewTags = GetViewTagsDictionary();
-
-			initializeViewTags();
 
 			return new ViewResult(engine.ViewEngine, partitionName, controllerName, actionName, viewTags);
 		}
@@ -2077,8 +2080,8 @@ namespace Aurora
 		{
 			string fileExtension = Path.GetExtension(name);
 
-			if (!string.IsNullOrEmpty(contentType) || Config.MimeTypes.ContainsKey(fileExtension))
-				contentType = Config.MimeTypes[fileExtension];
+			if (!string.IsNullOrEmpty(contentType) || HttpAdapterConstants.MimeTypes.ContainsKey(fileExtension))
+				contentType = HttpAdapterConstants.MimeTypes[fileExtension];
 
 			this.contentType = contentType;
 			fileName = name;
@@ -2087,18 +2090,18 @@ namespace Aurora
 			headers["content-disposition"] = string.Format("attachment;filename=\"{0}\"", fileName);
 		}
 
-		public FileResult(string path)
+		public FileResult(Regex allowedFilePattern, string path)
 		{
 			this.path = path;
 			fileName = Path.GetFileName(path);
 
-			if (File.Exists(path) && Config.AllowedFilePattern.IsMatch(path))
+			if (File.Exists(path) && allowedFilePattern.IsMatch(path))
 			{
 				string fileExtension = Path.GetExtension(path);
 
-				if (Config.MimeTypes.ContainsKey(fileExtension))
+				if (HttpAdapterConstants.MimeTypes.ContainsKey(fileExtension))
 				{
-					contentType = Config.MimeTypes[fileExtension];
+					contentType = HttpAdapterConstants.MimeTypes[fileExtension];
 					file = File.ReadAllBytes(path);
 				}
 			}
@@ -2189,8 +2192,7 @@ namespace Aurora
 
 		public ViewTemplateLoader(string appRoot, string[] viewRoots)
 		{
-			if (string.IsNullOrEmpty(appRoot))
-				throw new ArgumentNullException("applicationRoot");
+			appRoot.ThrowIfArgumentNull();
 
 			this.appRoot = appRoot;
 			this.viewRoots = viewRoots;
@@ -2218,22 +2220,20 @@ namespace Aurora
 
 			DirectoryInfo rootDir = new DirectoryInfo(viewRoot);
 
-			StringBuilder templateBuilder;
+
 			string templateName = fi.Name.Replace(fi.Extension, string.Empty);
 			string templateKeyName = fi.FullName.Replace(rootDir.Parent.FullName, string.Empty)
 																					.Replace(appRoot, string.Empty)
 																					.Replace(fi.Extension, string.Empty)
 																					.Replace("\\", "/").TrimStart('/');
 
-			using (StreamReader sr = new StreamReader(fi.OpenRead()))
-				templateBuilder = new StringBuilder(sr.ReadToEnd());
+			string template = File.ReadAllText(fi.FullName);
 
 			#region STRIP COMMENT SECTIONS
-			MatchCollection comments = commentBlockRE.Matches(templateBuilder.ToString());
+			MatchCollection comments = commentBlockRE.Matches(template);
 
-			if (comments.Count > 0)
-				foreach (Match comment in comments)
-					templateBuilder.Replace(comment.Value, string.Empty);
+			foreach (Match comment in comments)
+				template.Replace(comment.Value, string.Empty);
 			#endregion
 
 			ViewTemplateType templateType = ViewTemplateType.Action;
@@ -2246,8 +2246,7 @@ namespace Aurora
 			string partition = null;
 			string controller = null;
 
-			if (templateType == ViewTemplateType.Action ||
-							templateType == ViewTemplateType.Shared)
+			if (templateType == ViewTemplateType.Action || templateType == ViewTemplateType.Shared)
 			{
 				string[] keyParts = templateKeyName.Split('/');
 
@@ -2262,8 +2261,6 @@ namespace Aurora
 					controller = keyParts[0];
 				}
 			}
-
-			string template = templateBuilder.ToString();
 
 			return new ViewTemplate()
 			{
@@ -2363,6 +2360,7 @@ namespace Aurora
 
 	internal class AntiForgeryTokenSubstitution : IViewCompilerSubstitutionHandler
 	{
+		private static string tokenName = "%%AntiForgeryToken%%";
 		private Func<string> createAntiForgeryToken;
 
 		public DirectiveProcessType Type { get; private set; }
@@ -2376,8 +2374,6 @@ namespace Aurora
 
 		public StringBuilder Process(StringBuilder content)
 		{
-			string tokenName = "%%AntiForgeryToken%%";
-
 			var tokens = Regex.Matches(content.ToString(), tokenName)
 												.Cast<Match>()
 												.Select(m => new { Start = m.Index, End = m.Length })
@@ -2392,6 +2388,7 @@ namespace Aurora
 
 	internal class MasterPageDirective : IViewCompilerDirectiveHandler
 	{
+		private static string tokenName = "%%View%%";
 		public DirectiveProcessType Type { get; private set; }
 
 		public MasterPageDirective()
@@ -2411,8 +2408,7 @@ namespace Aurora
 				directiveInfo.AddPageDependency(masterPageName);
 
 				finalPage.Append(masterPageTemplate);
-				finalPage.Replace("%%View%%", directiveInfo.Content.ToString());
-
+				finalPage.Replace(tokenName, directiveInfo.Content.ToString());
 				finalPage.Replace(directiveInfo.Match.Groups[0].Value, string.Empty);
 
 				return finalPage;
@@ -2448,17 +2444,21 @@ namespace Aurora
 	internal class BundleDirective : IViewCompilerDirectiveHandler
 	{
 		private bool debugMode;
+		private string sharedResourceFolderPath;
 		private Func<string, string[]> getBundleFiles;
-
-		private static string cssIncludeTag = @"<link href=""{0}"" rel=""stylesheet"" type=""text/css"" />";
-		private static string jsIncludeTag = @"<script src=""{0}"" type=""text/javascript""></script>";
+		private Dictionary<string, string> bundleLinkResults;
+		private static string cssIncludeTag = "<link href=\"{0}\" rel=\"stylesheet\" type=\"text/css\" />";
+		private static string jsIncludeTag = "<script src=\"{0}\" type=\"text/javascript\"></script>";
 
 		public DirectiveProcessType Type { get; private set; }
 
-		public BundleDirective(bool debugMode, Func<string, string[]> getBundleFiles)
+		public BundleDirective(bool debugMode, string sharedResourceFolderPath, Func<string, string[]> getBundleFiles)
 		{
 			this.debugMode = debugMode;
+			this.sharedResourceFolderPath = sharedResourceFolderPath;
 			this.getBundleFiles = getBundleFiles;
+
+			bundleLinkResults = new Dictionary<string, string>();
 
 			Type = DirectiveProcessType.AfterCompile;
 		}
@@ -2466,24 +2466,17 @@ namespace Aurora
 		public string ProcessBundleLink(string bundlePath)
 		{
 			string tag = string.Empty;
-			string extension = Path.GetExtension(bundlePath);
+			string extension = Path.GetExtension(bundlePath).Substring(1).ToLower();
 			bool isAPath = bundlePath.Contains('/') ? true : false;
-
 			string modifiedBundlePath = bundlePath;
 
 			if (!isAPath)
-				modifiedBundlePath = string.Format("{0}/{1}/{2}", Config.SharedResourceFolderPath, extension.TrimStart('.'), bundlePath);
+				modifiedBundlePath = string.Join("/", sharedResourceFolderPath, extension, bundlePath);
 
-			switch (extension)
-			{
-				case ".css":
-					tag = string.Format(cssIncludeTag, modifiedBundlePath);
-					break;
-
-				case ".js":
-					tag = string.Format(jsIncludeTag, modifiedBundlePath);
-					break;
-			}
+			if (extension == "css")
+				tag = string.Format(cssIncludeTag, modifiedBundlePath);
+			else if (extension == "js")
+				tag = string.Format(jsIncludeTag, modifiedBundlePath);
 
 			return tag;
 		}
@@ -2496,15 +2489,22 @@ namespace Aurora
 
 				string bundleName = directiveInfo.Value;
 
-				if (!string.IsNullOrEmpty(bundleName))
+				if (bundleLinkResults.ContainsKey(bundleName))
+					fileLinkBuilder.AppendLine(bundleLinkResults[bundleName]);
+				else
 				{
-					if (debugMode)
+					if (!string.IsNullOrEmpty(bundleName))
 					{
-						foreach (string bundlePath in getBundleFiles(bundleName))
-							fileLinkBuilder.AppendLine(ProcessBundleLink(bundlePath));
+						if (debugMode)
+						{
+							foreach (string bundlePath in getBundleFiles(bundleName))
+								fileLinkBuilder.AppendLine(ProcessBundleLink(bundlePath));
+						}
+						else
+							fileLinkBuilder.AppendLine(ProcessBundleLink(bundleName));
 					}
-					else
-						fileLinkBuilder.AppendLine(ProcessBundleLink(bundleName));
+
+					bundleLinkResults[bundleName] = fileLinkBuilder.ToString();
 				}
 
 				directiveInfo.Content.Replace(directiveInfo.Match.Groups[0].Value, fileLinkBuilder.ToString());
@@ -2546,7 +2546,7 @@ namespace Aurora
 	{
 		private List<IViewCompilerDirectiveHandler> directiveHandlers;
 		private List<IViewCompilerSubstitutionHandler> substitutionHandlers;
-		
+
 		private List<ViewTemplate> viewTemplates;
 		private List<CompiledView> compiledViews;
 		private Dictionary<string, List<string>> viewDependencies;
@@ -2732,35 +2732,34 @@ namespace Aurora
 				viewDependencies[fullViewName].Add(x);
 			};
 
-			Action<IEnumerable<IViewCompilerDirectiveHandler>> performCompilerPass =
-					new Action<IEnumerable<IViewCompilerDirectiveHandler>>((x) =>
+			Action<IEnumerable<IViewCompilerDirectiveHandler>> performCompilerPass = x =>
+			{
+				MatchCollection dirMatches = directiveTokenRE.Matches(pageContent.ToString());
+
+				foreach (Match match in dirMatches)
+				{
+					directive.Clear();
+					directive.Insert(0, match.Groups["directive"].Value);
+
+					value.Clear();
+					value.Insert(0, match.Groups["value"].Value);
+
+					foreach (IViewCompilerDirectiveHandler handler in x)
 					{
-						MatchCollection dirMatches = directiveTokenRE.Matches(pageContent.ToString());
-
-						foreach (Match match in dirMatches)
-						{
-							directive.Clear();
-							directive.Insert(0, match.Groups["directive"].Value);
-
-							value.Clear();
-							value.Insert(0, match.Groups["value"].Value);
-
-							foreach (IViewCompilerDirectiveHandler handler in x)
-							{
-								pageContent.Replace(pageContent.ToString(),
-										handler.Process(new ViewCompilerDirectiveInfo()
-										{
-											Match = match,
-											Directive = directive.ToString(),
-											Value = value.ToString(),
-											Content = pageContent,
-											ViewTemplates = viewTemplates,
-											DetermineKeyName = determineKeyName,
-											AddPageDependency = addPageDependency
-										}).ToString());
-							}
-						}
-					});
+						pageContent.Replace(pageContent.ToString(),
+								handler.Process(new ViewCompilerDirectiveInfo()
+								{
+									Match = match,
+									Directive = directive.ToString(),
+									Value = value.ToString(),
+									Content = pageContent,
+									ViewTemplates = viewTemplates,
+									DetermineKeyName = determineKeyName,
+									AddPageDependency = addPageDependency
+								}).ToString());
+					}
+				}
+			};
 
 			performCompilerPass(directiveHandlers.Where(x => x.Type == DirectiveProcessType.Compile));
 
@@ -2784,12 +2783,7 @@ namespace Aurora
 			if (string.IsNullOrEmpty(controllerName))
 				controllerName = "Shared";
 
-			if (viewType == ViewTemplateType.Shared)
-				viewDesignation = "Shared/";
-			else if (viewType == ViewTemplateType.Fragment)
-				viewDesignation = "Fragments/";
-
-			lookupKeyName = string.Format("{0}/{1}/{2}{3}", partitionName, controllerName, viewDesignation, viewName);
+			lookupKeyName = string.Join("/", partitionName, controllerName, Enum.GetName(typeof(ViewTemplateType), viewType), viewName);
 
 			if (!templateKeyNames.ContainsKey(lookupKeyName))
 			{
@@ -2840,6 +2834,14 @@ namespace Aurora
 	public interface IViewEngine
 	{
 		string LoadView(string partitionName, string controllerName, string viewName, ViewTemplateType viewType, Dictionary<string, string> tags);
+		string GetCache();
+	}
+
+	internal class ViewCache
+	{
+		public List<ViewTemplate> ViewTemplates;
+		public List<CompiledView> CompiledViews;
+		public Dictionary<string, List<string>> ViewDependencies;
 	}
 
 	internal class ViewEngine : IViewEngine
@@ -2853,7 +2855,7 @@ namespace Aurora
 		private ViewTemplateLoader viewTemplateLoader;
 		private ViewCompiler viewCompiler;
 
-		public ViewEngine(string _appRoot, string[] _viewRoots, List<IViewCompilerDirectiveHandler> dirHandlers, List<IViewCompilerSubstitutionHandler> substitutionHandlers)
+		public ViewEngine(string _appRoot, string[] _viewRoots, List<IViewCompilerDirectiveHandler> dirHandlers, List<IViewCompilerSubstitutionHandler> substitutionHandlers, string cache)
 		{
 			string appRoot = _appRoot;
 			string[] viewRoots = _viewRoots;
@@ -2869,7 +2871,7 @@ namespace Aurora
 			watcher.Changed += new FileSystemEventHandler(OnChanged);
 			watcher.IncludeSubdirectories = true;
 			watcher.EnableRaisingEvents = true;
-			
+
 			viewTemplates = new List<ViewTemplate>();
 			compiledViews = new List<CompiledView>();
 			viewDependencies = new Dictionary<string, List<string>>();
@@ -2877,10 +2879,27 @@ namespace Aurora
 			if (!(viewRoots.Count() >= 1))
 				throw new ArgumentException("At least one view root is required to load view templates from.");
 
-			viewTemplates = viewTemplateLoader.Load();
+			ViewCache viewCache = null;
 
-			if (!(viewTemplates.Count() > 0))
-				throw new Exception("Failed to load any view templates.");
+			if (!string.IsNullOrEmpty(cache))
+			{
+				viewCache = JsonConvert.DeserializeObject<ViewCache>(cache);
+
+				if (viewCache != null)
+				{
+					viewTemplates = viewCache.ViewTemplates;
+					compiledViews = viewCache.CompiledViews;
+					viewDependencies = viewCache.ViewDependencies;
+				}
+			}
+
+			if (viewCache == null)
+			{
+				viewTemplates = viewTemplateLoader.Load();
+
+				if (!(viewTemplates.Count() > 0))
+					throw new Exception("Failed to load any view templates.");
+			}
 
 			viewCompiler = new ViewCompiler(viewTemplates, compiledViews, viewDependencies, dirHandlers, substitutionHandlers);
 
@@ -2928,8 +2947,17 @@ namespace Aurora
 			}
 		}
 
-		// This method has been adapted from:
-		// http://stackoverflow.com/a/8218033/170217
+		public string GetCache()
+		{
+			return JsonConvert.SerializeObject(new ViewCache()
+			{
+				CompiledViews = compiledViews,
+				ViewTemplates = viewTemplates,
+				ViewDependencies = viewDependencies
+			});
+		}
+
+		// adapted from: http://stackoverflow.com/a/8218033/170217
 		private static bool CanOpenForRead(string filePath)
 		{
 			try
@@ -3032,27 +3060,6 @@ namespace Aurora
 			}
 
 			return null;
-		}
-
-		public static string NewLinesToBR(this string value)
-		{
-			return value.Trim().Replace("\n", "<br />");
-		}
-
-		public static string StripHtml(this string value)
-		{
-			HtmlDocument htmlDoc = new HtmlDocument();
-			htmlDoc.LoadHtml(value);
-
-			if (htmlDoc == null)
-				return value;
-
-			StringBuilder sanitizedString = new StringBuilder();
-
-			foreach (var node in htmlDoc.DocumentNode.ChildNodes)
-				sanitizedString.Append(node.InnerText);
-
-			return sanitizedString.ToString();
 		}
 
 		public static string ToMarkdown(this string value)

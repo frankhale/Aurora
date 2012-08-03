@@ -1,7 +1,7 @@
 ﻿// AspNetAdapter - A thin generic wrapper that exposes some ASP.NET stuff in a
-//                 a nice simple way.
+//                 nice simple way.
 //
-// Updated On: 30 July 2012
+// Updated On: 2 August 2012
 //
 // Contact Info:
 //
@@ -9,8 +9,7 @@
 //               <http://about.me/frank.hale>
 //
 // An attempt to abstract away some of the common bits of the ASP.NET 
-// HttpContext. This will be used in the Aurora MVC web framework to remove the 
-// dependency on HttpContext so that a proper TDD pattern can be employed.
+// HttpContext.
 //
 // I initially looked at OWIN to provide the abstraction that I wanted but I 
 // found it to be a bit more complex than I was hoping for. What I was looking
@@ -28,9 +27,12 @@
 //     <compilation debug="false" targetFramework="4.0" />
 //     <customErrors mode="On"></customErrors>
 //     <httpHandlers>
-//       <add verb="*" path="*" validate="false" type="AspNetAdapter.AspNetAdapterHandler"/>
+//       <add verb="*" path="*" validate="false" 
+//																	 type="AspNetAdapter.AspNetAdapterHandler"/>
+//
 //		<httpModules>
-//			<add type="AspNetAdapter.AspNetAdapterModule" name="AspNetAdapterModule" />
+//			<add type="AspNetAdapter.AspNetAdapterModule" 
+//																								 name="AspNetAdapterModule" />
 //		</httpModules>
 //     </httpHandlers>
 //   </system.web>
@@ -78,7 +80,6 @@ using System.Collections.Specialized;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Web;
@@ -90,6 +91,8 @@ using System.Diagnostics;
 
 #region ASSEMBLY INFORMATION
 #if LIBRARY
+using System.Runtime.InteropServices;
+
 [assembly: AssemblyTitle("AspNetAdapter")]
 [assembly: AssemblyDescription("An ASP.NET HttpContext Adapter")]
 [assembly: AssemblyCompany("Frank Hale")]
@@ -97,7 +100,7 @@ using System.Diagnostics;
 [assembly: AssemblyCopyright("(GNU GPLv3) Copyleft © 2012")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("0.0.2.0")]
+[assembly: AssemblyVersion("0.0.4.0")]
 #endif
 #endregion
 
@@ -145,7 +148,7 @@ namespace AspNetAdapter
 	#endregion
 
 	#region ASP.NET ADAPTER
-	public class PostedFile
+	public sealed class PostedFile
 	{
 		public string ContentType { get; set; }
 		public string FileName { get; set; }
@@ -206,6 +209,19 @@ namespace AspNetAdapter
 		public const string ResponseRedirectCallback = "ResponseRedirectCallback";
 		public const string ResponseErrorCallback = "ResponseErrorCallback";
 		#endregion
+
+		public static Dictionary<string, string> MimeTypes = new Dictionary<string, string>()
+			{
+				{ ".js",  "application/x-javascript" },  
+				{ ".css", "text/css" },
+				{ ".png", "image/png" },
+				{ ".jpg", "image/jpg" },
+				{ ".gif", "image/gif" },
+				{ ".ico", "image/x-icon" },
+				{ ".csv", "test/plain"},
+				{ ".xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
+				{ ".pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"}
+			};
 	}
 
 	// An application that wants to hook into ASP.NET and be sent the goodies that the HttpContextAdapter has to offer
@@ -214,7 +230,7 @@ namespace AspNetAdapter
 		void Init(Dictionary<string, object> app, Dictionary<string, object> request, Action<Dictionary<string, object>> response);
 	}
 
-	public class HttpContextAdapter
+	public sealed class HttpContextAdapter
 	{
 		private static object syncInitLock = new object();
 
@@ -327,20 +343,10 @@ namespace AspNetAdapter
 		#endregion
 
 		#region MISCELLANEOUS
-		// http://ardalis.com/determine-whether-an-assembly-was-compiled-in-debug-mode
+		// Adapted from: http://ardalis.com/determine-whether-an-assembly-was-compiled-in-debug-mode
 		private bool IsAssemblyDebugBuild(Assembly assembly)
 		{
-			foreach (var attribute in assembly.GetCustomAttributes(false))
-			{
-				var debuggableAttribute = attribute as DebuggableAttribute;
-
-				if (debuggableAttribute != null)
-				{
-					return debuggableAttribute.IsJITTrackingEnabled;
-				}
-			}
-
-			return false;
+			return (assembly.GetCustomAttributes(typeof(DebuggableAttribute), false).FirstOrDefault() as DebuggableAttribute).IsJITTrackingEnabled;
 		}
 
 		private Dictionary<string, string> NameValueCollectionToDictionary(NameValueCollection nvc)
@@ -442,11 +448,8 @@ namespace AspNetAdapter
 					response.ContainsKey(HttpAdapterConstants.ResponseBody)))
 				throw new Exception("The response dictionary must include an http status code, content type and content");
 
-			context.Response.ClearHeaders();
-			context.Response.ClearContent();
-
 			context.Response.AddHeader("X_FRAME_OPTIONS", "SAMEORIGIN");
-
+			
 			context.Response.StatusCode = (int)response[HttpAdapterConstants.ResponseStatus];
 			context.Response.ContentType = response[HttpAdapterConstants.ResponseContentType].ToString();
 
@@ -566,34 +569,16 @@ namespace AspNetAdapter
 	#endregion
 
 	#region EXTENSION METHODS
-	public static class ExtensionMethods
+	internal static class ExtensionMethods
 	{
 		public static void ThrowIfArgumentNull<T>(this T t, string message = null)
 		{
 			string argName = t.GetType().Name;
-			bool isNull = false;
-			bool isEmptyString = false;
 
 			if (t == null)
-			{
-				isNull = true;
-			}
-			else if (t is string)
-			{
-				if ((t as string) == string.Empty)
-				{
-					isEmptyString = true;
-				}
-			}
-
-			if (isNull)
-			{
 				throw new ArgumentNullException(argName, message);
-			}
-			else if (isEmptyString)
-			{
+			else if ((t is string) && (t as string) == string.Empty)
 				throw new ArgumentException(argName, message);
-			}
 		}
 	}
 	#endregion

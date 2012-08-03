@@ -2,7 +2,7 @@ Aurora - An MVC web framework for .NET
 
 Frank Hale <frankhale@gmail.com>
 
-Date: 1 August 2012
+Date: 2 August 2012
 
 // --------------------
 // --- Feature List ---
@@ -44,7 +44,16 @@ Date: 1 August 2012
  
 Changelog:
 
-1 July 2012
+2 August 2012
+
+- After the view engine loads the templates and compiles them the results are
+	cached to disk in a single jsonified file. Restarts of the app pool or 
+	cassini development server will use the cached results instead of loading 
+	all the templates and compiling them again.
+- Action Filters have access to the current user and LogOn and LogOff methods.
+- Code cleanup.
+
+1 August 2012
 
 - Code cleanup! The name of the game is code refinement, no new feature adds,
 	just trying to get everything totally working as advertised!
