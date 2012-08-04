@@ -1,7 +1,7 @@
 ﻿// AspNetAdapter - A thin generic wrapper that exposes some ASP.NET stuff in a
 //                 nice simple way.
 //
-// Updated On: 2 August 2012
+// Updated On: 3 August 2012
 //
 // Contact Info:
 //
@@ -77,16 +77,15 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Web;
-using System.Web.Caching;
 using System.Web.SessionState;
 using Microsoft.Web.Infrastructure.DynamicValidationHelper;
-using System.Diagnostics;
 #endregion
 
 #region ASSEMBLY INFORMATION
@@ -100,7 +99,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyCopyright("(GNU GPLv3) Copyleft © 2012")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("0.0.4.0")]
+[assembly: AssemblyVersion("0.0.5.0")]
 #endif
 #endregion
 
@@ -521,10 +520,7 @@ namespace AspNetAdapter
 
 		private object UserSessionStoreGetCallback(string key)
 		{
-			if (!string.IsNullOrEmpty(key))
-				return context.Session[key];
-
-			return null;
+			return context.Session[key];
 		}
 
 		private void UserSessionStoreAbandonCallback()
