@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 3 August 2012
+// Updated On: 6 August 2012
 //
 // Contact Info:
 //
@@ -79,10 +79,10 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyDescription("An MVC web framework for .NET")]
 [assembly: AssemblyCompany("Frank Hale")]
 [assembly: AssemblyProduct("Aurora")]
-[assembly: AssemblyCopyright("(GNU GPLv3) Copyleft © 2011-2012")]
+[assembly: AssemblyCopyright("Copyright © 2011-2012 | LICENSE GNU GPLv3")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("2.0.9.0")]
+[assembly: AssemblyVersion("2.0.10.0")]
 #endif
 #endregion
 
@@ -498,7 +498,7 @@ namespace Aurora
 			else
 			{
 				httpStatus = 503;
-				viewResponse = GetErrorViewResponse((serverError.InnerException != null) ? serverError.InnerException.Message : serverError.Message, GetStackTrace(serverError));
+				viewResponse = GetErrorViewResponse((serverError.InnerException != null) ? serverError.InnerException.Message : serverError.Message, app[HttpAdapterConstants.ServerErrorStackTrace].ToString());
 			}
 
 			RenderResponse(viewResponse, httpStatus);
@@ -556,8 +556,8 @@ namespace Aurora
 						return null;
 
 					if (routeInfo.RequestTypeAttribute.ActionType == ActionType.Post ||
-							 routeInfo.RequestTypeAttribute.ActionType == ActionType.Put ||
-							 routeInfo.RequestTypeAttribute.ActionType == ActionType.Delete)
+							routeInfo.RequestTypeAttribute.ActionType == ActionType.Put ||
+							routeInfo.RequestTypeAttribute.ActionType == ActionType.Delete)
 					{
 						if (routeInfo.RequestTypeAttribute.RequireAntiForgeryToken)
 						{
@@ -572,20 +572,15 @@ namespace Aurora
 					}
 
 					if (routeInfo.RequestTypeAttribute.SecurityType == ActionSecurity.Secure &&
-									routeInfo.RequestTypeAttribute.SecurityType == ActionSecurity.Secure && currentUser == null ||
-									routeInfo.RequestTypeAttribute.SecurityType == ActionSecurity.Secure && routeInfo.RequestTypeAttribute.Roles == null ||
-									routeInfo.RequestTypeAttribute.SecurityType == ActionSecurity.Secure && !(currentUser.Roles.Intersect(routeInfo.RequestTypeAttribute.Roles.Split('|')).Count() > 0) ||
-									routeInfo.RequestTypeAttribute.SecurityType == ActionSecurity.Secure && routeInfo.Controller.RaiseCheckRoles(new CheckRolesHandlerEventArgs() { RouteInfo = routeInfo }))
+							routeInfo.RequestTypeAttribute.SecurityType == ActionSecurity.Secure && currentUser == null ||
+							routeInfo.RequestTypeAttribute.SecurityType == ActionSecurity.Secure && routeInfo.RequestTypeAttribute.Roles == null ||
+							routeInfo.RequestTypeAttribute.SecurityType == ActionSecurity.Secure && !(currentUser.Roles.Intersect(routeInfo.RequestTypeAttribute.Roles.Split('|')).Count() > 0) ||
+							routeInfo.RequestTypeAttribute.SecurityType == ActionSecurity.Secure && routeInfo.Controller.RaiseCheckRoles(new CheckRolesHandlerEventArgs() { RouteInfo = routeInfo }))
 					{
 						RaiseEventOnFrontController(RouteHandlerEventType.FailedSecurity, path, routeInfo, null);
 
 						if (!string.IsNullOrEmpty(routeInfo.RequestTypeAttribute.RedirectWithoutAuthorizationTo))
-						{
-							viewResponse = new ViewResponse()
-							{
-								RedirectTo = routeInfo.RequestTypeAttribute.RedirectWithoutAuthorizationTo
-							};
-						}
+							viewResponse = new ViewResponse() { RedirectTo = routeInfo.RequestTypeAttribute.RedirectWithoutAuthorizationTo };
 					}
 					else
 					{
@@ -605,9 +600,8 @@ namespace Aurora
 							foreach (var apt in routeInfo.ActionParamTransforms)
 							{
 								Tuple<MethodInfo, object> transformMethod = routeInfo.CachedActionParamTransformInstances[apt.Item1.TransformName] as Tuple<MethodInfo, object>;
-								object transformedParam = transformMethod.Item1.Invoke(transformMethod.Item2, new object[] { routeInfo.ActionParams[apt.Item2] });
 
-								routeInfo.ActionParams[apt.Item2] = transformedParam;
+								routeInfo.ActionParams[apt.Item2] = transformMethod.Item1.Invoke(transformMethod.Item2, new object[] { routeInfo.ActionParams[apt.Item2] });
 							}
 						}
 
@@ -621,10 +615,7 @@ namespace Aurora
 							routeInfo.ActionParams = actionParams;
 						}
 
-						if (routeInfo.Action.ReturnType.GetInterface("IViewResult") != null)
-							viewResult = (IViewResult)routeInfo.Action.Invoke(routeInfo.Controller, routeInfo.ActionParams);
-						else
-							routeInfo.Action.Invoke(routeInfo.Controller, routeInfo.ActionParams);
+						viewResult = (IViewResult)routeInfo.Action.Invoke(routeInfo.Controller, routeInfo.ActionParams);
 
 						if (viewResult != null)
 							viewResponse = viewResult.Render();
@@ -653,35 +644,16 @@ namespace Aurora
 			catch { /* Silently ignore any write failures */ }
 		}
 
-		private string GetStackTrace(Exception exception)
-		{
-			StringBuilder stacktraceBuilder = new StringBuilder();
-
-			var trace = new System.Diagnostics.StackTrace((exception.InnerException != null) ? exception.InnerException : exception, true);
-
-			if (trace.FrameCount > 0)
-			{
-				foreach (StackFrame sf in trace.GetFrames())
-					if (!string.IsNullOrEmpty(sf.GetFileName()))
-						stacktraceBuilder.AppendFormat("<b>method:</b> {0} <b>file:</b> {1}<br />", sf.GetMethod().Name, Path.GetFileName(sf.GetFileName()));
-
-				if (stacktraceBuilder.ToString().Length > 0)
-					return stacktraceBuilder.ToString();
-			}
-
-			return null;
-		}
-
 		private ViewResponse GetErrorViewResponse(string error, string stackTrace)
 		{
 			if (!string.IsNullOrEmpty(stackTrace))
 				stackTrace = string.Format("<p><pre>{0}</pre></p>", stackTrace);
 
 			string errorView = ViewEngine.LoadView("Views", "Shared", "Error", ViewTemplateType.Shared, new Dictionary<string, string>()
-					{
-						{"error", error },
-						{"stacktrace", stackTrace }
-					});
+			{
+				{"error", error },
+				{"stacktrace", stackTrace }
+			});
 
 			ViewResponse viewResponse = new ViewResponse()
 			{
@@ -719,7 +691,7 @@ namespace Aurora
 		{
 			List<string> viewRoots = new List<string>() { viewRoot };
 
-			viewRoots.AddRange(controllers.SelectMany(x => x.GetType().GetCustomAttributes(typeof(PartitionAttribute), false)).Select(x => string.Format(@"{0}\{1}", appRoot, (x as PartitionAttribute).Name)));
+			viewRoots.AddRange(controllers.Where(x => !string.IsNullOrEmpty(x.PartitionName)).Select(x => string.Format(@"{0}\{1}", appRoot, x.PartitionName)));
 
 			return viewRoots.ToArray();
 		}
@@ -761,8 +733,7 @@ namespace Aurora
 					if (skipValidationAttrib == null)
 						propertyValue = GetValidatedFormValue(p.Name);
 
-					if (p.PropertyType == typeof(int) ||
-									p.PropertyType == typeof(int?))
+					if (p.PropertyType == typeof(int) || p.PropertyType == typeof(int?))
 					{
 						if (propertyValue.IsInt32())
 							p.SetValue(result, Convert.ToInt32(propertyValue), null);
@@ -790,9 +761,7 @@ namespace Aurora
 							p.SetValue(result, files[0], null);
 					}
 					else if (p.PropertyType == typeof(List<PostedFile>))
-					{
 						p.SetValue(result, files, null);
-					}
 				}
 
 				(result as Model).Validate(payload);
@@ -805,9 +774,9 @@ namespace Aurora
 		{
 			t.ThrowIfArgumentNull();
 
-			var types = (from assembly in AppDomain.CurrentDomain.GetAssemblies().Where(x => x.GetName().Name != "DotNetOpenAuth")
-									 from type in assembly.GetTypes().Where(x => x.BaseType == t)
-									 select type);
+			var types = AppDomain.CurrentDomain.GetAssemblies()
+													 .Where(x => x.GetName().Name != "DotNetOpenAuth") // DotNetOpenAuth depends on System.Web.Mvc which is not referenced, this will fail if we don't eliminate it
+													 .SelectMany(x => x.GetTypes().Where(y => y.BaseType == t));
 
 			if (types != null)
 				return types.ToList();
@@ -889,9 +858,9 @@ namespace Aurora
 
 			foreach (var apt in actionParameterTransforms)
 			{
-				Type actionTransformClassType = (from assembly in AppDomain.CurrentDomain.GetAssemblies().Where(x => x.GetName().Name != "DotNetOpenAuth")
-																				 from type in assembly.GetTypes().Where(x => x.GetInterface(typeof(IActionParamTransform<,>).Name) != null && x.Name == apt.Item1.TransformName)
-																				 select type).FirstOrDefault();
+				var actionTransformClassType = AppDomain.CurrentDomain.GetAssemblies().Where(x => x.GetName().Name != "DotNetOpenAuth") // DotNetOpenAuth depends on System.Web.Mvc which is not referenced, this will fail if we don't eliminate it
+														.SelectMany(x => x.GetTypes().Where(y => y.GetInterface(typeof(IActionParamTransform<,>).Name) != null && y.Name == apt.Item1.TransformName))
+														.FirstOrDefault();
 
 				if (actionTransformClassType != null)
 				{
@@ -902,11 +871,8 @@ namespace Aurora
 				}
 			}
 
-			if (!(cachedActionParamTransformInstances.Count() > 0))
-				cachedActionParamTransformInstances = null;
-
-			actionParameterInfo.ActionParamTransforms = actionParameterTransforms;
-			actionParameterInfo.ActionParamTransformInstances = cachedActionParamTransformInstances;
+			actionParameterInfo.ActionParamTransforms = actionParameterTransforms.Count() > 0 ? actionParameterTransforms : null;
+			actionParameterInfo.ActionParamTransformInstances = cachedActionParamTransformInstances.Count() > 0 ? cachedActionParamTransformInstances : null;
 
 			return actionParameterInfo;
 		}
@@ -1132,8 +1098,8 @@ namespace Aurora
 					RequestTypeAttribute = rta,
 					BoundParams = (bindings != null) ? bindings.ToArray() : new object[] { },
 					IBoundToActionParams = (bindings != null) ? bindings.Where(x => x.GetType().GetInterface("IBoundToAction") != null).Cast<IBoundToAction>().ToArray() : null,
-					DefaultParams = (!string.IsNullOrEmpty(defaultParams)) ? defaultParams.Split('/').ToObjectArray() : new object[] { },
-					ActionParamTransforms = (actionParameterInfo.ActionParamTransforms.Count() > 0) ? actionParameterInfo.ActionParamTransforms : null,
+					DefaultParams = (!string.IsNullOrEmpty(defaultParams)) ? defaultParams.Split('/').ConvertToObjectTypeArray() : new object[] { },
+					ActionParamTransforms = actionParameterInfo.ActionParamTransforms,
 					CachedActionParamTransformInstances = actionParameterInfo.ActionParamTransformInstances,
 					Dynamic = dynamic
 				});
@@ -1247,7 +1213,7 @@ namespace Aurora
 		public object GetApplication(string key)
 		{
 			if (app.ContainsKey(HttpAdapterConstants.ApplicationSessionStoreGetCallback) &&
-							app[HttpAdapterConstants.ApplicationSessionStoreGetCallback] is Func<string, object>)
+					app[HttpAdapterConstants.ApplicationSessionStoreGetCallback] is Func<string, object>)
 				return (app[HttpAdapterConstants.ApplicationSessionStoreGetCallback] as Func<string, object>)(key);
 
 			return null;
@@ -1256,14 +1222,14 @@ namespace Aurora
 		public void AddApplication(string key, object value)
 		{
 			if (app.ContainsKey(HttpAdapterConstants.ApplicationSessionStoreAddCallback) &&
-							app[HttpAdapterConstants.ApplicationSessionStoreAddCallback] is Action<string, object>)
+					app[HttpAdapterConstants.ApplicationSessionStoreAddCallback] is Action<string, object>)
 				(app[HttpAdapterConstants.ApplicationSessionStoreAddCallback] as Action<string, object>)(key, value);
 		}
 
 		public object GetSession(string key)
 		{
 			if (app.ContainsKey(HttpAdapterConstants.UserSessionStoreGetCallback) &&
-							app[HttpAdapterConstants.UserSessionStoreGetCallback] is Func<string, object>)
+					app[HttpAdapterConstants.UserSessionStoreGetCallback] is Func<string, object>)
 				return (app[HttpAdapterConstants.UserSessionStoreGetCallback] as Func<string, object>)(key);
 
 			return null;
@@ -1272,21 +1238,21 @@ namespace Aurora
 		public void AddSession(string key, object value)
 		{
 			if (app.ContainsKey(HttpAdapterConstants.UserSessionStoreAddCallback) &&
-							app[HttpAdapterConstants.UserSessionStoreAddCallback] is Action<string, object>)
+					app[HttpAdapterConstants.UserSessionStoreAddCallback] is Action<string, object>)
 				(app[HttpAdapterConstants.UserSessionStoreAddCallback] as Action<string, object>)(key, value);
 		}
 
 		public void RemoveSession(string key)
 		{
 			if (app.ContainsKey(HttpAdapterConstants.UserSessionStoreRemoveCallback) &&
-							app[HttpAdapterConstants.UserSessionStoreRemoveCallback] is Action<string>)
+					app[HttpAdapterConstants.UserSessionStoreRemoveCallback] is Action<string>)
 				(app[HttpAdapterConstants.UserSessionStoreRemoveCallback] as Action<string>)(key);
 		}
 
 		public void AbandonSession()
 		{
 			if (app.ContainsKey(HttpAdapterConstants.UserSessionStoreAbandonCallback) &&
-							app[HttpAdapterConstants.UserSessionStoreAbandonCallback] is Action)
+					app[HttpAdapterConstants.UserSessionStoreAbandonCallback] is Action)
 				(app[HttpAdapterConstants.UserSessionStoreAbandonCallback] as Action)();
 		}
 
@@ -1305,7 +1271,7 @@ namespace Aurora
 		public string GetValidatedFormValue(string key)
 		{
 			if (request.ContainsKey(HttpAdapterConstants.RequestFormCallback) &&
-							request[HttpAdapterConstants.RequestFormCallback] is Func<string, bool, string>)
+					request[HttpAdapterConstants.RequestFormCallback] is Func<string, bool, string>)
 				return (request[HttpAdapterConstants.RequestFormCallback] as Func<string, bool, string>)(key, true);
 
 			return null;
@@ -1669,15 +1635,10 @@ namespace Aurora
 
 		internal void RaiseEvent(EventType eventType)
 		{
-			switch (eventType)
+			if (eventType == EventType.OnInit && OnInit != null)
 			{
-				case EventType.OnInit:
-					if (OnInit != null)
-					{
-						OnInit(this, null);
-						OnInit = null;
-					}
-					break;
+				OnInit(this, null);
+				OnInit = null;
 			}
 		}
 
@@ -1804,15 +1765,9 @@ namespace Aurora
 
 	public abstract class FrontController : BaseController
 	{
-		protected event EventHandler<RouteHandlerEventArgs> OnPreActionEvent;
-		protected event EventHandler<RouteHandlerEventArgs> OnPostActionEvent;
-		protected event EventHandler<RouteHandlerEventArgs> OnStaticRouteEvent;
-		protected event EventHandler<RouteHandlerEventArgs> OnPreRouteDeterminationEvent;
-		protected event EventHandler<RouteHandlerEventArgs> OnPostRouteDeterminationEvent;
-		protected event EventHandler<RouteHandlerEventArgs> OnPassedSecurityEvent;
-		protected event EventHandler<RouteHandlerEventArgs> OnFailedSecurityEvent;
-		protected event EventHandler<RouteHandlerEventArgs> OnMissingRouteEvent;
-		protected event EventHandler<RouteHandlerEventArgs> OnErrorEvent;
+		protected event EventHandler<RouteHandlerEventArgs> OnPreActionEvent,
+			OnPostActionEvent, OnStaticRouteEvent, OnPreRouteDeterminationEvent, OnPostRouteDeterminationEvent,
+			OnPassedSecurityEvent, OnFailedSecurityEvent, OnMissingRouteEvent, OnErrorEvent;
 
 		internal static FrontController CreateInstance(Type type, Engine engine)
 		{
@@ -1891,15 +1846,14 @@ namespace Aurora
 
 	public abstract class Controller : BaseController
 	{
-		internal string partitionName;
+		internal string PartitionName;
 
 		protected Dictionary<string, string> ViewTags { get; private set; }
 		protected Dictionary<string, Dictionary<string, string>> FragTags { get; private set; }
 		protected dynamic ViewBag { get; private set; }
 		protected dynamic FragBag { get; private set; }
 
-		protected event EventHandler<RouteHandlerEventArgs> OnPreActionEvent;
-		protected event EventHandler<RouteHandlerEventArgs> OnPostActionEvent;
+		protected event EventHandler<RouteHandlerEventArgs> OnPreActionEvent, OnPostActionEvent;
 
 		internal void initializeViewTags()
 		{
@@ -1922,10 +1876,10 @@ namespace Aurora
 
 			initializeViewTags();
 
-			PartitionAttribute partitionAttrib = (PartitionAttribute)this.GetType().GetCustomAttributes(false).FirstOrDefault(x => x.GetType() == typeof(PartitionAttribute));
+			PartitionAttribute partitionAttrib = (PartitionAttribute)GetType().GetCustomAttributes(false).FirstOrDefault(x => x.GetType() == typeof(PartitionAttribute));
 
 			if (partitionAttrib != null)
-				partitionName = partitionAttrib.Name;
+				PartitionName = partitionAttrib.Name;
 		}
 
 		internal static Controller CreateInstance(Type type, Engine engine)
@@ -1935,19 +1889,19 @@ namespace Aurora
 			return controller;
 		}
 
-		private Dictionary<string, string> GetViewTagsDictionary()
+		private Dictionary<string, string> GetTagsDictionary(Dictionary<string, string> tags, dynamic tagBag, string subDict)
 		{
-			Dictionary<string, string> viewTags = ViewTags;
+			Dictionary<string, string> result = tags;
 
-			if (!ViewBag.IsEmpty())
+			if (!tagBag.IsEmpty())
 			{
-				Dictionary<string, object> _viewTags = ViewBag.GetDynamicDictionary();
+				Dictionary<string, object> bag = string.IsNullOrEmpty(subDict) ? tagBag.GetDynamicDictionary() : tagBag.GetDynamicDictionary(subDict);
 
-				if (_viewTags != null)
-					viewTags = _viewTags.ToDictionary(k => k.Key, k => (k.Value != null) ? k.Value.ToString() : string.Empty);
+				if (bag != null)
+					result = bag.ToDictionary(k => k.Key, k => (k.Value != null) ? k.Value.ToString() : string.Empty);
 			}
 
-			return viewTags;
+			return result;
 		}
 
 		internal void RaiseEvent(RouteHandlerEventType type, string path, RouteInfo routeInfo)
@@ -1976,24 +1930,14 @@ namespace Aurora
 		#region RENDER FRAGMENT
 		public string RenderFragment(string fragmentName)
 		{
-			Dictionary<string, string> fragTags = null;
+			Dictionary<string, string> tags = GetTagsDictionary(FragTags.ContainsKey(fragmentName) ? FragTags[fragmentName] : null, FragBag, fragmentName);
 
-			if (!FragBag.IsEmpty())
-			{
-				Dictionary<string, object> _fragTags = FragBag.GetDynamicDictionary(fragmentName);
-
-				if (_fragTags != null)
-					fragTags = _fragTags.ToDictionary(k => k.Key, k => k.Value.ToString());
-			}
-			else if (FragTags.ContainsKey(fragmentName))
-				fragTags = FragTags[fragmentName];
-
-			return RenderFragment(fragmentName, fragTags);
+			return RenderFragment(fragmentName, tags);
 		}
 
 		public string RenderFragment(string fragmentName, Dictionary<string, string> fragTags)
 		{
-			return engine.ViewEngine.LoadView(partitionName, this.GetType().Name, fragmentName, ViewTemplateType.Fragment, fragTags);
+			return engine.ViewEngine.LoadView(PartitionName, this.GetType().Name, fragmentName, ViewTemplateType.Fragment, fragTags);
 		}
 		#endregion
 
@@ -2012,7 +1956,7 @@ namespace Aurora
 
 		public ViewResult View(string controllerName, string actionName)
 		{
-			return new ViewResult(engine.ViewEngine, partitionName, controllerName, actionName, ViewTemplateType.Action, GetViewTagsDictionary());
+			return new ViewResult(engine.ViewEngine, PartitionName, controllerName, actionName, ViewTemplateType.Action, GetTagsDictionary(ViewTags, ViewBag, null));
 		}
 
 		public FileResult View(string fileName, byte[] fileBytes, string contentType)
@@ -2027,7 +1971,7 @@ namespace Aurora
 
 		public ViewResult Partial(string controllerName, string actionName)
 		{
-			return new ViewResult(engine.ViewEngine, partitionName, controllerName, actionName, ViewTemplateType.Shared, GetViewTagsDictionary());
+			return new ViewResult(engine.ViewEngine, PartitionName, controllerName, actionName, ViewTemplateType.Shared, GetTagsDictionary(ViewTags, ViewBag, null));
 		}
 		#endregion
 	}
@@ -2249,42 +2193,62 @@ namespace Aurora
 			foreach (string viewRoot in viewRoots)
 			{
 				if (Directory.Exists(viewRoot))
-					foreach (FileInfo fi in new DirectoryInfo(viewRoot).GetAllFiles().Where(x => x.Extension == ".html"))
-						templates.Add(Load(fi));
+					foreach (FileInfo fi in GetAllFiles(new DirectoryInfo(viewRoot)))
+						templates.Add(Load(fi.FullName));
 			}
 
 			return templates;
 		}
 
-		public ViewTemplate Load(FileInfo fi)
+		// This code was adapted to work with FileInfo/DirectoryInfo but was originally from the following question on SO:
+		//
+		// http://stackoverflow.com/questions/929276/how-to-recursively-list-all-the-files-in-a-directory-in-c
+		public static IEnumerable<FileInfo> GetAllFiles(DirectoryInfo dirInfo)
 		{
-			string viewRoot = viewRoots.FirstOrDefault(x => fi.FullName.StartsWith(x));
+			string path = dirInfo.FullName;
+
+			Queue<string> queue = new Queue<string>();
+			queue.Enqueue(path);
+
+			while (queue.Count > 0)
+			{
+				path = queue.Dequeue();
+
+				foreach (string subDir in Directory.GetDirectories(path))
+					queue.Enqueue(subDir);
+
+				FileInfo[] fileInfos = new DirectoryInfo(path).GetFiles();
+
+				if (fileInfos != null)
+					for (int i = 0; i < fileInfos.Length; i++)
+						yield return fileInfos[i];
+			}
+		}
+
+		public ViewTemplate Load(string path)
+		{
+			string viewRoot = viewRoots.FirstOrDefault(x => path.StartsWith(x));
 
 			if (string.IsNullOrEmpty(viewRoot)) return null;
 
 			DirectoryInfo rootDir = new DirectoryInfo(viewRoot);
 
+			string extension = Path.GetExtension(path);
+			string templateName = Path.GetFileNameWithoutExtension(path);
+			string templateKeyName = path.Replace(rootDir.Parent.FullName, string.Empty)
+																	 .Replace(appRoot, string.Empty)
+																	 .Replace(extension, string.Empty)
+																	 .Replace("\\", "/").TrimStart('/');
 
-			string templateName = fi.Name.Replace(fi.Extension, string.Empty);
-			string templateKeyName = fi.FullName.Replace(rootDir.Parent.FullName, string.Empty)
-																					.Replace(appRoot, string.Empty)
-																					.Replace(fi.Extension, string.Empty)
-																					.Replace("\\", "/").TrimStart('/');
+			string template = File.ReadAllText(path);
 
-			string template = File.ReadAllText(fi.FullName);
-
-			#region STRIP COMMENT SECTIONS
-			MatchCollection comments = commentBlockRE.Matches(template);
-
-			foreach (Match comment in comments)
-				template.Replace(comment.Value, string.Empty);
-			#endregion
+			commentBlockRE.Replace(template, string.Empty);
 
 			ViewTemplateType templateType = ViewTemplateType.Action;
 
-			if (fi.FullName.ToLower().Contains(sharedHint))
+			if (path.ToLower().Contains(sharedHint))
 				templateType = ViewTemplateType.Shared;
-			else if (fi.FullName.ToLower().Contains(fragmentsHint))
+			else if (path.ToLower().Contains(fragmentsHint))
 				templateType = ViewTemplateType.Fragment;
 
 			string partition = null;
@@ -2313,18 +2277,10 @@ namespace Aurora
 				Controller = controller,
 				FullName = templateKeyName,
 				Name = templateName,
-				Path = fi.FullName,
+				Path = path,
 				Template = template,
 				TemplateType = templateType
 			};
-		}
-
-		public ViewTemplate Load(string path)
-		{
-			if (File.Exists(path))
-				return Load(new FileInfo(path));
-
-			return null;
 		}
 	}
 
@@ -2738,7 +2694,7 @@ namespace Aurora
 									else if (m.Value.StartsWith(tagEncodingHint, StringComparison.Ordinal))
 										compiledViewSB.Replace(m.Value, HttpUtility.HtmlEncode(tag.Value.Trim()));
 									else if (m.Value.StartsWith(markdownEncodingHint, StringComparison.Ordinal))
-										compiledViewSB.Replace(m.Value, tag.Value.Trim().ToMarkdown());
+										compiledViewSB.Replace(m.Value, new Markdown().Transform((tag.Value.Trim())));
 								}
 							}
 						}
@@ -2818,6 +2774,7 @@ namespace Aurora
 		public string DetermineKeyName(string partitionName, string controllerName, string viewName, ViewTemplateType viewType)
 		{
 			List<string> keyTypes = new List<string>();
+			string viewTypeName = string.Empty;
 			string lookupKeyName = string.Empty;
 			string viewDesignation = string.Empty;
 
@@ -2827,7 +2784,12 @@ namespace Aurora
 			if (string.IsNullOrEmpty(controllerName))
 				controllerName = "Shared";
 
-			lookupKeyName = string.Join("/", partitionName, controllerName, Enum.GetName(typeof(ViewTemplateType), viewType), viewName);
+			if (viewType == ViewTemplateType.Shared)
+				viewTypeName = "Shared/";
+			else if (viewType == ViewTemplateType.Fragment)
+				viewTypeName = "Fragments/";
+
+			lookupKeyName = string.Format("{0}/{1}/{2}{3}", partitionName, controllerName, viewTypeName, viewName);
 
 			if (!templateKeyNames.ContainsKey(lookupKeyName))
 			{
@@ -3069,7 +3031,7 @@ namespace Aurora
 			return sb.ToString();
 		}
 
-		public static object[] ToObjectArray(this string[] parms)
+		public static object[] ConvertToObjectTypeArray(this string[] parms)
 		{
 			DateTime? dt = null;
 
@@ -3108,31 +3070,6 @@ namespace Aurora
 			}
 
 			return null;
-		}
-
-		public static string ToMarkdown(this string value)
-		{
-			return new Markdown().Transform(value);
-		}
-
-		public static string ToURLEncodedString(this string value)
-		{
-			return HttpUtility.UrlEncode(value);
-		}
-
-		public static string ToURLDecodedString(this string value)
-		{
-			return HttpUtility.UrlDecode(value);
-		}
-
-		public static string ToHtmlEncodedString(this string value)
-		{
-			return HttpUtility.HtmlEncode(value);
-		}
-
-		public static string ToHtmlDecodedString(this string value)
-		{
-			return HttpUtility.HtmlDecode(value);
 		}
 
 		public static bool InRange(this int value, int min, int max)
@@ -3196,49 +3133,6 @@ namespace Aurora
 			bool x = false;
 
 			return bool.TryParse(value, out x);
-		}
-
-		// This code was adapted to work with FileInfo/DirectoryInfo but was originally from the following question on SO:
-		//
-		// http://stackoverflow.com/questions/929276/how-to-recursively-list-all-the-files-in-a-directory-in-c
-		public static IEnumerable<FileInfo> GetAllFiles(this DirectoryInfo dirInfo)
-		{
-			string path = dirInfo.FullName;
-
-			Queue<string> queue = new Queue<string>();
-			queue.Enqueue(path);
-
-			while (queue.Count > 0)
-			{
-				path = queue.Dequeue();
-
-				try
-				{
-					foreach (string subDir in Directory.GetDirectories(path))
-						queue.Enqueue(subDir);
-				}
-				catch (Exception ex)
-				{
-					Console.Error.WriteLine(ex);
-				}
-
-				FileInfo[] fileInfos = null;
-
-				try
-				{
-					fileInfos = new DirectoryInfo(path).GetFiles();
-				}
-				catch
-				{
-					throw;
-				}
-
-				if (fileInfos != null)
-				{
-					for (int i = 0; i < fileInfos.Length; i++)
-						yield return fileInfos[i];
-				}
-			}
 		}
 	}
 	#endregion

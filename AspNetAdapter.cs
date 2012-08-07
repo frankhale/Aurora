@@ -1,7 +1,7 @@
 ﻿// AspNetAdapter - A thin generic wrapper that exposes some ASP.NET stuff in a
 //                 nice simple way.
 //
-// Updated On: 3 August 2012
+// Updated On: 6 August 2012
 //
 // Contact Info:
 //
@@ -82,6 +82,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using System.Threading;
 using System.Web;
 using System.Web.SessionState;
@@ -96,10 +97,10 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyDescription("An ASP.NET HttpContext Adapter")]
 [assembly: AssemblyCompany("Frank Hale")]
 [assembly: AssemblyProduct("Aurora")]
-[assembly: AssemblyCopyright("(GNU GPLv3) Copyleft © 2012")]
+[assembly: AssemblyCopyright("Copyright © 2012 | LICENSE GNU GPLv3")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("0.0.5.0")]
+[assembly: AssemblyVersion("0.0.6.0")]
 #endif
 #endregion
 
@@ -158,6 +159,7 @@ namespace AspNetAdapter
 	{
 		#region MISCELLANEOUS
 		public const string ServerError = "ServerError";
+		public const string ServerErrorStackTrace = "StackTrace";
 		public const string ServerVariables = "ServerVariables";
 		public const string RewritePathCallback = "RewritePathCallback";
 		public const string User = "User";
@@ -255,9 +257,11 @@ namespace AspNetAdapter
 				context.Application["__SyncInitLock"] = true;
 
 				// Look for a class inside the executing assembly that implements IAspNetAdapterApplication
-				var apps = (from assembly in AppDomain.CurrentDomain.GetAssemblies().Where(x => x.GetName().Name != "DotNetOpenAuth")
-										from type in assembly.GetTypes().Where(x => x.GetInterfaces().FirstOrDefault(i => i.UnderlyingSystemType == typeof(IAspNetAdapterApplication)) != null)
-										select type);
+				var apps = AppDomain.CurrentDomain.GetAssemblies()
+														.Where(x => x.GetName().Name != "DotNetOpenAuth") // DotNetOpenAuth depends on System.Web.Mvc which is not referenced, this will fail if we don't eliminate it
+														.SelectMany(x => x.GetTypes()
+																							.Where(y => y.GetInterfaces()
+																													 .FirstOrDefault(i => i.UnderlyingSystemType == typeof(IAspNetAdapterApplication)) != null));
 
 				if (apps != null)
 				{
@@ -325,6 +329,8 @@ namespace AspNetAdapter
 		{
 			Dictionary<string, object> application = new Dictionary<string, object>();
 
+			Exception serverError = context.Server.GetLastError();
+
 			application[HttpAdapterConstants.DebugMode] = debugMode;
 			application[HttpAdapterConstants.User] = context.User;
 			application[HttpAdapterConstants.ApplicationSessionStoreAddCallback] = new Action<string, object>(ApplicationSessionStoreAddCallback);
@@ -335,7 +341,8 @@ namespace AspNetAdapter
 			application[HttpAdapterConstants.UserSessionStoreGetCallback] = new Func<string, object>(UserSessionStoreGetCallback);
 			application[HttpAdapterConstants.UserSessionStoreAbandonCallback] = new Action(UserSessionStoreAbandonCallback);
 			application[HttpAdapterConstants.ResponseRedirectCallback] = new Action<string, Dictionary<string, string>>(ResponseRedirectCallback);
-			application[HttpAdapterConstants.ServerError] = context.Server.GetLastError();
+			application[HttpAdapterConstants.ServerError] = serverError;
+			application[HttpAdapterConstants.ServerErrorStackTrace] = (serverError!=null) ? GetStackTrace(serverError) : null;
 
 			return application;
 		}
@@ -346,6 +353,25 @@ namespace AspNetAdapter
 		private bool IsAssemblyDebugBuild(Assembly assembly)
 		{
 			return (assembly.GetCustomAttributes(typeof(DebuggableAttribute), false).FirstOrDefault() as DebuggableAttribute).IsJITTrackingEnabled;
+		}
+
+		private string GetStackTrace(Exception exception)
+		{
+			StringBuilder stacktraceBuilder = new StringBuilder();
+
+			var trace = new System.Diagnostics.StackTrace((exception.InnerException != null) ? exception.InnerException : exception, true);
+
+			if (trace.FrameCount > 0)
+			{
+				foreach (StackFrame sf in trace.GetFrames())
+					if (!string.IsNullOrEmpty(sf.GetFileName()))
+						stacktraceBuilder.AppendFormat("<b>method:</b> {0} <b>file:</b> {1}<br />", sf.GetMethod().Name, Path.GetFileName(sf.GetFileName()));
+
+				if (stacktraceBuilder.ToString().Length > 0)
+					return stacktraceBuilder.ToString();
+			}
+
+			return null;
 		}
 
 		private Dictionary<string, string> NameValueCollectionToDictionary(NameValueCollection nvc)

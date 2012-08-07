@@ -2,7 +2,7 @@ Aurora - An MVC web framework for .NET
 
 Frank Hale <frankhale@gmail.com>
 
-Date: 3 August 2012
+Date: 6 August 2012
 
 // --------------------
 // --- Feature List ---
@@ -43,6 +43,10 @@ Date: 3 August 2012
 //
  
 Changelog:
+
+6 August 2012
+
+- Code cleanup
 
 3 August 2012
 
