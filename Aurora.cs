@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 6 August 2012
+// Updated On: 7 August 2012
 //
 // Contact Info:
 //
@@ -82,7 +82,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyCopyright("Copyright © 2011-2012 | LICENSE GNU GPLv3")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("2.0.10.0")]
+[assembly: AssemblyVersion("2.0.11.0")]
 #endif
 #endregion
 
@@ -341,6 +341,10 @@ namespace Aurora
 			protectedFiles = GetApplication(protectedFilesSessionName) as Dictionary<string, string>;
 			controllersSession = GetApplication(controllersSessionSessionName) as Dictionary<string, object>;
 			cacheFilePath = GetApplication(viewCacheFilePathSessionName) as string;
+			#endregion
+
+			#region INITIALIZE MISCELLANEOUS
+			cachePath = MapPath(compiledViewsCacheFolderPath);
 
 			if (routeInfos == null)
 				routeInfos = new List<RouteInfo>();
@@ -454,9 +458,7 @@ namespace Aurora
 
 				if (string.IsNullOrEmpty(cacheFilePath))
 				{
-					cachePath = MapPath(compiledViewsCacheFolderPath);
 					cacheFilePath = string.Join("/", cachePath, compiledViewsCacheFileName);
-
 					AddApplication(viewCacheFilePathSessionName, cacheFilePath);
 				}
 
@@ -480,7 +482,7 @@ namespace Aurora
 
 				AddApplication(viewEngineSessionName, ViewEngine);
 			}
-			else if (ViewEngine.UpdateCache)
+			else if (ViewEngine.UpdateCache || !Directory.Exists(cachePath) || !File.Exists(cacheFilePath))
 				UpdateCache();
 			#endregion
 
@@ -1757,6 +1759,26 @@ namespace Aurora
 			return engine.GetControllerSession(key);
 		}
 
+		protected string GetQueryString(string key)
+		{
+			string result = null;
+
+			if (Request.ContainsKey(HttpAdapterConstants.RequestQueryString) &&
+					Request[HttpAdapterConstants.RequestQueryString] is Dictionary<string, string>)
+				(Request[HttpAdapterConstants.RequestQueryString] as Dictionary<string, string>).TryGetValue(key, out result);
+
+			return result;
+		}
+
+		protected string GetValidatedQueryString(string key)
+		{
+			if (Request.ContainsKey(HttpAdapterConstants.RequestQueryStringCallback) &&
+					Request[HttpAdapterConstants.RequestQueryStringCallback] is Func<string, bool, string>)
+				return (Request[HttpAdapterConstants.RequestQueryStringCallback] as Func<string, bool, string>)(key, true);
+
+			return null;
+		}
+
 		protected string MapPath(string path)
 		{
 			return engine.MapPath(path);
@@ -2550,7 +2572,7 @@ namespace Aurora
 		private List<ViewTemplate> viewTemplates;
 		private List<CompiledView> compiledViews;
 		private Dictionary<string, List<string>> viewDependencies;
-		private Dictionary<string, List<string>> templateKeyNames;
+		private Dictionary<string, HashSet<string>> templateKeyNames;
 
 		private static string partitionControllerScopeActionKeyName = "{0}/{1}/{2}";
 		private static string controllerScopeActionKeyName = "{0}/{1}";
@@ -2585,7 +2607,7 @@ namespace Aurora
 			this.directiveHandlers = directiveHandlers;
 			this.substitutionHandlers = substitutionHandlers;
 
-			templateKeyNames = new Dictionary<string, List<string>>();
+			templateKeyNames = new Dictionary<string, HashSet<string>>();
 		}
 
 		public List<CompiledView> CompileAll()
@@ -2773,26 +2795,22 @@ namespace Aurora
 
 		public string DetermineKeyName(string partitionName, string controllerName, string viewName, ViewTemplateType viewType)
 		{
-			List<string> keyTypes = new List<string>();
+			HashSet<string> keyTypes;
+
 			string viewTypeName = string.Empty;
 			string lookupKeyName = string.Empty;
-			string viewDesignation = string.Empty;
 
-			if (string.IsNullOrEmpty(partitionName))
-				partitionName = "Views";
-
-			if (string.IsNullOrEmpty(controllerName))
-				controllerName = "Shared";
-
-			if (viewType == ViewTemplateType.Shared)
-				viewTypeName = "Shared/";
-			else if (viewType == ViewTemplateType.Fragment)
-				viewTypeName = "Fragments/";
+			if (string.IsNullOrEmpty(partitionName)) partitionName = "Views";
+			if (string.IsNullOrEmpty(controllerName)) controllerName = "Shared";
+			if (viewType == ViewTemplateType.Shared) viewTypeName = "Shared/";
+			else if (viewType == ViewTemplateType.Fragment) viewTypeName = "Fragments/";
 
 			lookupKeyName = string.Format("{0}/{1}/{2}{3}", partitionName, controllerName, viewTypeName, viewName);
 
-			if (!templateKeyNames.ContainsKey(lookupKeyName))
+			if (!(templateKeyNames.TryGetValue(lookupKeyName, out keyTypes)))
 			{
+				keyTypes = new HashSet<string>();
+
 				switch (viewType)
 				{
 					case ViewTemplateType.Action:
@@ -2801,15 +2819,23 @@ namespace Aurora
 						break;
 
 					case ViewTemplateType.Shared:
-						keyTypes.Add(string.Format(partitionRootScopeSharedKeyName, partitionName, viewName));
-						keyTypes.Add(string.Format(partitionControllerScopeSharedKeyName, partitionName, controllerName, viewName));
+						if (partitionName != "Views")
+							keyTypes.Add(string.Format(partitionRootScopeSharedKeyName, partitionName, viewName));
+
+						if (partitionName != "Shared")
+							keyTypes.Add(string.Format(partitionControllerScopeSharedKeyName, partitionName, controllerName, viewName));
+
 						keyTypes.Add(string.Format(controllerScopeSharedKeyName, controllerName, viewName));
 						keyTypes.Add(string.Format(globalScopeSharedKeyName, viewName));
 						break;
 
 					case ViewTemplateType.Fragment:
-						keyTypes.Add(string.Format(partitionControllerScopeFragmentKeyName, partitionName, controllerName, viewName));
-						keyTypes.Add(string.Format(partitionRootScopeFragmentsKeyName, partitionName, viewName));
+						if (controllerName != "Shared")
+							keyTypes.Add(string.Format(partitionControllerScopeFragmentKeyName, partitionName, controllerName, viewName));
+
+						if (partitionName != "Views")
+							keyTypes.Add(string.Format(partitionRootScopeFragmentsKeyName, partitionName, viewName));
+
 						keyTypes.Add(string.Format(controllerScopeFragmentKeyName, controllerName, viewName));
 						keyTypes.Add(string.Format(globalScopeFragmentKeyName, viewName));
 						break;
@@ -2817,10 +2843,10 @@ namespace Aurora
 
 				templateKeyNames[lookupKeyName] = keyTypes;
 			}
-			else
-				keyTypes = templateKeyNames[lookupKeyName];
 
-			return keyTypes.Intersect(viewTemplates.Select(x => x.FullName)).FirstOrDefault();
+			keyTypes.IntersectWith(viewTemplates.Select(x => x.FullName));
+
+			return keyTypes.FirstOrDefault();
 		}
 
 		public void RecompileDependencies(string fullViewName, string partitionName, string controllerName)
