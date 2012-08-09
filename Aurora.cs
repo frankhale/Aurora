@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 7 August 2012
+// Updated On: 8 August 2012
 //
 // Contact Info:
 //
@@ -82,7 +82,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyCopyright("Copyright © 2011-2012 | LICENSE GNU GPLv3")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("2.0.11.0")]
+[assembly: AssemblyVersion("2.0.12.0")]
 #endif
 #endregion
 
@@ -2043,35 +2043,16 @@ namespace Aurora
 
 	public class ViewResult : IViewResult
 	{
-		private string partitionName;
-		private string controllerName;
-		private string viewName;
-		private IViewEngine viewEngine;
-		private ViewTemplateType viewTemplateType;
-		private Dictionary<string, string> viewTags;
+		private string view;
 
 		public ViewResult(IViewEngine viewEngine, string partitionName, string controllerName, string viewName, ViewTemplateType viewTemplateType, Dictionary<string, string> viewTags)
 		{
-			this.viewEngine = viewEngine;
-			this.partitionName = partitionName;
-			this.controllerName = controllerName;
-			this.viewName = viewName;
-			this.viewTemplateType = viewTemplateType;
-			this.viewTags = viewTags;
+			view = viewEngine.LoadView(partitionName, controllerName, viewName, viewTemplateType, viewTags);
 		}
 
 		public ViewResponse Render()
 		{
-			string view = viewEngine.LoadView(partitionName, controllerName, viewName, viewTemplateType, viewTags);
-
-			if (string.IsNullOrEmpty(view))
-				return null;
-
-			return new ViewResponse()
-			{
-				ContentType = "text/html",
-				Content = view
-			};
+			return (string.IsNullOrEmpty(view)) ? null : new ViewResponse() { ContentType = "text/html", Content = view };
 		}
 	}
 
@@ -2145,12 +2126,7 @@ namespace Aurora
 
 		public ViewResponse Render()
 		{
-			return new ViewResponse()
-			{
-				Content = null,
-				ContentType = "application/json",
-				Headers = new Dictionary<string, string>()
-			};
+			return new ViewResponse() { Content = null, ContentType = "application/json" };
 		}
 	}
 	#endregion
@@ -3197,9 +3173,8 @@ namespace Aurora
 
 		public Dictionary<string, object> GetDynamicDictionary(string key)
 		{
-			if (_members.ContainsKey(key))
-				if (_members[key] is DynamicDictionary)
-					return (_members[key] as DynamicDictionary)._members;
+			if (_members.ContainsKey(key) && (_members[key] is DynamicDictionary))
+				return (_members[key] as DynamicDictionary)._members;
 
 			return null;
 		}

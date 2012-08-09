@@ -1,7 +1,7 @@
 ﻿// AspNetAdapter - A thin generic wrapper that exposes some ASP.NET stuff in a
 //                 nice simple way.
 //
-// Updated On: 6 August 2012
+// Updated On: 8 August 2012
 //
 // Contact Info:
 //
@@ -100,7 +100,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyCopyright("Copyright © 2012 | LICENSE GNU GPLv3")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("0.0.6.0")]
+[assembly: AssemblyVersion("0.0.7.0")]
 #endif
 #endregion
 
@@ -478,7 +478,8 @@ namespace AspNetAdapter
 			context.Response.StatusCode = (int)response[HttpAdapterConstants.ResponseStatus];
 			context.Response.ContentType = response[HttpAdapterConstants.ResponseContentType].ToString();
 
-			if (response[HttpAdapterConstants.ResponseHeaders] != null)
+			if (response.ContainsKey(HttpAdapterConstants.ResponseHeaders) && 
+					response[HttpAdapterConstants.ResponseHeaders] != null)
 			{
 				foreach (KeyValuePair<string, string> kvp in (response[HttpAdapterConstants.ResponseHeaders] as Dictionary<string, string>))
 					context.Response.AddHeader(kvp.Key, kvp.Value);
@@ -495,7 +496,8 @@ namespace AspNetAdapter
 			{
 				if (!(e is ThreadAbortException))
 				{
-					if (response[HttpAdapterConstants.ResponseErrorCallback] != null)
+					if (response.ContainsKey(HttpAdapterConstants.ResponseErrorCallback) && 
+							response[HttpAdapterConstants.ResponseErrorCallback] != null)
 						(response[HttpAdapterConstants.ResponseErrorCallback] as Action<Exception>)(e);
 				}
 			}
