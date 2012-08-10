@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 8 August 2012
+// Updated On: 9 August 2012
 //
 // Contact Info:
 //
@@ -82,7 +82,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyCopyright("Copyright © 2011-2012 | LICENSE GNU GPLv3")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("2.0.12.0")]
+[assembly: AssemblyVersion("2.0.13.0")]
 #endif
 #endregion
 
@@ -1034,7 +1034,7 @@ namespace Aurora
 																										.Where(x => x.ParameterType.GetInterface("IActionFilterResult") == null)
 																										.Select(x => x.ParameterType).ToArray();
 
-					if (routeInfo.ActionParamTransforms != null)
+					if (routeInfo.ActionParamTransforms != null && finalParamTypes.Count()==actionParamTypes.Count())
 						foreach (var apt in routeInfo.ActionParamTransforms)
 							finalParamTypes[apt.Item2] = actionParamTypes[apt.Item2];
 
