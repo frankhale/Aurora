@@ -2,7 +2,7 @@ Aurora - An MVC web framework for .NET
 
 Frank Hale <frankhale@gmail.com>
 
-Date: 9 August 2012
+Date: 7 September 2012
 
 // --------------------
 // --- Feature List ---
@@ -43,6 +43,11 @@ Date: 9 August 2012
 //
  
 Changelog:
+
+7 September 2012
+
+- Some issues cropped up dealing with updating views while the app is running. Hopefully, updating views will now function
+  correctly. For example, updating a view during a running app should cause the view to be recompiled and cached.
 
 9 August 2012
 
