@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 17 September 2012
+// Updated On: 19 September 2012
 //
 // Contact Info:
 //
@@ -79,7 +79,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyCopyright("Copyright © 2011-2012 | LICENSE GNU GPLv3")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("2.0.14.0")]
+[assembly: AssemblyVersion("2.0.15.0")]
 #endif
 
 namespace Aurora
@@ -266,7 +266,7 @@ namespace Aurora
 		#endregion
 
 		#region MISCELLANEOUS VARIABLES
-		private static Regex allowedFilePattern = new Regex(@"\.(js|css|png|jpg|gif|ico|pptx|xlsx|csv)$", RegexOptions.Compiled);
+		private static Regex allowedFilePattern = new Regex(@"\.(js|css|png|jpg|gif|ico|pptx|xlsx|csv|txt)$", RegexOptions.Compiled);
 		private static string sharedResourceFolderPath = "/Resources";
 		private static string compiledViewsCacheFolderPath = "/Views/Cache";
 		private static string compiledViewsCacheFileName = "viewsCache.json";
@@ -284,8 +284,7 @@ namespace Aurora
 		private Dictionary<string, string> protectedFiles;
 		private Dictionary<string, object> controllersSession;
 		internal User currentUser;
-		string cachePath;
-		string cacheFilePath;
+		private string cachePath, cacheFilePath;
 		#endregion
 
 		#region FRAMEWORK METHODS
@@ -295,6 +294,9 @@ namespace Aurora
 			this.request = request;
 			this.app = app;
 			this.response = response;
+
+			int httpStatus = 200;
+			ViewResponse viewResponse = null;
 
 			requestType = request[HttpAdapterConstants.RequestMethod].ToString();
 			appRoot = request[HttpAdapterConstants.RequestPathBase].ToString();
@@ -310,8 +312,6 @@ namespace Aurora
 			fromRedirectOnly = Convert.ToBoolean(GetSession(fromRedirectOnlySessionName));
 			debugMode = Convert.ToBoolean(app[HttpAdapterConstants.DebugMode]);
 			serverError = app[HttpAdapterConstants.ServerError] as Exception;
-			int httpStatus = 200;
-			ViewResponse viewResponse = null;
 			clientCertificate = request[HttpAdapterConstants.RequestClientCertificate] as X509Certificate2;
 			#endregion
 
@@ -340,78 +340,51 @@ namespace Aurora
 
 			#region INITIALIZE USERS
 			if (users == null)
-			{
-				users = new List<User>();
-				AddApplication(usersSessionName, users);
-			}
+				AddApplication(usersSessionName, users = new List<User>());
 			else
 				currentUser = users.FirstOrDefault(x => x.SessionId == sessionID);
 			#endregion
 
 			#region INITIALIZE ANTIFORGERYTOKENS
 			if (antiForgeryTokens == null)
-			{
-				antiForgeryTokens = new List<string>();
-				AddApplication(antiForgeryTokensSessionName, antiForgeryTokens);
-			}
+				AddApplication(antiForgeryTokensSessionName, antiForgeryTokens = new List<string>());
 			#endregion
 
 			#region INITIALIZE MODELS
 			if (models == null)
-			{
-				models = GetTypeList(typeof(Model));
-				AddApplication(modelsSessionName, models);
-			}
+				AddApplication(modelsSessionName, models = GetTypeList(typeof(Model)));
 			#endregion
 
 			#region INITIALIZE CONTROLLERS SESSION
 			if (controllersSession == null)
-			{
-				controllersSession = new Dictionary<string, object>();
-				AddApplication(controllersSessionSessionName, controllersSession);
-			}
+				AddApplication(controllersSessionSessionName, controllersSession = new Dictionary<string, object>());
 			#endregion
 
 			#region INITIALIZE PROTECTED FILES
 			if (protectedFiles == null)
-			{
-				protectedFiles = new Dictionary<string, string>();
-				AddApplication(protectedFilesSessionName, protectedFiles);
-			}
+				AddApplication(protectedFilesSessionName, protectedFiles = new Dictionary<string, string>());
 			#endregion
 
 			#region INITIALIZE ACTION BINDINGS
 			if (actionBindings == null)
-			{
-				actionBindings = new Dictionary<string, Dictionary<string, List<object>>>();
-				AddSession(actionBindingsSessionName, actionBindings);
-			}
+				AddSession(actionBindingsSessionName, actionBindings = new Dictionary<string, Dictionary<string, List<object>>>());
 			#endregion
 
 			#region INITIALIZE BUNDLES
 			if (bundles == null)
-			{
-				bundles = new Dictionary<string, Tuple<List<string>, string>>();
-				AddSession(bundlesTokenSessionName, bundles);
-			}
+				AddSession(bundlesTokenSessionName, bundles = new Dictionary<string, Tuple<List<string>, string>>());
 			#endregion
 
 			#region INTIALIZE FRONT CONTROLLER
 			if (frontController == null)
-			{
-				frontController = GetFrontControllerInstance();
-				AddSession(frontControllerInstanceSessionName, frontController);
-			}
+				AddSession(frontControllerInstanceSessionName, frontController = GetFrontControllerInstance());
 			else
 				frontController.Refresh(this);
 			#endregion
 
 			#region INITIALIZE CONTROLLER INSTANCES
 			if (controllers == null)
-			{
-				controllers = GetControllerInstances();
-				AddSession(controllerInstancesSessionName, controllers);
-			}
+				AddSession(controllerInstancesSessionName, controllers = GetControllerInstances());
 			else
 				controllers.ForEach(c => c.Refresh(this));
 			#endregion
@@ -432,9 +405,6 @@ namespace Aurora
 			#endregion
 
 			#region INITIALIZE VIEW ENGINE
-
-			//FIXME: If the ViewEngine is not null and there is no cache force the view engine to reload everything!
-
 			if (ViewEngine == null)
 			{
 				List<IViewCompilerDirectiveHandler> dirHandlers = new List<IViewCompilerDirectiveHandler>();
@@ -502,7 +472,7 @@ namespace Aurora
 			IViewResult viewResult = null;
 			ViewResponse viewResponse = null;
 
-			if (path == "/" || path.ToLower() == "/default.aspx" || path == "~/") path = "/Index";
+			if (path == "/" || path == "~/" || path.ToLower() == "/default.aspx") path = "/Index";
 
 			if (allowedFilePattern.IsMatch(path))
 			{
@@ -670,10 +640,7 @@ namespace Aurora
 			{
 				RouteInfo redirectRoute = FindRoute(viewResponse.RedirectTo);
 
-				if (redirectRoute != null && redirectRoute.RequestTypeAttribute.ActionType == ActionType.FromRedirectOnly)
-					ResponseRedirect(viewResponse.RedirectTo, true);
-				else
-					ResponseRedirect(viewResponse.RedirectTo, false);
+				ResponseRedirect(viewResponse.RedirectTo, (redirectRoute != null && redirectRoute.RequestTypeAttribute.ActionType == ActionType.FromRedirectOnly) ? true : false);
 			}
 		}
 
@@ -917,6 +884,7 @@ namespace Aurora
       name.ThrowIfArgumentNull();
       paths.ThrowIfArgumentNull();
 
+			string extension = Path.GetExtension(name);
 			string compressedFile = null;
 			StringBuilder combinedFiles = new StringBuilder();
 
@@ -927,9 +895,9 @@ namespace Aurora
 			foreach (string p in paths)
 				combinedFiles.AppendLine(File.ReadAllText(appRoot + p));
 
-			if (Path.GetExtension(name) == ".js")
+			if (extension == ".js")
 				compressedFile = new JavaScriptCompressor().Compress(combinedFiles.ToString());
-			else if (Path.GetExtension(name) == ".css")
+			else if (extension == ".css")
 				compressedFile = new CssCompressor().Compress(combinedFiles.ToString());
 
 			bundles[name] = new Tuple<List<string>, string>(paths.ToList(), compressedFile);
@@ -942,6 +910,10 @@ namespace Aurora
 
 		internal void AddBinding(string controllerName, string actionName, object bindInstance)
 		{
+			controllerName.ThrowIfArgumentNull();
+			actionName.ThrowIfArgumentNull();
+			bindInstance.ThrowIfArgumentNull();
+
 			if (!actionBindings.ContainsKey(controllerName))
 				actionBindings[controllerName] = new Dictionary<string, List<object>>();
 
@@ -980,6 +952,8 @@ namespace Aurora
 
 		internal RouteInfo FindRoute(string path)
 		{
+			path.ThrowIfArgumentNull();
+
 			var routeSlice = routeInfos.SelectMany(routeInfo =>
 					routeInfo.Aliases, (routeInfo, alias) =>
 						new { routeInfo, alias }).OrderByDescending(x => x.alias.Length).Where(x => path.StartsWith(x.alias)).ToList();
@@ -1174,12 +1148,18 @@ namespace Aurora
 
 		internal void AddControllerSession(string key, object value)
 		{
-			controllersSession[key] = value;
+			if(!string.IsNullOrEmpty(key))
+				controllersSession[key] = value;
 		}
 
 		internal object GetControllerSession(string key)
 		{
 			return (controllersSession.ContainsKey(key)) ? controllersSession[key] : null;
+		}
+
+		internal void AbandonControllerSession()
+		{
+			controllersSession = null;
 		}
 
 		internal string MapPath(string path)
@@ -1227,13 +1207,6 @@ namespace Aurora
 			if (app.ContainsKey(HttpAdapterConstants.UserSessionStoreRemoveCallback) &&
 					app[HttpAdapterConstants.UserSessionStoreRemoveCallback] is Action<string>)
 				(app[HttpAdapterConstants.UserSessionStoreRemoveCallback] as Action<string>)(key);
-		}
-
-		public void AbandonSession()
-		{
-			if (app.ContainsKey(HttpAdapterConstants.UserSessionStoreAbandonCallback) &&
-					app[HttpAdapterConstants.UserSessionStoreAbandonCallback] is Action)
-				(app[HttpAdapterConstants.UserSessionStoreAbandonCallback] as Action)();
 		}
 
 		public void ResponseRedirect(string path, bool fromRedirectOnly)
@@ -1756,6 +1729,11 @@ namespace Aurora
 			return engine.GetControllerSession(key);
 		}
 
+		protected void AbandonSession()
+		{
+			engine.AbandonControllerSession();
+		}
+
 		protected string GetQueryString(string key, bool validate)
 		{
       return engine.GetQueryString(key, validate);
@@ -2108,7 +2086,7 @@ namespace Aurora
 
 		public ViewResponse Render()
 		{
-			return new ViewResponse() { Content = null, ContentType = "application/json" };
+			return new ViewResponse() { Content = json, ContentType = "application/json" };
 		}
 	}
 	#endregion
@@ -2666,11 +2644,11 @@ namespace Aurora
 							{
 								if (!string.IsNullOrEmpty(tag.Value))
 								{
-									if (m.Value.StartsWith(unencodedTagHint, StringComparison.Ordinal))
+									if (m.Value.StartsWith(unencodedTagHint))
 										compiledViewSB.Replace(m.Value, tag.Value.Trim());
-									else if (m.Value.StartsWith(tagEncodingHint, StringComparison.Ordinal))
+									else if (m.Value.StartsWith(tagEncodingHint))
 										compiledViewSB.Replace(m.Value, HttpUtility.HtmlEncode(tag.Value.Trim()));
-									else if (m.Value.StartsWith(markdownEncodingHint, StringComparison.Ordinal))
+									else if (m.Value.StartsWith(markdownEncodingHint))
 										compiledViewSB.Replace(m.Value, new Markdown().Transform((tag.Value.Trim())));
 								}
 							}
@@ -2813,7 +2791,7 @@ namespace Aurora
 			{
 				var template = viewTemplates.FirstOrDefault(x => x.FullName == name);
 
-				if (template != null /*&& template.TemplateType != ViewTemplateType.Fragment*/)
+				if (template != null)
 					Compile(partitionName, controllerName, template.Name, template.TemplateType);
 			};
 
@@ -2979,22 +2957,22 @@ namespace Aurora
 		public string LoadView(string partitionName, string controllerName, string viewName, ViewTemplateType viewType, Dictionary<string, string> tags)
 		{
 			string keyName = viewCompiler.DetermineKeyName(partitionName, controllerName, viewName, viewType);
+			string result = null;
 
 			if (!string.IsNullOrEmpty(keyName))
 			{
 				CompiledView renderedView = viewCompiler.Render(keyName, tags);
 
 				if (renderedView != null)
-					return renderedView.Render;
+					result = renderedView.Render;
 			}
 
-			return null;
+			return result;
 		}
 	}
 	#endregion
 
 	#region EXTENSION METHODS / DYNAMIC DICTIONARY
-	#region EXTENSION METHODS
 	public static class ExtensionMethods
 	{
 		public static void ThrowIfArgumentNull<T>(this T t, string message = null)
@@ -3126,19 +3104,14 @@ namespace Aurora
 			return bool.TryParse(value, out x);
 		}
 	}
-	#endregion
 
-	#region DYNAMIC DICTIONARY
 	public class DynamicDictionary : DynamicObject
 	{
 		private Dictionary<string, object> _members = new Dictionary<string, object>();
 
 		public bool IsEmpty()
 		{
-			if (_members.Keys.Count() > 0)
-				return false;
-
-			return true;
+			return !(_members.Keys.Count() > 0);
 		}
 
 		public override IEnumerable<string> GetDynamicMemberNames()
@@ -3148,8 +3121,7 @@ namespace Aurora
 
 		public IEnumerable<string> GetDynamicMemberNames(string key)
 		{
-			if (_members.ContainsKey(key))
-				if (_members[key] is DynamicDictionary)
+			if (_members.ContainsKey(key) && _members[key] is DynamicDictionary)
 					return (_members[key] as DynamicDictionary)._members.Keys;
 
 			return null;
@@ -3180,14 +3152,11 @@ namespace Aurora
 
 		public override bool TryGetMember(GetMemberBinder binder, out object result)
 		{
-			if (_members.ContainsKey(binder.Name))
-				result = _members[binder.Name];
-			else
-				result = _members[binder.Name] = new DynamicDictionary();
+			result = (_members.ContainsKey(binder.Name)) ? 
+				result = _members[binder.Name] : _members[binder.Name] = new DynamicDictionary(); 
 
 			return true;
 		}
 	}
-	#endregion
 	#endregion
 }

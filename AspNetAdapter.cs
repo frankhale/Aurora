@@ -1,7 +1,7 @@
 ﻿// AspNetAdapter - A thin generic wrapper that exposes some ASP.NET stuff in a
 //                 nice simple way.
 //
-// Updated On: 8 August 2012
+// Updated On: 19 September 2012
 //
 // Contact Info:
 //
@@ -73,7 +73,6 @@
 //
 #endregion
 
-#region USING STATEMENTS
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
@@ -87,7 +86,6 @@ using System.Threading;
 using System.Web;
 using System.Web.SessionState;
 using Microsoft.Web.Infrastructure.DynamicValidationHelper;
-#endregion
 
 #region ASSEMBLY INFORMATION
 #if LIBRARY
@@ -96,18 +94,17 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyTitle("AspNetAdapter")]
 [assembly: AssemblyDescription("An ASP.NET HttpContext Adapter")]
 [assembly: AssemblyCompany("Frank Hale")]
-[assembly: AssemblyProduct("Aurora")]
+[assembly: AssemblyProduct("AspNetAdapter")]
 [assembly: AssemblyCopyright("Copyright © 2012 | LICENSE GNU GPLv3")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("0.0.7.0")]
+[assembly: AssemblyVersion("0.0.8.0")]
 #endif
 #endregion
 
 namespace AspNetAdapter
 {
 	#region ASP.NET HOOKS - IHTTPHANDLER / IHTTPMODULE
-
 	#region HTTP HANDLER
 	public sealed class AspNetAdapterHandler : IHttpHandler, IRequiresSessionState
 	{
@@ -144,7 +141,6 @@ namespace AspNetAdapter
 		}
 	}
 	#endregion
-
 	#endregion
 
 	#region ASP.NET ADAPTER
@@ -219,7 +215,8 @@ namespace AspNetAdapter
 				{ ".jpg", "image/jpg" },
 				{ ".gif", "image/gif" },
 				{ ".ico", "image/x-icon" },
-				{ ".csv", "test/plain"},
+				{ ".csv", "text/plain"},
+				{ ".txt", "text/plain"},
 				{ ".xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
 				{ ".pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"}
 			};
@@ -235,12 +232,10 @@ namespace AspNetAdapter
 	{
 		private static object syncInitLock = new object();
 
-		private bool firstRun;
 		private readonly HttpContext context;
-		private bool debugMode;
+		private bool firstRun, debugMode;
 		private static string AspNetApplicationTypeSessionName = "__AspNetApplicationType";
-		private NameValueCollection unvalidatedForm;
-		private NameValueCollection unvalidatedQueryString;
+		private NameValueCollection unvalidatedForm, unvalidatedQueryString;
 
 		public HttpContextAdapter(HttpContext ctx)
 		{
@@ -258,7 +253,8 @@ namespace AspNetAdapter
 
 				// Look for a class inside the executing assembly that implements IAspNetAdapterApplication
 				var apps = AppDomain.CurrentDomain.GetAssemblies()
-														.Where(x => x.GetName().Name != "DotNetOpenAuth") // DotNetOpenAuth depends on System.Web.Mvc which is not referenced, this will fail if we don't eliminate it
+														// DotNetOpenAuth depends on System.Web.Mvc which is not referenced, this will fail if we don't eliminate it									
+														.Where(x => x.GetName().Name != "DotNetOpenAuth") 
 														.SelectMany(x => x.GetTypes()
 																							.Where(y => y.GetInterfaces()
 																													 .FirstOrDefault(i => i.UnderlyingSystemType == typeof(IAspNetAdapterApplication)) != null));
@@ -289,10 +285,7 @@ namespace AspNetAdapter
 
 			if (firstRun)
 			{
-				lock (syncInitLock)
-				{
-					_appInstance.Init(app, request, ResponseCallback);
-				}
+				lock (syncInitLock) _appInstance.Init(app, request, ResponseCallback);
 			}
 			else
 				_appInstance.Init(app, request, ResponseCallback);
@@ -379,10 +372,8 @@ namespace AspNetAdapter
 			Dictionary<string, string> result = new Dictionary<string, string>();
 
 			foreach (string key in nvc.AllKeys)
-			{
 				if (!result.ContainsKey(key))
 					result[key] = nvc.Get(key);
-			}
 
 			return result;
 		}
@@ -394,10 +385,8 @@ namespace AspNetAdapter
 			if (!string.IsNullOrEmpty(value))
 			{
 				foreach (string[] arr in value.Split(new char[] { splitOn }, StringSplitOptions.RemoveEmptyEntries).Select(x => x.Split(delimiter)))
-				{
 					if (!result.ContainsKey(arr[0]))
 						result.Add(arr[0].Trim(), arr[1].Trim());
-				}
 			}
 
 			return result;
@@ -406,14 +395,10 @@ namespace AspNetAdapter
 		private string GetIPAddress()
 		{
 			// This method is based on the following example at StackOverflow:
-			//
 			// http://stackoverflow.com/questions/735350/how-to-get-a-users-client-ip-address-in-asp-net
 			string ip = context.Request.ServerVariables["HTTP_X_FORWARDED_FOR"];
 
-			if (string.IsNullOrEmpty(ip))
-				return context.Request.ServerVariables["REMOTE_ADDR"];
-			else
-				return ip.Split(',')[0];
+			return (string.IsNullOrEmpty(ip)) ? context.Request.ServerVariables["REMOTE_ADDR"] : ip.Split(',')[0];
 		}
 
 		private List<PostedFile> GetRequestFiles()
@@ -430,12 +415,10 @@ namespace AspNetAdapter
 				});
 			}
 
-			if (postedFiles.Count > 0)
-				return postedFiles;
-
-			return null;
+			return (postedFiles.Count > 0) ? postedFiles : null;
 		}
 
+		// It's likely I grabbed this from Stackoverflow but I cannot remember
 		public byte[] ReadStream(Stream stream)
 		{
 			int length = (int)stream.Length;
@@ -452,8 +435,7 @@ namespace AspNetAdapter
 		{
 			ValidationUtility.EnableDynamicValidation(context.ApplicationInstance.Context);
 
-			Func<NameValueCollection> _unvalidatedForm;
-			Func<NameValueCollection> _unvalidatedQueryString;
+			Func<NameValueCollection> _unvalidatedForm, _unvalidatedQueryString;
 
 			ValidationUtility.GetUnvalidatedCollections(context.ApplicationInstance.Context, out _unvalidatedForm, out _unvalidatedQueryString);
 
@@ -463,7 +445,6 @@ namespace AspNetAdapter
 		#endregion
 
 		#region CALLBACKS
-
 		private void ResponseCallback(Dictionary<string, object> response)
 		{
 			response.ThrowIfArgumentNull();
@@ -587,7 +568,6 @@ namespace AspNetAdapter
 			context.Response.Redirect(path);
 		}
 		#endregion
-
 		#endregion
 	}
 	#endregion
