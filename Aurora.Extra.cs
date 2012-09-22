@@ -1,7 +1,7 @@
 ﻿//
 // Aurora.Extra - Additional bits that may be useful in your applications      
 //
-// Updated On: 1 August 2012
+// Updated On: 21 September 2012
 //
 // Contact Info:
 //
@@ -44,7 +44,6 @@
 //
 #endregion
 
-#region USING STATEMENTS
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
@@ -75,7 +74,6 @@ using DotNetOpenAuth.OpenId;
 using DotNetOpenAuth.OpenId.Extensions.SimpleRegistration;
 using DotNetOpenAuth.OpenId.RelyingParty;
 #endif
-#endregion
 
 namespace Aurora.Extra
 {
@@ -2386,7 +2384,7 @@ namespace Aurora.Extra
 		{
 			controller = c;
 
-			ValidateClientCertificate();
+			Authenticate();
 		}
 
 		private string GetCACIDFromCN()
@@ -2426,7 +2424,7 @@ namespace Aurora.Extra
 				throw new Exception(string.Format("The CAC ID was not in the expected format within the common name (last.first.middle.cacid), actual CN = {0}", cn));
 		}
 
-		private void ValidateClientCertificate()
+		public void Authenticate()
 		{
 			ActiveDirectoryAuthenticationEventArgs args = new ActiveDirectoryAuthenticationEventArgs();
 

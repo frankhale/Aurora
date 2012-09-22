@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 19 September 2012
+// Updated On: 21 September 2012
 //
 // Contact Info:
 //
@@ -79,27 +79,16 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyCopyright("Copyright © 2011-2012 | LICENSE GNU GPLv3")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("2.0.15.0")]
+[assembly: AssemblyVersion("2.0.16.0")]
 #endif
 
 namespace Aurora
 {
 	#region ATTRIBUTES
-	public enum ActionSecurity
-	{
-		Secure,
-		None
-	}
+	public enum ActionSecurity { Secure, None }
 
 	#region HTTP REQUEST
-	public enum ActionType
-	{
-		Get,
-		Post,
-		Put,
-		Delete,
-		FromRedirectOnly
-	}
+	public enum ActionType { Get, Post, Put, Delete, FromRedirectOnly }
 
 	public class HttpAttribute : Attribute
 	{
@@ -256,12 +245,12 @@ namespace Aurora
 		#region ASP.NET ADAPTER STUFF
 		private Dictionary<string, object> app;
 		internal Dictionary<string, object> request;
-    private Dictionary<string, string> queryString, cookies, form, payload;
+		private Dictionary<string, string> queryString, cookies, form, payload;
 		private Action<Dictionary<string, object>> response;
 		private List<PostedFile> files;
 		private Exception serverError;
 		internal X509Certificate2 clientCertificate { get; private set; }
-    private string IPAddress, path, requestType, appRoot, viewRoot, sessionID;
+		private string IPAddress, path, requestType, appRoot, viewRoot, sessionID;
 		private bool fromRedirectOnly;
 		#endregion
 
@@ -561,7 +550,8 @@ namespace Aurora
 							{
 								Tuple<MethodInfo, object> transformMethod = routeInfo.CachedActionParamTransformInstances[apt.Item1.TransformName] as Tuple<MethodInfo, object>;
 
-								routeInfo.ActionParams[apt.Item2] = transformMethod.Item1.Invoke(transformMethod.Item2, new object[] { routeInfo.ActionParams[apt.Item2] });
+								if(transformMethod!=null)
+									routeInfo.ActionParams[apt.Item2] = transformMethod.Item1.Invoke(transformMethod.Item2, new object[] { routeInfo.ActionParams[apt.Item2] });
 							}
 						}
 
@@ -732,8 +722,8 @@ namespace Aurora
 			t.ThrowIfArgumentNull();
 
 			return AppDomain.CurrentDomain.GetAssemblies()
-                           // DotNetOpenAuth depends on System.Web.Mvc which is not referenced, this will fail if we don't eliminate it
-													 .Where(x => x.GetName().Name != "DotNetOpenAuth") 
+				// DotNetOpenAuth depends on System.Web.Mvc which is not referenced, this will fail if we don't eliminate it
+													 .Where(x => x.GetName().Name != "DotNetOpenAuth")
 													 .SelectMany(x => x.GetTypes().Where(y => y.BaseType == t)).ToList();
 		}
 
@@ -753,18 +743,18 @@ namespace Aurora
 		{
 			List<Controller> instances = new List<Controller>();
 
-      GetTypeList(typeof(Controller)).ForEach(x => instances.Add(Controller.CreateInstance(x, this)));
+			GetTypeList(typeof(Controller)).ForEach(x => instances.Add(Controller.CreateInstance(x, this)));
 
 			return instances;
 		}
 
 		private FrontController GetFrontControllerInstance()
 		{
-      FrontController fc = null;
+			FrontController fc = null;
 
-      GetTypeList(typeof(FrontController)).ForEach(x => { fc = FrontController.CreateInstance(x, this); return; });
+			GetTypeList(typeof(FrontController)).ForEach(x => { fc = FrontController.CreateInstance(x, this); return; });
 
-      return fc;
+			return fc;
 		}
 
 		private List<RouteInfo> GetRouteInfos()
@@ -814,10 +804,17 @@ namespace Aurora
 
 				if (actionTransformClassType != null)
 				{
-					object instance = Activator.CreateInstance(actionTransformClassType, (bindings != null) ? bindings.ToArray() : null);
-					MethodInfo transformMethod = actionTransformClassType.GetMethod("Transform");
+					try
+					{
+						object instance = Activator.CreateInstance(actionTransformClassType, (bindings != null) ? bindings.ToArray() : null);
+						MethodInfo transformMethod = actionTransformClassType.GetMethod("Transform");
 
-					cachedActionParamTransformInstances[apt.Item1.TransformName] = new Tuple<MethodInfo, object>(transformMethod, instance);
+						cachedActionParamTransformInstances[apt.Item1.TransformName] = new Tuple<MethodInfo, object>(transformMethod, instance);
+					}
+					catch
+					{
+						cachedActionParamTransformInstances[apt.Item1.TransformName] = null;
+					}
 				}
 			}
 
@@ -881,8 +878,8 @@ namespace Aurora
 
 		internal void AddBundle(string name, string[] paths)
 		{
-      name.ThrowIfArgumentNull();
-      paths.ThrowIfArgumentNull();
+			name.ThrowIfArgumentNull();
+			paths.ThrowIfArgumentNull();
 
 			string extension = Path.GetExtension(name);
 			string compressedFile = null;
@@ -1070,7 +1067,7 @@ namespace Aurora
 			actionName.ThrowIfArgumentNull();
 
 			Controller c = controllers.FirstOrDefault(x => x.GetType().Name == controllerName);
-      
+
 			if (c != null)
 			{
 				MethodInfo action = c.GetType().GetMethods().FirstOrDefault(x => x.GetCustomAttributes(typeof(HttpAttribute), false).Count() > 0 && x.Name == actionName);
@@ -1148,7 +1145,7 @@ namespace Aurora
 
 		internal void AddControllerSession(string key, object value)
 		{
-			if(!string.IsNullOrEmpty(key))
+			if (!string.IsNullOrEmpty(key))
 				controllersSession[key] = value;
 		}
 
@@ -1230,25 +1227,25 @@ namespace Aurora
 			return null;
 		}
 
-    public string GetQueryString(string key, bool validated)
-    {
-      string result = null;
+		public string GetQueryString(string key, bool validated)
+		{
+			string result = null;
 
-      if (!validated)
-      {
-        if (request.ContainsKey(HttpAdapterConstants.RequestQueryString) &&
-            request[HttpAdapterConstants.RequestQueryString] is Dictionary<string, string>)
-          (request[HttpAdapterConstants.RequestQueryString] as Dictionary<string, string>).TryGetValue(key, out result);
-      }
-      else
-      {
-        if (request.ContainsKey(HttpAdapterConstants.RequestQueryStringCallback) &&
-          request[HttpAdapterConstants.RequestQueryStringCallback] is Func<string, bool, string>)
-          result = (request[HttpAdapterConstants.RequestQueryStringCallback] as Func<string, bool, string>)(key, true);
-      }
+			if (!validated)
+			{
+				if (request.ContainsKey(HttpAdapterConstants.RequestQueryString) &&
+						request[HttpAdapterConstants.RequestQueryString] is Dictionary<string, string>)
+					(request[HttpAdapterConstants.RequestQueryString] as Dictionary<string, string>).TryGetValue(key, out result);
+			}
+			else
+			{
+				if (request.ContainsKey(HttpAdapterConstants.RequestQueryStringCallback) &&
+					request[HttpAdapterConstants.RequestQueryStringCallback] is Func<string, bool, string>)
+					result = (request[HttpAdapterConstants.RequestQueryStringCallback] as Func<string, bool, string>)(key, true);
+			}
 
-      return result;
-    }
+			return result;
+		}
 		#endregion
 	}
 	#endregion
@@ -1536,7 +1533,7 @@ namespace Aurora
 				var props = t.GetProperties().Where(x => x.GetCustomAttributes(false).FirstOrDefault(y => y is HiddenAttribute) == null);
 
 				if (postedFormBinding)
-          props = props.Where(x => x.GetCustomAttributes(false).FirstOrDefault(y => y is ExcludeFromBindingAttribute) == null);
+					props = props.Where(x => x.GetCustomAttributes(false).FirstOrDefault(y => y is ExcludeFromBindingAttribute) == null);
 
 				if (props != null)
 					return props.ToList();
@@ -1602,7 +1599,7 @@ namespace Aurora
 				return checkRolesHandlerEventArgs.Result;
 			}
 
-			return true;
+			return false;
 		}
 
 		internal void RaiseEvent(EventType eventType)
@@ -1736,7 +1733,7 @@ namespace Aurora
 
 		protected string GetQueryString(string key, bool validate)
 		{
-      return engine.GetQueryString(key, validate);
+			return engine.GetQueryString(key, validate);
 		}
 
 		protected string MapPath(string path)
@@ -2004,24 +2001,30 @@ namespace Aurora
 	public class ViewResult : IViewResult
 	{
 		private string view;
+		private Dictionary<string, string> headers;
 
 		public ViewResult(IViewEngine viewEngine, string partitionName, string controllerName, string viewName, ViewTemplateType viewTemplateType, Dictionary<string, string> viewTags)
 		{
 			view = viewEngine.LoadView(partitionName, controllerName, viewName, viewTemplateType, viewTags);
+			headers = new Dictionary<string, string>()
+			{
+			  {"Cache-Control", "no-cache"},
+			  {"Pragma", "no-cache"},
+			  {"Expires", "-1"}
+			};
 		}
 
 		public ViewResponse Render()
 		{
-			return (string.IsNullOrEmpty(view)) ? null : new ViewResponse() { ContentType = "text/html", Content = view };
+			return (string.IsNullOrEmpty(view)) ? null :
+				new ViewResponse() { ContentType = "text/html", Content = view, Headers = headers };
 		}
 	}
 
 	public class FileResult : IViewResult
 	{
-		private string path;
 		private byte[] file;
-		private string fileName;
-		private string contentType;
+		private string path, fileName, contentType;
 		private Dictionary<string, string> headers = new Dictionary<string, string>();
 
 		public FileResult(string name, string data)
@@ -2162,14 +2165,12 @@ namespace Aurora
 		// http://stackoverflow.com/questions/929276/how-to-recursively-list-all-the-files-in-a-directory-in-c
 		public static IEnumerable<FileInfo> GetAllFiles(DirectoryInfo dirInfo, string searchPattern = "")
 		{
-			string path = dirInfo.FullName;
-
 			Queue<string> queue = new Queue<string>();
-			queue.Enqueue(path);
+			queue.Enqueue(dirInfo.FullName);
 
 			while (queue.Count > 0)
 			{
-				path = queue.Dequeue();
+				string path = queue.Dequeue();
 
 				foreach (string subDir in Directory.GetDirectories(path))
 					queue.Enqueue(subDir);
@@ -2208,8 +2209,7 @@ namespace Aurora
 			else if (path.ToLower().Contains(fragmentsHint))
 				templateType = ViewTemplateType.Fragment;
 
-			string partition = null;
-			string controller = null;
+			string partition = null, controller = null;
 
 			if (templateType == ViewTemplateType.Action || templateType == ViewTemplateType.Shared)
 			{
@@ -2221,10 +2221,7 @@ namespace Aurora
 					controller = keyParts[1];
 				}
 				else
-				{
-					partition = null;
 					controller = keyParts[0];
-				}
 			}
 
 			return new ViewTemplate()
@@ -2529,11 +2526,17 @@ namespace Aurora
 		private StringBuilder value = new StringBuilder();
 
 		public ViewCompiler(List<ViewTemplate> viewTemplates,
-																						List<CompiledView> compiledViews,
-																						Dictionary<string, List<string>> viewDependencies,
-																						List<IViewCompilerDirectiveHandler> directiveHandlers,
-																						List<IViewCompilerSubstitutionHandler> substitutionHandlers)
+												List<CompiledView> compiledViews,
+												Dictionary<string, List<string>> viewDependencies,
+												List<IViewCompilerDirectiveHandler> directiveHandlers,
+												List<IViewCompilerSubstitutionHandler> substitutionHandlers)
 		{
+			viewTemplates.ThrowIfArgumentNull();
+			compiledViews.ThrowIfArgumentNull();
+			viewDependencies.ThrowIfArgumentNull();
+			directiveHandlers.ThrowIfArgumentNull();
+			substitutionHandlers.ThrowIfArgumentNull();
+
 			this.viewTemplates = viewTemplates;
 			this.compiledViews = compiledViews;
 			this.viewDependencies = viewDependencies;
@@ -2563,10 +2566,7 @@ namespace Aurora
 				}
 			}
 
-			if (compiledViews.Count > 0)
-				return compiledViews;
-
-			return null;
+			return compiledViews;
 		}
 
 		public CompiledView Compile(string partitionName, string controllerName, string viewName, ViewTemplateType viewType)
@@ -2827,7 +2827,6 @@ namespace Aurora
 		private List<ViewTemplate> viewTemplates;
 		private List<CompiledView> compiledViews;
 		private Dictionary<string, List<string>> viewDependencies;
-
 		private ViewTemplateLoader viewTemplateLoader;
 		private ViewCompiler viewCompiler;
 
@@ -3122,7 +3121,7 @@ namespace Aurora
 		public IEnumerable<string> GetDynamicMemberNames(string key)
 		{
 			if (_members.ContainsKey(key) && _members[key] is DynamicDictionary)
-					return (_members[key] as DynamicDictionary)._members.Keys;
+				return (_members[key] as DynamicDictionary)._members.Keys;
 
 			return null;
 		}
@@ -3152,8 +3151,8 @@ namespace Aurora
 
 		public override bool TryGetMember(GetMemberBinder binder, out object result)
 		{
-			result = (_members.ContainsKey(binder.Name)) ? 
-				result = _members[binder.Name] : _members[binder.Name] = new DynamicDictionary(); 
+			result = (_members.ContainsKey(binder.Name)) ?
+				result = _members[binder.Name] : _members[binder.Name] = new DynamicDictionary();
 
 			return true;
 		}

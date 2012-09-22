@@ -1,7 +1,7 @@
 ﻿// AspNetAdapter - A thin generic wrapper that exposes some ASP.NET stuff in a
 //                 nice simple way.
 //
-// Updated On: 19 September 2012
+// Updated On: 21 September 2012
 //
 // Contact Info:
 //
@@ -26,6 +26,8 @@
 //   <system.web>
 //     <compilation debug="false" targetFramework="4.0" />
 //     <customErrors mode="On"></customErrors>
+//     <httpRuntime encoderType="Microsoft.Security.Application.AntiXssEncoder, 
+//																														 AntiXssLibrary"/>
 //     <httpHandlers>
 //       <add verb="*" path="*" validate="false" 
 //																	 type="AspNetAdapter.AspNetAdapterHandler"/>
@@ -85,6 +87,7 @@ using System.Text;
 using System.Threading;
 using System.Web;
 using System.Web.SessionState;
+//using AntiXss = Microsoft.Security.Application;
 using Microsoft.Web.Infrastructure.DynamicValidationHelper;
 
 #region ASSEMBLY INFORMATION
@@ -98,7 +101,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyCopyright("Copyright © 2012 | LICENSE GNU GPLv3")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("0.0.8.0")]
+[assembly: AssemblyVersion("0.0.9.0")]
 #endif
 #endregion
 
@@ -253,8 +256,8 @@ namespace AspNetAdapter
 
 				// Look for a class inside the executing assembly that implements IAspNetAdapterApplication
 				var apps = AppDomain.CurrentDomain.GetAssemblies()
-														// DotNetOpenAuth depends on System.Web.Mvc which is not referenced, this will fail if we don't eliminate it									
-														.Where(x => x.GetName().Name != "DotNetOpenAuth") 
+					// DotNetOpenAuth depends on System.Web.Mvc which is not referenced, this will fail if we don't eliminate it									
+														.Where(x => x.GetName().Name != "DotNetOpenAuth")
 														.SelectMany(x => x.GetTypes()
 																							.Where(y => y.GetInterfaces()
 																													 .FirstOrDefault(i => i.UnderlyingSystemType == typeof(IAspNetAdapterApplication)) != null));
@@ -304,7 +307,7 @@ namespace AspNetAdapter
 			request[HttpAdapterConstants.RequestMethod] = context.Request.HttpMethod;
 			request[HttpAdapterConstants.RequestPathBase] = context.Request.PhysicalApplicationPath.TrimEnd('\\');
 			request[HttpAdapterConstants.RequestPath] = (context.Request.Path.Length > 1) ? context.Request.Path.TrimEnd('/') : context.Request.Path;
-			request[HttpAdapterConstants.RequestQueryString] = NameValueCollectionToDictionary(context.Request.QueryString);
+			request[HttpAdapterConstants.RequestQueryString] = NameValueCollectionToDictionary(unvalidatedQueryString);
 			request[HttpAdapterConstants.RequestQueryStringCallback] = new Func<string, bool, string>(RequestQueryStringGetCallback);
 			request[HttpAdapterConstants.RequestCookie] = StringToDictionary(context.Request.ServerVariables["HTTP_COOKIE"], ';', '=');
 			request[HttpAdapterConstants.RequestBody] = StringToDictionary(new StreamReader(context.Request.InputStream).ReadToEnd(), '&', '=');
@@ -335,7 +338,7 @@ namespace AspNetAdapter
 			application[HttpAdapterConstants.UserSessionStoreAbandonCallback] = new Action(UserSessionStoreAbandonCallback);
 			application[HttpAdapterConstants.ResponseRedirectCallback] = new Action<string, Dictionary<string, string>>(ResponseRedirectCallback);
 			application[HttpAdapterConstants.ServerError] = serverError;
-			application[HttpAdapterConstants.ServerErrorStackTrace] = (serverError!=null) ? GetStackTrace(serverError) : null;
+			application[HttpAdapterConstants.ServerErrorStackTrace] = (serverError != null) ? GetStackTrace(serverError) : null;
 
 			return application;
 		}
@@ -455,11 +458,11 @@ namespace AspNetAdapter
 				throw new Exception("The response dictionary must include an http status code, content type and content");
 
 			context.Response.AddHeader("X_FRAME_OPTIONS", "SAMEORIGIN");
-			
+
 			context.Response.StatusCode = (int)response[HttpAdapterConstants.ResponseStatus];
 			context.Response.ContentType = response[HttpAdapterConstants.ResponseContentType].ToString();
 
-			if (response.ContainsKey(HttpAdapterConstants.ResponseHeaders) && 
+			if (response.ContainsKey(HttpAdapterConstants.ResponseHeaders) &&
 					response[HttpAdapterConstants.ResponseHeaders] != null)
 			{
 				foreach (KeyValuePair<string, string> kvp in (response[HttpAdapterConstants.ResponseHeaders] as Dictionary<string, string>))
@@ -477,7 +480,7 @@ namespace AspNetAdapter
 			{
 				if (!(e is ThreadAbortException))
 				{
-					if (response.ContainsKey(HttpAdapterConstants.ResponseErrorCallback) && 
+					if (response.ContainsKey(HttpAdapterConstants.ResponseErrorCallback) &&
 							response[HttpAdapterConstants.ResponseErrorCallback] != null)
 						(response[HttpAdapterConstants.ResponseErrorCallback] as Action<Exception>)(e);
 				}
@@ -541,18 +544,46 @@ namespace AspNetAdapter
 		#region FORM / QUERYSTRING (FOR OBTAINING VALIDATED VALUES)
 		private string RequestFormGetCallback(string key, bool validated)
 		{
+			string result = null;
+
 			if (validated)
-				return context.Request.Form[key];
+			{
+				try
+				{
+					result = context.Request.Form[key];
+				}
+				catch 
+				{
+					// <httpRuntime encoderType="Microsoft.Security.Application.AntiXssEncoder, AntiXssLibrary"/>
+					result = HttpUtility.HtmlEncode(unvalidatedForm[key]);
+				}
+			}
 			else
-				return unvalidatedForm[key];
+				result = unvalidatedForm[key];
+
+			return result;
 		}
 
 		private string RequestQueryStringGetCallback(string key, bool validated)
 		{
+			string result = null;
+
 			if (validated)
-				return context.Request.QueryString[key];
+			{
+				try
+				{
+					result = context.Request.QueryString[key];
+				}
+				catch
+				{
+					// <httpRuntime encoderType="Microsoft.Security.Application.AntiXssEncoder, AntiXssLibrary"/>
+					result = HttpUtility.HtmlEncode(unvalidatedQueryString[key]);
+				}
+			}
 			else
-				return unvalidatedQueryString[key];
+				result = unvalidatedQueryString[key];
+
+			return result;
 		}
 		#endregion
 

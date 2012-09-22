@@ -2,7 +2,7 @@ Aurora - An MVC web framework for .NET
 
 Frank Hale <frankhale@gmail.com>
 
-Date: 19 September 2012
+Date: 21 September 2012
 
 // --------------------
 // --- Feature List ---
@@ -42,115 +42,6 @@ Date: 19 September 2012
 // - My fork of the Gravatar URL generator
 //
  
-Changelog:
-
-19 September 2012
-
-- More yummy code cleanup
-- JsonResult was always returning null, silly me!
-
-17 September 2012
-
-- Code cleanup
-
-7 September 2012
-
-- Some issues cropped up dealing with updating views while the app is running. Hopefully, updating views will now function
-  correctly. For example, updating a view during a running app should cause the view to be recompiled and cached.
-
-9 August 2012
-
-- Minor code cleanup
-
-8 August 2012
-
-- Minor code cleanup
-
-7 August 2012
-
-- Minor code enhancements and cleanup
-
-6 August 2012
-
-- Code cleanup
-
-3 August 2012
-
-- Minor code enhancements and cleanup
-
-2 August 2012
-
-- After the view engine loads the templates and compiles them the results are
-  cached to disk in a single jsonified file. Restarts of the app pool or 
-  cassini development server will use the cached results instead of loading 
-  all the templates and compiling them again.
-- Action Filters have access to the current user and LogOn and LogOff methods.
-- Code cleanup.
-
-1 August 2012
-
-- Code cleanup! The name of the game is code refinement, no new feature adds,
-  just trying to get everything totally working as advertised!
-
-31 July 2012
-
-- Minor code tweaks
-
-30 July 2012
-
-- Some code cleanup and tweaks
-- Controllers now get a copy of the request dictionary
-
-29 July 2012
-
-- Routes that are added from a controller now reflect that they are dynamic
-  routes and RemoveRoute will now properly dispose of them when called.
-
-26 July 2012
-
-- Condensed all the Http request attributes into a single Http attribute
-- Did some work on the BaseController/Controller and FrontController events
-- The OnCheckRoles event actually gets called now
-- Miscellaneous code cleanup
-
-25 July 2012
-
-- Code cleanup
-- Added Aurora.Misc which is for stuff that doesn't fit in Aurora.Extra 
-  (eg. stuff that is on the fringe like my Gravatar fork and that wont' be 
-   all that useful to most people)
-
-24 July 2012
-
-- Bug fixing!
-
-23 July 2012
-
-- Action Filters are back in
-- Bug fix for [FromRedirectOnly] actions
-- Code cleanup
-
-21 July 2012
-
-- Aurora.cs has been totally rewritten from scratch:
-
-   AspNetAdapter.cs - Interface to ASP.NET
-   Aurora.cs - Core web framework
-   Aurora.Extra.cs - Everything else
-
-   TODO: Documentation has been ripped out, it will be replaced, for now there
-        is nothing. I'll be uploading a sample application soon. Also the only
-        feature that is not back in the rewrite is Action Filters. I'm working
-        on that.         
-
-
-... OLD UPDATES REMOVED ....
-
-
-Feb/March 2011
-
-- Initial concept, went through at least 3 iterations before Aurora was born.
-  
 License: GNU GPL version 3 <http://www.gnu.org/licenses/gpl-3.0.html>
 
 // This program is free software: you can redistribute it and/or modify it under
