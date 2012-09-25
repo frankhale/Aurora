@@ -1,7 +1,7 @@
 ﻿// AspNetAdapter - A thin generic wrapper that exposes some ASP.NET stuff in a
 //                 nice simple way.
 //
-// Updated On: 21 September 2012
+// Updated On: 24 September 2012
 //
 // Contact Info:
 //
@@ -90,7 +90,6 @@ using System.Web.SessionState;
 //using AntiXss = Microsoft.Security.Application;
 using Microsoft.Web.Infrastructure.DynamicValidationHelper;
 
-#region ASSEMBLY INFORMATION
 #if LIBRARY
 using System.Runtime.InteropServices;
 
@@ -103,7 +102,6 @@ using System.Runtime.InteropServices;
 [assembly: CLSCompliant(true)]
 [assembly: AssemblyVersion("0.0.9.0")]
 #endif
-#endregion
 
 namespace AspNetAdapter
 {
@@ -316,7 +314,7 @@ namespace AspNetAdapter
 			request[HttpAdapterConstants.RequestIPAddress] = GetIPAddress();
 			request[HttpAdapterConstants.RequestClientCertificate] = (context.Request.ClientCertificate != null) ? new X509Certificate2(context.Request.ClientCertificate.Certificate) : null;
 			request[HttpAdapterConstants.RequestFiles] = GetRequestFiles();
-			request[HttpAdapterConstants.RequestUrl] = context.Request.Url.Authority;
+			request[HttpAdapterConstants.RequestUrl] = context.Request.Url;
 
 			return request;
 		}

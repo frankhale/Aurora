@@ -69,7 +69,8 @@ using System.DirectoryServices;
 using System.DirectoryServices.ActiveDirectory;
 #endif
 
-#if OPENID
+#if OPENAUTH
+//using System.Net;
 using DotNetOpenAuth.OpenId;
 using DotNetOpenAuth.OpenId.Extensions.SimpleRegistration;
 using DotNetOpenAuth.OpenId.RelyingParty;
@@ -2380,9 +2381,9 @@ namespace Aurora.Extra
 			ActiveDirectoryLookupEvent += activeDirectoryLookupHandler;
 		}
 
-		public void Initialize(Controller c)
+		public void Initialize(RouteInfo routeInfo)
 		{
-			controller = c;
+			controller = routeInfo.Controller;
 
 			Authenticate();
 		}
@@ -2473,8 +2474,8 @@ namespace Aurora.Extra
 #endif
 	#endregion
 
-	#region OPENID
-#if OPENID
+	#region OPENAUTH
+#if OPENAUTH
 	public class OpenAuthClaimsResponse
 	{
 		public string ClaimedIdentifier { get; internal set; }
@@ -2484,7 +2485,7 @@ namespace Aurora.Extra
 
 	public static class OpenAuth
 	{
-		public static void LogonViaOpenAuth(string identifier, Action<Uri> providerURI, Action<string> invalidLogon)
+		public static void LogonViaOpenAuth(string identifier, Uri requestUrl, Action<Uri> providerURI, Action<string> invalidLogon)
 		{
 			identifier.ThrowIfArgumentNull();
 			invalidLogon.ThrowIfArgumentNull();
@@ -2500,7 +2501,11 @@ namespace Aurora.Extra
 				{
 					try
 					{
-						IAuthenticationRequest request = openid.CreateRequest(Identifier.Parse(identifier));
+						//ServicePointManager.SecurityProtocol = SecurityProtocolType.Ssl3;
+
+						var uriBuilder = new UriBuilder(requestUrl) { Query = "" };
+
+						IAuthenticationRequest request = openid.CreateRequest(Identifier.Parse(identifier), Realm.AutoDetect, uriBuilder.Uri);
 
 						providerURI(request.Provider.Uri);
 

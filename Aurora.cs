@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 21 September 2012
+// Updated On: 24 September 2012
 //
 // Contact Info:
 //
@@ -69,7 +69,6 @@ using MarkdownSharp;
 using Newtonsoft.Json;
 using Yahoo.Yui.Compressor;
 
-#if LIBRARY
 using System.Runtime.InteropServices;
 
 [assembly: AssemblyTitle("Aurora")]
@@ -79,8 +78,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyCopyright("Copyright © 2011-2012 | LICENSE GNU GPLv3")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("2.0.16.0")]
-#endif
+[assembly: AssemblyVersion("2.0.17.0")]
 
 namespace Aurora
 {
@@ -88,7 +86,7 @@ namespace Aurora
 	public enum ActionSecurity { Secure, None }
 
 	#region HTTP REQUEST
-	public enum ActionType { Get, Post, Put, Delete, FromRedirectOnly }
+	public enum ActionType { Get, Post, Put, Delete, FromRedirectOnly, GetOrPost }
 
 	public class HttpAttribute : Attribute
 	{
@@ -137,24 +135,16 @@ namespace Aurora
 	}
 
 	[AttributeUsage(AttributeTargets.Property)]
-	public sealed class HiddenAttribute : Attribute
-	{
-	}
+	public sealed class HiddenAttribute : Attribute { }
 
 	[AttributeUsage(AttributeTargets.Property)]
-	public sealed class NotRequiredAttribute : Attribute
-	{
-	}
+	public sealed class NotRequiredAttribute : Attribute { }
 
 	[AttributeUsage(AttributeTargets.Property)]
-	internal sealed class ExcludeFromBindingAttribute : Attribute
-	{
-	}
+	public sealed class ExcludeFromBindingAttribute : Attribute { }
 
 	[AttributeUsage(AttributeTargets.Property | AttributeTargets.Parameter)]
-	public sealed class UnsafeAttribute : Attribute
-	{
-	}
+	public sealed class UnsafeAttribute : Attribute { }
 
 	[AttributeUsage(AttributeTargets.Parameter)]
 	public sealed class ActionParameterTransformAttribute : Attribute
@@ -250,8 +240,9 @@ namespace Aurora
 		private List<PostedFile> files;
 		private Exception serverError;
 		internal X509Certificate2 clientCertificate { get; private set; }
-		private string IPAddress, path, requestType, appRoot, viewRoot, sessionID;
+		internal string IPAddress, path, requestType, appRoot, viewRoot, sessionID;
 		private bool fromRedirectOnly;
+		internal Uri url;
 		#endregion
 
 		#region MISCELLANEOUS VARIABLES
@@ -302,6 +293,7 @@ namespace Aurora
 			debugMode = Convert.ToBoolean(app[HttpAdapterConstants.DebugMode]);
 			serverError = app[HttpAdapterConstants.ServerError] as Exception;
 			clientCertificate = request[HttpAdapterConstants.RequestClientCertificate] as X509Certificate2;
+			url = request[HttpAdapterConstants.RequestUrl] as Uri;
 			#endregion
 
 			#region GET OBJECTS FROM APPLICATION SESSION STORE
@@ -542,7 +534,7 @@ namespace Aurora
 
 						if (routeInfo.IBoundToActionParams != null)
 							foreach (IBoundToAction bta in routeInfo.IBoundToActionParams)
-								bta.Initialize(routeInfo.Controller);
+								bta.Initialize(routeInfo);
 
 						if (routeInfo.ActionParamTransforms != null)
 						{
@@ -550,7 +542,7 @@ namespace Aurora
 							{
 								Tuple<MethodInfo, object> transformMethod = routeInfo.CachedActionParamTransformInstances[apt.Item1.TransformName] as Tuple<MethodInfo, object>;
 
-								if(transformMethod!=null)
+								if (transformMethod != null)
 									routeInfo.ActionParams[apt.Item2] = transformMethod.Item1.Invoke(transformMethod.Item2, new object[] { routeInfo.ActionParams[apt.Item2] });
 							}
 						}
@@ -647,19 +639,19 @@ namespace Aurora
 		{
 			object result = null;
 			Type model = null;
-			List<string> payloadNames = payload.Keys.Where(x => x != "AntiForgeryToken").ToList();
+			HashSet<string> payloadNames = new HashSet<string>(payload.Keys.Where(x => x != "AntiForgeryToken"));
 
 			foreach (Type m in models)
 			{
-				List<string> props = Model.GetPropertiesWithExclusions(m, true).Select(x => x.Name).ToList();
+				HashSet<string> props = new HashSet<string>(Model.GetPropertiesWithExclusions(m, true).Select(x => x.Name));
 
 				if (props.Intersect(payloadNames).Count() == props.Union(payloadNames).Count())
 					model = m;
 				else
 				{
-					props = Model.GetPropertiesNotRequiredToPost(m).Select(x => x.Name).ToList();
+					props = new HashSet<string>(Model.GetPropertiesNotRequiredToPost(m).Select(x => x.Name));
 
-					if (props.Intersect(payloadNames).Count() == props.Union(payloadNames).Count())
+					if (props.IsSubsetOf(payloadNames))
 						model = m;
 				}
 			}
@@ -951,6 +943,8 @@ namespace Aurora
 		{
 			path.ThrowIfArgumentNull();
 
+			RouteInfo result = null;
+
 			var routeSlice = routeInfos.SelectMany(routeInfo =>
 					routeInfo.Aliases, (routeInfo, alias) =>
 						new { routeInfo, alias }).OrderByDescending(x => x.alias.Length).Where(x => path.StartsWith(x.alias)).ToList();
@@ -994,7 +988,9 @@ namespace Aurora
 						if (actionParamTypes[i].IsInterface && finalParamTypes[i].GetInterface(actionParamTypes[i].Name) != null)
 							finalParamTypes[i] = actionParamTypes[i];
 
-					if (finalParamTypes.Intersect(actionParamTypes).Count() < finalParamTypes.Count())
+					var intersection = finalParamTypes.Intersect(actionParamTypes);
+
+					if (intersection.Count() < finalParamTypes.Count())
 					{
 						for (int i = 0; i < finalParamTypes.Count(); i++)
 						{
@@ -1010,15 +1006,24 @@ namespace Aurora
 						}
 					}
 
+					if (intersection.Count() < actionParamTypes.Count())
+					{
+						finalParamTypes = new List<Type>(finalParamTypes)
+																		.Union(actionParamTypes.Except(finalParamTypes))
+																		.ToArray();
+
+						Array.Resize(ref finalParams, finalParamTypes.Length);
+					}
+
 					if (finalParamTypes.SequenceEqual(actionParamTypes))
 					{
 						routeInfo.ActionParams = finalParams;
-						return routeInfo;
+						result = routeInfo;
 					}
 				}
 			}
 
-			return null;
+			return result;
 		}
 
 		internal void RemoveRoute(string alias)
@@ -1089,7 +1094,7 @@ namespace Aurora
 			return token;
 		}
 
-		internal void LogOn(string id, string[] roles)
+		internal void LogOn(string id, string[] roles, object archeType = null)
 		{
 			id.ThrowIfArgumentNull();
 			roles.ThrowIfArgumentNull();
@@ -1120,6 +1125,7 @@ namespace Aurora
 				IPAddress = IPAddress,
 				LogOnDate = DateTime.Now,
 				Name = id,
+				ArcheType = archeType,
 				Roles = roles.ToList()
 			};
 
@@ -1307,9 +1313,9 @@ namespace Aurora
 			engine.ResponseRedirect(alias, true);
 		}
 
-		public void LogOn(string id, string[] roles)
+		public void LogOn(string id, string[] roles, object archeType = null)
 		{
-			engine.LogOn(id, roles);
+			engine.LogOn(id, roles, archeType);
 		}
 
 		public void LogOff()
@@ -1322,7 +1328,7 @@ namespace Aurora
 	#region ACTION BINDINGS
 	public interface IBoundToAction
 	{
-		void Initialize(Controller c);
+		void Initialize(RouteInfo routeInfo);
 	}
 	#endregion
 
@@ -1586,6 +1592,8 @@ namespace Aurora
 		public Dictionary<string, object> Request { get { return engine.request.ToDictionary(x => x.Key, x => x.Value); } }
 		public User CurrentUser { get { return engine.currentUser; } }
 		public X509Certificate2 ClientCertificate { get { return engine.clientCertificate; } }
+		public Uri Url { get { return engine.url; } }
+		public string RequestType { get { return engine.requestType; } }
 
 		protected event EventHandler OnInit;
 		protected event EventHandler<CheckRolesHandlerEventArgs> OnCheckRoles;
@@ -1671,9 +1679,9 @@ namespace Aurora
 			engine.AddBundle(name, paths);
 		}
 
-		protected void LogOn(string id, string[] roles)
+		protected void LogOn(string id, string[] roles, object archeType = null)
 		{
-			engine.LogOn(id, roles);
+			engine.LogOn(id, roles, archeType);
 		}
 
 		protected void LogOff()
@@ -1706,22 +1714,22 @@ namespace Aurora
 			engine.ProtectFile(path, roles);
 		}
 
-		protected void AddApplication(string key, object value)
+		public void AddApplication(string key, object value)
 		{
 			engine.AddApplication(key, value);
 		}
 
-		protected object GetApplication(string key)
+		public object GetApplication(string key)
 		{
 			return engine.GetApplication(key);
 		}
 
-		protected void AddSession(string key, object value)
+		public void AddSession(string key, object value)
 		{
 			engine.AddControllerSession(key, value);
 		}
 
-		protected object GetSession(string key)
+		public object GetSession(string key)
 		{
 			return engine.GetControllerSession(key);
 		}
@@ -1845,8 +1853,6 @@ namespace Aurora
 		internal override void Refresh(Engine engine)
 		{
 			base.Refresh(engine);
-
-			initializeViewTags();
 		}
 
 		internal void init(Engine engine)
@@ -1909,13 +1915,35 @@ namespace Aurora
 		#region RENDER FRAGMENT
 		public string RenderFragment(string fragmentName)
 		{
-			Dictionary<string, string> tags = GetTagsDictionary(FragTags.ContainsKey(fragmentName) ? FragTags[fragmentName] : null, FragBag, fragmentName);
+			return RenderFragment(fragmentName, null, null, null);
+		}
 
-			return RenderFragment(fragmentName, tags);
+		public string RenderFragment(string fragmentName, Func<bool> canViewFragment)
+		{
+			return RenderFragment(fragmentName, null, null, canViewFragment);
+		}
+
+		public string RenderFragment(string fragmentName, string forRoles)
+		{
+			return RenderFragment(fragmentName, null, forRoles, null);
 		}
 
 		public string RenderFragment(string fragmentName, Dictionary<string, string> fragTags)
 		{
+			return RenderFragment(fragmentName, fragTags, null, null);
+		}
+
+		private string RenderFragment(string fragmentName, Dictionary<string, string> fragTags, string forRoles, Func<bool> canViewFragment)
+		{
+			if (!string.IsNullOrEmpty(forRoles) && CurrentUser != null && !CurrentUser.IsInRole(forRoles))
+				return string.Empty;
+
+			if (canViewFragment != null && !canViewFragment())
+				return string.Empty;
+
+			if (fragTags == null)
+				fragTags = GetTagsDictionary(FragTags.ContainsKey(fragmentName) ? FragTags[fragmentName] : null, FragBag, fragmentName);
+
 			return engine.ViewEngine.LoadView(PartitionName, this.GetType().Name, fragmentName, ViewTemplateType.Fragment, fragTags);
 		}
 		#endregion
@@ -1923,34 +1951,47 @@ namespace Aurora
 		#region VIEW
 		public ViewResult View()
 		{
-			StackFrame stackFrame = new StackFrame(1);
+			var stackFrame = new StackFrame(1);
+			var result = View(this.GetType().Name, stackFrame.GetMethod().Name);
 
-			return View(this.GetType().Name, stackFrame.GetMethod().Name);
+			initializeViewTags();
+
+			return result;
 		}
 
 		public ViewResult View(string name)
 		{
-			return View(this.GetType().Name, name);
+			var result = View(this.GetType().Name, name);
+			initializeViewTags();
+			return result;
 		}
 
 		public ViewResult View(string controllerName, string actionName)
 		{
-			return new ViewResult(engine.ViewEngine, PartitionName, controllerName, actionName, ViewTemplateType.Action, GetTagsDictionary(ViewTags, ViewBag, null));
+			var result = new ViewResult(engine.ViewEngine, PartitionName, controllerName, actionName, ViewTemplateType.Action, GetTagsDictionary(ViewTags, ViewBag, null));
+			initializeViewTags();
+			return result;
 		}
 
 		public FileResult View(string fileName, byte[] fileBytes, string contentType)
 		{
-			return new FileResult(fileName, fileBytes, contentType);
+			var result = new FileResult(fileName, fileBytes, contentType);
+			initializeViewTags();
+			return result;
 		}
 
 		public ViewResult Partial(string name)
 		{
-			return Partial(this.GetType().Name, name);
+			var result = Partial(this.GetType().Name, name);
+			initializeViewTags();
+			return result;
 		}
 
 		public ViewResult Partial(string controllerName, string actionName)
 		{
-			return new ViewResult(engine.ViewEngine, PartitionName, controllerName, actionName, ViewTemplateType.Shared, GetTagsDictionary(ViewTags, ViewBag, null));
+			var result = new ViewResult(engine.ViewEngine, PartitionName, controllerName, actionName, ViewTemplateType.Shared, GetTagsDictionary(ViewTags, ViewBag, null));
+			initializeViewTags();
+			return result;
 		}
 		#endregion
 	}
@@ -1973,6 +2014,7 @@ namespace Aurora
 		public DateTime LogOnDate { get; internal set; }
 		public List<string> Roles { get; internal set; }
 		public X509Certificate2 ClientCertificate { get; internal set; }
+		public object ArcheType { get; internal set; }
 
 		public bool IsInRole(string role)
 		{
@@ -2211,18 +2253,15 @@ namespace Aurora
 
 			string partition = null, controller = null;
 
-			if (templateType == ViewTemplateType.Action || templateType == ViewTemplateType.Shared)
-			{
-				string[] keyParts = templateKeyName.Split('/');
+			string[] keyParts = templateKeyName.Split('/');
 
-				if (keyParts.Length > 2)
-				{
-					partition = keyParts[0];
-					controller = keyParts[1];
-				}
-				else
-					controller = keyParts[0];
+			if (keyParts.Length > 2)
+			{
+				partition = keyParts[0];
+				controller = keyParts[1];
 			}
+			else
+				controller = keyParts[0];
 
 			return new ViewTemplate()
 			{
