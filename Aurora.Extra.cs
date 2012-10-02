@@ -1,7 +1,7 @@
 ﻿//
 // Aurora.Extra - Additional bits that may be useful in your applications      
 //
-// Updated On: 21 September 2012
+// Updated On: 1 October 2012
 //
 // Contact Info:
 //
@@ -70,7 +70,6 @@ using System.DirectoryServices.ActiveDirectory;
 #endif
 
 #if OPENAUTH
-//using System.Net;
 using DotNetOpenAuth.OpenId;
 using DotNetOpenAuth.OpenId.Extensions.SimpleRegistration;
 using DotNetOpenAuth.OpenId.RelyingParty;
@@ -1403,9 +1402,9 @@ namespace Aurora.Extra
 				foreach (var item in things)
 				{
 					if (HasPrimaryKey(item))
-						commands.Add(CreateUpdateCommand(item, GetPrimaryKey(item)));
+						commands.Add(CreateUpdateCommand(item.ToExpando(), GetPrimaryKey(item)));
 					else
-						commands.Add(CreateInsertCommand(item));
+						commands.Add(CreateInsertCommand(item.ToExpando()));
 				}
 
 				return commands;
@@ -2376,6 +2375,10 @@ namespace Aurora.Extra
 
 		private event EventHandler<ActiveDirectoryAuthenticationEventArgs> ActiveDirectoryLookupEvent = (sender, args) => { };
 
+		public ActiveDirectoryAuthentication()
+		{
+		}
+
 		public ActiveDirectoryAuthentication(EventHandler<ActiveDirectoryAuthenticationEventArgs> activeDirectoryLookupHandler)
 		{
 			ActiveDirectoryLookupEvent += activeDirectoryLookupHandler;
@@ -2383,12 +2386,14 @@ namespace Aurora.Extra
 
 		public void Initialize(RouteInfo routeInfo)
 		{
+			ActiveDirectoryLookupEvent.ThrowIfArgumentNull();
+
 			controller = routeInfo.Controller;
 
 			Authenticate();
 		}
 
-		private string GetCACIDFromCN()
+		public string GetCACIDFromCN()
 		{
 			if (controller.ClientCertificate == null)
 				throw new Exception("The HttpContext.Request.ClientCertificate did not contain a valid certificate");

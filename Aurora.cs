@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 24 September 2012
+// Updated On: 1 October 2012
 //
 // Contact Info:
 //
@@ -78,7 +78,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyCopyright("Copyright © 2011-2012 | LICENSE GNU GPLv3")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("2.0.17.0")]
+[assembly: AssemblyVersion("2.0.18.0")]
 
 namespace Aurora
 {
@@ -868,6 +868,12 @@ namespace Aurora
 			return true;
 		}
 
+		internal void AddBundles(Dictionary<string, string[]> bundles)
+		{
+			foreach (var bundle in bundles)
+					AddBundle(bundle.Key, bundle.Value);
+		}
+
 		internal void AddBundle(string name, string[] paths)
 		{
 			name.ThrowIfArgumentNull();
@@ -878,8 +884,8 @@ namespace Aurora
 			StringBuilder combinedFiles = new StringBuilder();
 
 			paths = paths.Where(x => File.Exists(appRoot + x.Replace('/', '\\')) &&
-																											 Path.GetExtension(x) == ".css" ||
-																											 Path.GetExtension(x) == ".js").ToArray();
+																											Path.GetExtension(x) == ".css" ||
+																											Path.GetExtension(x) == ".js").ToArray();
 
 			foreach (string p in paths)
 				combinedFiles.AppendLine(File.ReadAllText(appRoot + p));
@@ -1674,6 +1680,11 @@ namespace Aurora
 			engine.AddBindingsForAllActions(this.GetType().Name, bindInstances);
 		}
 
+		protected void AddBundles(Dictionary<string, string[]> bundles)
+		{
+			engine.AddBundles(bundles);
+		}
+
 		protected void AddBundle(string name, string[] paths)
 		{
 			engine.AddBundle(name, paths);
@@ -2179,7 +2190,8 @@ namespace Aurora
 		private string[] viewRoots;
 		private string sharedHint = @"shared\";
 		private string fragmentsHint = @"fragments\";
-		private static Regex commentBlockRE = new Regex(@"\@\@(?<block>[\s\w\p{P}\p{S}]+?)\@\@", RegexOptions.Compiled);
+		private static Regex commentBlockRE = new Regex(@"\@\@(?<block>[\s\S]+?)\@\@", RegexOptions.Compiled);
+			//new Regex(@"\@\@(?<block>[\s\w\p{P}\p{S}]+?)\@\@", RegexOptions.Compiled);
 
 		public ViewTemplateLoader(string appRoot, string[] viewRoots)
 		{
@@ -2242,7 +2254,7 @@ namespace Aurora
 
 			string template = File.ReadAllText(path);
 
-			commentBlockRE.Replace(template, string.Empty);
+			template = commentBlockRE.Replace(template, string.Empty);
 
 			ViewTemplateType templateType = ViewTemplateType.Action;
 
