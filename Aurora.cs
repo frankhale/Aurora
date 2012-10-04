@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 1 October 2012
+// Updated On: 3 October 2012
 //
 // Contact Info:
 //
@@ -78,7 +78,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyCopyright("Copyright © 2011-2012 | LICENSE GNU GPLv3")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("2.0.18.0")]
+[assembly: AssemblyVersion("2.0.19.0")]
 
 namespace Aurora
 {
@@ -278,7 +278,7 @@ namespace Aurora
 			int httpStatus = 200;
 			ViewResponse viewResponse = null;
 
-			requestType = request[HttpAdapterConstants.RequestMethod].ToString();
+			requestType = request[HttpAdapterConstants.RequestMethod].ToString().ToLower();
 			appRoot = request[HttpAdapterConstants.RequestPathBase].ToString();
 			viewRoot = string.Format(@"{0}\Views", appRoot);
 			IPAddress = request[HttpAdapterConstants.RequestIPAddress].ToString();
@@ -496,19 +496,15 @@ namespace Aurora
 					if (routeInfo.RequestTypeAttribute.ActionType == ActionType.FromRedirectOnly && !fromRedirectOnly)
 						return null;
 
-					if (routeInfo.RequestTypeAttribute.ActionType == ActionType.Post ||
-							routeInfo.RequestTypeAttribute.ActionType == ActionType.Put ||
-							routeInfo.RequestTypeAttribute.ActionType == ActionType.Delete)
+					if (routeInfo.RequestTypeAttribute.RequireAntiForgeryToken &&
+							requestType == "post" || requestType == "put" || requestType == "delete")
 					{
-						if (routeInfo.RequestTypeAttribute.RequireAntiForgeryToken)
+						if (!(form.ContainsKey(antiForgeryTokenName) || payload.ContainsKey(antiForgeryTokenName)))
+							return null;
+						else
 						{
-							if (!(form.ContainsKey(antiForgeryTokenName) || payload.ContainsKey(antiForgeryTokenName)))
-								return null;
-							else
-							{
-								antiForgeryTokens.Remove(form[antiForgeryTokenName]);
-								antiForgeryTokens.Remove(payload[antiForgeryTokenName]);
-							}
+							antiForgeryTokens.Remove(form[antiForgeryTokenName]);
+							antiForgeryTokens.Remove(payload[antiForgeryTokenName]);
 						}
 					}
 
@@ -540,7 +536,7 @@ namespace Aurora
 						{
 							foreach (var apt in routeInfo.ActionParamTransforms)
 							{
-								Tuple<MethodInfo, object> transformMethod = routeInfo.CachedActionParamTransformInstances[apt.Item1.TransformName] as Tuple<MethodInfo, object>;
+								var transformMethod = routeInfo.CachedActionParamTransformInstances[apt.Item1.TransformName] as Tuple<MethodInfo, object>;
 
 								if (transformMethod != null)
 									routeInfo.ActionParams[apt.Item2] = transformMethod.Item1.Invoke(transformMethod.Item2, new object[] { routeInfo.ActionParams[apt.Item2] });
@@ -620,7 +616,7 @@ namespace Aurora
 			}
 			else
 			{
-				RouteInfo redirectRoute = FindRoute(viewResponse.RedirectTo);
+				var redirectRoute = FindRoute(viewResponse.RedirectTo);
 
 				ResponseRedirect(viewResponse.RedirectTo, (redirectRoute != null && redirectRoute.RequestTypeAttribute.ActionType == ActionType.FromRedirectOnly) ? true : false);
 			}
@@ -715,8 +711,8 @@ namespace Aurora
 
 			return AppDomain.CurrentDomain.GetAssemblies()
 				// DotNetOpenAuth depends on System.Web.Mvc which is not referenced, this will fail if we don't eliminate it
-													 .Where(x => x.GetName().Name != "DotNetOpenAuth")
-													 .SelectMany(x => x.GetTypes().Where(y => y.BaseType == t)).ToList();
+																		.Where(x => x.GetName().Name != "DotNetOpenAuth")
+																		.SelectMany(x => x.GetTypes().Where(y => y.BaseType == t)).ToList();
 		}
 
 		private List<string> GetControllerActionNames(string controllerName)
@@ -798,8 +794,8 @@ namespace Aurora
 				{
 					try
 					{
-						object instance = Activator.CreateInstance(actionTransformClassType, (bindings != null) ? bindings.ToArray() : null);
-						MethodInfo transformMethod = actionTransformClassType.GetMethod("Transform");
+						var instance = Activator.CreateInstance(actionTransformClassType, (bindings != null) ? bindings.ToArray() : null);
+						var transformMethod = actionTransformClassType.GetMethod("Transform");
 
 						cachedActionParamTransformInstances[apt.Item1.TransformName] = new Tuple<MethodInfo, object>(transformMethod, instance);
 					}
@@ -840,7 +836,7 @@ namespace Aurora
 			if (frontController != null)
 				return frontController.RaiseEvent(eventType, path, routeInfo, data);
 
-			return null;
+			return routeInfo;
 		}
 
 		private string CreateToken()
@@ -871,7 +867,7 @@ namespace Aurora
 		internal void AddBundles(Dictionary<string, string[]> bundles)
 		{
 			foreach (var bundle in bundles)
-					AddBundle(bundle.Key, bundle.Value);
+				AddBundle(bundle.Key, bundle.Value);
 		}
 
 		internal void AddBundle(string name, string[] paths)
@@ -971,9 +967,9 @@ namespace Aurora
 						return payloadParams;
 					};
 
-				if (requestType == "POST")
+				if (requestType == "post")
 					allParams.AddRange(getModelOrParams(form));
-				else if (requestType == "PUT" || requestType == "DELETE")
+				else if (requestType == "put" || requestType == "delete")
 					allParams.AddRange(getModelOrParams(payload));
 
 				object[] finalParams = allParams.ToArray();
@@ -1002,12 +998,8 @@ namespace Aurora
 						{
 							if (finalParamTypes[i] != actionParamTypes[i])
 							{
-								try
-								{
-									finalParams[i] = Convert.ChangeType(finalParams[i], actionParamTypes[i]);
-									finalParamTypes[i] = actionParamTypes[i];
-								}
-								catch { }
+								finalParams[i] = Convert.ChangeType(finalParams[i], actionParamTypes[i]);
+								finalParamTypes[i] = actionParamTypes[i];
 							}
 						}
 					}
@@ -1113,14 +1105,11 @@ namespace Aurora
 			if (alreadyLoggedInWithDiffSession != null)
 				users.Remove(alreadyLoggedInWithDiffSession);
 
-			string authToken = CreateToken();
-			DateTime expiration = DateTime.Now.Add(TimeSpan.FromHours(8));
-
 			AuthCookie authCookie = new AuthCookie()
 			{
 				ID = id,
-				AuthToken = authToken,
-				Expiration = expiration
+				AuthToken = CreateToken(),
+				Expiration = DateTime.Now.Add(TimeSpan.FromHours(8))
 			};
 
 			User u = new User()
@@ -2191,7 +2180,6 @@ namespace Aurora
 		private string sharedHint = @"shared\";
 		private string fragmentsHint = @"fragments\";
 		private static Regex commentBlockRE = new Regex(@"\@\@(?<block>[\s\S]+?)\@\@", RegexOptions.Compiled);
-			//new Regex(@"\@\@(?<block>[\s\w\p{P}\p{S}]+?)\@\@", RegexOptions.Compiled);
 
 		public ViewTemplateLoader(string appRoot, string[] viewRoots)
 		{
@@ -2251,10 +2239,7 @@ namespace Aurora
 																	 .Replace(appRoot, string.Empty)
 																	 .Replace(extension, string.Empty)
 																	 .Replace("\\", "/").TrimStart('/');
-
-			string template = File.ReadAllText(path);
-
-			template = commentBlockRE.Replace(template, string.Empty);
+			string template = commentBlockRE.Replace(File.ReadAllText(path), string.Empty);
 
 			ViewTemplateType templateType = ViewTemplateType.Action;
 
@@ -2264,7 +2249,6 @@ namespace Aurora
 				templateType = ViewTemplateType.Fragment;
 
 			string partition = null, controller = null;
-
 			string[] keyParts = templateKeyName.Split('/');
 
 			if (keyParts.Length > 2)
@@ -2530,9 +2514,8 @@ namespace Aurora
 		{
 			if (directiveInfo.Directive == "Placeholder")
 			{
-				Regex placeholderRE = new Regex(string.Format(@"\[{0}\](?<block>[\s\S]+?)\[/{0}\]", directiveInfo.Value));
-
-				Match placeholderMatch = placeholderRE.Match(directiveInfo.Content.ToString());
+				Match placeholderMatch = (new Regex(string.Format(@"\[{0}\](?<block>[\s\S]+?)\[/{0}\]", directiveInfo.Value)))
+																 .Match(directiveInfo.Content.ToString());
 
 				if (placeholderMatch.Success)
 				{
@@ -3009,13 +2992,10 @@ namespace Aurora
 			string keyName = viewCompiler.DetermineKeyName(partitionName, controllerName, viewName, viewType);
 			string result = null;
 
-			if (!string.IsNullOrEmpty(keyName))
-			{
-				CompiledView renderedView = viewCompiler.Render(keyName, tags);
+			CompiledView renderedView = viewCompiler.Render(keyName, tags);
 
-				if (renderedView != null)
-					result = renderedView.Render;
-			}
+			if (renderedView != null)
+				result = renderedView.Render;
 
 			return result;
 		}
