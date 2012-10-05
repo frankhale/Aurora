@@ -1,7 +1,7 @@
 ﻿// AspNetAdapter - A thin generic wrapper that exposes some ASP.NET stuff in a
 //                 nice simple way.
 //
-// Updated On: 24 September 2012
+// Updated On: 4 October 2012
 //
 // Contact Info:
 //
@@ -87,7 +87,6 @@ using System.Text;
 using System.Threading;
 using System.Web;
 using System.Web.SessionState;
-//using AntiXss = Microsoft.Security.Application;
 using Microsoft.Web.Infrastructure.DynamicValidationHelper;
 
 #if LIBRARY
@@ -100,7 +99,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyCopyright("Copyright © 2012 | LICENSE GNU GPLv3")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("0.0.9.0")]
+[assembly: AssemblyVersion("0.0.10.0")]
 #endif
 
 namespace AspNetAdapter
@@ -192,6 +191,7 @@ namespace AspNetAdapter
 		public const string RequestClientCertificate = "RequestClientCertificate";
 		public const string RequestFiles = "RequestFiles";
 		public const string RequestUrl = "RequestUrl";
+		public const string RequestIdentity = "RequestIdentity";
 		#endregion
 
 		#region RESPONSE
@@ -315,7 +315,8 @@ namespace AspNetAdapter
 			request[HttpAdapterConstants.RequestClientCertificate] = (context.Request.ClientCertificate != null) ? new X509Certificate2(context.Request.ClientCertificate.Certificate) : null;
 			request[HttpAdapterConstants.RequestFiles] = GetRequestFiles();
 			request[HttpAdapterConstants.RequestUrl] = context.Request.Url;
-
+			request[HttpAdapterConstants.RequestIdentity] = (context.User != null) ? context.User.Identity.Name : null;
+			
 			return request;
 		}
 

@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 3 October 2012
+// Updated On: 4 October 2012
 //
 // Contact Info:
 //
@@ -78,7 +78,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyCopyright("Copyright © 2011-2012 | LICENSE GNU GPLv3")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("2.0.19.0")]
+[assembly: AssemblyVersion("2.0.20.0")]
 
 namespace Aurora
 {
@@ -240,7 +240,7 @@ namespace Aurora
 		private List<PostedFile> files;
 		private Exception serverError;
 		internal X509Certificate2 clientCertificate { get; private set; }
-		internal string IPAddress, path, requestType, appRoot, viewRoot, sessionID;
+		internal string ipAddress, path, requestType, appRoot, viewRoot, sessionID, identity;
 		private bool fromRedirectOnly;
 		internal Uri url;
 		#endregion
@@ -281,7 +281,7 @@ namespace Aurora
 			requestType = request[HttpAdapterConstants.RequestMethod].ToString().ToLower();
 			appRoot = request[HttpAdapterConstants.RequestPathBase].ToString();
 			viewRoot = string.Format(@"{0}\Views", appRoot);
-			IPAddress = request[HttpAdapterConstants.RequestIPAddress].ToString();
+			ipAddress = request[HttpAdapterConstants.RequestIPAddress].ToString();
 			sessionID = request[HttpAdapterConstants.SessionID].ToString();
 			path = request[HttpAdapterConstants.RequestPath].ToString();
 			cookies = request[HttpAdapterConstants.RequestCookie] as Dictionary<string, string>;
@@ -294,6 +294,7 @@ namespace Aurora
 			serverError = app[HttpAdapterConstants.ServerError] as Exception;
 			clientCertificate = request[HttpAdapterConstants.RequestClientCertificate] as X509Certificate2;
 			url = request[HttpAdapterConstants.RequestUrl] as Uri;
+			identity = request[HttpAdapterConstants.RequestIdentity] as string;
 			#endregion
 
 			#region GET OBJECTS FROM APPLICATION SESSION STORE
@@ -986,13 +987,11 @@ namespace Aurora
 						foreach (var apt in routeInfo.ActionParamTransforms)
 							finalParamTypes[apt.Item2] = actionParamTypes[apt.Item2];
 
-					for (int i = 0; i < routeSlice[0].routeInfo.BoundParams.Count(); i++)
+					for (int i = 0; i < routeInfo.BoundParams.Count(); i++)
 						if (actionParamTypes[i].IsInterface && finalParamTypes[i].GetInterface(actionParamTypes[i].Name) != null)
 							finalParamTypes[i] = actionParamTypes[i];
 
-					var intersection = finalParamTypes.Intersect(actionParamTypes);
-
-					if (intersection.Count() < finalParamTypes.Count())
+					if (finalParamTypes.Intersect(actionParamTypes).Count() < finalParamTypes.Count())
 					{
 						for (int i = 0; i < finalParamTypes.Count(); i++)
 						{
@@ -1004,7 +1003,9 @@ namespace Aurora
 						}
 					}
 
-					if (intersection.Count() < actionParamTypes.Count())
+					var intersection = finalParamTypes.Except(actionParamTypes);
+
+					if (actionParamTypes.Except(finalParamTypes).Count() > 0)
 					{
 						finalParamTypes = new List<Type>(finalParamTypes)
 																		.Union(actionParamTypes.Except(finalParamTypes))
@@ -1117,7 +1118,7 @@ namespace Aurora
 				AuthenticationCookie = authCookie,
 				SessionId = sessionID,
 				ClientCertificate = clientCertificate,
-				IPAddress = IPAddress,
+				IPAddress = ipAddress,
 				LogOnDate = DateTime.Now,
 				Name = id,
 				ArcheType = archeType,
@@ -1589,6 +1590,7 @@ namespace Aurora
 		public X509Certificate2 ClientCertificate { get { return engine.clientCertificate; } }
 		public Uri Url { get { return engine.url; } }
 		public string RequestType { get { return engine.requestType; } }
+		public string Identity { get { return engine.identity; } }
 
 		protected event EventHandler OnInit;
 		protected event EventHandler<CheckRolesHandlerEventArgs> OnCheckRoles;
