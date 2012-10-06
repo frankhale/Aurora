@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 4 October 2012
+// Updated On: 5 October 2012
 //
 // Contact Info:
 //
@@ -13,15 +13,16 @@
 // --------------------
 //
 // - Model View Controller based 
-// - Front controller aware (optional)
+// - Apps can have a Front controller to intercept various events and perform
+//   arbitrary logic before actions are invoked.
 // - Simple tag based view engine with master pages and partial views as well as
-//   fragments 
-// - URL parameters bind to action method parameters automatically 
-// - Posted forms binds to post models or action parameters automatically 
-// - Actions can have bound parameters that are bound to actions at runtime
-// - Actions can be segregated based on Get, Post, Put and 
-//   Delete action type and you can secure them with the Secure named parameter.
-//   Actions without a designation will not be invoked from a URL.
+//   fragments. 
+// - URL parameters bind to action method parameters automatically, no fiddling with
+//   routes declarations. 
+// - Posted forms binds to post models or action parameters automatically. 
+// - Actions can have bound parameters that are bound to actions (dependency injection)
+// - Actions can be segregated based on Get, Post, GetOrPost, Put and Delete action 
+//   type and you can secure them with the ActionSecurity named parameter.
 // - Actions can have filters with optional filter results that bind to action
 //   parameters.  
 // - Actions can have aliases. Aliases can also be added dynamically at runtime
@@ -58,18 +59,18 @@ using System.Dynamic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Web;
+
 using AspNetAdapter;
 using MarkdownSharp;
 using Newtonsoft.Json;
 using Yahoo.Yui.Compressor;
-
-using System.Runtime.InteropServices;
 
 [assembly: AssemblyTitle("Aurora")]
 [assembly: AssemblyDescription("An MVC web framework for .NET")]
@@ -78,7 +79,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyCopyright("Copyright © 2011-2012 | LICENSE GNU GPLv3")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("2.0.20.0")]
+[assembly: AssemblyVersion("2.0.21.0")]
 
 namespace Aurora
 {
@@ -91,11 +92,12 @@ namespace Aurora
 	public class HttpAttribute : Attribute
 	{
 		public bool RequireAntiForgeryToken { get; set; }
+		public bool HttpsOnly { get; set; }
 		public string RedirectWithoutAuthorizationTo { get; set; }
-		public ActionSecurity SecurityType { get; set; }
 		public string RouteAlias { get; set; }
 		public string Roles { get; set; }
-		public bool HttpsOnly { get; set; }
+		public string View { get; set; }
+		public ActionSecurity SecurityType { get; set; }
 		public ActionType ActionType { get; private set; }
 
 		public HttpAttribute(ActionType actionType) : this(actionType, string.Empty, ActionSecurity.None) { }
@@ -387,7 +389,7 @@ namespace Aurora
 			#endregion
 
 			#region INITIALIZE VIEW ENGINE
-			if (ViewEngine == null)
+			if (ViewEngine == null || debugMode)
 			{
 				List<IViewCompilerDirectiveHandler> dirHandlers = new List<IViewCompilerDirectiveHandler>();
 				List<IViewCompilerSubstitutionHandler> substitutionHandlers = new List<IViewCompilerSubstitutionHandler>();
@@ -417,7 +419,7 @@ namespace Aurora
 
 				ViewEngine = new ViewEngine(appRoot, GetViewRoots(), dirHandlers, substitutionHandlers, viewCache);
 
-				if (string.IsNullOrEmpty(viewCache))
+				if (string.IsNullOrEmpty(viewCache) || debugMode)
 					UpdateCache();
 
 				AddApplication(viewEngineSessionName, ViewEngine);
@@ -553,6 +555,8 @@ namespace Aurora
 							filterResults.CopyTo(actionParams, actionBindings.Count());
 							routeInfo.ActionParams = actionParams;
 						}
+
+						routeInfo.Controller.HttpAttribute = routeInfo.RequestTypeAttribute;
 
 						viewResult = (IViewResult)routeInfo.Action.Invoke(routeInfo.Controller, routeInfo.ActionParams);
 
@@ -1835,8 +1839,8 @@ namespace Aurora
 
 	public abstract class Controller : BaseController
 	{
-		internal string PartitionName;
-
+		internal string PartitionName { get; set; }
+		internal HttpAttribute HttpAttribute { get; set; }
 		protected Dictionary<string, string> ViewTags { get; private set; }
 		protected Dictionary<string, Dictionary<string, string>> FragTags { get; private set; }
 		protected dynamic ViewBag { get; private set; }
@@ -1953,8 +1957,9 @@ namespace Aurora
 		#region VIEW
 		public ViewResult View()
 		{
+			var view = HttpAttribute.View;
 			var stackFrame = new StackFrame(1);
-			var result = View(this.GetType().Name, stackFrame.GetMethod().Name);
+			var result = View(this.GetType().Name, (string.IsNullOrEmpty(view)) ? stackFrame.GetMethod().Name : view);
 
 			initializeViewTags();
 
