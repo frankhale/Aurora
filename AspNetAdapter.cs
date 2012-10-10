@@ -1,7 +1,7 @@
 ﻿// AspNetAdapter - A thin generic wrapper that exposes some ASP.NET stuff in a
 //                 nice simple way.
 //
-// Updated On: 4 October 2012
+// Updated On: 9 October 2012
 //
 // Contact Info:
 //
@@ -99,7 +99,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyCopyright("Copyright © 2012 | LICENSE GNU GPLv3")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("0.0.10.0")]
+[assembly: AssemblyVersion("0.0.11.0")]
 #endif
 
 namespace AspNetAdapter
@@ -253,9 +253,8 @@ namespace AspNetAdapter
 				context.Application["__SyncInitLock"] = true;
 
 				// Look for a class inside the executing assembly that implements IAspNetAdapterApplication
-				var apps = AppDomain.CurrentDomain.GetAssemblies()
-					// DotNetOpenAuth depends on System.Web.Mvc which is not referenced, this will fail if we don't eliminate it									
-														.Where(x => x.GetName().Name != "DotNetOpenAuth")
+				var apps = AppDomain.CurrentDomain.GetAssemblies().AsParallel()
+														.Where(x => x.GetName().Name != "DotNetOpenAuth") // DotNetOpenAuth depends on System.Web.Mvc which is not referenced, this will fail if we don't eliminate it
 														.SelectMany(x => x.GetTypes()
 																							.Where(y => y.GetInterfaces()
 																													 .FirstOrDefault(i => i.UnderlyingSystemType == typeof(IAspNetAdapterApplication)) != null));

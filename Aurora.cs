@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 5 October 2012
+// Updated On: 9 October 2012
 //
 // Contact Info:
 //
@@ -72,6 +72,7 @@ using MarkdownSharp;
 using Newtonsoft.Json;
 using Yahoo.Yui.Compressor;
 
+#region ASSEMBLY INFO
 [assembly: AssemblyTitle("Aurora")]
 [assembly: AssemblyDescription("An MVC web framework for .NET")]
 [assembly: AssemblyCompany("Frank Hale")]
@@ -79,7 +80,8 @@ using Yahoo.Yui.Compressor;
 [assembly: AssemblyCopyright("Copyright © 2011-2012 | LICENSE GNU GPLv3")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("2.0.21.0")]
+[assembly: AssemblyVersion("2.0.23.0")]
+#endregion
 
 namespace Aurora
 {
@@ -312,11 +314,11 @@ namespace Aurora
 			fromRedirectOnly = Convert.ToBoolean(GetSession(fromRedirectOnlySessionName));
 			protectedFiles = GetApplication(protectedFilesSessionName) as Dictionary<string, string>;
 			controllersSession = GetApplication(controllersSessionSessionName) as Dictionary<string, object>;
-			cacheFilePath = GetApplication(viewCacheFilePathSessionName) as string;
 			#endregion
 
 			#region INITIALIZE MISCELLANEOUS
 			cachePath = MapPath(compiledViewsCacheFolderPath);
+			cacheFilePath = string.Join("/", cachePath, compiledViewsCacheFileName);
 
 			if (routeInfos == null)
 				routeInfos = new List<RouteInfo>();
@@ -391,6 +393,7 @@ namespace Aurora
 			#region INITIALIZE VIEW ENGINE
 			if (ViewEngine == null || debugMode)
 			{
+				string viewCache = null;
 				List<IViewCompilerDirectiveHandler> dirHandlers = new List<IViewCompilerDirectiveHandler>();
 				List<IViewCompilerSubstitutionHandler> substitutionHandlers = new List<IViewCompilerSubstitutionHandler>();
 
@@ -398,34 +401,27 @@ namespace Aurora
 				dirHandlers.Add(new PlaceHolderDirective());
 				dirHandlers.Add(new PartialPageDirective());
 				dirHandlers.Add(new BundleDirective(debugMode, sharedResourceFolderPath, GetBundleFiles));
+				substitutionHandlers.Add(new CommentSubstitution());
 				substitutionHandlers.Add(new AntiForgeryTokenSubstitution(CreateAntiForgeryToken));
 				substitutionHandlers.Add(new HeadSubstitution());
-
-				if (string.IsNullOrEmpty(cacheFilePath))
-				{
-					cacheFilePath = string.Join("/", cachePath, compiledViewsCacheFileName);
-					AddApplication(viewCacheFilePathSessionName, cacheFilePath);
-				}
-
-				string viewCache = null;
 
 				if (!Directory.Exists(cachePath))
 				{
 					try { Directory.CreateDirectory(cachePath); }
 					catch { /* Silently ignore failure */ }
 				}
-				else if (File.Exists(cacheFilePath))
+				else if (File.Exists(cacheFilePath) && !debugMode)
 					viewCache = File.ReadAllText(cacheFilePath);
 
 				ViewEngine = new ViewEngine(appRoot, GetViewRoots(), dirHandlers, substitutionHandlers, viewCache);
 
 				if (string.IsNullOrEmpty(viewCache) || debugMode)
-					UpdateCache();
+					UpdateCache(cacheFilePath);
 
 				AddApplication(viewEngineSessionName, ViewEngine);
 			}
 			else if (ViewEngine.UpdateCache || !Directory.Exists(cachePath) || !File.Exists(cacheFilePath))
-				UpdateCache();
+				UpdateCache(cacheFilePath);
 			#endregion
 
 			#region PROCESS REQUEST / RENDER RESPONSE
@@ -576,7 +572,7 @@ namespace Aurora
 			return viewResponse;
 		}
 
-		private void UpdateCache()
+		private void UpdateCache(string cacheFilePath)
 		{
 			try
 			{
@@ -714,7 +710,7 @@ namespace Aurora
 		{
 			t.ThrowIfArgumentNull();
 
-			return AppDomain.CurrentDomain.GetAssemblies()
+			return AppDomain.CurrentDomain.GetAssemblies().AsParallel()
 				// DotNetOpenAuth depends on System.Web.Mvc which is not referenced, this will fail if we don't eliminate it
 																		.Where(x => x.GetName().Name != "DotNetOpenAuth")
 																		.SelectMany(x => x.GetTypes().Where(y => y.BaseType == t)).ToList();
@@ -727,6 +723,7 @@ namespace Aurora
 			return controllers.FirstOrDefault(x => x.GetType().Name == controllerName)
 												.GetType()
 												.GetMethods()
+												.AsParallel()
 												.Where(x => x.GetCustomAttributes(typeof(HttpAttribute), false).Count() > 0)
 												.Select(x => x.Name)
 												.ToList();
@@ -756,7 +753,7 @@ namespace Aurora
 
 			foreach (Controller c in controllers)
 			{
-				var actions = c.GetType().GetMethods()
+				var actions = c.GetType().GetMethods().AsParallel()
 					.Where(x => x.GetCustomAttributes(typeof(HttpAttribute), false).FirstOrDefault() != null)
 					.Select(x =>
 						new
@@ -786,12 +783,15 @@ namespace Aurora
 			Dictionary<string, object> cachedActionParamTransformInstances = new Dictionary<string, object>();
 
 			List<Tuple<ActionParameterTransformAttribute, int>> actionParameterTransforms = actionParams
+					.AsParallel()
 					.Select((x, i) => new Tuple<ActionParameterTransformAttribute, int>((ActionParameterTransformAttribute)x.GetCustomAttributes(typeof(ActionParameterTransformAttribute), false).FirstOrDefault(), i))
 					.Where(x => x.Item1 != null).ToList();
 
 			foreach (var apt in actionParameterTransforms)
 			{
-				var actionTransformClassType = AppDomain.CurrentDomain.GetAssemblies().Where(x => x.GetName().Name != "DotNetOpenAuth") // DotNetOpenAuth depends on System.Web.Mvc which is not referenced, this will fail if we don't eliminate it
+				var actionTransformClassType = AppDomain.CurrentDomain.GetAssemblies()
+														.AsParallel()
+														.Where(x => x.GetName().Name != "DotNetOpenAuth") // DotNetOpenAuth depends on System.Web.Mvc which is not referenced, this will fail if we don't eliminate it
 														.SelectMany(x => x.GetTypes().Where(y => y.GetInterface(typeof(IActionParamTransform<,>).Name) != null && y.Name == apt.Item1.TransformName))
 														.FirstOrDefault();
 
@@ -952,7 +952,7 @@ namespace Aurora
 
 			RouteInfo result = null;
 
-			var routeSlice = routeInfos.SelectMany(routeInfo =>
+			var routeSlice = routeInfos.AsParallel().SelectMany(routeInfo =>
 					routeInfo.Aliases, (routeInfo, alias) =>
 						new { routeInfo, alias }).OrderByDescending(x => x.alias.Length).Where(x => path.StartsWith(x.alias)).ToList();
 
@@ -2186,7 +2186,6 @@ namespace Aurora
 		private string[] viewRoots;
 		private string sharedHint = @"shared\";
 		private string fragmentsHint = @"fragments\";
-		private static Regex commentBlockRE = new Regex(@"\@\@(?<block>[\s\S]+?)\@\@", RegexOptions.Compiled);
 
 		public ViewTemplateLoader(string appRoot, string[] viewRoots)
 		{
@@ -2246,7 +2245,7 @@ namespace Aurora
 																	 .Replace(appRoot, string.Empty)
 																	 .Replace(extension, string.Empty)
 																	 .Replace("\\", "/").TrimStart('/');
-			string template = commentBlockRE.Replace(File.ReadAllText(path), string.Empty);
+			string template = File.ReadAllText(path);
 
 			ViewTemplateType templateType = ViewTemplateType.Action;
 
@@ -2319,7 +2318,7 @@ namespace Aurora
 
 	internal class HeadSubstitution : IViewCompilerSubstitutionHandler
 	{
-		private static Regex headBlockRE = new Regex(@"\[\[(?<block>[\s\w\p{P}\p{S}]+)\]\]", RegexOptions.Compiled);
+		private static Regex headBlockRE = new Regex(@"\[\[(?<block>[\s\S]+?)\]\]", RegexOptions.Compiled);
 		private static string headDirective = "%%Head%%";
 
 		public DirectiveProcessType Type { get; private set; }
@@ -2377,6 +2376,23 @@ namespace Aurora
 				content.Replace(tokenName, createAntiForgeryToken(), t.Start, t.End);
 
 			return content;
+		}
+	}
+
+	internal class CommentSubstitution : IViewCompilerSubstitutionHandler
+	{
+		private static Regex commentBlockRE = new Regex(@"\@\@(?<block>[\s\S]+?)\@\@", RegexOptions.Compiled);
+
+		public DirectiveProcessType Type { get; private set; }
+
+		public CommentSubstitution()
+		{
+			Type = DirectiveProcessType.Compile;
+		}
+
+		public StringBuilder Process(StringBuilder content)
+		{
+			return new StringBuilder(commentBlockRE.Replace(content.ToString(), string.Empty));
 		}
 	}
 
