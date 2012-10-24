@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 9 October 2012
+// Updated On: 23 October 2012
 //
 // Contact Info:
 //
@@ -80,7 +80,7 @@ using Yahoo.Yui.Compressor;
 [assembly: AssemblyCopyright("Copyright © 2011-2012 | LICENSE GNU GPLv3")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("2.0.23.0")]
+[assembly: AssemblyVersion("2.0.24.0")]
 #endregion
 
 namespace Aurora
@@ -233,7 +233,6 @@ namespace Aurora
 		private static string modelsSessionName = "__Models";
 		private static string protectedFilesSessionName = "__ProtectedFiles";
 		private static string controllersSessionSessionName = "__ControllersSession";
-		private static string viewCacheFilePathSessionName = "__ViewCacheFilePath";
 		#endregion
 
 		#region ASP.NET ADAPTER STUFF
