@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 23 October 2012
+// Updated On: 25 October 2012
 //
 // Contact Info:
 //
@@ -71,6 +71,7 @@ using AspNetAdapter;
 using MarkdownSharp;
 using Newtonsoft.Json;
 using Yahoo.Yui.Compressor;
+using System.Linq.Expressions;
 
 #region ASSEMBLY INFO
 [assembly: AssemblyTitle("Aurora")]
@@ -80,7 +81,7 @@ using Yahoo.Yui.Compressor;
 [assembly: AssemblyCopyright("Copyright © 2011-2012 | LICENSE GNU GPLv3")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("2.0.24.0")]
+[assembly: AssemblyVersion("2.0.25.0")]
 #endregion
 
 namespace Aurora
@@ -468,7 +469,7 @@ namespace Aurora
 							viewResponse = new FileResult(allowedFilePattern, filePath).Render();
 						else
 						{
-							string fileName = Path.GetFileName(path);
+							string fileName = Path.GetFileName(filePath);
 
 							if (bundles.ContainsKey(fileName))
 								viewResponse = new FileResult(fileName, bundles[fileName].Item2).Render();
@@ -554,6 +555,9 @@ namespace Aurora
 						routeInfo.Controller.HttpAttribute = routeInfo.RequestTypeAttribute;
 
 						viewResult = (IViewResult)routeInfo.Action.Invoke(routeInfo.Controller, routeInfo.ActionParams);
+
+						//if (viewResult != null)
+						//	viewResponse = viewResult.Render();
 
 						if (viewResult != null)
 							viewResponse = viewResult.Render();
@@ -838,7 +842,7 @@ namespace Aurora
 		private RouteInfo RaiseEventOnFrontController(RouteHandlerEventType eventType, string path, RouteInfo routeInfo, object data)
 		{
 			if (frontController != null)
-				return frontController.RaiseEvent(eventType, path, routeInfo, data);
+				routeInfo = frontController.RaiseEvent(eventType, path, routeInfo, data);
 
 			return routeInfo;
 		}
@@ -1264,8 +1268,8 @@ namespace Aurora
 		public HttpAttribute RequestTypeAttribute { get; internal set; }
 		public object[] ActionParams { get; internal set; }
 		public object[] BoundParams { get; internal set; }
-		public IBoundToAction[] IBoundToActionParams { get; internal set; }
 		public object[] DefaultParams { get; internal set; }
+		public IBoundToAction[] IBoundToActionParams { get; internal set; }
 		public List<Tuple<ActionParameterTransformAttribute, int>> ActionParamTransforms { get; internal set; }
 		public Dictionary<string, object> CachedActionParamTransformInstances { get; internal set; }
 		public bool Dynamic { get; internal set; }
@@ -2278,12 +2282,7 @@ namespace Aurora
 		}
 	}
 
-	internal enum DirectiveProcessType
-	{
-		Compile,
-		AfterCompile,
-		Render
-	}
+	internal enum DirectiveProcessType { Compile, AfterCompile, Render }
 
 	internal interface IViewCompilerDirectiveHandler
 	{
@@ -3011,8 +3010,8 @@ namespace Aurora
 
 		public string LoadView(string partitionName, string controllerName, string viewName, ViewTemplateType viewType, Dictionary<string, string> tags)
 		{
-			string keyName = viewCompiler.DetermineKeyName(partitionName, controllerName, viewName, viewType);
 			string result = null;
+			string keyName = viewCompiler.DetermineKeyName(partitionName, controllerName, viewName, viewType);
 
 			CompiledView renderedView = viewCompiler.Render(keyName, tags);
 
@@ -3093,11 +3092,6 @@ namespace Aurora
 			return null;
 		}
 
-		public static bool InRange(this int value, int min, int max)
-		{
-			return value <= max && value >= min;
-		}
-
 		public static bool InRange(this long value, int min, int max)
 		{
 			return value <= max && value >= min;
@@ -3130,16 +3124,6 @@ namespace Aurora
 			int x = 0;
 
 			return int.TryParse(value, out x);
-		}
-
-		public static bool IsInt64(this string value)
-		{
-			long x = 0;
-
-			if (Int64.TryParse(value, out x))
-				return true;
-
-			return false;
 		}
 
 		public static bool IsDouble(this string value)

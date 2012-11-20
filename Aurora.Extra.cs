@@ -1,7 +1,7 @@
 ﻿//
 // Aurora.Extra - Additional bits that may be useful in your applications      
 //
-// Updated On: 1 October 2012
+// Updated On: 4 October 2012
 //
 // Contact Info:
 //
@@ -70,6 +70,7 @@ using System.DirectoryServices.ActiveDirectory;
 #endif
 
 #if OPENAUTH
+//using System.Net;
 using DotNetOpenAuth.OpenId;
 using DotNetOpenAuth.OpenId.Extensions.SimpleRegistration;
 using DotNetOpenAuth.OpenId.RelyingParty;
@@ -2066,13 +2067,13 @@ namespace Aurora.Extra
 
 	internal enum ActiveDirectorySearchType
 	{
-		[Metadata("(&(objectClass=user)(userPrincipalName={0}))")]
+		[Metadata("(&(userPrincipalName={0})(objectCategory=person))")]
 		UPN,
 
-		[Metadata("(&(objectClass=user)(proxyAddresses=smtp:{0}))")]
+		[Metadata("(&(proxyAddresses=smtp:{0})(objectCategory=person))")]
 		EMAIL,
 
-		[Metadata("(&(objectClass=user)(samAccountName={0}))")]
+		[Metadata("(&(samAccountName={0})(objectCategory=person))")]
 		USERNAME
 	}
 
@@ -2160,7 +2161,7 @@ namespace Aurora.Extra
 		internal static ActiveDirectoryUser LookupUser(ActiveDirectorySearchType searchType, string data, bool global, string adSearchDomain, string adSearchRoot, string adSearchUser, string adSearchPW)
 		{
 			ActiveDirectoryUser user = null;
-
+									
 			if (string.IsNullOrEmpty(data))
 				throw new ArgumentNullException("data", ActiveDirectorySearchCriteriaNullOrEmpty);
 
@@ -2177,11 +2178,11 @@ namespace Aurora.Extra
 
 					try
 					{
-						using (DirectorySearcher searcher = new DirectorySearcher())
+						using (DirectorySearcher searcher = new DirectorySearcher(searchRootDE))
 						{
-							searcher.SearchRoot = searchRootDE;
+							searcher.ReferralChasing = ReferralChasingOption.All;
 							searcher.Filter = string.Format(searchType.GetMetadata(), data);
-
+							
 							result = searcher.FindOne();
 						}
 					}
@@ -2203,7 +2204,8 @@ namespace Aurora.Extra
 								{
 									using (DirectorySearcher searcher = dc.GetDirectorySearcher())
 									{
-										searcher.SearchRoot = searchRootDE;
+										searcher.ReferralChasing = ReferralChasingOption.All;
+										//searcher.SearchRoot = searchRootDE;
 										searcher.Filter = string.Format(searchType.GetMetadata(), data);
 
 										result = searcher.FindOne();
@@ -2221,9 +2223,11 @@ namespace Aurora.Extra
 						else
 							throw;
 					}
-
-					if (result != null)
-						user = GetUser(result.GetDirectoryEntry());
+					finally
+					{
+						if (result != null)
+							user = GetUser(result.GetDirectoryEntry());
+					}
 				}
 			}
 			catch (DirectoryServicesCOMException)

@@ -1,7 +1,7 @@
 ﻿// AspNetAdapter - A thin generic wrapper that exposes some ASP.NET stuff in a
 //                 nice simple way.
 //
-// Updated On: 9 October 2012
+// Updated On: 26 October 2012
 //
 // Contact Info:
 //
@@ -99,7 +99,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyCopyright("Copyright © 2012 | LICENSE GNU GPLv3")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("0.0.11.0")]
+[assembly: AssemblyVersion("0.0.12.0")]
 #endif
 
 namespace AspNetAdapter
@@ -154,73 +154,73 @@ namespace AspNetAdapter
 	public static class HttpAdapterConstants
 	{
 		#region MISCELLANEOUS
-		public const string ServerError = "ServerError";
-		public const string ServerErrorStackTrace = "StackTrace";
-		public const string ServerVariables = "ServerVariables";
-		public const string RewritePathCallback = "RewritePathCallback";
-		public const string User = "User";
-		public const string SessionID = "SessionID";
-		public const string DebugMode = "DebugMode";
+		public static string ServerError = "ServerError";
+		public static string ServerErrorStackTrace = "StackTrace";
+		public static string ServerVariables = "ServerVariables";
+		public static string RewritePathCallback = "RewritePathCallback";
+		public static string User = "User";
+		public static string SessionID = "SessionID";
+		public static string DebugMode = "DebugMode";
 		#endregion
 
 		#region APPLICATION CALLBACKS
-		public const string ApplicationSessionStoreAddCallback = "ApplicationSessionStoreAddCallback";
-		public const string ApplicationSessionStoreRemoveCallback = "ApplicationSessionStoreRemoveCallback";
-		public const string ApplicationSessionStoreGetCallback = "ApplicationSessionStoreGetCallback";
-
-		public const string UserSessionStoreAddCallback = "UserSessionStoreAddCallback";
-		public const string UserSessionStoreRemoveCallback = "UserSessionStoreRemoveCallback";
-		public const string UserSessionStoreGetCallback = "UserSessionStoreGetCallback";
-		public const string UserSessionStoreAbandonCallback = "UserSessionStoreAbandonCallback";
+		public static string ApplicationSessionStoreAddCallback = "ApplicationSessionStoreAddCallback";
+		public static string ApplicationSessionStoreRemoveCallback = "ApplicationSessionStoreRemoveCallback";
+		public static string ApplicationSessionStoreGetCallback = "ApplicationSessionStoreGetCallback";
+		public static string UserSessionStoreAddCallback = "UserSessionStoreAddCallback";
+		public static string UserSessionStoreRemoveCallback = "UserSessionStoreRemoveCallback";
+		public static string UserSessionStoreGetCallback = "UserSessionStoreGetCallback";
+		public static string UserSessionStoreAbandonCallback = "UserSessionStoreAbandonCallback";
 		#endregion
 
 		#region REQUEST
-		public const string RequestScheme = "RequestScheme";
-		public const string RequestMethod = "RequestMethod";
-		public const string RequestPathBase = "RequestPathBase";
-		public const string RequestPath = "RequestPath";
-		public const string RequestQueryString = "RequestQueryString";
-		public const string RequestQueryStringCallback = "RequestQueryStringCallback";
-		public const string RequestHeaders = "RequestHeaders";
-		public const string RequestBody = "RequestBody";
-		public const string RequestCookie = "RequestCookie";
-		public const string RequestIsSecure = "RequestIsSecure";
-		public const string RequestIPAddress = "RequestIPAddress";
-		public const string RequestForm = "RequestForm";
-		public const string RequestFormCallback = "RequestFormCallback";
-		public const string RequestClientCertificate = "RequestClientCertificate";
-		public const string RequestFiles = "RequestFiles";
-		public const string RequestUrl = "RequestUrl";
-		public const string RequestIdentity = "RequestIdentity";
+		public static string RequestScheme = "RequestScheme";
+		public static string RequestMethod = "RequestMethod";
+		public static string RequestPathBase = "RequestPathBase";
+		public static string RequestPath = "RequestPath";
+		public static string RequestQueryString = "RequestQueryString";
+		public static string RequestQueryStringCallback = "RequestQueryStringCallback";
+		public static string RequestHeaders = "RequestHeaders";
+		public static string RequestBody = "RequestBody";
+		public static string RequestCookie = "RequestCookie";
+		public static string RequestIsSecure = "RequestIsSecure";
+		public static string RequestIPAddress = "RequestIPAddress";
+		public static string RequestForm = "RequestForm";
+		public static string RequestFormCallback = "RequestFormCallback";
+		public static string RequestClientCertificate = "RequestClientCertificate";
+		public static string RequestFiles = "RequestFiles";
+		public static string RequestUrl = "RequestUrl";
+		public static string RequestIdentity = "RequestIdentity";
+		public static string RequestUrlAuthority = "RequestUrlAuthority";
 		#endregion
 
 		#region RESPONSE
-		public const string ResponseCache = "ResponseCache";
-		public const string ResponseCacheabilityOption = "ResponseCacheabilityOption";
-		public const string ResponseCacheExpiry = "ResponseCacheExpiry";
-		public const string ResponseCacheMaxAge = "ResponseCacheMaxAge";
-		public const string ResponseCookie = "ResponseCookie";
-		public const string ResponseStatus = "ResponseStatus";
-		public const string ResponseContentType = "ResponseContentType";
-		public const string ResponseHeaders = "ResponseHeaders";
-		public const string ResponseBody = "ResponseBody";
-		public const string ResponseRedirectCallback = "ResponseRedirectCallback";
-		public const string ResponseErrorCallback = "ResponseErrorCallback";
+		public static string ResponseCache = "ResponseCache";
+		public static string ResponseCacheabilityOption = "ResponseCacheabilityOption";
+		public static string ResponseCacheExpiry = "ResponseCacheExpiry";
+		public static string ResponseCacheMaxAge = "ResponseCacheMaxAge";
+		public static string ResponseCookie = "ResponseCookie";
+		public static string ResponseStatus = "ResponseStatus";
+		public static string ResponseContentType = "ResponseContentType";
+		public static string ResponseHeaders = "ResponseHeaders";
+		public static string ResponseBody = "ResponseBody";
+		public static string ResponseRedirectCallback = "ResponseRedirectCallback";
+		public static string ResponseErrorCallback = "ResponseErrorCallback";
 		#endregion
 
 		public static Dictionary<string, string> MimeTypes = new Dictionary<string, string>()
-			{
-				{ ".js",  "application/x-javascript" },  
-				{ ".css", "text/css" },
-				{ ".png", "image/png" },
-				{ ".jpg", "image/jpg" },
-				{ ".gif", "image/gif" },
-				{ ".ico", "image/x-icon" },
-				{ ".csv", "text/plain"},
-				{ ".txt", "text/plain"},
-				{ ".xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
-				{ ".pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"}
-			};
+		{
+			{ ".js",  "application/x-javascript" },  
+			{ ".css", "text/css" },
+			{ ".png", "image/png" },
+			{ ".jpg", "image/jpg" },
+			{ ".gif", "image/gif" },
+			{ ".ico", "image/x-icon" },
+			{ ".csv", "text/plain"},
+			{ ".txt", "text/plain"},
+			{ ".xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
+			{ ".pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"}
+		};
 	}
 
 	// An application that wants to hook into ASP.NET and be sent the goodies that the HttpContextAdapter has to offer
@@ -284,9 +284,7 @@ namespace AspNetAdapter
 			IAspNetAdapterApplication _appInstance = (IAspNetAdapterApplication)Activator.CreateInstance(adapterApp);
 
 			if (firstRun)
-			{
 				lock (syncInitLock) _appInstance.Init(app, request, ResponseCallback);
-			}
 			else
 				_appInstance.Init(app, request, ResponseCallback);
 		}
@@ -315,7 +313,8 @@ namespace AspNetAdapter
 			request[HttpAdapterConstants.RequestFiles] = GetRequestFiles();
 			request[HttpAdapterConstants.RequestUrl] = context.Request.Url;
 			request[HttpAdapterConstants.RequestIdentity] = (context.User != null) ? context.User.Identity.Name : null;
-			
+			request[HttpAdapterConstants.RequestUrlAuthority] = context.Request.Url.Authority;
+
 			return request;
 		}
 
@@ -355,17 +354,11 @@ namespace AspNetAdapter
 
 			var trace = new System.Diagnostics.StackTrace((exception.InnerException != null) ? exception.InnerException : exception, true);
 
-			if (trace.FrameCount > 0)
-			{
-				foreach (StackFrame sf in trace.GetFrames())
-					if (!string.IsNullOrEmpty(sf.GetFileName()))
-						stacktraceBuilder.AppendFormat("<b>method:</b> {0} <b>file:</b> {1}<br />", sf.GetMethod().Name, Path.GetFileName(sf.GetFileName()));
+			foreach (StackFrame sf in trace.GetFrames())
+				if (!string.IsNullOrEmpty(sf.GetFileName()))
+					stacktraceBuilder.AppendFormat("<b>method:</b> {0} <b>file:</b> {1}<br />", sf.GetMethod().Name, Path.GetFileName(sf.GetFileName()));
 
-				if (stacktraceBuilder.ToString().Length > 0)
-					return stacktraceBuilder.ToString();
-			}
-
-			return null;
+			return stacktraceBuilder.ToString();
 		}
 
 		private Dictionary<string, string> NameValueCollectionToDictionary(NameValueCollection nvc)
@@ -405,7 +398,7 @@ namespace AspNetAdapter
 		private List<PostedFile> GetRequestFiles()
 		{
 			List<PostedFile> postedFiles = new List<PostedFile>();
-
+			
 			foreach (HttpPostedFileBase pf in context.Request.Files)
 			{
 				postedFiles.Add(new PostedFile()
@@ -550,7 +543,7 @@ namespace AspNetAdapter
 				{
 					result = context.Request.Form[key];
 				}
-				catch 
+				catch
 				{
 					// <httpRuntime encoderType="Microsoft.Security.Application.AntiXssEncoder, AntiXssLibrary"/>
 					result = HttpUtility.HtmlEncode(unvalidatedForm[key]);
