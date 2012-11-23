@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 25 October 2012
+// Updated On: 21 November 2012
 //
 // Contact Info:
 //
@@ -71,7 +71,6 @@ using AspNetAdapter;
 using MarkdownSharp;
 using Newtonsoft.Json;
 using Yahoo.Yui.Compressor;
-using System.Linq.Expressions;
 
 #region ASSEMBLY INFO
 [assembly: AssemblyTitle("Aurora")]

@@ -1,7 +1,7 @@
 ﻿// AspNetAdapter - A thin generic wrapper that exposes some ASP.NET stuff in a
 //                 nice simple way.
 //
-// Updated On: 26 October 2012
+// Updated On: 22 November 2012
 //
 // Contact Info:
 //
@@ -89,18 +89,18 @@ using System.Web;
 using System.Web.SessionState;
 using Microsoft.Web.Infrastructure.DynamicValidationHelper;
 
-#if LIBRARY
-using System.Runtime.InteropServices;
+//#if LIBRARY
+//using System.Runtime.InteropServices;
 
-[assembly: AssemblyTitle("AspNetAdapter")]
-[assembly: AssemblyDescription("An ASP.NET HttpContext Adapter")]
-[assembly: AssemblyCompany("Frank Hale")]
-[assembly: AssemblyProduct("AspNetAdapter")]
-[assembly: AssemblyCopyright("Copyright © 2012 | LICENSE GNU GPLv3")]
-[assembly: ComVisible(false)]
-[assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("0.0.12.0")]
-#endif
+//[assembly: AssemblyTitle("AspNetAdapter")]
+//[assembly: AssemblyDescription("An ASP.NET HttpContext Adapter")]
+//[assembly: AssemblyCompany("Frank Hale")]
+//[assembly: AssemblyProduct("AspNetAdapter")]
+//[assembly: AssemblyCopyright("Copyright © 2012 | LICENSE GNU GPLv3")]
+//[assembly: ComVisible(false)]
+//[assembly: CLSCompliant(true)]
+//[assembly: AssemblyVersion("0.0.13.0")]
+//#endif
 
 namespace AspNetAdapter
 {
@@ -190,8 +190,8 @@ namespace AspNetAdapter
 		public static string RequestClientCertificate = "RequestClientCertificate";
 		public static string RequestFiles = "RequestFiles";
 		public static string RequestUrl = "RequestUrl";
-		public static string RequestIdentity = "RequestIdentity";
 		public static string RequestUrlAuthority = "RequestUrlAuthority";
+		public static string RequestIdentity = "RequestIdentity";
 		#endregion
 
 		#region RESPONSE
@@ -253,7 +253,9 @@ namespace AspNetAdapter
 				context.Application["__SyncInitLock"] = true;
 
 				// Look for a class inside the executing assembly that implements IAspNetAdapterApplication
-				var apps = AppDomain.CurrentDomain.GetAssemblies().AsParallel()
+				var apps = AppDomain.CurrentDomain
+														.GetAssemblies()
+														.AsParallel()
 														.Where(x => x.GetName().Name != "DotNetOpenAuth") // DotNetOpenAuth depends on System.Web.Mvc which is not referenced, this will fail if we don't eliminate it
 														.SelectMany(x => x.GetTypes()
 																							.Where(y => y.GetInterfaces()
@@ -312,9 +314,9 @@ namespace AspNetAdapter
 			request[HttpAdapterConstants.RequestClientCertificate] = (context.Request.ClientCertificate != null) ? new X509Certificate2(context.Request.ClientCertificate.Certificate) : null;
 			request[HttpAdapterConstants.RequestFiles] = GetRequestFiles();
 			request[HttpAdapterConstants.RequestUrl] = context.Request.Url;
-			request[HttpAdapterConstants.RequestIdentity] = (context.User != null) ? context.User.Identity.Name : null;
 			request[HttpAdapterConstants.RequestUrlAuthority] = context.Request.Url.Authority;
-
+			request[HttpAdapterConstants.RequestIdentity] = (context.User != null) ? context.User.Identity.Name : null;
+			
 			return request;
 		}
 
@@ -345,7 +347,9 @@ namespace AspNetAdapter
 		// Adapted from: http://ardalis.com/determine-whether-an-assembly-was-compiled-in-debug-mode
 		private bool IsAssemblyDebugBuild(Assembly assembly)
 		{
-			return (assembly.GetCustomAttributes(typeof(DebuggableAttribute), false).FirstOrDefault() as DebuggableAttribute).IsJITTrackingEnabled;
+			return (assembly.GetCustomAttributes(typeof(DebuggableAttribute), false)
+											.FirstOrDefault() as DebuggableAttribute)
+											.IsJITTrackingEnabled;
 		}
 
 		private string GetStackTrace(Exception exception)

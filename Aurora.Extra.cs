@@ -1,7 +1,7 @@
 ﻿//
 // Aurora.Extra - Additional bits that may be useful in your applications      
 //
-// Updated On: 4 October 2012
+// Updated On: 21 November 2012
 //
 // Contact Info:
 //
@@ -66,11 +66,10 @@ using System.Dynamic;
 
 #if ACTIVEDIRECTORY
 using System.DirectoryServices;
-using System.DirectoryServices.ActiveDirectory;
+using System.DirectoryServices.AccountManagement;
 #endif
 
 #if OPENAUTH
-//using System.Net;
 using DotNetOpenAuth.OpenId;
 using DotNetOpenAuth.OpenId.Extensions.SimpleRegistration;
 using DotNetOpenAuth.OpenId.RelyingParty;
@@ -1932,79 +1931,11 @@ namespace Aurora.Extra
 		}
 	}
 #endif
-	#endregion
+	#endregion	
 
 	#region ACTIVE DIRECTORY
 #if ACTIVEDIRECTORY
-	#region ACTIVE DIRECTORY WEB.CONFIG
-	public class ActiveDirectorySearchConfigurationElement : ConfigurationElement
-	{
-		[ConfigurationProperty("Domain", IsRequired = true)]
-		public string Domain
-		{
-			get
-			{
-				return this["Domain"] as string;
-			}
-		}
-
-		[ConfigurationProperty("SearchRoot", IsRequired = true)]
-		public string SearchRoot
-		{
-			get
-			{
-				return this["SearchRoot"] as string;
-			}
-		}
-
-		[ConfigurationProperty("UserName", IsRequired = true)]
-		public string UserName
-		{
-			get
-			{
-				return this["UserName"] as string;
-			}
-		}
-
-		[ConfigurationProperty("Password", IsRequired = true)]
-		public string Password
-		{
-			get
-			{
-				return this["Password"] as string;
-			}
-		}
-	}
-
-	public class ActiveDirectorySearchConfigurationCollection : ConfigurationElementCollection
-	{
-		public ActiveDirectorySearchConfigurationElement this[int index]
-		{
-			get
-			{
-				return base.BaseGet(index) as ActiveDirectorySearchConfigurationElement;
-			}
-
-			set
-			{
-				if (base.BaseGet(index) != null)
-					base.BaseRemoveAt(index);
-
-				this.BaseAdd(index, value);
-			}
-		}
-
-		protected override ConfigurationElement CreateNewElement()
-		{
-			return new ActiveDirectorySearchConfigurationElement();
-		}
-
-		protected override object GetElementKey(ConfigurationElement element)
-		{
-			return ((ActiveDirectorySearchConfigurationElement)element).Domain;
-		}
-	}
-
+	#region WEB.CONFIG
 	public class ActiveDirectoryWebConfig : ConfigurationSection
 	{
 		[ConfigurationProperty("EncryptionKey", DefaultValue = "", IsRequired = false)]
@@ -2013,41 +1944,32 @@ namespace Aurora.Extra
 			get { return this["EncryptionKey"] as string; }
 		}
 
-		[ConfigurationProperty("ActiveDirectorySearchInfo")]
-		public ActiveDirectorySearchConfigurationCollection ActiveDirectorySearchInfo
-		{
-			get
-			{
-				return this["ActiveDirectorySearchInfo"] as ActiveDirectorySearchConfigurationCollection;
-			}
-		}
-
-		[ConfigurationProperty("ADSearchUser", DefaultValue = null, IsRequired = false)]
+		[ConfigurationProperty("UserName", DefaultValue = null, IsRequired = false)]
 		public string ADSearchUser
 		{
-			get { return this["ADSearchUser"].ToString(); }
-			set { this["ADSearchUser"] = value; }
+			get { return this["UserName"].ToString(); }
+			set { this["UserName"] = value; }
 		}
 
-		[ConfigurationProperty("ADSearchPW", DefaultValue = null, IsRequired = false)]
+		[ConfigurationProperty("Password", DefaultValue = null, IsRequired = false)]
 		public string ADSearchPW
 		{
-			get { return this["ADSearchPW"].ToString(); }
-			set { this["ADSearchPW"] = value; }
+			get { return this["Password"].ToString(); }
+			set { this["Password"] = value; }
 		}
 
-		[ConfigurationProperty("ADSearchDomain", DefaultValue = null, IsRequired = false)]
+		[ConfigurationProperty("Domain", DefaultValue = null, IsRequired = false)]
 		public string ADSearchDomain
 		{
-			get { return this["ADSearchDomain"].ToString(); }
-			set { this["ADSearchDomain"] = value; }
+			get { return this["Domain"].ToString(); }
+			set { this["Domain"] = value; }
 		}
 
-		[ConfigurationProperty("ADSearchRoot", DefaultValue = null, IsRequired = false)]
+		[ConfigurationProperty("SearchRoot", DefaultValue = null, IsRequired = false)]
 		public string ADSearchRoot
 		{
-			get { return this["ADSearchRoot"].ToString(); }
-			set { this["ADSearchRoot"] = value; }
+			get { return this["SearchRoot"].ToString(); }
+			set { this["SearchRoot"] = value; }
 		}
 	}
 	#endregion
@@ -2065,259 +1987,28 @@ namespace Aurora.Extra
 		public X509Certificate2 ClientCertificate { get; internal set; }
 	}
 
-	internal enum ActiveDirectorySearchType
-	{
-		[Metadata("(&(userPrincipalName={0})(objectCategory=person))")]
-		UPN,
-
-		[Metadata("(&(proxyAddresses=smtp:{0})(objectCategory=person))")]
-		EMAIL,
-
-		[Metadata("(&(samAccountName={0})(objectCategory=person))")]
-		USERNAME
-	}
-
 	public static class ActiveDirectory
 	{
 		public static ActiveDirectoryWebConfig webConfig = ConfigurationManager.GetSection("ActiveDirectory") as ActiveDirectoryWebConfig;
-
 		public static string ADSearchUser = (webConfig == null) ? null : (!string.IsNullOrEmpty(webConfig.ADSearchUser) && !string.IsNullOrEmpty(webConfig.EncryptionKey)) ? Encryption.Decrypt(webConfig.ADSearchUser, webConfig.EncryptionKey) : null;
 		public static string ADSearchPW = (webConfig == null) ? null : (!string.IsNullOrEmpty(webConfig.ADSearchPW) && !string.IsNullOrEmpty(webConfig.EncryptionKey)) ? Encryption.Decrypt(webConfig.ADSearchPW, webConfig.EncryptionKey) : null;
 		public static string ADSearchDomain = (webConfig == null) ? null : webConfig.ADSearchDomain;
-		public static string ADSearchRoot = (webConfig == null) ? null : webConfig.ADSearchRoot;
-		public static string[][] ActiveDirectorySearchInfos;
-		public static string ActiveDirectorySearchCriteriaNullOrEmpty = "The search criteria specified in the Active Directory lookup cannot be null or empty";
-		public static string ADUserOrPWError = "The username or password used to read from Active Directory is null or empty, please check your web.config";
-		public static string ADSearchRootIsNullOrEmpty = "The Active Directory search root is null or empty";
-		public static string ADSearchDomainIsNullorEmpty = "The Active Directory search domain is null or empty";
-		public static string ADSearchCriteriaIsNullOrEmptyError = "The LDAP query associated with this search type is null or empty, a valid query must be annotated to this search type via the MetaData attribute";
 
-		static ActiveDirectory()
-		{
-			if (webConfig.ActiveDirectorySearchInfo.Count > 0)
-			{
-				ActiveDirectorySearchInfos = new string[webConfig.ActiveDirectorySearchInfo.Count][];
-
-				for (int i = 0; i < ActiveDirectorySearchInfos.Length; i++)
-				{
-					ActiveDirectorySearchInfos[i] = new string[] 
-							{ 
-								webConfig.ActiveDirectorySearchInfo[i].Domain,
-								webConfig.ActiveDirectorySearchInfo[i].SearchRoot,
-								Encryption.Decrypt(webConfig.ActiveDirectorySearchInfo[i].UserName, webConfig.EncryptionKey),
-								Encryption.Decrypt(webConfig.ActiveDirectorySearchInfo[i].Password, webConfig.EncryptionKey)
-							};
-				}
-			}
-		}
-
-		internal static ActiveDirectoryUser LookupUser(ActiveDirectorySearchType searchType, string data, bool global)
-		{
-			if (string.IsNullOrEmpty(searchType.GetMetadata()))
-				throw new ArgumentNullException("searchType", ADSearchCriteriaIsNullOrEmptyError);
-
-			if (ActiveDirectorySearchInfos.Length > 0)
-			{
-				for (int i = 0; i < ActiveDirectorySearchInfos.Length; i++)
-				{
-					try
-					{
-						return LookupUser(searchType, data, global,
-							ActiveDirectorySearchInfos[i][0],  //Domain
-							ActiveDirectorySearchInfos[i][1],  //SearchRoot
-							ActiveDirectorySearchInfos[i][2],  //UserName
-							ActiveDirectorySearchInfos[i][3]); //Password
-					}
-					catch
-					{
-						if (i < ActiveDirectorySearchInfos.Length - 1)
-							continue;
-						else
-							throw;
-					}
-				}
-			}
-			else
-			{
-				if (string.IsNullOrEmpty(ADSearchUser) || string.IsNullOrEmpty(ADSearchPW))
-					throw new Exception(ADUserOrPWError);
-
-				if (string.IsNullOrEmpty(ADSearchRoot))
-					throw new Exception(ADSearchRootIsNullOrEmpty);
-
-				if (string.IsNullOrEmpty(ADSearchDomain))
-					throw new Exception(ADSearchDomainIsNullorEmpty);
-
-				return LookupUser(searchType, data, global,
-						ADSearchDomain,
-						ADSearchRoot,
-						ADSearchUser,
-						ADSearchPW);
-			}
-
-			return null;
-		}
-
-		internal static ActiveDirectoryUser LookupUser(ActiveDirectorySearchType searchType, string data, bool global, string adSearchDomain, string adSearchRoot, string adSearchUser, string adSearchPW)
-		{
-			ActiveDirectoryUser user = null;
-									
-			if (string.IsNullOrEmpty(data))
-				throw new ArgumentNullException("data", ActiveDirectorySearchCriteriaNullOrEmpty);
-
-			try
-			{
-				using (DirectoryEntry searchRootDE = new DirectoryEntry())
-				{
-					searchRootDE.AuthenticationType = AuthenticationTypes.Secure | AuthenticationTypes.Sealing | AuthenticationTypes.Signing;
-					searchRootDE.Username = adSearchUser;
-					searchRootDE.Password = adSearchPW;
-					searchRootDE.Path = (global) ? string.Format("GC://{0}", adSearchDomain) : adSearchRoot;
-
-					SearchResult result = null;
-
-					try
-					{
-						using (DirectorySearcher searcher = new DirectorySearcher(searchRootDE))
-						{
-							searcher.ReferralChasing = ReferralChasingOption.All;
-							searcher.Filter = string.Format(searchType.GetMetadata(), data);
-							
-							result = searcher.FindOne();
-						}
-					}
-					catch (Exception ex)
-					{
-						if (ex is DirectoryServicesCOMException ||
-								ex is COMException)
-						{
-							// If there was a problem contacting the domain controller then lets try another one.
-
-							DomainControllerCollection dcc = DomainController.FindAll(new DirectoryContext(DirectoryContextType.Domain, adSearchDomain));
-							List<DomainController> domainControllers = (from DomainController dc in dcc select dc).ToList();
-
-							for (int i = 0; i < domainControllers.Count(); i++)
-							{
-								DomainController dc = domainControllers[i];
-
-								try
-								{
-									using (DirectorySearcher searcher = dc.GetDirectorySearcher())
-									{
-										searcher.ReferralChasing = ReferralChasingOption.All;
-										//searcher.SearchRoot = searchRootDE;
-										searcher.Filter = string.Format(searchType.GetMetadata(), data);
-
-										result = searcher.FindOne();
-									}
-
-									if (result != null)
-										break;
-								}
-								catch (Exception)
-								{
-									// Forget about this exception and move to the next domain controller
-								}
-							}
-						}
-						else
-							throw;
-					}
-					finally
-					{
-						if (result != null)
-							user = GetUser(result.GetDirectoryEntry());
-					}
-				}
-			}
-			catch (DirectoryServicesCOMException)
-			{
-				throw;
-			}
-
-			return user;
-		}
-
-		#region LOOKUP BY USERNAME
-		public static ActiveDirectoryUser LookupUserByUserName(string userName)
-		{
-			return LookupUser(ActiveDirectorySearchType.USERNAME, userName, false);
-		}
-
-		public static ActiveDirectoryUser LookupUserByUserName(string userName, string adSearchUser, string adSearchPW)
-		{
-			return LookupUser(ActiveDirectorySearchType.USERNAME, userName, false, adSearchUser, adSearchPW, null, null);
-		}
-
-		public static ActiveDirectoryUser LookupUserByUserName(string userName, bool global)
-		{
-			return LookupUser(ActiveDirectorySearchType.USERNAME, userName, global);
-		}
-
-		public static ActiveDirectoryUser LookupUserByUserName(string userName, bool global, string adSearchUser, string adSearchPW)
-		{
-			return LookupUser(ActiveDirectorySearchType.USERNAME, userName, global, adSearchUser, adSearchPW, null, null);
-		}
-
-		public static ActiveDirectoryUser LookupUserByUserName(string userName, bool global, string adSearchUser, string adSearchPW, string adSearchRoot, string adSearchDomain)
-		{
-			return LookupUser(ActiveDirectorySearchType.USERNAME, userName, global, adSearchUser, adSearchPW, adSearchRoot, adSearchDomain);
-		}
-		#endregion
-
-		#region LOOKUP USER BY UPN
 		public static ActiveDirectoryUser LookupUserByUpn(string upn)
 		{
-			return LookupUser(ActiveDirectorySearchType.UPN, upn, false);
-		}
+			PrincipalContext ctx = new PrincipalContext(ContextType.Domain, ADSearchDomain, ADSearchUser, ADSearchPW);
+			UserPrincipal usr = UserPrincipal.FindByIdentity(ctx, IdentityType.UserPrincipalName, upn);
+			ActiveDirectoryUser adUser = null;
 
-		public static ActiveDirectoryUser LookupUserByUpn(string upn, string adSearchUser, string adSearchPW)
-		{
-			return LookupUser(ActiveDirectorySearchType.UPN, upn, false, adSearchUser, adSearchPW, null, null);
-		}
+			if (usr != null)
+			{
+				DirectoryEntry de = usr.GetUnderlyingObject() as DirectoryEntry;
 
-		public static ActiveDirectoryUser LookupUserByUpn(string upn, bool global)
-		{
-			return LookupUser(ActiveDirectorySearchType.UPN, upn, global);
-		}
+				adUser = GetUser(de);
+			}
 
-		public static ActiveDirectoryUser LookupUserByUpn(string upn, bool global, string adSearchUser, string adSearchPW)
-		{
-			return LookupUser(ActiveDirectorySearchType.UPN, upn, global, adSearchUser, adSearchPW, null, null);
+			return adUser;
 		}
-
-		public static ActiveDirectoryUser LookupUserByUpn(string upn, bool global, string adSearchUser, string adSearchPW, string adSearchRoot, string adSearchDomain)
-		{
-			return LookupUser(ActiveDirectorySearchType.UPN, upn, global, adSearchUser, adSearchPW, adSearchRoot, adSearchDomain);
-		}
-		#endregion
-
-		#region LOOKUP USER BY EMAIL ADDRESS
-		public static ActiveDirectoryUser LookupUserByEmailAddress(string email)
-		{
-			return LookupUser(ActiveDirectorySearchType.EMAIL, email, false);
-		}
-
-		public static ActiveDirectoryUser LookupUserByEmailAddress(string email, string adSearchUser, string adSearchPW)
-		{
-			return LookupUser(ActiveDirectorySearchType.EMAIL, email, false, adSearchUser, adSearchPW, null, null);
-		}
-
-		public static ActiveDirectoryUser LookupUserByEmailAddress(string email, bool global)
-		{
-			return LookupUser(ActiveDirectorySearchType.EMAIL, email, global);
-		}
-
-		public static ActiveDirectoryUser LookupUserByEmailAddress(string email, bool global, string adSearchUser, string adSearchPW)
-		{
-			return LookupUser(ActiveDirectorySearchType.EMAIL, email, global, adSearchUser, adSearchPW, null, null);
-		}
-
-		public static ActiveDirectoryUser LookupUserByEmailAddress(string email, bool global, string adSearchUser, string adSearchPW, string adSearchRoot, string adSearchDomain)
-		{
-			return LookupUser(ActiveDirectorySearchType.EMAIL, email, global, adSearchUser, adSearchPW, adSearchRoot, adSearchDomain);
-		}
-		#endregion
 
 		private static ActiveDirectoryUser GetUser(DirectoryEntry de)
 		{
@@ -2479,7 +2170,7 @@ namespace Aurora.Extra
 			}
 #endif
 		}
-	}
+	}	
 #endif
 	#endregion
 
