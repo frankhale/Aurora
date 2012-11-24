@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 21 November 2012
+// Updated On: 23 November 2012
 //
 // Contact Info:
 //
@@ -80,7 +80,7 @@ using Yahoo.Yui.Compressor;
 [assembly: AssemblyCopyright("Copyright © 2011-2012 | LICENSE GNU GPLv3")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("2.0.25.0")]
+[assembly: AssemblyVersion("2.0.26.0")]
 #endregion
 
 namespace Aurora
@@ -386,6 +386,9 @@ namespace Aurora
 			{
 				routeInfos.AddRange(GetRouteInfos());
 				AddSession(routeInfosSessionName, routeInfos);
+
+				if (frontController != null)
+					frontController.RaiseEvent(RouteHandlerEventType.PostRoutesDiscovery, path, null, null);
 			}
 			#endregion
 
@@ -537,7 +540,17 @@ namespace Aurora
 								var transformMethod = routeInfo.CachedActionParamTransformInstances[apt.Item1.TransformName] as Tuple<MethodInfo, object>;
 
 								if (transformMethod != null)
-									routeInfo.ActionParams[apt.Item2] = transformMethod.Item1.Invoke(transformMethod.Item2, new object[] { routeInfo.ActionParams[apt.Item2] });
+								{
+									Type t = transformMethod.Item1.GetParameters()[0].ParameterType;
+									object param = routeInfo.ActionParams[apt.Item2];
+
+									if (routeInfo.ActionParams[apt.Item2] != null &&
+											routeInfo.ActionParams[apt.Item2].GetType() != t)
+										param = Convert.ChangeType(routeInfo.ActionParams[apt.Item2], t);
+
+									routeInfo.ActionParams[apt.Item2] =
+										transformMethod.Item1.Invoke(transformMethod.Item2, new object[] { param });
+								}
 							}
 						}
 
@@ -554,9 +567,6 @@ namespace Aurora
 						routeInfo.Controller.HttpAttribute = routeInfo.RequestTypeAttribute;
 
 						viewResult = (IViewResult)routeInfo.Action.Invoke(routeInfo.Controller, routeInfo.ActionParams);
-
-						//if (viewResult != null)
-						//	viewResponse = viewResult.Render();
 
 						if (viewResult != null)
 							viewResponse = viewResult.Render();
@@ -922,6 +932,27 @@ namespace Aurora
 				actionBindings[controllerName][actionName].Add(bindInstance);
 		}
 
+		internal List<object> GetBindings(string controllerName, string actionName, string alias, Type[] initializeTypes)
+		{
+			List<object> bindings = (actionBindings.ContainsKey(controllerName) && actionBindings[controllerName].ContainsKey(actionName)) ?
+				actionBindings[controllerName][actionName] : null;
+
+			if (bindings != null)
+			{
+				RouteInfo routeInfo = FindRoute(string.Format("/{0}", actionName));
+
+				if (routeInfo != null && routeInfo.IBoundToActionParams != null)
+				{
+					var boundActionParams = routeInfo.IBoundToActionParams.Where(x => initializeTypes.Any(y => x.GetType() == y));
+
+					foreach (var b in boundActionParams)
+						b.Initialize(routeInfo);
+				}
+			}
+
+			return bindings;
+		}
+
 		internal void AddBinding(string controllerName, string[] actionNames, object bindInstance)
 		{
 			foreach (string actionName in actionNames)
@@ -956,13 +987,15 @@ namespace Aurora
 
 			var routeSlice = routeInfos.AsParallel().SelectMany(routeInfo =>
 					routeInfo.Aliases, (routeInfo, alias) =>
-						new { routeInfo, alias }).OrderByDescending(x => x.alias.Length).Where(x => path.StartsWith(x.alias)).ToList();
+						new { routeInfo, alias }).Where(x => path.StartsWith(x.alias))
+						.OrderByDescending(x => x.alias.Length)
+						.ToList();
 
 			if (routeSlice.Count() > 0)
 			{
 				List<object> allParams = new List<object>()
 					.Concat(routeSlice[0].routeInfo.BoundParams)
-					.Concat(path.Replace(routeSlice[0].alias, string.Empty).Split('/').Where(x => !string.IsNullOrEmpty(x)).Select(x => HttpUtility.UrlEncode(x)).ToArray())
+					.Concat(path.Replace(routeSlice[0].alias, string.Empty).Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries).Select(x => HttpUtility.UrlEncode(x)).ToArray())
 					.Concat(routeSlice[0].routeInfo.DefaultParams)
 					.ToList();
 
@@ -1013,9 +1046,7 @@ namespace Aurora
 
 					if (actionParamTypes.Except(finalParamTypes).Count() > 0)
 					{
-						finalParamTypes = new List<Type>(finalParamTypes)
-																		.Union(actionParamTypes.Except(finalParamTypes))
-																		.ToArray();
+						finalParamTypes = actionParamTypes;
 
 						Array.Resize(ref finalParams, finalParamTypes.Length);
 					}
@@ -1024,6 +1055,7 @@ namespace Aurora
 					{
 						routeInfo.ActionParams = finalParams;
 						result = routeInfo;
+						break;
 					}
 				}
 			}
@@ -1564,6 +1596,7 @@ namespace Aurora
 	{
 		Pre,
 		Post,
+		PostRoutesDiscovery,
 		PreRoute,
 		PostRoute,
 		Static,
@@ -1761,7 +1794,7 @@ namespace Aurora
 	public abstract class FrontController : BaseController
 	{
 		protected event EventHandler<RouteHandlerEventArgs> OnPreActionEvent,
-			OnPostActionEvent, OnStaticRouteEvent, OnPreRouteDeterminationEvent, OnPostRouteDeterminationEvent,
+			OnPostActionEvent, OnPostRoutesDiscovery, OnStaticRouteEvent, OnPreRouteDeterminationEvent, OnPostRouteDeterminationEvent,
 			OnPassedSecurityEvent, OnFailedSecurityEvent, OnMissingRouteEvent, OnErrorEvent;
 
 		internal static FrontController CreateInstance(Type type, Engine engine)
@@ -1770,6 +1803,11 @@ namespace Aurora
 			controller.engine = engine;
 
 			return controller;
+		}
+
+		protected List<object> GetBindings(string controllerName, string actionName, string alias, Type[] initializeTypes)
+		{
+			return engine.GetBindings(controllerName, actionName, alias, initializeTypes);
 		}
 
 		internal RouteInfo RaiseEvent(RouteHandlerEventType type, string path, RouteInfo routeInfo, object data = null)
@@ -1793,6 +1831,11 @@ namespace Aurora
 				case RouteHandlerEventType.Post:
 					if (OnPostActionEvent != null)
 						OnPostActionEvent(this, args);
+					break;
+
+				case RouteHandlerEventType.PostRoutesDiscovery:
+					if (OnPostRoutesDiscovery != null)
+						OnPostRoutesDiscovery(this, args);
 					break;
 
 				case RouteHandlerEventType.PreRoute:
