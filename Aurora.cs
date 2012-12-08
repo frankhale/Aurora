@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 23 November 2012
+// Updated On: 7 December 2012
 //
 // Contact Info:
 //
@@ -80,7 +80,7 @@ using Yahoo.Yui.Compressor;
 [assembly: AssemblyCopyright("Copyright © 2011-2012 | LICENSE GNU GPLv3")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("2.0.26.0")]
+[assembly: AssemblyVersion("2.0.27.0")]
 #endregion
 
 namespace Aurora
@@ -530,8 +530,19 @@ namespace Aurora
 							RemoveSession(fromRedirectOnlySessionName);
 
 						if (routeInfo.IBoundToActionParams != null)
+						{
 							foreach (IBoundToAction bta in routeInfo.IBoundToActionParams)
 								bta.Initialize(routeInfo);
+						}
+
+						if (routeInfo.BoundParams != null)
+						{
+							for (int i = 0; i < routeInfo.BoundParams.Count(); i++)
+							{
+								if (routeInfo.BoundParams[i].GetType().GetInterface(typeof(IBoundToAction).Name) == null)
+									routeInfo.BoundParams[i] = Activator.CreateInstance(routeInfo.BoundParams[i].GetType(), null);
+							}
+						}
 
 						if (routeInfo.ActionParamTransforms != null)
 						{
@@ -732,13 +743,21 @@ namespace Aurora
 		{
 			controllerName.ThrowIfArgumentNull();
 
-			return controllers.FirstOrDefault(x => x.GetType().Name == controllerName)
-												.GetType()
-												.GetMethods()
-												.AsParallel()
-												.Where(x => x.GetCustomAttributes(typeof(HttpAttribute), false).Count() > 0)
-												.Select(x => x.Name)
-												.ToList();
+			List<string> result = new List<string>();
+
+			var controller = controllers.FirstOrDefault(x => x.GetType().Name == controllerName);
+
+			if (controller != null)
+			{
+				result = controller.GetType()
+													 .GetMethods()
+													 .AsParallel()
+													 .Where(x => x.GetCustomAttributes(typeof(HttpAttribute), false).Count() > 0)
+													 .Select(x => x.Name)
+													 .ToList();
+			}
+
+			return result;
 		}
 
 		private List<Controller> GetControllerInstances()
@@ -989,6 +1008,7 @@ namespace Aurora
 					routeInfo.Aliases, (routeInfo, alias) =>
 						new { routeInfo, alias }).Where(x => path.StartsWith(x.alias))
 						.OrderByDescending(x => x.alias.Length)
+				//.OrderBy(x => x.routeInfo.Action.GetParameters().Length)
 						.ToList();
 
 			if (routeSlice.Count() > 0)
@@ -2547,8 +2567,13 @@ namespace Aurora
 					{
 						if (debugMode)
 						{
-							foreach (string bundlePath in getBundleFiles(bundleName))
-								fileLinkBuilder.AppendLine(ProcessBundleLink(bundlePath));
+							var bundles = getBundleFiles(bundleName);
+
+							if (bundles != null)
+							{
+								foreach (string bundlePath in getBundleFiles(bundleName))
+									fileLinkBuilder.AppendLine(ProcessBundleLink(bundlePath));
+							}
 						}
 						else
 							fileLinkBuilder.AppendLine(ProcessBundleLink(bundleName));
