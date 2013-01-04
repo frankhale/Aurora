@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 7 December 2012
+// Updated On: 2 January 2013
 //
 // Contact Info:
 //
@@ -80,7 +80,7 @@ using Yahoo.Yui.Compressor;
 [assembly: AssemblyCopyright("Copyright © 2011-2012 | LICENSE GNU GPLv3")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("2.0.27.0")]
+[assembly: AssemblyVersion("2.0.29.0")]
 #endregion
 
 namespace Aurora
@@ -105,6 +105,12 @@ namespace Aurora
 		public HttpAttribute(ActionType actionType) : this(actionType, string.Empty, ActionSecurity.None) { }
 
 		public HttpAttribute(ActionType actionType, string alias) : this(actionType, alias, ActionSecurity.None) { }
+
+		public HttpAttribute(ActionType actionType, ActionSecurity actionSecurity)
+		{
+			SecurityType = actionSecurity;
+			ActionType = actionType;
+		}
 
 		public HttpAttribute(ActionType actionType, string alias, ActionSecurity actionSecurity)
 		{
@@ -733,8 +739,9 @@ namespace Aurora
 		{
 			t.ThrowIfArgumentNull();
 
-			return AppDomain.CurrentDomain.GetAssemblies().AsParallel()
-				// DotNetOpenAuth depends on System.Web.Mvc which is not referenced, this will fail if we don't eliminate it
+			// DotNetOpenAuth depends on System.Web.Mvc which is not referenced, this will fail if we don't eliminate it
+			return AppDomain.CurrentDomain.GetAssemblies()
+																		.AsParallel()
 																		.Where(x => x.GetName().Name != "DotNetOpenAuth")
 																		.SelectMany(x => x.GetTypes().Where(y => y.BaseType == t)).ToList();
 		}
@@ -820,11 +827,12 @@ namespace Aurora
 
 			foreach (var apt in actionParameterTransforms)
 			{
+				// DotNetOpenAuth depends on System.Web.Mvc which is not referenced, this will fail if we don't eliminate it
 				var actionTransformClassType = AppDomain.CurrentDomain.GetAssemblies()
-														.AsParallel()
-														.Where(x => x.GetName().Name != "DotNetOpenAuth") // DotNetOpenAuth depends on System.Web.Mvc which is not referenced, this will fail if we don't eliminate it
-														.SelectMany(x => x.GetTypes().Where(y => y.GetInterface(typeof(IActionParamTransform<,>).Name) != null && y.Name == apt.Item1.TransformName))
-														.FirstOrDefault();
+																															.AsParallel()
+																															.Where(x => x.GetName().Name != "DotNetOpenAuth")
+																															.SelectMany(x => x.GetTypes().Where(y => y.GetInterface(typeof(IActionParamTransform<,>).Name) != null && y.Name == apt.Item1.TransformName))
+																															.FirstOrDefault();
 
 				if (actionTransformClassType != null)
 				{
@@ -916,8 +924,8 @@ namespace Aurora
 			StringBuilder combinedFiles = new StringBuilder();
 
 			paths = paths.Where(x => File.Exists(appRoot + x.Replace('/', '\\')) &&
-																											Path.GetExtension(x) == ".css" ||
-																											Path.GetExtension(x) == ".js").ToArray();
+																						Path.GetExtension(x) == ".css" ||
+																						Path.GetExtension(x) == ".js").ToArray();
 
 			foreach (string p in paths)
 				combinedFiles.AppendLine(File.ReadAllText(appRoot + p));
@@ -1007,8 +1015,8 @@ namespace Aurora
 			var routeSlice = routeInfos.AsParallel().SelectMany(routeInfo =>
 					routeInfo.Aliases, (routeInfo, alias) =>
 						new { routeInfo, alias }).Where(x => path.StartsWith(x.alias))
+						.OrderBy(x => x.routeInfo.Action.GetParameters().Length)
 						.OrderByDescending(x => x.alias.Length)
-				//.OrderBy(x => x.routeInfo.Action.GetParameters().Length)
 						.ToList();
 
 			if (routeSlice.Count() > 0)
@@ -1087,7 +1095,7 @@ namespace Aurora
 		{
 			RouteInfo routeInfo = routeInfos.FirstOrDefault(x => x.Aliases.FirstOrDefault(a => a == alias) != null);
 
-			if (routeInfo.Dynamic)
+			if (routeInfo != null && routeInfo.Dynamic)
 				routeInfos.Remove(routeInfo);
 		}
 
