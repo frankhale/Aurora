@@ -1,15 +1,19 @@
-﻿// AspNetAdapter - A thin generic wrapper that exposes some ASP.NET stuff in a
-//                 nice simple way.
+﻿//
+// AspNetAdapter 
 //
-// Updated On: 22 November 2012
+// Description: 
+//
+//	A thin wrapper around the ASP.NET Request/Reponse objects to make it easier
+//	to disconnect applications from the intrinsics of the HttpContext.
+//
+// Date: 15 February 2013
 //
 // Contact Info:
 //
 //  Frank Hale - <frankhale@gmail.com> 
 //               <http://about.me/frank.hale>
 //
-// An attempt to abstract away some of the common bits of the ASP.NET 
-// HttpContext.
+// An attempt to abstract away some of the common bits of the ASP.NET HttpContext.
 //
 // I initially looked at OWIN to provide the abstraction that I wanted but I 
 // found it to be a bit more complex than I was hoping for. What I was looking
@@ -18,27 +22,17 @@
 //
 // Usage:
 // 
-//  Write a class that implements IAspNetAdapterApplication. And use the 
-//  following web.config.
+//  Write a class that implements IAspNetAdapterApplication and add in the bits
+//  to set the ASP.NET Adapter handler and module in your web.config.
 //
-//  <?xml version="1.0"?>
-//  <configuration>
-//   <system.web>
-//     <compilation debug="false" targetFramework="4.0" />
-//     <customErrors mode="On"></customErrors>
-//     <httpRuntime encoderType="Microsoft.Security.Application.AntiXssEncoder, 
-//																														 AntiXssLibrary"/>
-//     <httpHandlers>
-//       <add verb="*" path="*" validate="false" 
-//																	 type="AspNetAdapter.AspNetAdapterHandler"/>
-//
+//	<system.web>
+//		<httpHandlers>
+//			<add verb="*" path="*" validate="false" type="AspNetAdapter.AspNetAdapterHandler"/>
+//		</httpHandlers>
 //		<httpModules>
-//			<add type="AspNetAdapter.AspNetAdapterModule" 
-//																								 name="AspNetAdapterModule" />
+//			<add type="AspNetAdapter.AspNetAdapterModule" name="AspNetAdapterModule" />
 //		</httpModules>
-//     </httpHandlers>
-//   </system.web>
-//  </configuration>
+//	</system.web>
 //
 // The IAspNetAdapterApplication provides the following method:
 //
@@ -96,16 +90,15 @@ using Microsoft.Web.Infrastructure.DynamicValidationHelper;
 //[assembly: AssemblyDescription("An ASP.NET HttpContext Adapter")]
 //[assembly: AssemblyCompany("Frank Hale")]
 //[assembly: AssemblyProduct("AspNetAdapter")]
-//[assembly: AssemblyCopyright("Copyright © 2012 | LICENSE GNU GPLv3")]
+//[assembly: AssemblyCopyright("Copyright © 2012-2013 | LICENSE GNU GPLv3")]
 //[assembly: ComVisible(false)]
 //[assembly: CLSCompliant(true)]
-//[assembly: AssemblyVersion("0.0.13.0")]
+//[assembly: AssemblyVersion("0.0.14.0")]
 //#endif
 
 namespace AspNetAdapter
 {
 	#region ASP.NET HOOKS - IHTTPHANDLER / IHTTPMODULE
-	#region HTTP HANDLER
 	public sealed class AspNetAdapterHandler : IHttpHandler, IRequiresSessionState
 	{
 		public bool IsReusable
@@ -121,9 +114,7 @@ namespace AspNetAdapter
 			new HttpContextAdapter(context);
 		}
 	}
-	#endregion
 
-	#region HTTP MODULE
 	public sealed class AspNetAdapterModule : IHttpModule
 	{
 		public void Dispose() { }
@@ -140,7 +131,6 @@ namespace AspNetAdapter
 			context.Server.ClearError();
 		}
 	}
-	#endregion
 	#endregion
 
 	#region ASP.NET ADAPTER
@@ -178,6 +168,7 @@ namespace AspNetAdapter
 		public static string RequestMethod = "RequestMethod";
 		public static string RequestPathBase = "RequestPathBase";
 		public static string RequestPath = "RequestPath";
+		public static string RequestPathSegments = "RequestPathSegments";
 		public static string RequestQueryString = "RequestQueryString";
 		public static string RequestQueryStringCallback = "RequestQueryStringCallback";
 		public static string RequestHeaders = "RequestHeaders";
@@ -226,7 +217,9 @@ namespace AspNetAdapter
 	// An application that wants to hook into ASP.NET and be sent the goodies that the HttpContextAdapter has to offer
 	public interface IAspNetAdapterApplication
 	{
-		void Init(Dictionary<string, object> app, Dictionary<string, object> request, Action<Dictionary<string, object>> response);
+		void Init(Dictionary<string, object> app,
+							Dictionary<string, object> request,
+							Action<Dictionary<string, object>> response);
 	}
 
 	public sealed class HttpContextAdapter
@@ -303,7 +296,8 @@ namespace AspNetAdapter
 			request[HttpAdapterConstants.RequestHeaders] = StringToDictionary(context.Request.ServerVariables["ALL_HTTP"], '\n', ':');
 			request[HttpAdapterConstants.RequestMethod] = context.Request.HttpMethod;
 			request[HttpAdapterConstants.RequestPathBase] = context.Request.PhysicalApplicationPath.TrimEnd('\\');
-			request[HttpAdapterConstants.RequestPath] = (context.Request.Path.Length > 1) ? context.Request.Path.TrimEnd('/') : context.Request.Path;
+			request[HttpAdapterConstants.RequestPath] = (string.IsNullOrEmpty(context.Request.Path)) ? "/" : (context.Request.Path.Length > 1) ? context.Request.Path.TrimEnd('/') : context.Request.Path;
+			request[HttpAdapterConstants.RequestPathSegments] = SplitPathSegments(context.Request.Path);
 			request[HttpAdapterConstants.RequestQueryString] = NameValueCollectionToDictionary(unvalidatedQueryString);
 			request[HttpAdapterConstants.RequestQueryStringCallback] = new Func<string, bool, string>(RequestQueryStringGetCallback);
 			request[HttpAdapterConstants.RequestCookie] = StringToDictionary(context.Request.ServerVariables["HTTP_COOKIE"], ';', '=');
@@ -316,7 +310,7 @@ namespace AspNetAdapter
 			request[HttpAdapterConstants.RequestUrl] = context.Request.Url;
 			request[HttpAdapterConstants.RequestUrlAuthority] = context.Request.Url.Authority;
 			request[HttpAdapterConstants.RequestIdentity] = (context.User != null) ? context.User.Identity.Name : null;
-			
+
 			return request;
 		}
 
@@ -344,6 +338,22 @@ namespace AspNetAdapter
 		#endregion
 
 		#region MISCELLANEOUS
+		private string[] SplitPathSegments(string path)
+		{
+			string _path = (string.IsNullOrEmpty(path)) ? "/" : path;
+			string[] segments = null;
+
+			if (_path.Length > 1)
+			{
+				_path = _path.Trim('/');
+				segments = _path.Split(new char[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
+			}
+			else
+				segments = new string[] { "/" };
+
+			return segments;
+		}
+
 		// Adapted from: http://ardalis.com/determine-whether-an-assembly-was-compiled-in-debug-mode
 		private bool IsAssemblyDebugBuild(Assembly assembly)
 		{
@@ -402,7 +412,7 @@ namespace AspNetAdapter
 		private List<PostedFile> GetRequestFiles()
 		{
 			List<PostedFile> postedFiles = new List<PostedFile>();
-			
+
 			foreach (HttpPostedFileBase pf in context.Request.Files)
 			{
 				postedFiles.Add(new PostedFile()
@@ -416,7 +426,8 @@ namespace AspNetAdapter
 			return (postedFiles.Count > 0) ? postedFiles : null;
 		}
 
-		// It's likely I grabbed this from Stackoverflow but I cannot remember
+		// It's likely I grabbed this from Stackoverflow but I cannot remember the
+		// exact source.
 		public byte[] ReadStream(Stream stream)
 		{
 			int length = (int)stream.Length;
@@ -447,13 +458,13 @@ namespace AspNetAdapter
 		{
 			response.ThrowIfArgumentNull();
 
-			if (!(response.ContainsKey(HttpAdapterConstants.ResponseStatus) ||
-					response.ContainsKey(HttpAdapterConstants.ResponseContentType) ||
-					response.ContainsKey(HttpAdapterConstants.ResponseBody)))
-				throw new Exception("The response dictionary must include an http status code, content type and content");
+			if (!response.ContainsKey(HttpAdapterConstants.ResponseStatus))
+				response[HttpAdapterConstants.ResponseStatus] = 200;
+
+			if (!response.ContainsKey(HttpAdapterConstants.ResponseContentType))
+				response[HttpAdapterConstants.ResponseContentType] = "text/html";
 
 			context.Response.AddHeader("X_FRAME_OPTIONS", "SAMEORIGIN");
-
 			context.Response.StatusCode = (int)response[HttpAdapterConstants.ResponseStatus];
 			context.Response.ContentType = response[HttpAdapterConstants.ResponseContentType].ToString();
 
@@ -480,6 +491,17 @@ namespace AspNetAdapter
 						(response[HttpAdapterConstants.ResponseErrorCallback] as Action<Exception>)(e);
 				}
 			}
+		}
+
+		private void ResponseRedirectCallback(string path, Dictionary<string, string> headers)
+		{
+			if (headers != null)
+			{
+				foreach (KeyValuePair<string, string> kvp in headers)
+					context.Response.AddHeader(kvp.Key, kvp.Value);
+			}
+
+			context.Response.Redirect(path);
 		}
 
 		#region APPLICATION STATE
@@ -579,19 +601,6 @@ namespace AspNetAdapter
 				result = unvalidatedQueryString[key];
 
 			return result;
-		}
-		#endregion
-
-		#region MISCELLANEOUS
-		private void ResponseRedirectCallback(string path, Dictionary<string, string> headers)
-		{
-			if (headers != null)
-			{
-				foreach (KeyValuePair<string, string> kvp in headers)
-					context.Response.AddHeader(kvp.Key, kvp.Value);
-			}
-
-			context.Response.Redirect(path);
 		}
 		#endregion
 		#endregion

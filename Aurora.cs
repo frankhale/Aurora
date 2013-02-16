@@ -1,7 +1,7 @@
 ﻿//
-// Aurora - An MVC web framework for .NET
+// Aurora - A Tiny MVC web framework for .NET
 //
-// Updated On: 2 January 2013
+// Updated On: 15 February 2013
 //
 // Contact Info:
 //
@@ -74,13 +74,13 @@ using Yahoo.Yui.Compressor;
 
 #region ASSEMBLY INFO
 [assembly: AssemblyTitle("Aurora")]
-[assembly: AssemblyDescription("An MVC web framework for .NET")]
+[assembly: AssemblyDescription("A Tiny MVC web framework for .NET")]
 [assembly: AssemblyCompany("Frank Hale")]
 [assembly: AssemblyProduct("Aurora")]
-[assembly: AssemblyCopyright("Copyright © 2011-2012 | LICENSE GNU GPLv3")]
+[assembly: AssemblyCopyright("Copyright © 2011-2013 | LICENSE GNU GPLv3")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("2.0.29.0")]
+[assembly: AssemblyVersion("2.0.30.0")]
 #endregion
 
 namespace Aurora
@@ -226,6 +226,8 @@ namespace Aurora
 	internal class Engine : IAspNetAdapterApplication
 	{
 		#region SESSION NAMES
+		private static string engineAppStateSessionName = "__ENGINE_APP_STATE__";
+		private static string engineSessionStateSessionName = "__ENGINE_SESSION_STATE__";
 		private static string viewEngineSessionName = "__ViewEngine";
 		private static string fromRedirectOnlySessionName = "__FromRedirectOnly";
 		private static string controllerInstancesSessionName = "__Controllers";
@@ -274,6 +276,8 @@ namespace Aurora
 		private Dictionary<string, object> controllersSession;
 		internal User currentUser;
 		private string cachePath, cacheFilePath;
+		private Dictionary<string, object> engineAppState;
+		private Dictionary<string, object> engineSessionState;
 		#endregion
 
 		#region FRAMEWORK METHODS
@@ -286,6 +290,9 @@ namespace Aurora
 
 			int httpStatus = 200;
 			ViewResponse viewResponse = null;
+
+			engineAppState = GetApplication(engineAppStateSessionName) as Dictionary<string, object> ?? new Dictionary<string, object>();
+			engineSessionState = GetSession(engineSessionStateSessionName) as Dictionary<string, object> ?? new Dictionary<string, object>();
 
 			requestType = request[HttpAdapterConstants.RequestMethod].ToString().ToLower();
 			appRoot = request[HttpAdapterConstants.RequestPathBase].ToString();
@@ -307,18 +314,18 @@ namespace Aurora
 			#endregion
 
 			#region GET OBJECTS FROM APPLICATION SESSION STORE
-			ViewEngine = GetApplication(viewEngineSessionName) as ViewEngine;
-			controllers = GetSession(controllerInstancesSessionName) as List<Controller>;
-			frontController = GetSession(frontControllerInstanceSessionName) as FrontController;
-			routeInfos = GetSession(routeInfosSessionName) as List<RouteInfo>;
-			actionBindings = GetSession(actionBindingsSessionName) as Dictionary<string, Dictionary<string, List<object>>>;
-			users = GetApplication(usersSessionName) as List<User>;
-			antiForgeryTokens = GetApplication(antiForgeryTokensSessionName) as List<string>;
-			bundles = GetSession(bundlesTokenSessionName) as Dictionary<string, Tuple<List<string>, string>>;
-			models = GetApplication(modelsSessionName) as List<Type>;
-			fromRedirectOnly = Convert.ToBoolean(GetSession(fromRedirectOnlySessionName));
-			protectedFiles = GetApplication(protectedFilesSessionName) as Dictionary<string, string>;
-			controllersSession = GetApplication(controllersSessionSessionName) as Dictionary<string, object>;
+			ViewEngine = (engineAppState.ContainsKey(viewEngineSessionName)) ? engineAppState[viewEngineSessionName] as ViewEngine : null;
+			controllers = (engineSessionState.ContainsKey(controllerInstancesSessionName)) ? engineSessionState[controllerInstancesSessionName] as List<Controller> : null;
+			frontController = (engineSessionState.ContainsKey(frontControllerInstanceSessionName)) ? engineSessionState[frontControllerInstanceSessionName] as FrontController : null;
+			routeInfos = (engineSessionState.ContainsKey(routeInfosSessionName)) ? engineSessionState[routeInfosSessionName] as List<RouteInfo> : null;
+			actionBindings = (engineSessionState.ContainsKey(actionBindingsSessionName)) ? engineSessionState[actionBindingsSessionName] as Dictionary<string, Dictionary<string, List<object>>> : null;
+			users = (engineAppState.ContainsKey(usersSessionName)) ? engineAppState[usersSessionName] as List<User> : null;
+			antiForgeryTokens = (engineAppState.ContainsKey(antiForgeryTokensSessionName)) ? engineAppState[antiForgeryTokensSessionName] as List<string> : null;
+			bundles = (engineSessionState.ContainsKey(bundlesTokenSessionName)) ? engineSessionState[bundlesTokenSessionName] as Dictionary<string, Tuple<List<string>, string>> : null;
+			models = (engineAppState.ContainsKey(modelsSessionName)) ? engineAppState[modelsSessionName] as List<Type> : null;
+			fromRedirectOnly = (engineSessionState.ContainsKey(fromRedirectOnlySessionName)) ? Convert.ToBoolean(engineSessionState[fromRedirectOnlySessionName]) : false;
+			protectedFiles = (engineAppState.ContainsKey(protectedFilesSessionName)) ? engineAppState[protectedFilesSessionName] as Dictionary<string, string> : null;
+			controllersSession = (engineAppState.ContainsKey(controllersSessionSessionName)) ? engineAppState[controllersSessionSessionName] as Dictionary<string, object> : null;
 			#endregion
 
 			#region INITIALIZE MISCELLANEOUS
@@ -331,51 +338,78 @@ namespace Aurora
 
 			#region INITIALIZE USERS
 			if (users == null)
-				AddApplication(usersSessionName, users = new List<User>());
+			{
+				users = new List<User>();
+				engineAppState[usersSessionName] = users;
+			}
 			else
 				currentUser = users.FirstOrDefault(x => x.SessionId == sessionID);
 			#endregion
 
 			#region INITIALIZE ANTIFORGERYTOKENS
 			if (antiForgeryTokens == null)
-				AddApplication(antiForgeryTokensSessionName, antiForgeryTokens = new List<string>());
+			{
+				antiForgeryTokens = new List<string>();
+				engineAppState[antiForgeryTokensSessionName] = antiForgeryTokens;
+			}
 			#endregion
 
 			#region INITIALIZE MODELS
 			if (models == null)
-				AddApplication(modelsSessionName, models = GetTypeList(typeof(Model)));
+			{
+				models = GetTypeList(typeof(Model));
+				engineAppState[modelsSessionName] = models;
+			}
 			#endregion
 
 			#region INITIALIZE CONTROLLERS SESSION
 			if (controllersSession == null)
-				AddApplication(controllersSessionSessionName, controllersSession = new Dictionary<string, object>());
+			{
+				controllersSession = new Dictionary<string, object>();
+				engineAppState[controllersSessionSessionName] = controllersSession;
+			}
 			#endregion
 
 			#region INITIALIZE PROTECTED FILES
 			if (protectedFiles == null)
-				AddApplication(protectedFilesSessionName, protectedFiles = new Dictionary<string, string>());
+			{
+				protectedFiles = new Dictionary<string, string>();
+				engineAppState[protectedFilesSessionName] = protectedFiles;
+			}
 			#endregion
 
 			#region INITIALIZE ACTION BINDINGS
 			if (actionBindings == null)
-				AddSession(actionBindingsSessionName, actionBindings = new Dictionary<string, Dictionary<string, List<object>>>());
+			{
+				actionBindings = new Dictionary<string, Dictionary<string, List<object>>>();
+				engineSessionState[actionBindingsSessionName] = actionBindings;
+			}
 			#endregion
 
 			#region INITIALIZE BUNDLES
 			if (bundles == null)
-				AddSession(bundlesTokenSessionName, bundles = new Dictionary<string, Tuple<List<string>, string>>());
+			{
+				bundles = new Dictionary<string, Tuple<List<string>, string>>();
+				engineSessionState[bundlesTokenSessionName] = bundles;
+			}
 			#endregion
 
 			#region INTIALIZE FRONT CONTROLLER
 			if (frontController == null)
-				AddSession(frontControllerInstanceSessionName, frontController = GetFrontControllerInstance());
+			{
+				frontController = GetFrontControllerInstance();
+				engineSessionState[frontControllerInstanceSessionName] = frontController;
+			}
 			else
 				frontController.Refresh(this);
 			#endregion
 
 			#region INITIALIZE CONTROLLER INSTANCES
 			if (controllers == null)
-				AddSession(controllerInstancesSessionName, controllers = GetControllerInstances());
+			{
+				controllers = GetControllerInstances();
+				engineSessionState[controllerInstancesSessionName] = controllers;
+			}
 			else
 				controllers.ForEach(c => c.Refresh(this));
 			#endregion
@@ -391,7 +425,7 @@ namespace Aurora
 			if (GetSession(routeInfosSessionName) == null)
 			{
 				routeInfos.AddRange(GetRouteInfos());
-				AddSession(routeInfosSessionName, routeInfos);
+				engineSessionState[routeInfosSessionName] = routeInfos;
 
 				if (frontController != null)
 					frontController.RaiseEvent(RouteHandlerEventType.PostRoutesDiscovery, path, null, null);
@@ -426,11 +460,14 @@ namespace Aurora
 				if (string.IsNullOrEmpty(viewCache) || debugMode)
 					UpdateCache(cacheFilePath);
 
-				AddApplication(viewEngineSessionName, ViewEngine);
+				engineAppState[viewEngineSessionName] = ViewEngine;
 			}
-			else if (ViewEngine.UpdateCache || !Directory.Exists(cachePath) || !File.Exists(cacheFilePath))
+			else if (ViewEngine.CacheUpdated || !Directory.Exists(cachePath) || !File.Exists(cacheFilePath))
 				UpdateCache(cacheFilePath);
 			#endregion
+
+			AddApplication(engineAppStateSessionName, engineAppState);
+			AddSession(engineSessionStateSessionName, engineSessionState);
 
 			#region PROCESS REQUEST / RENDER RESPONSE
 			if (serverError == null)
@@ -617,7 +654,7 @@ namespace Aurora
 			if (!string.IsNullOrEmpty(stackTrace))
 				stackTrace = string.Format("<p><pre>{0}</pre></p>", stackTrace);
 
-			string errorView = ViewEngine.LoadView("Views", "Shared", "Error", ViewTemplateType.Shared, new Dictionary<string, string>()
+			string errorView = ViewEngine.LoadView("Views/Shared/Error", new Dictionary<string, string>()
 			{
 				{"error", error },
 				{"stacktrace", stackTrace }
@@ -739,9 +776,8 @@ namespace Aurora
 		{
 			t.ThrowIfArgumentNull();
 
-			// DotNetOpenAuth depends on System.Web.Mvc which is not referenced, this will fail if we don't eliminate it
-			return AppDomain.CurrentDomain.GetAssemblies()
-																		.AsParallel()
+			return AppDomain.CurrentDomain.GetAssemblies().AsParallel()
+				// DotNetOpenAuth depends on System.Web.Mvc which is not referenced, this will fail if we don't eliminate it
 																		.Where(x => x.GetName().Name != "DotNetOpenAuth")
 																		.SelectMany(x => x.GetTypes().Where(y => y.BaseType == t)).ToList();
 		}
@@ -827,12 +863,11 @@ namespace Aurora
 
 			foreach (var apt in actionParameterTransforms)
 			{
-				// DotNetOpenAuth depends on System.Web.Mvc which is not referenced, this will fail if we don't eliminate it
 				var actionTransformClassType = AppDomain.CurrentDomain.GetAssemblies()
-																															.AsParallel()
-																															.Where(x => x.GetName().Name != "DotNetOpenAuth")
-																															.SelectMany(x => x.GetTypes().Where(y => y.GetInterface(typeof(IActionParamTransform<,>).Name) != null && y.Name == apt.Item1.TransformName))
-																															.FirstOrDefault();
+														.AsParallel()
+														.Where(x => x.GetName().Name != "DotNetOpenAuth") // DotNetOpenAuth depends on System.Web.Mvc which is not referenced, this will fail if we don't eliminate it
+														.SelectMany(x => x.GetTypes().Where(y => y.GetInterface(typeof(IActionParamTransform<,>).Name) != null && y.Name == apt.Item1.TransformName))
+														.FirstOrDefault();
 
 				if (actionTransformClassType != null)
 				{
@@ -924,8 +959,8 @@ namespace Aurora
 			StringBuilder combinedFiles = new StringBuilder();
 
 			paths = paths.Where(x => File.Exists(appRoot + x.Replace('/', '\\')) &&
-																						Path.GetExtension(x) == ".css" ||
-																						Path.GetExtension(x) == ".js").ToArray();
+																											Path.GetExtension(x) == ".css" ||
+																											Path.GetExtension(x) == ".js").ToArray();
 
 			foreach (string p in paths)
 				combinedFiles.AppendLine(File.ReadAllText(appRoot + p));
@@ -1015,7 +1050,7 @@ namespace Aurora
 			var routeSlice = routeInfos.AsParallel().SelectMany(routeInfo =>
 					routeInfo.Aliases, (routeInfo, alias) =>
 						new { routeInfo, alias }).Where(x => path.StartsWith(x.alias))
-						.OrderBy(x => x.routeInfo.Action.GetParameters().Length)
+				//.OrderBy(x => x.routeInfo.Action.GetParameters().Length)
 						.OrderByDescending(x => x.alias.Length)
 						.ToList();
 
@@ -1950,6 +1985,10 @@ namespace Aurora
 		{
 			Controller controller = (Controller)Activator.CreateInstance(type);
 			controller.init(engine);
+
+			if (string.IsNullOrEmpty(controller.PartitionName))
+				controller.PartitionName = "Views";
+
 			return controller;
 		}
 
@@ -2023,7 +2062,7 @@ namespace Aurora
 			if (fragTags == null)
 				fragTags = GetTagsDictionary(FragTags.ContainsKey(fragmentName) ? FragTags[fragmentName] : null, FragBag, fragmentName);
 
-			return engine.ViewEngine.LoadView(PartitionName, this.GetType().Name, fragmentName, ViewTemplateType.Fragment, fragTags);
+			return engine.ViewEngine.LoadView(string.Format("{0}/{1}/Fragments/{2}", PartitionName, this.GetType().Name, fragmentName), fragTags);
 		}
 		#endregion
 
@@ -2048,7 +2087,7 @@ namespace Aurora
 
 		public ViewResult View(string controllerName, string actionName)
 		{
-			var result = new ViewResult(engine.ViewEngine, PartitionName, controllerName, actionName, ViewTemplateType.Action, GetTagsDictionary(ViewTags, ViewBag, null));
+			var result = new ViewResult(engine.ViewEngine, GetTagsDictionary(ViewTags, ViewBag, null), PartitionName, controllerName, actionName);
 			initializeViewTags();
 			return result;
 		}
@@ -2069,7 +2108,7 @@ namespace Aurora
 
 		public ViewResult Partial(string controllerName, string actionName)
 		{
-			var result = new ViewResult(engine.ViewEngine, PartitionName, controllerName, actionName, ViewTemplateType.Shared, GetTagsDictionary(ViewTags, ViewBag, null));
+			var result = new ViewResult(engine.ViewEngine, GetTagsDictionary(ViewTags, ViewBag, null), PartitionName, controllerName, actionName, "Shared/");
 			initializeViewTags();
 			return result;
 		}
@@ -2125,9 +2164,14 @@ namespace Aurora
 		private string view;
 		private Dictionary<string, string> headers;
 
-		public ViewResult(IViewEngine viewEngine, string partitionName, string controllerName, string viewName, ViewTemplateType viewTemplateType, Dictionary<string, string> viewTags)
+		public ViewResult(IViewEngine viewEngine,
+											Dictionary<string, string> viewTags,
+											string partitionName,
+											string controllerName,
+											string viewName,
+											string typeHint = "")
 		{
-			view = viewEngine.LoadView(partitionName, controllerName, viewName, viewTemplateType, viewTags);
+			view = viewEngine.LoadView(string.Format("{0}/{1}/{2}{3}", partitionName, controllerName, typeHint, viewName), viewTags);
 			headers = new Dictionary<string, string>()
 			{
 			  {"Cache-Control", "no-cache"},
@@ -2217,50 +2261,32 @@ namespace Aurora
 	#endregion
 
 	#region VIEW ENGINE
-	public enum ViewTemplateType
+	internal interface IViewCompiler
 	{
-		Fragment,
-		Shared,
-		Action
+		List<TemplateInfo> CompileAll();
+		TemplateInfo Compile(string fullName);
+		TemplateInfo Render(string fullName, Dictionary<string, string> tags);
 	}
 
-	internal class ViewTemplate
+	internal enum DirectiveProcessType { Compile, AfterCompile, Render }
+
+	internal class TemplateInfo
 	{
 		public string Name { get; set; }
 		public string FullName { get; set; }
-		public string Partition { get; set; }
-		public string Controller { get; set; }
 		public string Path { get; set; }
 		public string Template { get; set; }
-		public string MD5sum { get; set; }
-
-		public ViewTemplateType TemplateType { get; set; }
-	}
-
-	internal class CompiledView
-	{
-		public string Name { get; set; }
-		public string FullName { get; set; }
-		public string Render { get; set; }
-		public string Template { get; set; }
-		public string CompiledTemplate { get; set; }
 		public string TemplateMD5sum { get; set; }
+		public string Result { get; set; }
 	}
 
-	internal interface IViewTemplateLoader
-	{
-		List<ViewTemplate> Load();
-		ViewTemplate Load(string path);
-	}
-
-	internal class ViewTemplateLoader : IViewTemplateLoader
+	internal class TemplateLoader
 	{
 		private string appRoot;
 		private string[] viewRoots;
-		private string sharedHint = @"shared\";
-		private string fragmentsHint = @"fragments\";
 
-		public ViewTemplateLoader(string appRoot, string[] viewRoots)
+		public TemplateLoader(string appRoot,
+													string[] viewRoots)
 		{
 			appRoot.ThrowIfArgumentNull();
 
@@ -2268,14 +2294,16 @@ namespace Aurora
 			this.viewRoots = viewRoots;
 		}
 
-		public List<ViewTemplate> Load()
+		public List<TemplateInfo> Load()
 		{
-			List<ViewTemplate> templates = new List<ViewTemplate>();
+			List<TemplateInfo> templates = new List<TemplateInfo>();
 
 			foreach (string viewRoot in viewRoots)
 			{
-				if (Directory.Exists(viewRoot))
-					foreach (FileInfo fi in GetAllFiles(new DirectoryInfo(viewRoot), "*.html"))
+				string path = Path.Combine(appRoot, viewRoot);
+
+				if (Directory.Exists(path))
+					foreach (FileInfo fi in GetAllFiles(new DirectoryInfo(path), "*.html"))
 						templates.Add(Load(fi.FullName));
 			}
 
@@ -2304,9 +2332,9 @@ namespace Aurora
 			}
 		}
 
-		public ViewTemplate Load(string path)
+		public TemplateInfo Load(string path)
 		{
-			string viewRoot = viewRoots.FirstOrDefault(x => path.StartsWith(x));
+			string viewRoot = viewRoots.FirstOrDefault(x => path.StartsWith(Path.Combine(appRoot, x)));
 
 			if (string.IsNullOrEmpty(viewRoot)) return null;
 
@@ -2320,40 +2348,18 @@ namespace Aurora
 																	 .Replace("\\", "/").TrimStart('/');
 			string template = File.ReadAllText(path);
 
-			ViewTemplateType templateType = ViewTemplateType.Action;
-
-			if (path.ToLower().Contains(sharedHint))
-				templateType = ViewTemplateType.Shared;
-			else if (path.ToLower().Contains(fragmentsHint))
-				templateType = ViewTemplateType.Fragment;
-
-			string partition = null, controller = null;
-			string[] keyParts = templateKeyName.Split('/');
-
-			if (keyParts.Length > 2)
+			return new TemplateInfo()
 			{
-				partition = keyParts[0];
-				controller = keyParts[1];
-			}
-			else
-				controller = keyParts[0];
-
-			return new ViewTemplate()
-			{
-				MD5sum = template.CalculateMD5sum(),
-				Partition = partition,
-				Controller = controller,
+				TemplateMD5sum = template.CalculateMD5sum(),
 				FullName = templateKeyName,
 				Name = templateName,
 				Path = path,
-				Template = template,
-				TemplateType = templateType
+				Template = template
 			};
 		}
 	}
 
-	internal enum DirectiveProcessType { Compile, AfterCompile, Render }
-
+	#region DIRECTIVES AND SUBSTITUTIONS
 	internal interface IViewCompilerDirectiveHandler
 	{
 		DirectiveProcessType Type { get; }
@@ -2364,24 +2370,6 @@ namespace Aurora
 	{
 		DirectiveProcessType Type { get; }
 		StringBuilder Process(StringBuilder content);
-	}
-
-	internal interface IViewCompiler
-	{
-		List<CompiledView> CompileAll();
-		CompiledView Compile(string partitionName, string controllerName, string viewName, ViewTemplateType viewType);
-		CompiledView Render(string fullName, Dictionary<string, string> tags);
-	}
-
-	internal class ViewCompilerDirectiveInfo
-	{
-		public Match Match { get; set; }
-		public string Directive { get; set; }
-		public string Value { get; set; }
-		public StringBuilder Content { get; set; }
-		public List<ViewTemplate> ViewTemplates { get; set; }
-		public Func<string, string> DetermineKeyName { get; set; }
-		public Action<string> AddPageDependency { get; set; }
 	}
 
 	internal class HeadSubstitution : IViewCompilerSubstitutionHandler
@@ -2623,30 +2611,32 @@ namespace Aurora
 			return directiveInfo.Content;
 		}
 	}
+	#endregion
+
+	internal class ViewCompilerDirectiveInfo
+	{
+		public Match Match { get; set; }
+		public string Directive { get; set; }
+		public string Value { get; set; }
+		public StringBuilder Content { get; set; }
+		public List<TemplateInfo> ViewTemplates { get; set; }
+		public Func<string, string> DetermineKeyName { get; set; }
+		public Action<string> AddPageDependency { get; set; }
+	}
 
 	internal class ViewCompiler : IViewCompiler
 	{
 		private List<IViewCompilerDirectiveHandler> directiveHandlers;
 		private List<IViewCompilerSubstitutionHandler> substitutionHandlers;
 
-		private List<ViewTemplate> viewTemplates;
-		private List<CompiledView> compiledViews;
+		private List<TemplateInfo> viewTemplates;
+		private List<TemplateInfo> compiledViews;
 		private Dictionary<string, List<string>> viewDependencies;
 		private Dictionary<string, HashSet<string>> templateKeyNames;
 
-		private static string partitionControllerScopeActionKeyName = "{0}/{1}/{2}";
-		private static string controllerScopeActionKeyName = "{0}/{1}";
-		private static string partitionRootScopeSharedKeyName = "{0}/Views/Shared/{1}";
-		private static string partitionControllerScopeSharedKeyName = "{0}/{1}/Shared/{2}";
-		private static string controllerScopeSharedKeyName = "{0}/Shared/{1}";
-		private static string globalScopeSharedKeyName = "Views/Shared/{0}";
-		private static string partitionControllerScopeFragmentKeyName = "{0}/{1}/Fragments/{2}";
-		private static string partitionRootScopeFragmentsKeyName = "{0}/Views/Fragments/{1}";
-		private static string controllerScopeFragmentKeyName = "{0}/Fragments/{1}";
-		private static string globalScopeFragmentKeyName = "Views/Fragments/{0}";
-
 		private static Regex directiveTokenRE = new Regex(@"(\%\%(?<directive>[a-zA-Z0-9]+)=(?<value>(\S|\.)+)\%\%)", RegexOptions.Compiled);
 		private static Regex tagRE = new Regex(@"{({|\||\!)([\w]+)(}|\!|\|)}", RegexOptions.Compiled);
+		private static Regex emptyLines = new Regex(@"^\s+$[\r\n]*", RegexOptions.Compiled | RegexOptions.Multiline);
 		private static string tagFormatPattern = @"({{({{|\||\!){0}(\||\!|}})}})";
 		private static string tagEncodingHint = "{|";
 		private static string markdownEncodingHint = "{!";
@@ -2655,8 +2645,8 @@ namespace Aurora
 		private StringBuilder directive = new StringBuilder();
 		private StringBuilder value = new StringBuilder();
 
-		public ViewCompiler(List<ViewTemplate> viewTemplates,
-												List<CompiledView> compiledViews,
+		public ViewCompiler(List<TemplateInfo> viewTemplates,
+												List<TemplateInfo> compiledViews,
 												Dictionary<string, List<string>> viewDependencies,
 												List<IViewCompilerDirectiveHandler> directiveHandlers,
 												List<IViewCompilerSubstitutionHandler> substitutionHandlers)
@@ -2676,22 +2666,22 @@ namespace Aurora
 			templateKeyNames = new Dictionary<string, HashSet<string>>();
 		}
 
-		public List<CompiledView> CompileAll()
+		public List<TemplateInfo> CompileAll()
 		{
-			foreach (ViewTemplate vt in viewTemplates)
+			foreach (TemplateInfo vt in viewTemplates)
 			{
-				if (vt.TemplateType != ViewTemplateType.Fragment)
-					Compile(vt.Partition, vt.Controller, vt.Name, vt.TemplateType);
+				if (!vt.FullName.Contains("Fragment"))
+					Compile(vt.FullName);
 				else
 				{
-					compiledViews.Add(new CompiledView()
+					compiledViews.Add(new TemplateInfo()
 					{
 						FullName = vt.FullName,
 						Name = vt.Name,
-						CompiledTemplate = vt.Template,
 						Template = vt.Template,
-						Render = string.Empty,
-						TemplateMD5sum = vt.MD5sum
+						Result = string.Empty,
+						TemplateMD5sum = vt.TemplateMD5sum,
+						Path = vt.Path
 					});
 				}
 			}
@@ -2699,58 +2689,52 @@ namespace Aurora
 			return compiledViews;
 		}
 
-		public CompiledView Compile(string partitionName, string controllerName, string viewName, ViewTemplateType viewType)
+		public TemplateInfo Compile(string fullName)
 		{
-			string keyName = DetermineKeyName(partitionName, controllerName, viewName, viewType);
+			TemplateInfo viewTemplate = viewTemplates.FirstOrDefault(x => x.FullName == fullName);
 
-			if (!string.IsNullOrEmpty(keyName))
+			if (viewTemplate != null)
 			{
-				ViewTemplate viewTemplate = viewTemplates.FirstOrDefault(x => x.FullName == keyName);
+				StringBuilder rawView = new StringBuilder(viewTemplate.Template);
+				StringBuilder compiledView = new StringBuilder();
 
-				if (viewTemplate != null)
+				if (!viewTemplate.FullName.Contains("Fragment"))
+					compiledView = ProcessDirectives(fullName, rawView);
+
+				if (string.IsNullOrEmpty(compiledView.ToString()))
+					compiledView = rawView;
+
+				compiledView.Replace(compiledView.ToString(), Regex.Replace(compiledView.ToString(), @"^\s*$\n", string.Empty, RegexOptions.Multiline));
+
+				TemplateInfo view = new TemplateInfo()
 				{
-					StringBuilder rawView = new StringBuilder(viewTemplate.Template);
-					StringBuilder compiledView = new StringBuilder();
+					FullName = fullName,
+					Name = viewTemplate.Name,
+					Template = compiledView.ToString(),
+					Result = string.Empty,
+					TemplateMD5sum = viewTemplate.TemplateMD5sum
+				};
 
-					if (viewTemplate.TemplateType != ViewTemplateType.Fragment)
-						compiledView = ProcessDirectives(keyName, partitionName, controllerName, viewType, rawView);
+				TemplateInfo previouslyCompiled = compiledViews.FirstOrDefault(x => x.FullName == viewTemplate.FullName);
 
-					if (string.IsNullOrEmpty(compiledView.ToString()))
-						compiledView = rawView;
+				if (previouslyCompiled != null)
+					compiledViews.Remove(previouslyCompiled);
 
-					compiledView.Replace(compiledView.ToString(), Regex.Replace(compiledView.ToString(), @"^\s*$\n", string.Empty, RegexOptions.Multiline));
+				compiledViews.Add(view);
 
-					CompiledView view = new CompiledView()
-					{
-						FullName = keyName,
-						Name = viewName,
-						Template = viewTemplate.Template,
-						CompiledTemplate = compiledView.ToString(),
-						Render = string.Empty,
-						TemplateMD5sum = viewTemplate.MD5sum
-					};
-
-					CompiledView previouslyCompiled = compiledViews.FirstOrDefault(x => x.FullName == viewTemplate.FullName);
-
-					if (previouslyCompiled != null)
-						compiledViews.Remove(previouslyCompiled);
-
-					compiledViews.Add(view);
-
-					return view;
-				}
+				return view;
 			}
 
-			throw new FileNotFoundException(string.Format("Cannot find view : {0}", viewName));
+			throw new FileNotFoundException(string.Format("Cannot find view : {0}", fullName));
 		}
 
-		public CompiledView Render(string fullName, Dictionary<string, string> tags)
+		public TemplateInfo Render(string fullName, Dictionary<string, string> tags)
 		{
-			CompiledView compiledView = compiledViews.FirstOrDefault(x => x.FullName == fullName);
+			TemplateInfo compiledView = compiledViews.FirstOrDefault(x => x.FullName == fullName);
 
 			if (compiledView != null)
 			{
-				StringBuilder compiledViewSB = new StringBuilder(compiledView.CompiledTemplate);
+				StringBuilder compiledViewSB = new StringBuilder(compiledView.Template);
 
 				foreach (IViewCompilerSubstitutionHandler sub in substitutionHandlers.Where(x => x.Type == DirectiveProcessType.Render))
 					compiledViewSB = sub.Process(compiledViewSB);
@@ -2758,6 +2742,9 @@ namespace Aurora
 				if (tags != null)
 				{
 					StringBuilder tagSB = new StringBuilder();
+
+					foreach (Match match in emptyLines.Matches(compiledViewSB.ToString()))
+						compiledViewSB.Replace(match.Value, string.Empty);
 
 					foreach (KeyValuePair<string, string> tag in tags)
 					{
@@ -2792,7 +2779,7 @@ namespace Aurora
 							compiledViewSB.Replace(match.Value, string.Empty);
 				}
 
-				compiledView.Render = compiledViewSB.ToString();
+				compiledView.Result = compiledViewSB.ToString();
 
 				return compiledView;
 			}
@@ -2800,16 +2787,18 @@ namespace Aurora
 			return null;
 		}
 
-		private StringBuilder ProcessDirectives(string fullViewName, string partitionName, string controllerName, ViewTemplateType viewType, StringBuilder rawView)
+		private StringBuilder ProcessDirectives(string fullViewName, StringBuilder rawView)
 		{
 			StringBuilder pageContent = new StringBuilder(rawView.ToString());
 
 			if (!viewDependencies.ContainsKey(fullViewName))
 				viewDependencies[fullViewName] = new List<string>();
 
-			Func<string, string> determineKeyName = x =>
+			Func<string, string> determineKeyName = name =>
 			{
-				return DetermineKeyName(partitionName, controllerName, x, ViewTemplateType.Shared);
+				return viewTemplates.Select(y => y.FullName)
+														.Where(z => z.Contains("Shared/" + name))
+														.FirstOrDefault();
 			};
 
 			Action<string> addPageDependency = x =>
@@ -2857,63 +2846,7 @@ namespace Aurora
 			return pageContent;
 		}
 
-		public string DetermineKeyName(string partitionName, string controllerName, string viewName, ViewTemplateType viewType)
-		{
-			HashSet<string> keyTypes;
-
-			string viewTypeName = string.Empty;
-			string lookupKeyName = string.Empty;
-
-			if (string.IsNullOrEmpty(partitionName)) partitionName = "Views";
-			if (string.IsNullOrEmpty(controllerName)) controllerName = "Shared";
-			if (viewType == ViewTemplateType.Shared) viewTypeName = "Shared/";
-			else if (viewType == ViewTemplateType.Fragment) viewTypeName = "Fragments/";
-
-			lookupKeyName = string.Format("{0}/{1}/{2}{3}", partitionName, controllerName, viewTypeName, viewName);
-
-			if (!(templateKeyNames.TryGetValue(lookupKeyName, out keyTypes)))
-			{
-				keyTypes = new HashSet<string>();
-
-				switch (viewType)
-				{
-					case ViewTemplateType.Action:
-						keyTypes.Add(string.Format(partitionControllerScopeActionKeyName, partitionName, controllerName, viewName));
-						keyTypes.Add(string.Format(controllerScopeActionKeyName, controllerName, viewName));
-						break;
-
-					case ViewTemplateType.Shared:
-						if (partitionName != "Views")
-							keyTypes.Add(string.Format(partitionRootScopeSharedKeyName, partitionName, viewName));
-
-						if (partitionName != "Shared")
-							keyTypes.Add(string.Format(partitionControllerScopeSharedKeyName, partitionName, controllerName, viewName));
-
-						keyTypes.Add(string.Format(controllerScopeSharedKeyName, controllerName, viewName));
-						keyTypes.Add(string.Format(globalScopeSharedKeyName, viewName));
-						break;
-
-					case ViewTemplateType.Fragment:
-						if (controllerName != "Shared")
-							keyTypes.Add(string.Format(partitionControllerScopeFragmentKeyName, partitionName, controllerName, viewName));
-
-						if (partitionName != "Views")
-							keyTypes.Add(string.Format(partitionRootScopeFragmentsKeyName, partitionName, viewName));
-
-						keyTypes.Add(string.Format(controllerScopeFragmentKeyName, controllerName, viewName));
-						keyTypes.Add(string.Format(globalScopeFragmentKeyName, viewName));
-						break;
-				}
-
-				templateKeyNames[lookupKeyName] = keyTypes;
-			}
-
-			keyTypes.IntersectWith(viewTemplates.Select(x => x.FullName));
-
-			return keyTypes.FirstOrDefault();
-		}
-
-		public void RecompileDependencies(string fullViewName, string partitionName, string controllerName)
+		public void RecompileDependencies(string fullViewName)
 		{
 			var deps = viewDependencies.Where(x => x.Value.FirstOrDefault(y => y == fullViewName) != null);
 
@@ -2922,13 +2855,15 @@ namespace Aurora
 				var template = viewTemplates.FirstOrDefault(x => x.FullName == name);
 
 				if (template != null)
-					Compile(partitionName, controllerName, template.Name, template.TemplateType);
+					Compile(template.FullName);
 			};
 
 			if (deps.Count() > 0)
 			{
 				foreach (KeyValuePair<string, List<string>> view in deps)
+				{
 					compile(view.Key);
+				}
 			}
 			else
 				compile(fullViewName);
@@ -2937,15 +2872,15 @@ namespace Aurora
 
 	public interface IViewEngine
 	{
-		string LoadView(string partitionName, string controllerName, string viewName, ViewTemplateType viewType, Dictionary<string, string> tags);
+		string LoadView(string fullName, Dictionary<string, string> tags);
 		string GetCache();
-		bool UpdateCache { get; }
+		bool CacheUpdated { get; }
 	}
 
 	internal class ViewCache
 	{
-		public List<ViewTemplate> ViewTemplates;
-		public List<CompiledView> CompiledViews;
+		public List<TemplateInfo> ViewTemplates;
+		public List<TemplateInfo> CompiledViews;
 		public Dictionary<string, List<string>> ViewDependencies;
 	}
 
@@ -2954,23 +2889,26 @@ namespace Aurora
 		private string appRoot;
 		private List<IViewCompilerDirectiveHandler> dirHandlers;
 		private List<IViewCompilerSubstitutionHandler> substitutionHandlers;
-		private List<ViewTemplate> viewTemplates;
-		private List<CompiledView> compiledViews;
+		private List<TemplateInfo> viewTemplates;
+		private List<TemplateInfo> compiledViews;
 		private Dictionary<string, List<string>> viewDependencies;
-		private ViewTemplateLoader viewTemplateLoader;
+		private TemplateLoader viewTemplateLoader;
 		private ViewCompiler viewCompiler;
 
-		public bool UpdateCache { get; private set; }
+		public bool CacheUpdated { get; private set; }
 
-		public ViewEngine(string _appRoot, string[] _viewRoots, List<IViewCompilerDirectiveHandler> dirHandlers, List<IViewCompilerSubstitutionHandler> substitutionHandlers, string cache)
+		public ViewEngine(string appRoot,
+											string[] viewRoots,
+											List<IViewCompilerDirectiveHandler> dirHandlers,
+											List<IViewCompilerSubstitutionHandler> substitutionHandlers,
+											string cache)
 		{
-			appRoot = _appRoot;
-			string[] viewRoots = _viewRoots;
+			this.appRoot = appRoot;
 
 			this.dirHandlers = dirHandlers;
 			this.substitutionHandlers = substitutionHandlers;
 
-			viewTemplateLoader = new ViewTemplateLoader(appRoot, viewRoots);
+			viewTemplateLoader = new TemplateLoader(appRoot, viewRoots);
 
 			FileSystemWatcher watcher = new FileSystemWatcher(appRoot, "*.html");
 
@@ -2979,8 +2917,8 @@ namespace Aurora
 			watcher.IncludeSubdirectories = true;
 			watcher.EnableRaisingEvents = true;
 
-			viewTemplates = new List<ViewTemplate>();
-			compiledViews = new List<CompiledView>();
+			viewTemplates = new List<TemplateInfo>();
+			compiledViews = new List<TemplateInfo>();
 			viewDependencies = new Dictionary<string, List<string>>();
 
 			if (!(viewRoots.Count() >= 1))
@@ -3025,28 +2963,27 @@ namespace Aurora
 				while (CanOpenForRead(e.FullPath) == false)
 					Thread.Sleep(1000);
 
-				ViewTemplate changedTemplate = viewTemplateLoader.Load(e.FullPath);
+				var changedTemplate = viewTemplateLoader.Load(e.FullPath);
 				viewTemplates.Remove(viewTemplates.Find(x => x.FullName == changedTemplate.FullName));
 				viewTemplates.Add(changedTemplate);
 
-				CompiledView cv = compiledViews.FirstOrDefault(x => x.FullName == changedTemplate.FullName && x.TemplateMD5sum != changedTemplate.MD5sum);
+				var cv = compiledViews.FirstOrDefault(x => x.FullName == changedTemplate.FullName && x.TemplateMD5sum != changedTemplate.TemplateMD5sum);
 
-				if (cv != null && changedTemplate.TemplateType == ViewTemplateType.Fragment)
+				if (cv != null && !changedTemplate.FullName.Contains("Fragment"))
 				{
-					cv.TemplateMD5sum = changedTemplate.MD5sum;
+					cv.TemplateMD5sum = changedTemplate.TemplateMD5sum;
 					cv.Template = changedTemplate.Template;
-					cv.CompiledTemplate = changedTemplate.Template;
-					cv.Render = string.Empty;
+					cv.Result = string.Empty;
 				}
 
 				viewCompiler = new ViewCompiler(viewTemplates, compiledViews, viewDependencies, dirHandlers, substitutionHandlers);
 
 				if (cv != null)
-					viewCompiler.RecompileDependencies(changedTemplate.FullName, changedTemplate.Partition, changedTemplate.Controller);
+					viewCompiler.RecompileDependencies(changedTemplate.FullName);
 				else
-					viewCompiler.Compile(changedTemplate.Partition, changedTemplate.Controller, changedTemplate.Name, changedTemplate.TemplateType);
+					viewCompiler.Compile(changedTemplate.FullName);
 
-				UpdateCache = true;
+				CacheUpdated = true;
 			}
 			finally
 			{
@@ -3056,7 +2993,7 @@ namespace Aurora
 
 		public string GetCache()
 		{
-			if (UpdateCache) UpdateCache = false;
+			if (CacheUpdated) CacheUpdated = false;
 
 			return JsonConvert.SerializeObject(new ViewCache()
 			{
@@ -3083,15 +3020,14 @@ namespace Aurora
 			}
 		}
 
-		public string LoadView(string partitionName, string controllerName, string viewName, ViewTemplateType viewType, Dictionary<string, string> tags)
+		public string LoadView(string fullName, Dictionary<string, string> tags)
 		{
 			string result = null;
-			string keyName = viewCompiler.DetermineKeyName(partitionName, controllerName, viewName, viewType);
 
-			CompiledView renderedView = viewCompiler.Render(keyName, tags);
+			var renderedView = viewCompiler.Render(fullName, tags);
 
 			if (renderedView != null)
-				result = renderedView.Render;
+				result = renderedView.Result;
 
 			return result;
 		}
