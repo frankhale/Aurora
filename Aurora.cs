@@ -600,10 +600,20 @@ namespace Aurora
 
 									if (routeInfo.ActionParams[apt.Item2] != null &&
 											routeInfo.ActionParams[apt.Item2].GetType() != t)
-										param = Convert.ChangeType(routeInfo.ActionParams[apt.Item2], t);
+									{
+										try
+										{
+											param = Convert.ChangeType(routeInfo.ActionParams[apt.Item2], t);
+										}
+										catch { /* Oops! We probably tried to convert a type to another type and it failed! */ }
+									}
 
-									routeInfo.ActionParams[apt.Item2] =
-										transformMethod.Item1.Invoke(transformMethod.Item2, new object[] { param });
+									try
+									{
+										routeInfo.ActionParams[apt.Item2] =
+											transformMethod.Item1.Invoke(transformMethod.Item2, new object[] { param });
+									}
+									catch { /* Oops! We probably tried to invoke a method with incorrect types! */ }
 								}
 							}
 						}
@@ -620,7 +630,11 @@ namespace Aurora
 
 						routeInfo.Controller.HttpAttribute = routeInfo.RequestTypeAttribute;
 
-						viewResult = (IViewResult)routeInfo.Action.Invoke(routeInfo.Controller, routeInfo.ActionParams);
+						try
+						{
+							viewResult = (IViewResult)routeInfo.Action.Invoke(routeInfo.Controller, routeInfo.ActionParams);
+						}
+						catch { /* Oops! Invoking the action failed, probably because we called it with incorrect parameter types. */ }
 
 						if (viewResult != null)
 							viewResponse = viewResult.Render();
