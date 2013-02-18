@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - A Tiny MVC web framework for .NET
 //
-// Updated On: 15 February 2013
+// Updated On: 17 February 2013
 //
 // Contact Info:
 //
@@ -80,7 +80,7 @@ using Yahoo.Yui.Compressor;
 [assembly: AssemblyCopyright("Copyright © 2011-2013 | LICENSE GNU GPLv3")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("2.0.30.0")]
+[assembly: AssemblyVersion("2.0.31.0")]
 #endregion
 
 namespace Aurora
@@ -972,19 +972,24 @@ namespace Aurora
 			string compressedFile = null;
 			StringBuilder combinedFiles = new StringBuilder();
 
-			paths = paths.Where(x => File.Exists(appRoot + x.Replace('/', '\\')) &&
-																											Path.GetExtension(x) == ".css" ||
-																											Path.GetExtension(x) == ".js").ToArray();
-
 			foreach (string p in paths)
-				combinedFiles.AppendLine(File.ReadAllText(appRoot + p));
+			{
+				string resourcePath = appRoot + p.Replace('/', '\\');
 
-			if (extension == ".js")
-				compressedFile = new JavaScriptCompressor().Compress(combinedFiles.ToString());
-			else if (extension == ".css")
-				compressedFile = new CssCompressor().Compress(combinedFiles.ToString());
+				if(File.Exists(resourcePath) && 
+						(Path.GetExtension(p) == ".css" || Path.GetExtension(p) == ".js"))
+					combinedFiles.AppendLine(File.ReadAllText(resourcePath));
+			}
 
-			bundles[name] = new Tuple<List<string>, string>(paths.ToList(), compressedFile);
+			if (combinedFiles.Length > 0)
+			{
+				if (extension == ".js")
+					compressedFile = new JavaScriptCompressor().Compress(combinedFiles.ToString());
+				else if (extension == ".css")
+					compressedFile = new CssCompressor().Compress(combinedFiles.ToString());
+
+				bundles[name] = new Tuple<List<string>, string>(paths.ToList(), compressedFile);
+			}
 		}
 
 		internal string[] GetBundleFiles(string name)
