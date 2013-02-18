@@ -8,6 +8,7 @@ Frank Hale <frankhale@gmail.com>
 Features
 --------
 
+```csharp
 // - Model View Controller based 
 // - Apps can have a Front controller to intercept various events and perform
 //   arbitrary logic before actions are invoked.
@@ -42,6 +43,7 @@ Features
 //
 // - My fork of the Gravatar URL generator
 //
+```
  
 License 
 -------
