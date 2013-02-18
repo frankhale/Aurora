@@ -5,10 +5,9 @@ A small MVC web framework built on top of ASP.NET
 
 Frank Hale <frankhale@gmail.com>
 
-// --------------------
-// --- Feature List ---
-// --------------------
-//
+Features
+--------
+
 // - Model View Controller based 
 // - Apps can have a Front controller to intercept various events and perform
 //   arbitrary logic before actions are invoked.
@@ -44,7 +43,10 @@ Frank Hale <frankhale@gmail.com>
 // - My fork of the Gravatar URL generator
 //
  
-License: GNU GPL version 3 <http://www.gnu.org/licenses/gpl-3.0.html>
+License 
+-------
+
+GNU GPL version 3 <http://www.gnu.org/licenses/gpl-3.0.html>
 
 ```
 // This program is free software: you can redistribute it and/or modify it under
