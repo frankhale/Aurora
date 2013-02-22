@@ -1,9 +1,7 @@
 Aurora - An MVC web framework for .NET 
 ======================================
 
-A small MVC web framework built on top of ASP.NET
-
-Frank Hale <frankhale@gmail.com>
+A tiny MVC web framework built on top of ASP.NET
 
 Features
 --------
@@ -45,6 +43,12 @@ Features
 //
 ```
  
+Example App Showing How To Use Aurora
+-------------------------------------
+
+https://github.com/frankhale/Miranda
+
+
 License 
 -------
 
@@ -64,3 +68,5 @@ GNU GPL version 3 <http://www.gnu.org/licenses/gpl-3.0.html>
 // You should have received a copy of the GNU General Public License along with
 // this program.  If not, see <http://www.gnu.org/licenses/>.
 ```
+
+Frank Hale <frankhale@gmail.com>
