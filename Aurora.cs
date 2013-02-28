@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - A Tiny MVC web framework for .NET
 //
-// Updated On: 17 February 2013
+// Updated On: 27 February 2013
 //
 // Contact Info:
 //
@@ -80,7 +80,7 @@ using Yahoo.Yui.Compressor;
 [assembly: AssemblyCopyright("Copyright © 2011-2013 | LICENSE GNU GPLv3")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("2.0.31.0")]
+[assembly: AssemblyVersion("2.0.32.0")]
 #endregion
 
 namespace Aurora
@@ -249,6 +249,7 @@ namespace Aurora
 		private Dictionary<string, string> queryString, cookies, form, payload;
 		private Action<Dictionary<string, object>> response;
 		private List<PostedFile> files;
+		private string[] pathSegments;
 		private Exception serverError;
 		internal X509Certificate2 clientCertificate { get; private set; }
 		internal string ipAddress, path, requestType, appRoot, viewRoot, sessionID, identity;
@@ -300,6 +301,7 @@ namespace Aurora
 			ipAddress = request[HttpAdapterConstants.RequestIPAddress].ToString();
 			sessionID = request[HttpAdapterConstants.SessionID].ToString();
 			path = request[HttpAdapterConstants.RequestPath].ToString();
+			pathSegments = request[HttpAdapterConstants.RequestPathSegments] as string[];
 			cookies = request[HttpAdapterConstants.RequestCookie] as Dictionary<string, string>;
 			form = request[HttpAdapterConstants.RequestForm] as Dictionary<string, string>;
 			payload = request[HttpAdapterConstants.RequestBody] as Dictionary<string, string>;
@@ -424,6 +426,7 @@ namespace Aurora
 			#region INITIALIZE ROUTEINFOS
 			if (GetSession(routeInfosSessionName) == null)
 			{
+				routeInfos.Clear();
 				routeInfos.AddRange(GetRouteInfos());
 				engineSessionState[routeInfosSessionName] = routeInfos;
 
@@ -433,7 +436,7 @@ namespace Aurora
 			#endregion
 
 			#region INITIALIZE VIEW ENGINE
-			if (ViewEngine == null || debugMode)
+			if (ViewEngine == null || debugMode && !allowedFilePattern.IsMatch(path))
 			{
 				string viewCache = null;
 				List<IViewCompilerDirectiveHandler> dirHandlers = new List<IViewCompilerDirectiveHandler>();
@@ -497,7 +500,14 @@ namespace Aurora
 			IViewResult viewResult = null;
 			ViewResponse viewResponse = null;
 
-			if (path == "/" || path == "~/" || path.ToLower() == "/default.aspx") path = "/Index";
+			if (path == "/" || path == "~/" || path.ToLower() == "/default.aspx")
+			{
+				path = "/Index";
+				pathSegments[0] = "Index";
+			}
+
+			if (path == "/Index")
+				pathSegments[0] = "Index";
 
 			if (allowedFilePattern.IsMatch(path))
 			{
@@ -528,7 +538,7 @@ namespace Aurora
 				#region ACTION RESPONSE
 				RaiseEventOnFrontController(RouteHandlerEventType.PreRoute, path, null, null);
 
-				routeInfo = FindRoute(path);
+				routeInfo = FindRoute(string.Concat("/", pathSegments[0]));
 
 				RaiseEventOnFrontController(RouteHandlerEventType.PostRoute, path, null, null);
 
@@ -976,7 +986,7 @@ namespace Aurora
 			{
 				string resourcePath = appRoot + p.Replace('/', '\\');
 
-				if(File.Exists(resourcePath) && 
+				if (File.Exists(resourcePath) &&
 						(Path.GetExtension(p) == ".css" || Path.GetExtension(p) == ".js"))
 					combinedFiles.AppendLine(File.ReadAllText(resourcePath));
 			}
@@ -1066,18 +1076,16 @@ namespace Aurora
 
 			RouteInfo result = null;
 
-			var routeSlice = routeInfos.AsParallel().SelectMany(routeInfo =>
-					routeInfo.Aliases, (routeInfo, alias) =>
-						new { routeInfo, alias }).Where(x => path.StartsWith(x.alias))
-				//.OrderBy(x => x.routeInfo.Action.GetParameters().Length)
-						.OrderByDescending(x => x.alias.Length)
-						.ToList();
+			var routeSlice = routeInfos.AsParallel()
+																 .SelectMany(routeInfo => routeInfo.Aliases, (routeInfo, alias) => new { routeInfo, alias }).Where(x => path == x.alias)
+																 .OrderBy(x => x.routeInfo.Action.GetParameters().Length)
+																 .ToList();
 
 			if (routeSlice.Count() > 0)
 			{
 				List<object> allParams = new List<object>()
 					.Concat(routeSlice[0].routeInfo.BoundParams)
-					.Concat(path.Replace(routeSlice[0].alias, string.Empty).Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries).Select(x => HttpUtility.UrlEncode(x)).ToArray())
+					.Concat(pathSegments.Skip(1))					
 					.Concat(routeSlice[0].routeInfo.DefaultParams)
 					.ToList();
 
@@ -3019,7 +3027,7 @@ namespace Aurora
 				CompiledViews = compiledViews,
 				ViewTemplates = viewTemplates,
 				ViewDependencies = viewDependencies
-			});
+			}, Formatting.Indented);
 		}
 
 		// adapted from: http://stackoverflow.com/a/8218033/170217
