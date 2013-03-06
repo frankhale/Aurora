@@ -6,7 +6,7 @@
 //	A thin wrapper around the ASP.NET Request/Reponse objects to make it easier
 //	to disconnect applications from the intrinsics of the HttpContext.
 //
-// Date: 15 February 2013
+// Date: 4 March 2013
 //
 // Contact Info:
 //
@@ -93,7 +93,7 @@ using Microsoft.Web.Infrastructure.DynamicValidationHelper;
 //[assembly: AssemblyCopyright("Copyright © 2012-2013 | LICENSE GNU GPLv3")]
 //[assembly: ComVisible(false)]
 //[assembly: CLSCompliant(true)]
-//[assembly: AssemblyVersion("0.0.14.0")]
+//[assembly: AssemblyVersion("0.0.15.0")]
 //#endif
 
 namespace AspNetAdapter
@@ -331,7 +331,7 @@ namespace AspNetAdapter
 			application[HttpAdapterConstants.UserSessionStoreAbandonCallback] = new Action(UserSessionStoreAbandonCallback);
 			application[HttpAdapterConstants.ResponseRedirectCallback] = new Action<string, Dictionary<string, string>>(ResponseRedirectCallback);
 			application[HttpAdapterConstants.ServerError] = serverError;
-			application[HttpAdapterConstants.ServerErrorStackTrace] = (serverError != null) ? GetStackTrace(serverError) : null;
+			application[HttpAdapterConstants.ServerErrorStackTrace] = (serverError != null) ? serverError.GetStackTrace() : null;
 
 			return application;
 		}
@@ -360,19 +360,6 @@ namespace AspNetAdapter
 			return (assembly.GetCustomAttributes(typeof(DebuggableAttribute), false)
 											.FirstOrDefault() as DebuggableAttribute)
 											.IsJITTrackingEnabled;
-		}
-
-		private string GetStackTrace(Exception exception)
-		{
-			StringBuilder stacktraceBuilder = new StringBuilder();
-
-			var trace = new System.Diagnostics.StackTrace((exception.InnerException != null) ? exception.InnerException : exception, true);
-
-			foreach (StackFrame sf in trace.GetFrames())
-				if (!string.IsNullOrEmpty(sf.GetFileName()))
-					stacktraceBuilder.AppendFormat("<b>method:</b> {0} <b>file:</b> {1}<br />", sf.GetMethod().Name, Path.GetFileName(sf.GetFileName()));
-
-			return stacktraceBuilder.ToString();
 		}
 
 		private Dictionary<string, string> NameValueCollectionToDictionary(NameValueCollection nvc)
@@ -618,6 +605,19 @@ namespace AspNetAdapter
 				throw new ArgumentNullException(argName, message);
 			else if ((t is string) && (t as string) == string.Empty)
 				throw new ArgumentException(argName, message);
+		}
+
+		public static string GetStackTrace(this Exception exception)
+		{
+			StringBuilder stacktraceBuilder = new StringBuilder();
+
+			var trace = new System.Diagnostics.StackTrace((exception.InnerException != null) ? exception.InnerException : exception, true);
+
+			foreach (StackFrame sf in trace.GetFrames())
+				if (!string.IsNullOrEmpty(sf.GetFileName()))
+					stacktraceBuilder.AppendFormat("<b>method:</b> {0} <b>file:</b> {1}<br />", sf.GetMethod().Name, Path.GetFileName(sf.GetFileName()));
+
+			return stacktraceBuilder.ToString();
 		}
 	}
 	#endregion

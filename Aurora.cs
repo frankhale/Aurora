@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - A Tiny MVC web framework for .NET
 //
-// Updated On: 27 February 2013
+// Updated On: 6 March 2013
 //
 // Contact Info:
 //
@@ -80,7 +80,7 @@ using Yahoo.Yui.Compressor;
 [assembly: AssemblyCopyright("Copyright © 2011-2013 | LICENSE GNU GPLv3")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("2.0.32.0")]
+[assembly: AssemblyVersion("2.0.33.0")]
 #endregion
 
 namespace Aurora
@@ -279,6 +279,7 @@ namespace Aurora
 		private string cachePath, cacheFilePath;
 		private Dictionary<string, object> engineAppState;
 		private Dictionary<string, object> engineSessionState;
+		private RouteInfo currentRoute;
 		#endregion
 
 		#region FRAMEWORK METHODS
@@ -475,7 +476,15 @@ namespace Aurora
 			#region PROCESS REQUEST / RENDER RESPONSE
 			if (serverError == null)
 			{
-				viewResponse = ProcessRequest();
+				try
+				{
+					viewResponse = ProcessRequest();
+				}
+				catch (Exception error)
+				{
+					httpStatus = 503;
+					viewResponse = GetErrorViewResponse((error.InnerException != null) ? error.InnerException.Message : error.Message, error.GetStackTrace());
+				}
 
 				if (viewResponse == null)
 				{
@@ -547,6 +556,8 @@ namespace Aurora
 
 				if (routeInfo != null)
 				{
+					currentRoute = routeInfo;
+
 					if (routeInfo.RequestTypeAttribute.ActionType == ActionType.FromRedirectOnly && !fromRedirectOnly)
 						return null;
 
@@ -644,7 +655,7 @@ namespace Aurora
 						{
 							viewResult = (IViewResult)routeInfo.Action.Invoke(routeInfo.Controller, routeInfo.ActionParams);
 						}
-						catch { /* Oops! Invoking the action failed, probably because we called it with incorrect parameter types. */ }
+						catch { throw; }
 
 						if (viewResult != null)
 							viewResponse = viewResult.Render();
@@ -678,11 +689,21 @@ namespace Aurora
 			if (!string.IsNullOrEmpty(stackTrace))
 				stackTrace = string.Format("<p><pre>{0}</pre></p>", stackTrace);
 
-			string errorView = ViewEngine.LoadView("Views/Shared/Error", new Dictionary<string, string>()
+			Dictionary<string, string> tags;
+
+			if (currentRoute != null)
 			{
-				{"error", error },
-				{"stacktrace", stackTrace }
-			});
+				Dictionary<string, object> _tags = currentRoute.Controller.ViewBag.AsDictionary();
+
+				tags = _tags.ToDictionary(k => k.Key, k => (k.Value != null) ? k.Value.ToString() : string.Empty);
+			}
+			else
+				tags = new Dictionary<string, string>();
+
+			tags["error"] = error;
+			tags["stacktrace"] = stackTrace;
+
+			string errorView = ViewEngine.LoadView("Views/Shared/Error", tags);
 
 			ViewResponse viewResponse = new ViewResponse()
 			{
@@ -887,11 +908,12 @@ namespace Aurora
 
 			foreach (var apt in actionParameterTransforms)
 			{
-				var actionTransformClassType = AppDomain.CurrentDomain.GetAssemblies()
-														.AsParallel()
-														.Where(x => x.GetName().Name != "DotNetOpenAuth") // DotNetOpenAuth depends on System.Web.Mvc which is not referenced, this will fail if we don't eliminate it
-														.SelectMany(x => x.GetTypes().Where(y => y.GetInterface(typeof(IActionParamTransform<,>).Name) != null && y.Name == apt.Item1.TransformName))
-														.FirstOrDefault();
+				var actionTransformClassType = AppDomain.CurrentDomain
+																								.GetAssemblies()
+																								.AsParallel()
+																								.Where(x => x.GetName().Name != "DotNetOpenAuth") // DotNetOpenAuth depends on System.Web.Mvc which is not referenced, this will fail if we don't eliminate it
+																								.SelectMany(x => x.GetTypes().Where(y => y.GetInterface(typeof(IActionParamTransform<,>).Name) != null && y.Name == apt.Item1.TransformName))
+																								.FirstOrDefault();
 
 				if (actionTransformClassType != null)
 				{
@@ -1085,7 +1107,7 @@ namespace Aurora
 			{
 				List<object> allParams = new List<object>()
 					.Concat(routeSlice[0].routeInfo.BoundParams)
-					.Concat(pathSegments.Skip(1))					
+					.Concat(pathSegments.Skip(1))
 					.Concat(routeSlice[0].routeInfo.DefaultParams)
 					.ToList();
 
@@ -1978,8 +2000,8 @@ namespace Aurora
 		internal HttpAttribute HttpAttribute { get; set; }
 		protected Dictionary<string, string> ViewTags { get; private set; }
 		protected Dictionary<string, Dictionary<string, string>> FragTags { get; private set; }
-		protected dynamic ViewBag { get; private set; }
-		protected dynamic FragBag { get; private set; }
+		public dynamic ViewBag { get; private set; }
+		public dynamic FragBag { get; private set; }
 
 		protected event EventHandler<RouteHandlerEventArgs> OnPreActionEvent, OnPostActionEvent;
 
@@ -2025,7 +2047,7 @@ namespace Aurora
 
 			if (!tagBag.IsEmpty())
 			{
-				Dictionary<string, object> bag = string.IsNullOrEmpty(subDict) ? tagBag.GetDynamicDictionary() : tagBag.GetDynamicDictionary(subDict);
+				Dictionary<string, object> bag = string.IsNullOrEmpty(subDict) ? tagBag.AsDictionary() : tagBag.AsDictionary(subDict);
 
 				if (bag != null)
 					result = bag.ToDictionary(k => k.Key, k => (k.Value != null) ? k.Value.ToString() : string.Empty);
@@ -3201,12 +3223,12 @@ namespace Aurora
 			return null;
 		}
 
-		public Dictionary<string, object> GetDynamicDictionary()
+		public Dictionary<string, object> AsDictionary()
 		{
 			return _members;
 		}
 
-		public Dictionary<string, object> GetDynamicDictionary(string key)
+		public Dictionary<string, object> AsDictionary(string key)
 		{
 			if (_members.ContainsKey(key) && (_members[key] is DynamicDictionary))
 				return (_members[key] as DynamicDictionary)._members;
