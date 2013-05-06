@@ -1,12 +1,13 @@
 ﻿//
 // Aurora - A Tiny MVC web framework for .NET
 //
-// Updated On: 6 March 2013
+// Updated On: 6 May 2013
 //
 // Contact Info:
 //
 //  Frank Hale - <frankhale@gmail.com> 
-//               <http://about.me/frank.hale>
+//
+// https://github.com/frankhale/aurora
 //
 // --------------------
 // --- Feature List ---
@@ -80,7 +81,7 @@ using Yahoo.Yui.Compressor;
 [assembly: AssemblyCopyright("Copyright © 2011-2013 | LICENSE GNU GPLv3")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("2.0.33.0")]
+[assembly: AssemblyVersion("2.0.34.0")]
 #endregion
 
 namespace Aurora
@@ -505,18 +506,7 @@ namespace Aurora
 		#region PRIVATE METHODS
 		private ViewResponse ProcessRequest()
 		{
-			RouteInfo routeInfo = null;
-			IViewResult viewResult = null;
 			ViewResponse viewResponse = null;
-
-			if (path == "/" || path == "~/" || path.ToLower() == "/default.aspx")
-			{
-				path = "/Index";
-				pathSegments[0] = "Index";
-			}
-
-			if (path == "/Index")
-				pathSegments[0] = "Index";
 
 			if (allowedFilePattern.IsMatch(path))
 			{
@@ -545,11 +535,23 @@ namespace Aurora
 			else
 			{
 				#region ACTION RESPONSE
+				RouteInfo routeInfo = null;
+				IViewResult viewResult = null;
+
+				if (path == "/" || path == "~/" || path.ToLower() == "/default.aspx")
+				{
+					path = "/Index";
+					pathSegments[0] = "Index";
+				}
+
+				if (path == "/Index")
+					pathSegments[0] = "Index";
+
 				RaiseEventOnFrontController(RouteHandlerEventType.PreRoute, path, null, null);
 
 				routeInfo = FindRoute(string.Concat("/", pathSegments[0]));
 
-				RaiseEventOnFrontController(RouteHandlerEventType.PostRoute, path, null, null);
+				RaiseEventOnFrontController(RouteHandlerEventType.PostRoute, path, routeInfo, null);
 
 				if (routeInfo == null)
 					routeInfo = RaiseEventOnFrontController(RouteHandlerEventType.MissingRoute, path, null, null);
@@ -626,7 +628,10 @@ namespace Aurora
 										{
 											param = Convert.ChangeType(routeInfo.ActionParams[apt.Item2], t);
 										}
-										catch { /* Oops! We probably tried to convert a type to another type and it failed! */ }
+										catch
+										{ /* Oops! We probably tried to convert a type to another type and it failed! 
+														 * In which case we'll pretend like nothing happened. */
+										}
 									}
 
 									try
@@ -634,7 +639,10 @@ namespace Aurora
 										routeInfo.ActionParams[apt.Item2] =
 											transformMethod.Item1.Invoke(transformMethod.Item2, new object[] { param });
 									}
-									catch { /* Oops! We probably tried to invoke a method with incorrect types! */ }
+									catch
+									{ /* Oops! We probably tried to invoke an action with incorrect types! 
+													 * In which case we'll pretend like nothing happened. */
+									}
 								}
 							}
 						}
@@ -678,8 +686,10 @@ namespace Aurora
 			try
 			{
 				if (Directory.Exists(Path.GetDirectoryName(cacheFilePath)))
+				{
 					using (StreamWriter cacheWriter = new StreamWriter(cacheFilePath))
 						cacheWriter.Write(ViewEngine.GetCache());
+				}
 			}
 			catch { /* Silently ignore any write failures */ }
 		}
@@ -1001,7 +1011,7 @@ namespace Aurora
 			paths.ThrowIfArgumentNull();
 
 			string extension = Path.GetExtension(name);
-			string compressedFile = null;
+			string fileContentResult = null;
 			StringBuilder combinedFiles = new StringBuilder();
 
 			foreach (string p in paths)
@@ -1015,12 +1025,23 @@ namespace Aurora
 
 			if (combinedFiles.Length > 0)
 			{
-				if (extension == ".js")
-					compressedFile = new JavaScriptCompressor().Compress(combinedFiles.ToString());
-				else if (extension == ".css")
-					compressedFile = new CssCompressor().Compress(combinedFiles.ToString());
+				if (!debugMode)
+				{
+					if (extension == ".js")
+					{
+						try { fileContentResult = new JavaScriptCompressor().Compress(combinedFiles.ToString()); }
+						catch { throw; }
+					}
+					else if (extension == ".css")
+					{
+						try { fileContentResult = new CssCompressor().Compress(combinedFiles.ToString()); }
+						catch { throw; }
+					}
+				}
+				else
+					fileContentResult = combinedFiles.ToString();
 
-				bundles[name] = new Tuple<List<string>, string>(paths.ToList(), compressedFile);
+				bundles[name] = new Tuple<List<string>, string>(paths.ToList(), fileContentResult);
 			}
 		}
 
