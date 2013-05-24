@@ -6,7 +6,7 @@
 //	A thin wrapper around the ASP.NET Request/Reponse objects to make it easier
 //	to disconnect applications from the intrinsics of the HttpContext.
 //
-// Date: 23 May 2013
+// Date: 24 May 2013
 //
 // Contact Info:
 //
@@ -279,12 +279,26 @@ namespace AspNetAdapter
 			Dictionary<string, object> app = InitializeApplicationDictionary();
 			Dictionary<string, object> request = InitializeRequestDictionary();
 
-			IAspNetAdapterApplication _appInstance = (IAspNetAdapterApplication)Activator.CreateInstance(adapterApp);
+			if (context.Application["__HOT__"] == null)
+			{
+				IAspNetAdapterApplication _appInstance = (IAspNetAdapterApplication)Activator.CreateInstance(adapterApp);
 
-			if (firstRun)
-				lock (syncInitLock) _appInstance.Init(app, request, ResponseCallback);
+				if (firstRun)
+					lock (syncInitLock) _appInstance.Init(app, request, ResponseCallback);
+				else
+					_appInstance.Init(app, request, ResponseCallback);
+
+				context.Application.Lock();
+				context.Application["__HOT__"] = _appInstance;
+				context.Application.UnLock();
+			}
 			else
+			{
+				app["HotLoaded"] = true;
+
+				IAspNetAdapterApplication _appInstance = context.Application["__HOT__"] as IAspNetAdapterApplication;
 				_appInstance.Init(app, request, ResponseCallback);
+			}
 		}
 
 		#region REQUEST/APPLICATION DICTIONARY INITIALIZATION

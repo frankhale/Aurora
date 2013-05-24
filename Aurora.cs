@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - A Tiny MVC web framework for .NET
 //
-// Updated On: 23 May 2013
+// Updated On: 24 May 2013
 //
 // Contact Info:
 //
@@ -84,7 +84,7 @@ using Yahoo.Yui.Compressor;
 [assembly: AssemblyCopyright("Copyright © 2011-2013 | LICENSE GNU GPLv3")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("2.0.35.0")]
+[assembly: AssemblyVersion("2.0.36.0")]
 #endregion
 
 namespace Aurora
@@ -289,14 +289,12 @@ namespace Aurora
 		#region FRAMEWORK METHODS
 		public void Init(Dictionary<string, object> app, Dictionary<string, object> request, Action<Dictionary<string, object>> response)
 		{
-			#region INITIALIZE LOCALS FROM APP/REQUEST AND MISC
+			int httpStatus = 200;
 			this.request = request;
 			this.app = app;
 			this.response = response;
 
-			int httpStatus = 200;
-			ViewResponse viewResponse = null;
-
+			#region INITIALIZE LOCALS FROM APP/REQUEST AND MISC
 			engineAppState = GetApplication(engineAppStateSessionName) as Dictionary<string, object> ?? new Dictionary<string, object>();
 			engineSessionState = GetSession(engineSessionStateSessionName) as Dictionary<string, object> ?? new Dictionary<string, object>();
 
@@ -320,162 +318,173 @@ namespace Aurora
 			identity = request[HttpAdapterConstants.RequestIdentity] as string;
 			#endregion
 
-			#region GET OBJECTS FROM APPLICATION SESSION STORE
-			ViewEngine = (engineAppState.ContainsKey(viewEngineSessionName)) ? engineAppState[viewEngineSessionName] as ViewEngine : null;
-			controllers = (engineSessionState.ContainsKey(controllerInstancesSessionName)) ? engineSessionState[controllerInstancesSessionName] as List<Controller> : null;
-			frontController = (engineSessionState.ContainsKey(frontControllerInstanceSessionName)) ? engineSessionState[frontControllerInstanceSessionName] as FrontController : null;
-			routeInfos = (engineSessionState.ContainsKey(routeInfosSessionName)) ? engineSessionState[routeInfosSessionName] as List<RouteInfo> : null;
-			actionBindings = (engineSessionState.ContainsKey(actionBindingsSessionName)) ? engineSessionState[actionBindingsSessionName] as Dictionary<string, Dictionary<string, List<object>>> : null;
-			users = (engineAppState.ContainsKey(usersSessionName)) ? engineAppState[usersSessionName] as List<User> : null;
-			antiForgeryTokens = (engineAppState.ContainsKey(antiForgeryTokensSessionName)) ? engineAppState[antiForgeryTokensSessionName] as List<string> : null;
-			bundles = (engineSessionState.ContainsKey(bundlesTokenSessionName)) ? engineSessionState[bundlesTokenSessionName] as Dictionary<string, Tuple<List<string>, string>> : null;
-			models = (engineAppState.ContainsKey(modelsSessionName)) ? engineAppState[modelsSessionName] as List<Type> : null;
-			fromRedirectOnly = (engineSessionState.ContainsKey(fromRedirectOnlySessionName)) ? Convert.ToBoolean(engineSessionState[fromRedirectOnlySessionName]) : false;
-			protectedFiles = (engineAppState.ContainsKey(protectedFilesSessionName)) ? engineAppState[protectedFilesSessionName] as Dictionary<string, string> : null;
-			controllersSession = (engineAppState.ContainsKey(controllersSessionSessionName)) ? engineAppState[controllersSessionSessionName] as Dictionary<string, object> : null;
-			#endregion
+			// This HotLoaded bypass is an experiment. The AspNetAdapter is hanging onto
+			// the instance of this application so we can bypass the hard core initialization
+			// code which is pretty slow.
+			//
+			// Let's see how far this goes before things blow up!
 
-			#region INITIALIZE MISCELLANEOUS
-			cachePath = MapPath(compiledViewsCacheFolderPath);
-			cacheFilePath = string.Join("/", cachePath, compiledViewsCacheFileName);
-
-			if (routeInfos == null)
-				routeInfos = new List<RouteInfo>();
-			#endregion
-
-			#region INITIALIZE USERS
-			if (users == null)
+			if (!app.ContainsKey("HotLoaded"))
 			{
-				users = new List<User>();
-				engineAppState[usersSessionName] = users;
-			}
-			else
-				currentUser = users.FirstOrDefault(x => x.SessionId == sessionID);
-			#endregion
+				#region GET OBJECTS FROM APPLICATION SESSION STORE
+				ViewEngine = (engineAppState.ContainsKey(viewEngineSessionName)) ? engineAppState[viewEngineSessionName] as ViewEngine : null;
+				controllers = (engineSessionState.ContainsKey(controllerInstancesSessionName)) ? engineSessionState[controllerInstancesSessionName] as List<Controller> : null;
+				frontController = (engineSessionState.ContainsKey(frontControllerInstanceSessionName)) ? engineSessionState[frontControllerInstanceSessionName] as FrontController : null;
+				routeInfos = (engineSessionState.ContainsKey(routeInfosSessionName)) ? engineSessionState[routeInfosSessionName] as List<RouteInfo> : null;
+				actionBindings = (engineSessionState.ContainsKey(actionBindingsSessionName)) ? engineSessionState[actionBindingsSessionName] as Dictionary<string, Dictionary<string, List<object>>> : null;
+				users = (engineAppState.ContainsKey(usersSessionName)) ? engineAppState[usersSessionName] as List<User> : null;
+				antiForgeryTokens = (engineAppState.ContainsKey(antiForgeryTokensSessionName)) ? engineAppState[antiForgeryTokensSessionName] as List<string> : null;
+				bundles = (engineSessionState.ContainsKey(bundlesTokenSessionName)) ? engineSessionState[bundlesTokenSessionName] as Dictionary<string, Tuple<List<string>, string>> : null;
+				models = (engineAppState.ContainsKey(modelsSessionName)) ? engineAppState[modelsSessionName] as List<Type> : null;
+				fromRedirectOnly = (engineSessionState.ContainsKey(fromRedirectOnlySessionName)) ? Convert.ToBoolean(engineSessionState[fromRedirectOnlySessionName]) : false;
+				protectedFiles = (engineAppState.ContainsKey(protectedFilesSessionName)) ? engineAppState[protectedFilesSessionName] as Dictionary<string, string> : null;
+				controllersSession = (engineAppState.ContainsKey(controllersSessionSessionName)) ? engineAppState[controllersSessionSessionName] as Dictionary<string, object> : null;
+				#endregion
 
-			#region INITIALIZE ANTIFORGERYTOKENS
-			if (antiForgeryTokens == null)
-			{
-				antiForgeryTokens = new List<string>();
-				engineAppState[antiForgeryTokensSessionName] = antiForgeryTokens;
-			}
-			#endregion
+				#region INITIALIZE MISCELLANEOUS
+				cachePath = MapPath(compiledViewsCacheFolderPath);
+				cacheFilePath = Path.Combine(cachePath, compiledViewsCacheFileName);
 
-			#region INITIALIZE MODELS
-			if (models == null)
-			{
-				models = GetTypeList(typeof(Model));
-				engineAppState[modelsSessionName] = models;
-			}
-			#endregion
+				if (routeInfos == null)
+					routeInfos = new List<RouteInfo>();
+				#endregion
 
-			#region INITIALIZE CONTROLLERS SESSION
-			if (controllersSession == null)
-			{
-				controllersSession = new Dictionary<string, object>();
-				engineAppState[controllersSessionSessionName] = controllersSession;
-			}
-			#endregion
-
-			#region INITIALIZE PROTECTED FILES
-			if (protectedFiles == null)
-			{
-				protectedFiles = new Dictionary<string, string>();
-				engineAppState[protectedFilesSessionName] = protectedFiles;
-			}
-			#endregion
-
-			#region INITIALIZE ACTION BINDINGS
-			if (actionBindings == null)
-			{
-				actionBindings = new Dictionary<string, Dictionary<string, List<object>>>();
-				engineSessionState[actionBindingsSessionName] = actionBindings;
-			}
-			#endregion
-
-			#region INITIALIZE BUNDLES
-			if (bundles == null)
-			{
-				bundles = new Dictionary<string, Tuple<List<string>, string>>();
-				engineSessionState[bundlesTokenSessionName] = bundles;
-			}
-			#endregion
-
-			#region INTIALIZE FRONT CONTROLLER
-			if (frontController == null)
-			{
-				frontController = GetFrontControllerInstance();
-				engineSessionState[frontControllerInstanceSessionName] = frontController;
-			}
-			else
-				frontController.Refresh(this);
-			#endregion
-
-			#region INITIALIZE CONTROLLER INSTANCES
-			if (controllers == null)
-			{
-				controllers = GetControllerInstances();
-				engineSessionState[controllerInstancesSessionName] = controllers;
-			}
-			else
-				controllers.ForEach(c => c.Refresh(this));
-			#endregion
-
-			#region RUN ALL CONTROLLER ONINIT METHODS
-			if (frontController != null)
-				frontController.RaiseEvent(EventType.OnInit);
-
-			controllers.ForEach(x => x.RaiseEvent(EventType.OnInit));
-			#endregion
-
-			if (!allowedFilePattern.IsMatch(path))
-			{
-				#region INITIALIZE ROUTEINFOS
-				if (GetSession(routeInfosSessionName) == null)
+				#region INITIALIZE USERS
+				if (users == null)
 				{
-					routeInfos.Clear();
-					routeInfos.AddRange(GetRouteInfos());
-					engineSessionState[routeInfosSessionName] = routeInfos;
-
-					if (frontController != null)
-						frontController.RaiseEvent(RouteHandlerEventType.PostRoutesDiscovery, path, null, null);
+					users = new List<User>();
+					engineAppState[usersSessionName] = users;
 				}
 				#endregion
 
-				#region INITIALIZE VIEW ENGINE
-				if (ViewEngine == null || debugMode)
+				#region INITIALIZE ANTIFORGERYTOKENS
+				if (antiForgeryTokens == null)
 				{
-					string viewCache = null;
-					List<IViewCompilerDirectiveHandler> dirHandlers = new List<IViewCompilerDirectiveHandler>();
-					List<IViewCompilerSubstitutionHandler> substitutionHandlers = new List<IViewCompilerSubstitutionHandler>();
+					antiForgeryTokens = new List<string>();
+					engineAppState[antiForgeryTokensSessionName] = antiForgeryTokens;
+				}
+				#endregion
 
-					dirHandlers.Add(new MasterPageDirective());
-					dirHandlers.Add(new PlaceHolderDirective());
-					dirHandlers.Add(new PartialPageDirective());
-					dirHandlers.Add(new BundleDirective(debugMode, sharedResourceFolderPath, GetBundleFiles));
-					substitutionHandlers.Add(new CommentSubstitution());
-					substitutionHandlers.Add(new AntiForgeryTokenSubstitution(CreateAntiForgeryToken));
-					substitutionHandlers.Add(new HeadSubstitution());
+				#region INITIALIZE MODELS
+				if (models == null)
+				{
+					models = GetTypeList(typeof(Model));
+					engineAppState[modelsSessionName] = models;
+				}
+				#endregion
 
-					if (File.Exists(cacheFilePath) && !debugMode)
-						viewCache = File.ReadAllText(cacheFilePath);
+				#region INITIALIZE CONTROLLERS SESSION
+				if (controllersSession == null)
+				{
+					controllersSession = new Dictionary<string, object>();
+					engineAppState[controllersSessionSessionName] = controllersSession;
+				}
+				#endregion
 
-					ViewEngine = new ViewEngine(appRoot, GetViewRoots(), dirHandlers, substitutionHandlers, viewCache);
+				#region INITIALIZE PROTECTED FILES
+				if (protectedFiles == null)
+				{
+					protectedFiles = new Dictionary<string, string>();
+					engineAppState[protectedFilesSessionName] = protectedFiles;
+				}
+				#endregion
 
-					if (string.IsNullOrEmpty(viewCache) || debugMode)
+				#region INITIALIZE ACTION BINDINGS
+				if (actionBindings == null)
+				{
+					actionBindings = new Dictionary<string, Dictionary<string, List<object>>>();
+					engineSessionState[actionBindingsSessionName] = actionBindings;
+				}
+				#endregion
+
+				#region INITIALIZE BUNDLES
+				if (bundles == null)
+				{
+					bundles = new Dictionary<string, Tuple<List<string>, string>>();
+					engineSessionState[bundlesTokenSessionName] = bundles;
+				}
+				#endregion
+
+				#region INTIALIZE FRONT CONTROLLER
+				if (frontController == null)
+				{
+					frontController = GetFrontControllerInstance();
+					engineSessionState[frontControllerInstanceSessionName] = frontController;
+				}
+				else
+					frontController.Refresh(this);
+				#endregion
+
+				#region INITIALIZE CONTROLLER INSTANCES
+				if (controllers == null)
+				{
+					controllers = GetControllerInstances();
+					engineSessionState[controllerInstancesSessionName] = controllers;
+				}
+				else
+					controllers.ForEach(c => c.Refresh(this));
+				#endregion
+
+				#region RUN ALL CONTROLLER ONINIT METHODS
+				if (frontController != null)
+					frontController.RaiseEvent(EventType.OnInit);
+
+				controllers.ForEach(x => x.RaiseEvent(EventType.OnInit));
+				#endregion
+
+				if (!allowedFilePattern.IsMatch(path))
+				{
+					#region INITIALIZE ROUTEINFOS
+					if (GetSession(routeInfosSessionName) == null)
+					{
+						routeInfos.Clear();
+						routeInfos.AddRange(GetRouteInfos());
+						engineSessionState[routeInfosSessionName] = routeInfos;
+
+						if (frontController != null)
+							frontController.RaiseEvent(RouteHandlerEventType.PostRoutesDiscovery, path, null, routeInfos);
+					}
+					#endregion
+
+					#region INITIALIZE VIEW ENGINE
+					if (ViewEngine == null || debugMode)
+					{
+						string viewCache = null;
+						List<IViewCompilerDirectiveHandler> dirHandlers = new List<IViewCompilerDirectiveHandler>();
+						List<IViewCompilerSubstitutionHandler> substitutionHandlers = new List<IViewCompilerSubstitutionHandler>();
+
+						dirHandlers.Add(new MasterPageDirective());
+						dirHandlers.Add(new PlaceHolderDirective());
+						dirHandlers.Add(new PartialPageDirective());
+						dirHandlers.Add(new BundleDirective(debugMode, sharedResourceFolderPath, GetBundleFiles));
+						substitutionHandlers.Add(new CommentSubstitution());
+						substitutionHandlers.Add(new AntiForgeryTokenSubstitution(CreateAntiForgeryToken));
+						substitutionHandlers.Add(new HeadSubstitution());
+
+						if (File.Exists(cacheFilePath) && !debugMode)
+							viewCache = File.ReadAllText(cacheFilePath);
+
+						ViewEngine = new ViewEngine(appRoot, GetViewRoots(), dirHandlers, substitutionHandlers, viewCache);
+
+						if (string.IsNullOrEmpty(viewCache) || debugMode)
+							UpdateCache(cacheFilePath);
+
+						engineAppState[viewEngineSessionName] = ViewEngine;
+					}
+					else if (ViewEngine.CacheUpdated || !Directory.Exists(cachePath) || !File.Exists(cacheFilePath))
 						UpdateCache(cacheFilePath);
-
-					engineAppState[viewEngineSessionName] = ViewEngine;
+					#endregion
 				}
-				else if (ViewEngine.CacheUpdated || !Directory.Exists(cachePath) || !File.Exists(cacheFilePath))
-					UpdateCache(cacheFilePath);
-				#endregion
+
+				AddApplication(engineAppStateSessionName, engineAppState);
+				AddSession(engineSessionStateSessionName, engineSessionState);
 			}
 
-			AddApplication(engineAppStateSessionName, engineAppState);
-			AddSession(engineSessionStateSessionName, engineSessionState);
+			currentUser = users.FirstOrDefault(x => x.SessionId == sessionID);
 
 			#region PROCESS REQUEST / RENDER RESPONSE
+			ViewResponse viewResponse = null;
+
 			if (serverError == null)
 			{
 				try
@@ -1499,25 +1508,24 @@ namespace Aurora
 			this.engine = engine;
 		}
 
+		#region WRAPPERS FOR ENGINE METHODS
 		public void Redirect(string alias)
 		{
 			engine.ResponseRedirect(alias, false);
 		}
-
 		public void RedirectOnly(string alias)
 		{
 			engine.ResponseRedirect(alias, true);
 		}
-
 		public void LogOn(string id, string[] roles, object archeType = null)
 		{
 			engine.LogOn(id, roles, archeType);
 		}
-
 		public void LogOff()
 		{
 			engine.LogOff();
 		}
+		#endregion
 	}
 	#endregion
 
@@ -1822,7 +1830,7 @@ namespace Aurora
 			this.engine = engine;
 		}
 
-		#region Wrappers Around Engine Methods/Properties
+		#region WRAPPERS AROUND ENGINE METHS/PROPS
 		protected RouteInfo FindRoute(string path)
 		{
 			return engine.FindRoute(path);
@@ -2144,8 +2152,8 @@ namespace Aurora
 			if (expiresOn != null)
 			{
 				var _result = engine.GetCache(fragmentName);
-			
-				if (_result!=null) return _result as string;
+
+				if (_result != null) return _result as string;
 			}
 
 			if (!string.IsNullOrEmpty(forRoles) && CurrentUser != null && !CurrentUser.IsInRole(forRoles))
@@ -2160,7 +2168,7 @@ namespace Aurora
 			string result = engine.ViewEngine.LoadView(string.Format("{0}/{1}/Fragments/{2}", PartitionName, this.GetType().Name, fragmentName), fragTags);
 
 			if (expiresOn != null)
-				engine.AddCache(fragmentName, result, expiresOn.Value);				
+				engine.AddCache(fragmentName, result, expiresOn.Value);
 
 			return result;
 		}
@@ -2569,7 +2577,7 @@ namespace Aurora
 				StringBuilder finalPage = new StringBuilder();
 
 				string masterPageName = directiveInfo.DetermineKeyName(directiveInfo.Value);
-				string masterPageTemplate = directiveInfo.ViewTemplates.FirstOrDefault(x => x.FullName == masterPageName).Template;
+				string masterPageTemplate = directiveInfo.ViewTemplates.AsParallel().FirstOrDefault(x => x.FullName == masterPageName).Template;
 
 				directiveInfo.AddPageDependency(masterPageName);
 
@@ -2598,7 +2606,7 @@ namespace Aurora
 			if (directiveInfo.Directive == "Partial")
 			{
 				string partialPageName = directiveInfo.DetermineKeyName(directiveInfo.Value);
-				string partialPageTemplate = directiveInfo.ViewTemplates.FirstOrDefault(x => x.FullName == partialPageName).Template;
+				string partialPageTemplate = directiveInfo.ViewTemplates.AsParallel().FirstOrDefault(x => x.FullName == partialPageName).Template;
 
 				directiveInfo.Content.Replace(directiveInfo.Match.Groups[0].Value, partialPageTemplate);
 			}
@@ -2791,7 +2799,7 @@ namespace Aurora
 
 		public TemplateInfo Compile(string fullName)
 		{
-			TemplateInfo viewTemplate = viewTemplates.FirstOrDefault(x => x.FullName == fullName);
+			TemplateInfo viewTemplate = viewTemplates.AsParallel().FirstOrDefault(x => x.FullName == fullName);
 
 			if (viewTemplate != null)
 			{
@@ -2815,7 +2823,7 @@ namespace Aurora
 					TemplateMD5sum = viewTemplate.TemplateMD5sum
 				};
 
-				TemplateInfo previouslyCompiled = compiledViews.FirstOrDefault(x => x.FullName == viewTemplate.FullName);
+				TemplateInfo previouslyCompiled = compiledViews.AsParallel().FirstOrDefault(x => x.FullName == viewTemplate.FullName);
 
 				if (previouslyCompiled != null)
 					compiledViews.Remove(previouslyCompiled);
@@ -2830,7 +2838,7 @@ namespace Aurora
 
 		public TemplateInfo Render(string fullName, Dictionary<string, string> tags)
 		{
-			TemplateInfo compiledView = compiledViews.FirstOrDefault(x => x.FullName == fullName);
+			TemplateInfo compiledView = compiledViews.AsParallel().FirstOrDefault(x => x.FullName == fullName);
 
 			if (compiledView != null)
 			{
@@ -2896,7 +2904,8 @@ namespace Aurora
 
 			Func<string, string> determineKeyName = name =>
 			{
-				return viewTemplates.Select(y => y.FullName)
+				return viewTemplates.AsParallel()
+														.Select(y => y.FullName)
 														.Where(z => z.Contains("Shared/" + name))
 														.FirstOrDefault();
 			};
@@ -2952,7 +2961,7 @@ namespace Aurora
 
 			Action<string> compile = name =>
 			{
-				var template = viewTemplates.FirstOrDefault(x => x.FullName == name);
+				var template = viewTemplates.AsParallel().FirstOrDefault(x => x.FullName == name);
 
 				if (template != null)
 					Compile(template.FullName);
@@ -3037,8 +3046,8 @@ namespace Aurora
 					viewDependencies = viewCache.ViewDependencies;
 				}
 			}
-
-			if (viewCache == null)
+			else
+			//if (viewCache == null)
 			{
 				viewTemplates = viewTemplateLoader.Load();
 
