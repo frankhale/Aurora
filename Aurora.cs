@@ -1,13 +1,15 @@
 ﻿//
 // Aurora - A Tiny MVC web framework for .NET
 //
-// Updated On: 6 May 2013
+// Updated On: 23 May 2013
 //
 // Contact Info:
 //
 //  Frank Hale - <frankhale@gmail.com> 
 //
-// https://github.com/frankhale/aurora
+// Source Code Location:
+//
+//	https://github.com/frankhale/aurora
 //
 // --------------------
 // --- Feature List ---
@@ -67,6 +69,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Web;
+using System.Web.Caching;
 
 using AspNetAdapter;
 using MarkdownSharp;
@@ -81,7 +84,7 @@ using Yahoo.Yui.Compressor;
 [assembly: AssemblyCopyright("Copyright © 2011-2013 | LICENSE GNU GPLv3")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("2.0.34.0")]
+[assembly: AssemblyVersion("2.0.35.0")]
 #endregion
 
 namespace Aurora
@@ -425,51 +428,49 @@ namespace Aurora
 			controllers.ForEach(x => x.RaiseEvent(EventType.OnInit));
 			#endregion
 
-			#region INITIALIZE ROUTEINFOS
-			if (GetSession(routeInfosSessionName) == null)
+			if (!allowedFilePattern.IsMatch(path))
 			{
-				routeInfos.Clear();
-				routeInfos.AddRange(GetRouteInfos());
-				engineSessionState[routeInfosSessionName] = routeInfos;
-
-				if (frontController != null)
-					frontController.RaiseEvent(RouteHandlerEventType.PostRoutesDiscovery, path, null, null);
-			}
-			#endregion
-
-			#region INITIALIZE VIEW ENGINE
-			if (ViewEngine == null || debugMode && !allowedFilePattern.IsMatch(path))
-			{
-				string viewCache = null;
-				List<IViewCompilerDirectiveHandler> dirHandlers = new List<IViewCompilerDirectiveHandler>();
-				List<IViewCompilerSubstitutionHandler> substitutionHandlers = new List<IViewCompilerSubstitutionHandler>();
-
-				dirHandlers.Add(new MasterPageDirective());
-				dirHandlers.Add(new PlaceHolderDirective());
-				dirHandlers.Add(new PartialPageDirective());
-				dirHandlers.Add(new BundleDirective(debugMode, sharedResourceFolderPath, GetBundleFiles));
-				substitutionHandlers.Add(new CommentSubstitution());
-				substitutionHandlers.Add(new AntiForgeryTokenSubstitution(CreateAntiForgeryToken));
-				substitutionHandlers.Add(new HeadSubstitution());
-
-				if (!Directory.Exists(cachePath))
+				#region INITIALIZE ROUTEINFOS
+				if (GetSession(routeInfosSessionName) == null)
 				{
-					try { Directory.CreateDirectory(cachePath); }
-					catch { /* Silently ignore failure */ }
+					routeInfos.Clear();
+					routeInfos.AddRange(GetRouteInfos());
+					engineSessionState[routeInfosSessionName] = routeInfos;
+
+					if (frontController != null)
+						frontController.RaiseEvent(RouteHandlerEventType.PostRoutesDiscovery, path, null, null);
 				}
-				else if (File.Exists(cacheFilePath) && !debugMode)
-					viewCache = File.ReadAllText(cacheFilePath);
+				#endregion
 
-				ViewEngine = new ViewEngine(appRoot, GetViewRoots(), dirHandlers, substitutionHandlers, viewCache);
+				#region INITIALIZE VIEW ENGINE
+				if (ViewEngine == null || debugMode)
+				{
+					string viewCache = null;
+					List<IViewCompilerDirectiveHandler> dirHandlers = new List<IViewCompilerDirectiveHandler>();
+					List<IViewCompilerSubstitutionHandler> substitutionHandlers = new List<IViewCompilerSubstitutionHandler>();
 
-				if (string.IsNullOrEmpty(viewCache) || debugMode)
+					dirHandlers.Add(new MasterPageDirective());
+					dirHandlers.Add(new PlaceHolderDirective());
+					dirHandlers.Add(new PartialPageDirective());
+					dirHandlers.Add(new BundleDirective(debugMode, sharedResourceFolderPath, GetBundleFiles));
+					substitutionHandlers.Add(new CommentSubstitution());
+					substitutionHandlers.Add(new AntiForgeryTokenSubstitution(CreateAntiForgeryToken));
+					substitutionHandlers.Add(new HeadSubstitution());
+
+					if (File.Exists(cacheFilePath) && !debugMode)
+						viewCache = File.ReadAllText(cacheFilePath);
+
+					ViewEngine = new ViewEngine(appRoot, GetViewRoots(), dirHandlers, substitutionHandlers, viewCache);
+
+					if (string.IsNullOrEmpty(viewCache) || debugMode)
+						UpdateCache(cacheFilePath);
+
+					engineAppState[viewEngineSessionName] = ViewEngine;
+				}
+				else if (ViewEngine.CacheUpdated || !Directory.Exists(cachePath) || !File.Exists(cacheFilePath))
 					UpdateCache(cacheFilePath);
-
-				engineAppState[viewEngineSessionName] = ViewEngine;
+				#endregion
 			}
-			else if (ViewEngine.CacheUpdated || !Directory.Exists(cachePath) || !File.Exists(cacheFilePath))
-				UpdateCache(cacheFilePath);
-			#endregion
 
 			AddApplication(engineAppStateSessionName, engineAppState);
 			AddSession(engineSessionStateSessionName, engineSessionState);
@@ -538,14 +539,11 @@ namespace Aurora
 				RouteInfo routeInfo = null;
 				IViewResult viewResult = null;
 
-				if (path == "/" || path == "~/" || path.ToLower() == "/default.aspx")
+				if (path == "/" || path == "~/" || path.ToLower() == "/default.aspx" || path == "/Index")
 				{
 					path = "/Index";
 					pathSegments[0] = "Index";
 				}
-
-				if (path == "/Index")
-					pathSegments[0] = "Index";
 
 				RaiseEventOnFrontController(RouteHandlerEventType.PreRoute, path, null, null);
 
@@ -685,7 +683,15 @@ namespace Aurora
 		{
 			try
 			{
-				if (Directory.Exists(Path.GetDirectoryName(cacheFilePath)))
+				string path = Path.GetDirectoryName(cacheFilePath);
+
+				if (!Directory.Exists(path))
+				{
+					try { Directory.CreateDirectory(path); }
+					catch { /* Silently ignore failure */ }
+				}
+
+				if (Directory.Exists(path))
 				{
 					using (StreamWriter cacheWriter = new StreamWriter(cacheFilePath))
 						cacheWriter.Write(ViewEngine.GetCache());
@@ -1419,6 +1425,29 @@ namespace Aurora
 
 			return result;
 		}
+
+		public void AddCache(string key, object value, DateTime expiresOn)
+		{
+			if (app.ContainsKey(HttpAdapterConstants.CacheAddCallback) &&
+					app[HttpAdapterConstants.CacheAddCallback] is Action<string, object, DateTime>)
+				(app[HttpAdapterConstants.CacheAddCallback] as Action<string, object, DateTime>)(key, value, expiresOn);
+		}
+
+		public object GetCache(string key)
+		{
+			if (app.ContainsKey(HttpAdapterConstants.CacheGetCallback) &&
+				app[HttpAdapterConstants.CacheGetCallback] is Func<string, object>)
+				return (app[HttpAdapterConstants.CacheGetCallback] as Func<string, object>)(key);
+
+			return null;
+		}
+
+		public void RemoveCache(string key)
+		{
+			if (app.ContainsKey(HttpAdapterConstants.CacheRemoveCallback) &&
+			app[HttpAdapterConstants.CacheRemoveCallback] is Action<string>)
+				(app[HttpAdapterConstants.CacheRemoveCallback] as Action<string>)(key);
+		}
 		#endregion
 	}
 	#endregion
@@ -1784,7 +1813,7 @@ namespace Aurora
 			if (eventType == EventType.OnInit && OnInit != null)
 			{
 				OnInit(this, null);
-				OnInit = null;
+				OnInit = null; // we only want OnInit called once per controller instantiation
 			}
 		}
 
@@ -1793,135 +1822,124 @@ namespace Aurora
 			this.engine = engine;
 		}
 
+		#region Wrappers Around Engine Methods/Properties
 		protected RouteInfo FindRoute(string path)
 		{
 			return engine.FindRoute(path);
 		}
-
 		protected void AddRoute(string alias, string controllerName, string actionName, string defaultParams)
 		{
 			engine.AddRoute(engine.routeInfos, alias, controllerName, actionName, defaultParams, true);
 		}
-
 		protected void RemoveRoute(string alias)
 		{
 			engine.RemoveRoute(alias);
 		}
-
 		protected void AddBinding(string actionName, object bindInstance)
 		{
 			engine.AddBinding(this.GetType().Name, actionName, bindInstance);
 		}
-
 		protected void AddBinding(string[] actionNames, object bindInstance)
 		{
 			engine.AddBinding(this.GetType().Name, actionNames, bindInstance);
 		}
-
 		protected void AddBinding(string[] actionNames, object[] bindInstances)
 		{
 			engine.AddBinding(this.GetType().Name, actionNames, bindInstances);
 		}
-
 		protected void AddBindingForAllActions(string controllerName, object bindInstance)
 		{
 			engine.AddBindingForAllActions(controllerName, bindInstance);
 		}
-
 		protected void AddBindingsForAllActions(string controllerName, object[] bindInstances)
 		{
 			engine.AddBindingsForAllActions(controllerName, bindInstances);
 		}
-
 		protected void AddBindingForAllActions(object bindInstance)
 		{
 			engine.AddBindingForAllActions(this.GetType().Name, bindInstance);
 		}
-
 		protected void AddBindingsForAllActions(object[] bindInstances)
 		{
 			engine.AddBindingsForAllActions(this.GetType().Name, bindInstances);
 		}
-
 		protected void AddBundles(Dictionary<string, string[]> bundles)
 		{
 			engine.AddBundles(bundles);
 		}
-
 		protected void AddBundle(string name, string[] paths)
 		{
 			engine.AddBundle(name, paths);
 		}
-
 		protected void LogOn(string id, string[] roles, object archeType = null)
 		{
 			engine.LogOn(id, roles, archeType);
 		}
-
 		protected void LogOff()
 		{
 			engine.LogOff();
 		}
-
 		protected List<string> GetAllRouteAliases()
 		{
 			return engine.GetAllRouteAliases();
 		}
-
 		protected void Redirect(string path)
 		{
 			engine.ResponseRedirect(path, false);
 		}
-
 		protected void Redirect(string alias, params string[] parameters)
 		{
 			engine.ResponseRedirect(string.Format("{0}/{1}", alias, string.Join("/", parameters)), false);
 		}
-
 		protected void RedirectOnly(string path)
 		{
 			engine.ResponseRedirect(path, true);
 		}
-
 		protected void ProtectFile(string path, string roles)
 		{
 			engine.ProtectFile(path, roles);
 		}
-
 		public void AddApplication(string key, object value)
 		{
 			engine.AddApplication(key, value);
 		}
-
 		public object GetApplication(string key)
 		{
 			return engine.GetApplication(key);
 		}
-
 		public void AddSession(string key, object value)
 		{
 			engine.AddControllerSession(key, value);
 		}
-
 		public object GetSession(string key)
 		{
 			return engine.GetControllerSession(key);
 		}
-
+		public void AddCache(string key, object value, DateTime expiresOn)
+		{
+			engine.AddCache(key, value, expiresOn);
+		}
+		public object GetCache(string key)
+		{
+			return engine.GetCache(key);
+		}
+		public void RemoveCache(string key)
+		{
+			engine.RemoveCache(key);
+		}
 		protected void AbandonSession()
 		{
 			engine.AbandonControllerSession();
 		}
-
 		protected string GetQueryString(string key, bool validate)
 		{
 			return engine.GetQueryString(key, validate);
 		}
-
 		protected string MapPath(string path)
 		{
 			return engine.MapPath(path);
 		}
+		#endregion
 	}
 
 	public abstract class FrontController : BaseController
@@ -2034,11 +2052,6 @@ namespace Aurora
 			ViewBag = new DynamicDictionary();
 		}
 
-		internal override void Refresh(Engine engine)
-		{
-			base.Refresh(engine);
-		}
-
 		internal void init(Engine engine)
 		{
 			this.engine = engine;
@@ -2103,26 +2116,38 @@ namespace Aurora
 		#region RENDER FRAGMENT
 		public string RenderFragment(string fragmentName)
 		{
-			return RenderFragment(fragmentName, null, null, null);
+			return RenderFragment(fragmentName, null, null, null, null);
+		}
+
+		public string RenderFragment(string fragmentName, DateTime expiresOn)
+		{
+			return RenderFragment(fragmentName, null, null, null, expiresOn);
 		}
 
 		public string RenderFragment(string fragmentName, Func<bool> canViewFragment)
 		{
-			return RenderFragment(fragmentName, null, null, canViewFragment);
+			return RenderFragment(fragmentName, null, null, canViewFragment, null);
 		}
 
 		public string RenderFragment(string fragmentName, string forRoles)
 		{
-			return RenderFragment(fragmentName, null, forRoles, null);
+			return RenderFragment(fragmentName, null, forRoles, null, null);
 		}
 
 		public string RenderFragment(string fragmentName, Dictionary<string, string> fragTags)
 		{
-			return RenderFragment(fragmentName, fragTags, null, null);
+			return RenderFragment(fragmentName, fragTags, null, null, null);
 		}
 
-		private string RenderFragment(string fragmentName, Dictionary<string, string> fragTags, string forRoles, Func<bool> canViewFragment)
+		private string RenderFragment(string fragmentName, Dictionary<string, string> fragTags, string forRoles, Func<bool> canViewFragment, DateTime? expiresOn)
 		{
+			if (expiresOn != null)
+			{
+				var _result = engine.GetCache(fragmentName);
+			
+				if (_result!=null) return _result as string;
+			}
+
 			if (!string.IsNullOrEmpty(forRoles) && CurrentUser != null && !CurrentUser.IsInRole(forRoles))
 				return string.Empty;
 
@@ -2132,7 +2157,12 @@ namespace Aurora
 			if (fragTags == null)
 				fragTags = GetTagsDictionary(FragTags.ContainsKey(fragmentName) ? FragTags[fragmentName] : null, FragBag, fragmentName);
 
-			return engine.ViewEngine.LoadView(string.Format("{0}/{1}/Fragments/{2}", PartitionName, this.GetType().Name, fragmentName), fragTags);
+			string result = engine.ViewEngine.LoadView(string.Format("{0}/{1}/Fragments/{2}", PartitionName, this.GetType().Name, fragmentName), fragTags);
+
+			if (expiresOn != null)
+				engine.AddCache(fragmentName, result, expiresOn.Value);				
+
+			return result;
 		}
 		#endregion
 

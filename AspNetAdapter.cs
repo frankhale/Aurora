@@ -6,12 +6,11 @@
 //	A thin wrapper around the ASP.NET Request/Reponse objects to make it easier
 //	to disconnect applications from the intrinsics of the HttpContext.
 //
-// Date: 4 March 2013
+// Date: 23 May 2013
 //
 // Contact Info:
 //
 //  Frank Hale - <frankhale@gmail.com> 
-//               <http://about.me/frank.hale>
 //
 // An attempt to abstract away some of the common bits of the ASP.NET HttpContext.
 //
@@ -80,6 +79,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Web;
+using System.Web.Caching;
 using System.Web.SessionState;
 using Microsoft.Web.Infrastructure.DynamicValidationHelper;
 
@@ -93,7 +93,7 @@ using Microsoft.Web.Infrastructure.DynamicValidationHelper;
 //[assembly: AssemblyCopyright("Copyright © 2012-2013 | LICENSE GNU GPLv3")]
 //[assembly: ComVisible(false)]
 //[assembly: CLSCompliant(true)]
-//[assembly: AssemblyVersion("0.0.15.0")]
+//[assembly: AssemblyVersion("0.0.16.0")]
 //#endif
 
 namespace AspNetAdapter
@@ -161,6 +161,9 @@ namespace AspNetAdapter
 		public static string UserSessionStoreRemoveCallback = "UserSessionStoreRemoveCallback";
 		public static string UserSessionStoreGetCallback = "UserSessionStoreGetCallback";
 		public static string UserSessionStoreAbandonCallback = "UserSessionStoreAbandonCallback";
+		public static string CacheAddCallback = "CacheAddCallback";
+		public static string CacheGetCallback = "CacheGetCallback";
+		public static string CacheRemoveCallback = "CacheRemoveCallback";
 		#endregion
 
 		#region REQUEST
@@ -329,6 +332,9 @@ namespace AspNetAdapter
 			application[HttpAdapterConstants.UserSessionStoreRemoveCallback] = new Action<string>(UserSessionStoreRemoveCallback);
 			application[HttpAdapterConstants.UserSessionStoreGetCallback] = new Func<string, object>(UserSessionStoreGetCallback);
 			application[HttpAdapterConstants.UserSessionStoreAbandonCallback] = new Action(UserSessionStoreAbandonCallback);
+			application[HttpAdapterConstants.CacheAddCallback] = new Action<string, object, DateTime>(CacheAddCallback);
+			application[HttpAdapterConstants.CacheGetCallback] = new Func<string, object>(CacheGetCallback);
+			application[HttpAdapterConstants.CacheRemoveCallback] = new Action<string>(CacheRemoveCallback);
 			application[HttpAdapterConstants.ResponseRedirectCallback] = new Action<string, Dictionary<string, string>>(ResponseRedirectCallback);
 			application[HttpAdapterConstants.ServerError] = serverError;
 			application[HttpAdapterConstants.ServerErrorStackTrace] = (serverError != null) ? serverError.GetStackTrace() : null;
@@ -542,6 +548,23 @@ namespace AspNetAdapter
 		private void UserSessionStoreAbandonCallback()
 		{
 			context.Session.Abandon();
+		}
+		#endregion
+
+		#region CACHE STATE
+		private void CacheAddCallback(string key, object value, DateTime expiresOn)
+		{
+			context.Cache.Insert(key, value, null, expiresOn, Cache.NoSlidingExpiration);
+		}
+
+		private object CacheGetCallback(string key)
+		{
+			return context.Cache.Get(key);
+		}
+
+		private void CacheRemoveCallback(string key)
+		{
+			context.Cache.Remove(key);
 		}
 		#endregion
 
