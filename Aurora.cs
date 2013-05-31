@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - A Tiny MVC web framework for .NET
 //
-// Updated On: 24 May 2013
+// Updated On: 30 May 2013
 //
 // Contact Info:
 //
@@ -84,7 +84,7 @@ using Yahoo.Yui.Compressor;
 [assembly: AssemblyCopyright("Copyright © 2011-2013 | LICENSE GNU GPLv3")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("2.0.36.0")]
+[assembly: AssemblyVersion("2.0.37.0")]
 #endregion
 
 namespace Aurora
@@ -110,14 +110,11 @@ namespace Aurora
 
 		public HttpAttribute(ActionType actionType, string alias) : this(actionType, alias, ActionSecurity.None) { }
 
-		public HttpAttribute(ActionType actionType, ActionSecurity actionSecurity)
-		{
-			SecurityType = actionSecurity;
-			ActionType = actionType;
-		}
+		public HttpAttribute(ActionType actionType, ActionSecurity actionSecurity) : this(actionType, null, actionSecurity) { }
 
 		public HttpAttribute(ActionType actionType, string alias, ActionSecurity actionSecurity)
 		{
+			RequireAntiForgeryToken = true; // require by default : This is only used for post/put/delete
 			SecurityType = actionSecurity;
 			RouteAlias = alias;
 			ActionType = actionType;
@@ -262,7 +259,7 @@ namespace Aurora
 		#endregion
 
 		#region MISCELLANEOUS VARIABLES
-		private static Regex allowedFilePattern = new Regex(@"\.(js|css|png|jpg|gif|ico|pptx|xlsx|csv|txt)$", RegexOptions.Compiled);
+		private static Regex allowedFilePattern = new Regex(@"^.*\.(js|css|png|jpg|gif|ico|pptx|xlsx|csv|txt)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 		private static string sharedResourceFolderPath = "/Resources";
 		private static string compiledViewsCacheFolderPath = "/Views/Cache";
 		private static string compiledViewsCacheFileName = "viewsCache.json";
@@ -318,168 +315,159 @@ namespace Aurora
 			identity = request[HttpAdapterConstants.RequestIdentity] as string;
 			#endregion
 
-			// This HotLoaded bypass is an experiment. The AspNetAdapter is hanging onto
-			// the instance of this application so we can bypass the hard core initialization
-			// code which is pretty slow.
-			//
-			// Let's see how far this goes before things blow up!
+			#region GET OBJECTS FROM APPLICATION SESSION STORE
+			ViewEngine = (engineAppState.ContainsKey(viewEngineSessionName)) ? engineAppState[viewEngineSessionName] as ViewEngine : null;
+			controllers = (engineSessionState.ContainsKey(controllerInstancesSessionName)) ? engineSessionState[controllerInstancesSessionName] as List<Controller> : null;
+			frontController = (engineSessionState.ContainsKey(frontControllerInstanceSessionName)) ? engineSessionState[frontControllerInstanceSessionName] as FrontController : null;
+			routeInfos = (engineSessionState.ContainsKey(routeInfosSessionName)) ? engineSessionState[routeInfosSessionName] as List<RouteInfo> : null;
+			actionBindings = (engineSessionState.ContainsKey(actionBindingsSessionName)) ? engineSessionState[actionBindingsSessionName] as Dictionary<string, Dictionary<string, List<object>>> : null;
+			users = (engineAppState.ContainsKey(usersSessionName)) ? engineAppState[usersSessionName] as List<User> : null;
+			antiForgeryTokens = (engineAppState.ContainsKey(antiForgeryTokensSessionName)) ? engineAppState[antiForgeryTokensSessionName] as List<string> : null;
+			bundles = (engineSessionState.ContainsKey(bundlesTokenSessionName)) ? engineSessionState[bundlesTokenSessionName] as Dictionary<string, Tuple<List<string>, string>> : null;
+			models = (engineAppState.ContainsKey(modelsSessionName)) ? engineAppState[modelsSessionName] as List<Type> : null;
+			fromRedirectOnly = (engineSessionState.ContainsKey(fromRedirectOnlySessionName)) ? Convert.ToBoolean(engineSessionState[fromRedirectOnlySessionName]) : false;
+			protectedFiles = (engineAppState.ContainsKey(protectedFilesSessionName)) ? engineAppState[protectedFilesSessionName] as Dictionary<string, string> : null;
+			controllersSession = (engineAppState.ContainsKey(controllersSessionSessionName)) ? engineAppState[controllersSessionSessionName] as Dictionary<string, object> : null;
+			#endregion
 
-			if (!app.ContainsKey("HotLoaded"))
+			#region INITIALIZE MISCELLANEOUS
+			cachePath = MapPath(compiledViewsCacheFolderPath);
+			cacheFilePath = Path.Combine(cachePath, compiledViewsCacheFileName);
+
+			if (routeInfos == null)
+				routeInfos = new List<RouteInfo>();
+			#endregion
+
+			#region INITIALIZE USERS
+			if (users == null)
 			{
-				#region GET OBJECTS FROM APPLICATION SESSION STORE
-				ViewEngine = (engineAppState.ContainsKey(viewEngineSessionName)) ? engineAppState[viewEngineSessionName] as ViewEngine : null;
-				controllers = (engineSessionState.ContainsKey(controllerInstancesSessionName)) ? engineSessionState[controllerInstancesSessionName] as List<Controller> : null;
-				frontController = (engineSessionState.ContainsKey(frontControllerInstanceSessionName)) ? engineSessionState[frontControllerInstanceSessionName] as FrontController : null;
-				routeInfos = (engineSessionState.ContainsKey(routeInfosSessionName)) ? engineSessionState[routeInfosSessionName] as List<RouteInfo> : null;
-				actionBindings = (engineSessionState.ContainsKey(actionBindingsSessionName)) ? engineSessionState[actionBindingsSessionName] as Dictionary<string, Dictionary<string, List<object>>> : null;
-				users = (engineAppState.ContainsKey(usersSessionName)) ? engineAppState[usersSessionName] as List<User> : null;
-				antiForgeryTokens = (engineAppState.ContainsKey(antiForgeryTokensSessionName)) ? engineAppState[antiForgeryTokensSessionName] as List<string> : null;
-				bundles = (engineSessionState.ContainsKey(bundlesTokenSessionName)) ? engineSessionState[bundlesTokenSessionName] as Dictionary<string, Tuple<List<string>, string>> : null;
-				models = (engineAppState.ContainsKey(modelsSessionName)) ? engineAppState[modelsSessionName] as List<Type> : null;
-				fromRedirectOnly = (engineSessionState.ContainsKey(fromRedirectOnlySessionName)) ? Convert.ToBoolean(engineSessionState[fromRedirectOnlySessionName]) : false;
-				protectedFiles = (engineAppState.ContainsKey(protectedFilesSessionName)) ? engineAppState[protectedFilesSessionName] as Dictionary<string, string> : null;
-				controllersSession = (engineAppState.ContainsKey(controllersSessionSessionName)) ? engineAppState[controllersSessionSessionName] as Dictionary<string, object> : null;
-				#endregion
+				users = new List<User>();
+				engineAppState[usersSessionName] = users;
+			}
+			#endregion
 
-				#region INITIALIZE MISCELLANEOUS
-				cachePath = MapPath(compiledViewsCacheFolderPath);
-				cacheFilePath = Path.Combine(cachePath, compiledViewsCacheFileName);
+			#region INITIALIZE ANTIFORGERYTOKENS
+			if (antiForgeryTokens == null)
+			{
+				antiForgeryTokens = new List<string>();
+				engineAppState[antiForgeryTokensSessionName] = antiForgeryTokens;
+			}
+			#endregion
 
-				if (routeInfos == null)
-					routeInfos = new List<RouteInfo>();
-				#endregion
+			#region INITIALIZE MODELS
+			if (models == null)
+			{
+				models = GetTypeList(typeof(Model));
+				engineAppState[modelsSessionName] = models;
+			}
+			#endregion
 
-				#region INITIALIZE USERS
-				if (users == null)
+			#region INITIALIZE CONTROLLERS SESSION
+			if (controllersSession == null)
+			{
+				controllersSession = new Dictionary<string, object>();
+				engineAppState[controllersSessionSessionName] = controllersSession;
+			}
+			#endregion
+
+			#region INITIALIZE PROTECTED FILES
+			if (protectedFiles == null)
+			{
+				protectedFiles = new Dictionary<string, string>();
+				engineAppState[protectedFilesSessionName] = protectedFiles;
+			}
+			#endregion
+
+			#region INITIALIZE ACTION BINDINGS
+			if (actionBindings == null)
+			{
+				actionBindings = new Dictionary<string, Dictionary<string, List<object>>>();
+				engineSessionState[actionBindingsSessionName] = actionBindings;
+			}
+			#endregion
+
+			#region INITIALIZE BUNDLES
+			if (bundles == null)
+			{
+				bundles = new Dictionary<string, Tuple<List<string>, string>>();
+				engineSessionState[bundlesTokenSessionName] = bundles;
+			}
+			#endregion
+
+			#region INTIALIZE FRONT CONTROLLER
+			if (frontController == null)
+			{
+				frontController = GetFrontControllerInstance();
+				engineSessionState[frontControllerInstanceSessionName] = frontController;
+			}
+			else
+				frontController.Refresh(this);
+			#endregion
+
+			#region INITIALIZE CONTROLLER INSTANCES
+			if (controllers == null)
+			{
+				controllers = GetControllerInstances();
+				engineSessionState[controllerInstancesSessionName] = controllers;
+			}
+			else
+				controllers.ForEach(c => c.Refresh(this));
+			#endregion
+
+			#region RUN ALL CONTROLLER ONINIT METHODS
+			if (frontController != null)
+				frontController.RaiseEvent(EventType.OnInit);
+
+			controllers.ForEach(x => x.RaiseEvent(EventType.OnInit));
+			#endregion
+
+			if (!allowedFilePattern.IsMatch(path))
+			{
+				#region INITIALIZE ROUTEINFOS
+				if (GetSession(routeInfosSessionName) == null)
 				{
-					users = new List<User>();
-					engineAppState[usersSessionName] = users;
+					routeInfos.Clear();
+					routeInfos.AddRange(GetRouteInfos());
+					engineSessionState[routeInfosSessionName] = routeInfos;
+
+					if (frontController != null)
+						frontController.RaiseEvent(RouteHandlerEventType.PostRoutesDiscovery, path, null, routeInfos);
 				}
 				#endregion
 
-				#region INITIALIZE ANTIFORGERYTOKENS
-				if (antiForgeryTokens == null)
+				#region INITIALIZE VIEW ENGINE
+				if (ViewEngine == null || debugMode)
 				{
-					antiForgeryTokens = new List<string>();
-					engineAppState[antiForgeryTokensSessionName] = antiForgeryTokens;
-				}
-				#endregion
+					string viewCache = null;
+					List<IViewCompilerDirectiveHandler> dirHandlers = new List<IViewCompilerDirectiveHandler>();
+					List<IViewCompilerSubstitutionHandler> substitutionHandlers = new List<IViewCompilerSubstitutionHandler>();
 
-				#region INITIALIZE MODELS
-				if (models == null)
-				{
-					models = GetTypeList(typeof(Model));
-					engineAppState[modelsSessionName] = models;
-				}
-				#endregion
+					dirHandlers.Add(new MasterPageDirective());
+					dirHandlers.Add(new PlaceHolderDirective());
+					dirHandlers.Add(new PartialPageDirective());
+					dirHandlers.Add(new BundleDirective(debugMode, sharedResourceFolderPath, GetBundleFiles));
+					substitutionHandlers.Add(new CommentSubstitution());
+					substitutionHandlers.Add(new AntiForgeryTokenSubstitution(CreateAntiForgeryToken));
+					substitutionHandlers.Add(new HeadSubstitution());
 
-				#region INITIALIZE CONTROLLERS SESSION
-				if (controllersSession == null)
-				{
-					controllersSession = new Dictionary<string, object>();
-					engineAppState[controllersSessionSessionName] = controllersSession;
-				}
-				#endregion
+					if (File.Exists(cacheFilePath) && !debugMode)
+						viewCache = File.ReadAllText(cacheFilePath);
 
-				#region INITIALIZE PROTECTED FILES
-				if (protectedFiles == null)
-				{
-					protectedFiles = new Dictionary<string, string>();
-					engineAppState[protectedFilesSessionName] = protectedFiles;
-				}
-				#endregion
+					ViewEngine = new ViewEngine(appRoot, GetViewRoots(), dirHandlers, substitutionHandlers, viewCache);
 
-				#region INITIALIZE ACTION BINDINGS
-				if (actionBindings == null)
-				{
-					actionBindings = new Dictionary<string, Dictionary<string, List<object>>>();
-					engineSessionState[actionBindingsSessionName] = actionBindings;
-				}
-				#endregion
-
-				#region INITIALIZE BUNDLES
-				if (bundles == null)
-				{
-					bundles = new Dictionary<string, Tuple<List<string>, string>>();
-					engineSessionState[bundlesTokenSessionName] = bundles;
-				}
-				#endregion
-
-				#region INTIALIZE FRONT CONTROLLER
-				if (frontController == null)
-				{
-					frontController = GetFrontControllerInstance();
-					engineSessionState[frontControllerInstanceSessionName] = frontController;
-				}
-				else
-					frontController.Refresh(this);
-				#endregion
-
-				#region INITIALIZE CONTROLLER INSTANCES
-				if (controllers == null)
-				{
-					controllers = GetControllerInstances();
-					engineSessionState[controllerInstancesSessionName] = controllers;
-				}
-				else
-					controllers.ForEach(c => c.Refresh(this));
-				#endregion
-
-				#region RUN ALL CONTROLLER ONINIT METHODS
-				if (frontController != null)
-					frontController.RaiseEvent(EventType.OnInit);
-
-				controllers.ForEach(x => x.RaiseEvent(EventType.OnInit));
-				#endregion
-
-				if (!allowedFilePattern.IsMatch(path))
-				{
-					#region INITIALIZE ROUTEINFOS
-					if (GetSession(routeInfosSessionName) == null)
-					{
-						routeInfos.Clear();
-						routeInfos.AddRange(GetRouteInfos());
-						engineSessionState[routeInfosSessionName] = routeInfos;
-
-						if (frontController != null)
-							frontController.RaiseEvent(RouteHandlerEventType.PostRoutesDiscovery, path, null, routeInfos);
-					}
-					#endregion
-
-					#region INITIALIZE VIEW ENGINE
-					if (ViewEngine == null || debugMode)
-					{
-						string viewCache = null;
-						List<IViewCompilerDirectiveHandler> dirHandlers = new List<IViewCompilerDirectiveHandler>();
-						List<IViewCompilerSubstitutionHandler> substitutionHandlers = new List<IViewCompilerSubstitutionHandler>();
-
-						dirHandlers.Add(new MasterPageDirective());
-						dirHandlers.Add(new PlaceHolderDirective());
-						dirHandlers.Add(new PartialPageDirective());
-						dirHandlers.Add(new BundleDirective(debugMode, sharedResourceFolderPath, GetBundleFiles));
-						substitutionHandlers.Add(new CommentSubstitution());
-						substitutionHandlers.Add(new AntiForgeryTokenSubstitution(CreateAntiForgeryToken));
-						substitutionHandlers.Add(new HeadSubstitution());
-
-						if (File.Exists(cacheFilePath) && !debugMode)
-							viewCache = File.ReadAllText(cacheFilePath);
-
-						ViewEngine = new ViewEngine(appRoot, GetViewRoots(), dirHandlers, substitutionHandlers, viewCache);
-
-						if (string.IsNullOrEmpty(viewCache) || debugMode)
-							UpdateCache(cacheFilePath);
-
-						engineAppState[viewEngineSessionName] = ViewEngine;
-					}
-					else if (ViewEngine.CacheUpdated || !Directory.Exists(cachePath) || !File.Exists(cacheFilePath))
+					if (string.IsNullOrEmpty(viewCache) || debugMode)
 						UpdateCache(cacheFilePath);
-					#endregion
-				}
 
-				AddApplication(engineAppStateSessionName, engineAppState);
-				AddSession(engineSessionStateSessionName, engineSessionState);
+					engineAppState[viewEngineSessionName] = ViewEngine;
+				}
+				else if (ViewEngine.CacheUpdated || !Directory.Exists(cachePath) || !File.Exists(cacheFilePath))
+					UpdateCache(cacheFilePath);
+				#endregion
 			}
 
+			AddApplication(engineAppStateSessionName, engineAppState);
+			AddSession(engineSessionStateSessionName, engineSessionState);
+			
 			currentUser = users.FirstOrDefault(x => x.SessionId == sessionID);
 
 			#region PROCESS REQUEST / RENDER RESPONSE
@@ -2657,11 +2645,15 @@ namespace Aurora
 
 		public StringBuilder Process(ViewCompilerDirectiveInfo directiveInfo)
 		{
-			if (directiveInfo.Directive == "Bundle")
+			string bundleName = directiveInfo.Value;
+
+			if (directiveInfo.Directive == "Include")
+			{
+				directiveInfo.Content.Replace(directiveInfo.Match.Groups[0].Value, ProcessBundleLink(bundleName));
+			}
+			else if (directiveInfo.Directive == "Bundle")
 			{
 				StringBuilder fileLinkBuilder = new StringBuilder();
-
-				string bundleName = directiveInfo.Value;
 
 				if (bundleLinkResults.ContainsKey(bundleName))
 					fileLinkBuilder.AppendLine(bundleLinkResults[bundleName]);

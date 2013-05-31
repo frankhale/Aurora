@@ -6,7 +6,7 @@
 //	A thin wrapper around the ASP.NET Request/Reponse objects to make it easier
 //	to disconnect applications from the intrinsics of the HttpContext.
 //
-// Date: 24 May 2013
+// Date: 30 May 2013
 //
 // Contact Info:
 //
@@ -93,7 +93,7 @@ using Microsoft.Web.Infrastructure.DynamicValidationHelper;
 //[assembly: AssemblyCopyright("Copyright © 2012-2013 | LICENSE GNU GPLv3")]
 //[assembly: ComVisible(false)]
 //[assembly: CLSCompliant(true)]
-//[assembly: AssemblyVersion("0.0.16.0")]
+//[assembly: AssemblyVersion("0.0.17.0")]
 //#endif
 
 namespace AspNetAdapter
@@ -279,26 +279,12 @@ namespace AspNetAdapter
 			Dictionary<string, object> app = InitializeApplicationDictionary();
 			Dictionary<string, object> request = InitializeRequestDictionary();
 
-			if (context.Application["__HOT__"] == null)
-			{
-				IAspNetAdapterApplication _appInstance = (IAspNetAdapterApplication)Activator.CreateInstance(adapterApp);
+			IAspNetAdapterApplication _appInstance = (IAspNetAdapterApplication)Activator.CreateInstance(adapterApp);
 
-				if (firstRun)
-					lock (syncInitLock) _appInstance.Init(app, request, ResponseCallback);
-				else
-					_appInstance.Init(app, request, ResponseCallback);
-
-				context.Application.Lock();
-				context.Application["__HOT__"] = _appInstance;
-				context.Application.UnLock();
-			}
+			if (firstRun)
+				lock (syncInitLock) _appInstance.Init(app, request, ResponseCallback);
 			else
-			{
-				app["HotLoaded"] = true;
-
-				IAspNetAdapterApplication _appInstance = context.Application["__HOT__"] as IAspNetAdapterApplication;
 				_appInstance.Init(app, request, ResponseCallback);
-			}
 		}
 
 		#region REQUEST/APPLICATION DICTIONARY INITIALIZATION
