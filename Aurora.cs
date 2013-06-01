@@ -1,7 +1,12 @@
 ﻿//
 // Aurora - A Tiny MVC web framework for .NET
 //
-// Updated On: 30 May 2013
+// Updated On: 31 May 2013
+//
+// NOTE: 
+//
+//	I've started to add comments throughout the code to provide some commentary on
+//  what is going on. This commentary is not meant to supplant formal documentation.
 //
 // Contact Info:
 //
@@ -84,17 +89,19 @@ using Yahoo.Yui.Compressor;
 [assembly: AssemblyCopyright("Copyright © 2011-2013 | LICENSE GNU GPLv3")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("2.0.37.0")]
+[assembly: AssemblyVersion("2.0.38.0")]
 #endregion
 
 namespace Aurora
 {
 	#region ATTRIBUTES
+	// None isn't really used other than to provide a default when used within the HttpAttribute
 	public enum ActionSecurity { Secure, None }
 
 	#region HTTP REQUEST
 	public enum ActionType { Get, Post, Put, Delete, FromRedirectOnly, GetOrPost }
 
+	// This is the obligatory attribute that is used to provide meta information for controller actions
 	public class HttpAttribute : Attribute
 	{
 		public bool RequireAntiForgeryToken { get; set; }
@@ -123,6 +130,7 @@ namespace Aurora
 	#endregion
 
 	#region MISCELLANEOUS
+	// This can be used to provide more than one alias to a controller action
 	[AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
 	public sealed class AliasAttribute : Attribute
 	{
@@ -134,6 +142,9 @@ namespace Aurora
 		}
 	}
 
+	// Partitions allow you declare that a controller's views will be segrated outside
+	// of the global views directory into it's own directory. The name of this directory
+	// is the same as the controller.
 	[AttributeUsage(AttributeTargets.Class)]
 	public sealed class PartitionAttribute : Attribute
 	{
@@ -145,18 +156,29 @@ namespace Aurora
 		}
 	}
 
+	// Used inside a model to denote that will not be shown if an HTML helper such as the 
+	// HTMLTable helper is used to construct a UI representation from a collection of a 
+	// particular model.
 	[AttributeUsage(AttributeTargets.Property)]
 	public sealed class HiddenAttribute : Attribute { }
 
+	// This denotes that a Model property is not required in a HTTP Post if you are using
+	// the model as the container for the post parameters.
 	[AttributeUsage(AttributeTargets.Property)]
 	public sealed class NotRequiredAttribute : Attribute { }
 
+	// This denotes that a model property cannot be bound to from an HTTP Post if you are using
+	// the model as the container for the post parameters.
 	[AttributeUsage(AttributeTargets.Property)]
 	public sealed class ExcludeFromBindingAttribute : Attribute { }
 
+	// This denotes that a model property can have unsafe content such as HTML or javascript if
+	// you are using the model as the container for post parameters.
 	[AttributeUsage(AttributeTargets.Property | AttributeTargets.Parameter)]
 	public sealed class UnsafeAttribute : Attribute { }
 
+	// This denotes that a transformation is necessary to transform incoming posted data into
+	// another type.
 	[AttributeUsage(AttributeTargets.Parameter)]
 	public sealed class ActionParameterTransformAttribute : Attribute
 	{
@@ -181,11 +203,15 @@ namespace Aurora
 		}
 	}
 
+	// This is used to denote that a model property is required during a post if you are using
+	// the model as a container for the post parameters.
 	public sealed class RequiredAttribute : ModelValidationBaseAttribute
 	{
 		public RequiredAttribute(string errorMessage) : base(errorMessage) { }
 	}
 
+	// This is used to denote that a model property has a required length during a post if you 
+	// are using the model as a container for the post parameters.
 	public sealed class RequiredLengthAttribute : ModelValidationBaseAttribute
 	{
 		public int Length { get; private set; }
@@ -197,6 +223,8 @@ namespace Aurora
 		}
 	}
 
+	// This is used to denote that a model property must conform to a regular expression during 
+	// a post if you are using the model as a container for the post parameters.
 	public sealed class RegularExpressionAttribute : ModelValidationBaseAttribute
 	{
 		public Regex Pattern { get; set; }
@@ -208,6 +236,8 @@ namespace Aurora
 		}
 	}
 
+	// This is used to denote that a model property must conform to the specified range during 
+	// a post if you are using the model as a container for the post parameters.
 	public sealed class RangeAttribute : ModelValidationBaseAttribute
 	{
 		public int Min { get; private set; }
@@ -223,25 +253,42 @@ namespace Aurora
 	#endregion
 	#endregion
 
+	#region FRAMEWORK ENGINE STATE
+	// EngineAppState maps to state that is stored in the ASP.NET Application store.
+	internal class EngineAppState
+	{
+		public ViewEngine ViewEngine { get; set; }
+		public List<User> Users { get; set; }
+		public List<string> AntiForgeryTokens { get; set; }
+		public Dictionary<string, string> ProtectedFiles { get; set; }
+		public Dictionary<string, object> ControllersSession { get; set; }
+		public List<Type> Models { get; set; }
+	}
+
+	// EngineSessionState maps to state that is stored in the ASP.NET Session store.
+	internal class EngineSessionState
+	{
+		public FrontController FrontController { get; set; }
+		public List<Controller> Controllers { get; set; }
+		public bool FromRedirectOnly { get; set; }
+		public User CurrentUser { get; set; }
+		public Dictionary<string, Dictionary<string, List<object>>> ActionBindings { get; set; }
+		public Dictionary<string, Tuple<List<string>, string>> Bundles { get; set; }
+		// This is kind of debatable at the moment, should RouteInfos be stored in a per user
+		// session or globally in the application store? I've flip flopped on this numerous times!
+		public List<RouteInfo> RouteInfos { get; set; }
+	}
+	#endregion
+
 	#region FRAMEWORK ENGINE
 	internal class Engine : IAspNetAdapterApplication
 	{
 		#region SESSION NAMES
 		private static string engineAppStateSessionName = "__ENGINE_APP_STATE__";
 		private static string engineSessionStateSessionName = "__ENGINE_SESSION_STATE__";
-		private static string viewEngineSessionName = "__ViewEngine";
-		private static string fromRedirectOnlySessionName = "__FromRedirectOnly";
-		private static string controllerInstancesSessionName = "__Controllers";
-		private static string frontControllerInstanceSessionName = "__FrontController";
 		private static string routeInfosSessionName = "__RouteInfos";
-		private static string actionBindingsSessionName = "__ActionBindings";
-		private static string usersSessionName = "__Users";
+		private static string fromRedirectOnlySessionName = "__FromRedirectOnly";
 		private static string currentUserSessionName = "__CurrentUser";
-		private static string antiForgeryTokensSessionName = "__AntiForgeryTokens";
-		private static string bundlesTokenSessionName = "__Bundles";
-		private static string modelsSessionName = "__Models";
-		private static string protectedFilesSessionName = "__ProtectedFiles";
-		private static string controllersSessionSessionName = "__ControllersSession";
 		#endregion
 
 		#region ASP.NET ADAPTER STUFF
@@ -278,8 +325,8 @@ namespace Aurora
 		private Dictionary<string, object> controllersSession;
 		internal User currentUser;
 		private string cachePath, cacheFilePath;
-		private Dictionary<string, object> engineAppState;
-		private Dictionary<string, object> engineSessionState;
+		private EngineAppState engineAppState;
+		private EngineSessionState engineSessionState;
 		private RouteInfo currentRoute;
 		#endregion
 
@@ -292,8 +339,8 @@ namespace Aurora
 			this.response = response;
 
 			#region INITIALIZE LOCALS FROM APP/REQUEST AND MISC
-			engineAppState = GetApplication(engineAppStateSessionName) as Dictionary<string, object> ?? new Dictionary<string, object>();
-			engineSessionState = GetSession(engineSessionStateSessionName) as Dictionary<string, object> ?? new Dictionary<string, object>();
+			engineAppState = GetApplication(engineAppStateSessionName) as EngineAppState ?? new EngineAppState();
+			engineSessionState = GetSession(engineSessionStateSessionName) as EngineSessionState ?? new EngineSessionState();
 
 			requestType = request[HttpAdapterConstants.RequestMethod].ToString().ToLower();
 			appRoot = request[HttpAdapterConstants.RequestPathBase].ToString();
@@ -307,7 +354,6 @@ namespace Aurora
 			payload = request[HttpAdapterConstants.RequestBody] as Dictionary<string, string>;
 			files = request[HttpAdapterConstants.RequestFiles] as List<PostedFile>;
 			queryString = request[HttpAdapterConstants.RequestQueryString] as Dictionary<string, string>;
-			fromRedirectOnly = Convert.ToBoolean(GetSession(fromRedirectOnlySessionName));
 			debugMode = Convert.ToBoolean(app[HttpAdapterConstants.DebugMode]);
 			serverError = app[HttpAdapterConstants.ServerError] as Exception;
 			clientCertificate = request[HttpAdapterConstants.RequestClientCertificate] as X509Certificate2;
@@ -316,18 +362,18 @@ namespace Aurora
 			#endregion
 
 			#region GET OBJECTS FROM APPLICATION SESSION STORE
-			ViewEngine = (engineAppState.ContainsKey(viewEngineSessionName)) ? engineAppState[viewEngineSessionName] as ViewEngine : null;
-			controllers = (engineSessionState.ContainsKey(controllerInstancesSessionName)) ? engineSessionState[controllerInstancesSessionName] as List<Controller> : null;
-			frontController = (engineSessionState.ContainsKey(frontControllerInstanceSessionName)) ? engineSessionState[frontControllerInstanceSessionName] as FrontController : null;
-			routeInfos = (engineSessionState.ContainsKey(routeInfosSessionName)) ? engineSessionState[routeInfosSessionName] as List<RouteInfo> : null;
-			actionBindings = (engineSessionState.ContainsKey(actionBindingsSessionName)) ? engineSessionState[actionBindingsSessionName] as Dictionary<string, Dictionary<string, List<object>>> : null;
-			users = (engineAppState.ContainsKey(usersSessionName)) ? engineAppState[usersSessionName] as List<User> : null;
-			antiForgeryTokens = (engineAppState.ContainsKey(antiForgeryTokensSessionName)) ? engineAppState[antiForgeryTokensSessionName] as List<string> : null;
-			bundles = (engineSessionState.ContainsKey(bundlesTokenSessionName)) ? engineSessionState[bundlesTokenSessionName] as Dictionary<string, Tuple<List<string>, string>> : null;
-			models = (engineAppState.ContainsKey(modelsSessionName)) ? engineAppState[modelsSessionName] as List<Type> : null;
-			fromRedirectOnly = (engineSessionState.ContainsKey(fromRedirectOnlySessionName)) ? Convert.ToBoolean(engineSessionState[fromRedirectOnlySessionName]) : false;
-			protectedFiles = (engineAppState.ContainsKey(protectedFilesSessionName)) ? engineAppState[protectedFilesSessionName] as Dictionary<string, string> : null;
-			controllersSession = (engineAppState.ContainsKey(controllersSessionSessionName)) ? engineAppState[controllersSessionSessionName] as Dictionary<string, object> : null;
+			ViewEngine = engineAppState.ViewEngine;
+			controllers = engineSessionState.Controllers;
+			frontController = engineSessionState.FrontController;
+			routeInfos = engineSessionState.RouteInfos;
+			actionBindings = engineSessionState.ActionBindings;
+			users = engineAppState.Users;
+			antiForgeryTokens = engineAppState.AntiForgeryTokens;
+			bundles = engineSessionState.Bundles;
+			models = engineAppState.Models;
+			fromRedirectOnly = engineSessionState.FromRedirectOnly;
+			protectedFiles = engineAppState.ProtectedFiles;
+			controllersSession = engineAppState.ControllersSession;
 			#endregion
 
 			#region INITIALIZE MISCELLANEOUS
@@ -342,7 +388,7 @@ namespace Aurora
 			if (users == null)
 			{
 				users = new List<User>();
-				engineAppState[usersSessionName] = users;
+				engineAppState.Users = users;
 			}
 			#endregion
 
@@ -350,7 +396,7 @@ namespace Aurora
 			if (antiForgeryTokens == null)
 			{
 				antiForgeryTokens = new List<string>();
-				engineAppState[antiForgeryTokensSessionName] = antiForgeryTokens;
+				engineAppState.AntiForgeryTokens = antiForgeryTokens;
 			}
 			#endregion
 
@@ -358,7 +404,7 @@ namespace Aurora
 			if (models == null)
 			{
 				models = GetTypeList(typeof(Model));
-				engineAppState[modelsSessionName] = models;
+				engineAppState.Models = models;
 			}
 			#endregion
 
@@ -366,7 +412,7 @@ namespace Aurora
 			if (controllersSession == null)
 			{
 				controllersSession = new Dictionary<string, object>();
-				engineAppState[controllersSessionSessionName] = controllersSession;
+				engineAppState.ControllersSession = controllersSession;
 			}
 			#endregion
 
@@ -374,7 +420,7 @@ namespace Aurora
 			if (protectedFiles == null)
 			{
 				protectedFiles = new Dictionary<string, string>();
-				engineAppState[protectedFilesSessionName] = protectedFiles;
+				engineAppState.ProtectedFiles = protectedFiles;
 			}
 			#endregion
 
@@ -382,7 +428,7 @@ namespace Aurora
 			if (actionBindings == null)
 			{
 				actionBindings = new Dictionary<string, Dictionary<string, List<object>>>();
-				engineSessionState[actionBindingsSessionName] = actionBindings;
+				engineSessionState.ActionBindings = actionBindings;
 			}
 			#endregion
 
@@ -390,7 +436,7 @@ namespace Aurora
 			if (bundles == null)
 			{
 				bundles = new Dictionary<string, Tuple<List<string>, string>>();
-				engineSessionState[bundlesTokenSessionName] = bundles;
+				engineSessionState.Bundles = bundles;
 			}
 			#endregion
 
@@ -398,20 +444,20 @@ namespace Aurora
 			if (frontController == null)
 			{
 				frontController = GetFrontControllerInstance();
-				engineSessionState[frontControllerInstanceSessionName] = frontController;
+				engineSessionState.FrontController = frontController;
 			}
 			else
-				frontController.Refresh(this);
+				frontController.engine = this;
 			#endregion
 
 			#region INITIALIZE CONTROLLER INSTANCES
 			if (controllers == null)
 			{
 				controllers = GetControllerInstances();
-				engineSessionState[controllerInstancesSessionName] = controllers;
+				engineSessionState.Controllers = controllers;
 			}
 			else
-				controllers.ForEach(c => c.Refresh(this));
+				controllers.ForEach(c => c.engine = this);
 			#endregion
 
 			#region RUN ALL CONTROLLER ONINIT METHODS
@@ -428,7 +474,8 @@ namespace Aurora
 				{
 					routeInfos.Clear();
 					routeInfos.AddRange(GetRouteInfos());
-					engineSessionState[routeInfosSessionName] = routeInfos;
+					engineSessionState.RouteInfos = routeInfos;
+					AddSession(routeInfosSessionName, routeInfos);
 
 					if (frontController != null)
 						frontController.RaiseEvent(RouteHandlerEventType.PostRoutesDiscovery, path, null, routeInfos);
@@ -436,7 +483,7 @@ namespace Aurora
 				#endregion
 
 				#region INITIALIZE VIEW ENGINE
-				if (ViewEngine == null || debugMode)
+				if (ViewEngine == null)
 				{
 					string viewCache = null;
 					List<IViewCompilerDirectiveHandler> dirHandlers = new List<IViewCompilerDirectiveHandler>();
@@ -455,10 +502,10 @@ namespace Aurora
 
 					ViewEngine = new ViewEngine(appRoot, GetViewRoots(), dirHandlers, substitutionHandlers, viewCache);
 
-					if (string.IsNullOrEmpty(viewCache) || debugMode)
+					if (string.IsNullOrEmpty(viewCache))
 						UpdateCache(cacheFilePath);
 
-					engineAppState[viewEngineSessionName] = ViewEngine;
+					engineAppState.ViewEngine = ViewEngine;
 				}
 				else if (ViewEngine.CacheUpdated || !Directory.Exists(cachePath) || !File.Exists(cacheFilePath))
 					UpdateCache(cacheFilePath);
@@ -1343,6 +1390,11 @@ namespace Aurora
 		#endregion
 
 		#region ASP.NET ADAPTER CALLBACKS
+
+		// All of these methods are callbacks that are defined in the AspNetAdapter class. 
+		// they call their ASP.NET counterparts to access the ASP.NET Application and Session
+		// stores as well as obtain querystring, unvalidated form fields and access the Cache.
+
 		public object GetApplication(string key)
 		{
 			if (app.ContainsKey(HttpAdapterConstants.ApplicationSessionStoreGetCallback) &&
@@ -1450,28 +1502,47 @@ namespace Aurora
 	#endregion
 
 	#region ROUTE INFO
+	// This contains all the information necessary to associate a route with a controller method
+	// this also contains extra information pertaining to parameters we may want to pass the method
+	// at the time of invocation.
 	public class RouteInfo
 	{
+		// A list of string aliases eg. /Index, /Foo, /Bar that we want to use in order to navigate
+		// from a URL to the controller action that it represents.
 		public List<string> Aliases { get; internal set; }
 		public MethodInfo Action { get; internal set; }
 		public Controller Controller { get; internal set; }
 		public HttpAttribute RequestTypeAttribute { get; internal set; }
+		// The parameters passed in the URL eg. anything that is not the alias or querystring
+		// action parameters are delimited like /alias/param1/param2/param3
 		public object[] ActionParams { get; internal set; }
+		// The parameters that are bound to this action that are declared in an OnInit method of 
+		// the constructor
 		public object[] BoundParams { get; internal set; }
+		// Default parameters are used if you want to mask a more complex URL with just an alias
 		public object[] DefaultParams { get; internal set; }
 		public IBoundToAction[] IBoundToActionParams { get; internal set; }
 		public List<Tuple<ActionParameterTransformAttribute, int>> ActionParamTransforms { get; internal set; }
 		public Dictionary<string, object> CachedActionParamTransformInstances { get; internal set; }
+		// Routes that are created by the framework are not dynamic. Dynamic routes are created 
+		// in the controller.
 		public bool Dynamic { get; internal set; }
 	}
 	#endregion
 
 	#region ACTION PARAMETER TRANSFORM
+	// Parameters can be transformed from an incoming representation to another representation
+	// by implementing this interface and denoting the parameter in the action with the ActionParameterTransform
+	// Attribute. The ActionParameterTransform takes a parameter that is the string name of the class
+	// that will perform the transformation.
 	public interface IActionParamTransform<T, V>
 	{
+		// This method will perform the transformation and return the result.
 		T Transform(V value);
 	}
 
+	// Used internally to store information pertaining to action parameters transforms. This is 
+	// used in the logic that processes the parameter transforms.
 	internal class ActionParameterInfo
 	{
 		public Dictionary<string, object> ActionParamTransformInstances { get; set; }
@@ -1482,6 +1553,10 @@ namespace Aurora
 	#region ACTION FILTER
 	public interface IActionFilterResult { }
 
+	// Action filters are special classes that subclass this attribute and are used by denoting 
+	// a controller action with your subclassed attribute. Action filters can optionally pass
+	// parameters to the action or redirect to other actions or even perform logon or logoff
+	// capabilities.
 	[AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
 	public abstract class ActionFilterAttribute : Attribute
 	{
@@ -1518,6 +1593,9 @@ namespace Aurora
 	#endregion
 
 	#region ACTION BINDINGS
+	// objects can be bound to the parameter list of an action. These objects can optionally
+	// implement this interface and the Initialize(RouteInfo) method will be called each time
+	// an action using the bound object. 
 	public interface IBoundToAction
 	{
 		void Initialize(RouteInfo routeInfo);
@@ -1525,6 +1603,13 @@ namespace Aurora
 	#endregion
 
 	#region MODEL
+	// Models in the sense of Aurora are more of an intermediate mechanism in order to transition
+	// from one state to another. For instance from a form post to an action so that all parameters
+	// are grouped into a model instance or from a collection to a view for instance when using
+	// the HTMLTable helper. 
+	//
+	// Models have the obligatory set of property validators, Required, Required Length, Regular Expression
+	// and Range attributes.
 	public abstract class Model
 	{
 		[Hidden]
@@ -1778,9 +1863,11 @@ namespace Aurora
 	}
 	#endregion
 
+	// All of the base controller infrastructure is defined here. This is the starting point
+	// for the Front Controller and the Controller classes.
 	public abstract class BaseController
 	{
-		internal Engine engine;
+		internal Engine engine { get; set; }
 
 		public Dictionary<string, object> Request { get { return engine.request.ToDictionary(x => x.Key, x => x.Value); } }
 		public User CurrentUser { get { return engine.currentUser; } }
@@ -1811,11 +1898,6 @@ namespace Aurora
 				OnInit(this, null);
 				OnInit = null; // we only want OnInit called once per controller instantiation
 			}
-		}
-
-		internal virtual void Refresh(Engine engine)
-		{
-			this.engine = engine;
 		}
 
 		#region WRAPPERS AROUND ENGINE METHS/PROPS
@@ -1938,6 +2020,8 @@ namespace Aurora
 		#endregion
 	}
 
+	// The front controller is for all intents and purposes a master controller that can intercept
+	// requests and perform various functions before a controller action is invoked. 
 	public abstract class FrontController : BaseController
 	{
 		protected event EventHandler<RouteHandlerEventArgs> OnPreActionEvent,
@@ -2278,7 +2362,7 @@ namespace Aurora
 
 		public ViewResponse Render()
 		{
-			return (string.IsNullOrEmpty(view)) ? null :
+			return (string.IsNullOrEmpty(view)) ? null : 
 				new ViewResponse() { ContentType = "text/html", Content = view, Headers = headers };
 		}
 	}
@@ -3039,7 +3123,6 @@ namespace Aurora
 				}
 			}
 			else
-			//if (viewCache == null)
 			{
 				viewTemplates = viewTemplateLoader.Load();
 
