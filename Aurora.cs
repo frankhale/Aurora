@@ -89,7 +89,7 @@ using Yahoo.Yui.Compressor;
 [assembly: AssemblyCopyright("Copyright © 2011-2013 | LICENSE GNU GPLv3")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("2.0.38.0")]
+[assembly: AssemblyVersion("2.0.39.0")]
 #endregion
 
 namespace Aurora
@@ -609,7 +609,7 @@ namespace Aurora
 							requestType == "post" || requestType == "put" || requestType == "delete")
 					{
 						if (!(form.ContainsKey(antiForgeryTokenName) || payload.ContainsKey(antiForgeryTokenName)))
-							return null;
+							throw new Exception("An AntiForgeryToken is required on all forms by default.");
 						else
 						{
 							antiForgeryTokens.Remove(form[antiForgeryTokenName]);
