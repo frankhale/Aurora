@@ -1,12 +1,11 @@
 ﻿//
 // Aurora.Extra - Additional bits that may be useful in your applications      
 //
-// Updated On: 21 November 2012
+// Updated On: 3 June 2013
 //
 // Contact Info:
 //
 //  Frank Hale - <frankhale@gmail.com> 
-//               <http://about.me/frank.hale>
 //
 // LICENSE: Unless otherwise stated all code is under the GNU GPLv3
 // 
@@ -277,7 +276,6 @@ namespace Aurora.Extra
 	#endregion
 
 	#region HTML HELPERS
-
 	public enum HtmlInputType
 	{
 		[Metadata("<input type=\"button\" {0} />")]
@@ -894,6 +892,69 @@ namespace Aurora.Extra
 	}
 	#endregion
 
+	#region SPECIALIZED HELPERS
+	public class HtmlHelperTest : HtmlBase
+	{
+		public HtmlHelperTest(Controller c)
+		{
+			string css =
+@"
+.foobar 
+{ 
+	margin-top: 10px;
+	border: 2px solid red; 
+}";
+
+			c.AddHelperBundle("HtmlHelperTest.css", css);
+		}
+
+		public override string ToString()
+		{
+			return "<span class=\"foobar\">Hello, World!</span>";
+		}
+	}
+
+	public class HtmlUserNameAndPasswordForm : HtmlBase
+	{
+		string applicationTitle;
+		string loginAlias;
+
+		public HtmlUserNameAndPasswordForm(Controller c, string loginAlias, string applicationTitle)
+		{
+			this.loginAlias = loginAlias;
+			this.applicationTitle = applicationTitle;
+
+			string css =
+@"
+.userNameAndPassword {
+	margin: 0 auto; 
+	width: 155px;  
+	text-align: center;  
+}
+";
+
+			c.AddHelperBundle("HtmlUserNameAndPasswordForm.css", css);
+		}
+
+		public override string ToString()
+		{
+			return
+string.Format(@"
+<div class=""userNameAndPassword"">
+	<h1>{0}</h1>
+	<form action=""{1}"" method=""post"">
+		<input type=""hidden"" name=""AntiForgeryToken"" value=""%%AntiForgeryToken%%"" />
+		<table>
+		<tr><td>UserName:<br /><input type=""text"" name=""UserName"" id=""UserName"" /></td></tr>
+		<tr><td>Password:<br /><input type=""password"" name=""Password"" id=""Password"" /></td></tr>
+		<tr><td><input type=""submit"" value=""Login"" /></td></tr>
+		</table>
+	</form>
+</div>
+", applicationTitle, loginAlias);
+		}
+	}
+	#endregion
 	#endregion
 
 	#region PLUGIN MANAGEMENT
@@ -1931,7 +1992,7 @@ namespace Aurora.Extra
 		}
 	}
 #endif
-	#endregion	
+	#endregion
 
 	#region ACTIVE DIRECTORY
 #if ACTIVEDIRECTORY

@@ -1,12 +1,14 @@
 ﻿//
 // Aurora - A Tiny MVC web framework for .NET
 //
-// Updated On: 31 May 2013
+// Updated On: 3 June 2013
 //
 // NOTE: 
 //
 //	I've started to add comments throughout the code to provide some commentary on
 //  what is going on. This commentary is not meant to supplant formal documentation.
+//
+//  Best way to see how to use Aurora is by looking at Miranda which is a small wiki.
 //
 // Contact Info:
 //
@@ -36,6 +38,7 @@
 // - Actions can have aliases. Aliases can also be added dynamically at runtime
 //   along with default parameters.
 // - Bundling/Minifying of Javascript and CSS.
+// - Html Helpers
 //
 
 #region LICENSE - GPL version 3 <http://www.gnu.org/licenses/gpl-3.0.html>
@@ -74,7 +77,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Web;
-using System.Web.Caching;
+using System.Xml.Linq;
 
 using AspNetAdapter;
 using MarkdownSharp;
@@ -89,7 +92,7 @@ using Yahoo.Yui.Compressor;
 [assembly: AssemblyCopyright("Copyright © 2011-2013 | LICENSE GNU GPLv3")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("2.0.39.0")]
+[assembly: AssemblyVersion("2.0.40.0")]
 #endregion
 
 namespace Aurora
@@ -274,6 +277,7 @@ namespace Aurora
 		public User CurrentUser { get; set; }
 		public Dictionary<string, Dictionary<string, List<object>>> ActionBindings { get; set; }
 		public Dictionary<string, Tuple<List<string>, string>> Bundles { get; set; }
+		public Dictionary<string, StringBuilder> HelperBundles { get; set; }
 		// This is kind of debatable at the moment, should RouteInfos be stored in a per user
 		// session or globally in the application store? I've flip flopped on this numerous times!
 		public List<RouteInfo> RouteInfos { get; set; }
@@ -307,6 +311,7 @@ namespace Aurora
 
 		#region MISCELLANEOUS VARIABLES
 		private static Regex allowedFilePattern = new Regex(@"^.*\.(js|css|png|jpg|gif|ico|pptx|xlsx|csv|txt)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+		private static Regex cssOrJSExtPattern = new Regex(@"^.*\.(js|css)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 		private static string sharedResourceFolderPath = "/Resources";
 		private static string compiledViewsCacheFolderPath = "/Views/Cache";
 		private static string compiledViewsCacheFileName = "viewsCache.json";
@@ -321,6 +326,7 @@ namespace Aurora
 		private List<Type> models;
 		private Dictionary<string, Dictionary<string, List<object>>> actionBindings;
 		private Dictionary<string, Tuple<List<string>, string>> bundles;
+		private Dictionary<string, StringBuilder> helperBundles;
 		private Dictionary<string, string> protectedFiles;
 		private Dictionary<string, object> controllersSession;
 		internal User currentUser;
@@ -374,6 +380,7 @@ namespace Aurora
 			fromRedirectOnly = engineSessionState.FromRedirectOnly;
 			protectedFiles = engineAppState.ProtectedFiles;
 			controllersSession = engineAppState.ControllersSession;
+			helperBundles = engineSessionState.HelperBundles;
 			#endregion
 
 			#region INITIALIZE MISCELLANEOUS
@@ -440,6 +447,14 @@ namespace Aurora
 			}
 			#endregion
 
+			#region INITIALIZE HELPER BUNDLES
+			if (helperBundles == null)
+			{
+				helperBundles = new Dictionary<string, StringBuilder>();
+				engineSessionState.HelperBundles = helperBundles;
+			}
+			#endregion
+
 			#region INTIALIZE FRONT CONTROLLER
 			if (frontController == null)
 			{
@@ -483,7 +498,7 @@ namespace Aurora
 				#endregion
 
 				#region INITIALIZE VIEW ENGINE
-				if (ViewEngine == null)
+				if (ViewEngine == null || debugMode)
 				{
 					string viewCache = null;
 					List<IViewCompilerDirectiveHandler> dirHandlers = new List<IViewCompilerDirectiveHandler>();
@@ -493,6 +508,7 @@ namespace Aurora
 					dirHandlers.Add(new PlaceHolderDirective());
 					dirHandlers.Add(new PartialPageDirective());
 					dirHandlers.Add(new BundleDirective(debugMode, sharedResourceFolderPath, GetBundleFiles));
+					substitutionHandlers.Add(new HelperBundleDirective(sharedResourceFolderPath, GetHelperBundle));
 					substitutionHandlers.Add(new CommentSubstitution());
 					substitutionHandlers.Add(new AntiForgeryTokenSubstitution(CreateAntiForgeryToken));
 					substitutionHandlers.Add(new HeadSubstitution());
@@ -502,7 +518,7 @@ namespace Aurora
 
 					ViewEngine = new ViewEngine(appRoot, GetViewRoots(), dirHandlers, substitutionHandlers, viewCache);
 
-					if (string.IsNullOrEmpty(viewCache))
+					if (string.IsNullOrEmpty(viewCache) || debugMode)
 						UpdateCache(cacheFilePath);
 
 					engineAppState.ViewEngine = ViewEngine;
@@ -514,7 +530,7 @@ namespace Aurora
 
 			AddApplication(engineAppStateSessionName, engineAppState);
 			AddSession(engineSessionStateSessionName, engineSessionState);
-			
+
 			currentUser = users.FirstOrDefault(x => x.SessionId == sessionID);
 
 			#region PROCESS REQUEST / RENDER RESPONSE
@@ -572,6 +588,8 @@ namespace Aurora
 
 							if (bundles.ContainsKey(fileName))
 								viewResponse = new FileResult(fileName, bundles[fileName].Item2).Render();
+							else if (helperBundles.ContainsKey(fileName))
+								viewResponse = new FileResult(fileName, helperBundles[fileName].ToString()).Render();
 						}
 					}
 				}
@@ -1095,9 +1113,51 @@ namespace Aurora
 			}
 		}
 
+		// Helper bundles are a special mechanism that will allow HtmlHelpers to inject CSS or JS when
+		// they are used. This also provides a nice way to package up controls that can be used over
+		// and over.
+		internal void AddHelperBundle(string name, string code)
+		{
+			helperBundles[name] = new StringBuilder(code);
+
+			if (!debugMode)
+			{
+				var match = cssOrJSExtPattern.Match(name);
+
+				if (match.Value.EndsWith(".js"))
+				{
+					try
+					{
+						if (!helperBundles[name].ToString().Contains(code))
+							helperBundles[name].AppendLine(new JavaScriptCompressor().Compress(code));
+					}
+					catch { throw; }
+				}
+				else if (match.Value.EndsWith(".css"))
+				{
+					try
+					{
+						if (!helperBundles[name].ToString().Contains(code))
+							helperBundles[name].AppendLine(new CssCompressor().Compress(code));
+					}
+					catch { throw; }
+				}
+			}
+			else
+			{
+				if (!helperBundles[name].ToString().Contains(code))
+					helperBundles[name].AppendLine(code);
+			}
+		}
+
 		internal string[] GetBundleFiles(string name)
 		{
 			return (bundles.ContainsKey(name)) ? bundles[name].Item1.ToArray() : null;
+		}
+
+		internal Dictionary<string, StringBuilder> GetHelperBundle()
+		{
+			return helperBundles;
 		}
 
 		internal void AddBinding(string controllerName, string actionName, object bindInstance)
@@ -1949,6 +2009,10 @@ namespace Aurora
 		{
 			engine.AddBundle(name, paths);
 		}
+		public void AddHelperBundle(string name, string data)
+		{
+			engine.AddHelperBundle(name, data);
+		}
 		protected void LogOn(string id, string[] roles, object archeType = null)
 		{
 			engine.LogOn(id, roles, archeType);
@@ -2117,8 +2181,8 @@ namespace Aurora
 	{
 		internal string PartitionName { get; set; }
 		internal HttpAttribute HttpAttribute { get; set; }
-		protected Dictionary<string, string> ViewTags { get; private set; }
-		protected Dictionary<string, Dictionary<string, string>> FragTags { get; private set; }
+		public Dictionary<string, string> ViewTags { get; private set; }
+		public Dictionary<string, Dictionary<string, string>> FragTags { get; private set; }
 		public dynamic ViewBag { get; private set; }
 		public dynamic FragBag { get; private set; }
 
@@ -2362,7 +2426,7 @@ namespace Aurora
 
 		public ViewResponse Render()
 		{
-			return (string.IsNullOrEmpty(view)) ? null : 
+			return (string.IsNullOrEmpty(view)) ? null :
 				new ViewResponse() { ContentType = "text/html", Content = view, Headers = headers };
 		}
 	}
@@ -2441,6 +2505,11 @@ namespace Aurora
 	#endregion
 
 	#region VIEW ENGINE
+	#region INTERFACES AND ENUMS
+	// This determines at what point the view compiler runs the particular 
+	// transformation on the template.
+	internal enum DirectiveProcessType { Compile, AfterCompile, Render }
+
 	internal interface IViewCompiler
 	{
 		List<TemplateInfo> CompileAll();
@@ -2448,96 +2517,13 @@ namespace Aurora
 		TemplateInfo Render(string fullName, Dictionary<string, string> tags);
 	}
 
-	internal enum DirectiveProcessType { Compile, AfterCompile, Render }
-
-	internal class TemplateInfo
+	public interface IViewEngine
 	{
-		public string Name { get; set; }
-		public string FullName { get; set; }
-		public string Path { get; set; }
-		public string Template { get; set; }
-		public string TemplateMD5sum { get; set; }
-		public string Result { get; set; }
+		string LoadView(string fullName, Dictionary<string, string> tags);
+		string GetCache();
+		bool CacheUpdated { get; }
 	}
-
-	internal class TemplateLoader
-	{
-		private string appRoot;
-		private string[] viewRoots;
-
-		public TemplateLoader(string appRoot,
-													string[] viewRoots)
-		{
-			appRoot.ThrowIfArgumentNull();
-
-			this.appRoot = appRoot;
-			this.viewRoots = viewRoots;
-		}
-
-		public List<TemplateInfo> Load()
-		{
-			List<TemplateInfo> templates = new List<TemplateInfo>();
-
-			foreach (string viewRoot in viewRoots)
-			{
-				string path = Path.Combine(appRoot, viewRoot);
-
-				if (Directory.Exists(path))
-					foreach (FileInfo fi in GetAllFiles(new DirectoryInfo(path), "*.html"))
-						templates.Add(Load(fi.FullName));
-			}
-
-			return templates;
-		}
-
-		// This code was adapted to work with FileInfo/DirectoryInfo but was originally from the following question on SO:
-		// http://stackoverflow.com/questions/929276/how-to-recursively-list-all-the-files-in-a-directory-in-c
-		public static IEnumerable<FileInfo> GetAllFiles(DirectoryInfo dirInfo, string searchPattern = "")
-		{
-			Queue<string> queue = new Queue<string>();
-			queue.Enqueue(dirInfo.FullName);
-
-			while (queue.Count > 0)
-			{
-				string path = queue.Dequeue();
-
-				foreach (string subDir in Directory.GetDirectories(path))
-					queue.Enqueue(subDir);
-
-				FileInfo[] fileInfos = new DirectoryInfo(path).GetFiles(searchPattern);
-
-				if (fileInfos != null)
-					for (int i = 0; i < fileInfos.Length; i++)
-						yield return fileInfos[i];
-			}
-		}
-
-		public TemplateInfo Load(string path)
-		{
-			string viewRoot = viewRoots.FirstOrDefault(x => path.StartsWith(Path.Combine(appRoot, x)));
-
-			if (string.IsNullOrEmpty(viewRoot)) return null;
-
-			DirectoryInfo rootDir = new DirectoryInfo(viewRoot);
-
-			string extension = Path.GetExtension(path);
-			string templateName = Path.GetFileNameWithoutExtension(path);
-			string templateKeyName = path.Replace(rootDir.Parent.FullName, string.Empty)
-																	 .Replace(appRoot, string.Empty)
-																	 .Replace(extension, string.Empty)
-																	 .Replace("\\", "/").TrimStart('/');
-			string template = File.ReadAllText(path);
-
-			return new TemplateInfo()
-			{
-				TemplateMD5sum = template.CalculateMD5sum(),
-				FullName = templateKeyName,
-				Name = templateName,
-				Path = path,
-				Template = template
-			};
-		}
-	}
+	#endregion
 
 	#region DIRECTIVES AND SUBSTITUTIONS
 	internal interface IViewCompilerDirectiveHandler
@@ -2687,6 +2673,56 @@ namespace Aurora
 		}
 	}
 
+	internal class HelperBundleDirective : IViewCompilerSubstitutionHandler
+	{
+		public DirectiveProcessType Type { get; private set; }
+		private static string helperBundlesDirective = "%%HelperBundles%%";
+		private Func<Dictionary<string, StringBuilder>> getHelperBundles;
+		private string sharedResourceFolderPath;
+		private static string cssIncludeTag = "<link href=\"{0}\" rel=\"stylesheet\" type=\"text/css\" />";
+		private static string jsIncludeTag = "<script src=\"{0}\" type=\"text/javascript\"></script>";
+
+		public HelperBundleDirective(string sharedResourceFolderPath, Func<Dictionary<string, StringBuilder>> getHelperBundles)
+		{
+			Type = DirectiveProcessType.Render;
+			this.getHelperBundles = getHelperBundles;
+			this.sharedResourceFolderPath = sharedResourceFolderPath;
+		}
+
+		public string ProcessBundleLink(string bundlePath)
+		{
+			string tag = string.Empty;
+			string extension = Path.GetExtension(bundlePath).Substring(1).ToLower();
+			bool isAPath = bundlePath.Contains('/') ? true : false;
+			string modifiedBundlePath = bundlePath;
+
+			if (!isAPath)
+				modifiedBundlePath = string.Join("/", sharedResourceFolderPath, extension, bundlePath);
+
+			if (extension == "css")
+				tag = string.Format(cssIncludeTag, modifiedBundlePath);
+			else if (extension == "js")
+				tag = string.Format(jsIncludeTag, modifiedBundlePath);
+
+			return tag;
+		}
+
+		public StringBuilder Process(StringBuilder content)
+		{
+			if (content.ToString().Contains(helperBundlesDirective))
+			{
+				StringBuilder fileLinkBuilder = new StringBuilder();
+
+				foreach (string bundlePath in getHelperBundles().Keys)
+					fileLinkBuilder.AppendLine(ProcessBundleLink(bundlePath));
+
+				content.Replace(helperBundlesDirective, fileLinkBuilder.ToString());
+			}
+
+			return content;
+		}
+	}
+
 	internal class BundleDirective : IViewCompilerDirectiveHandler
 	{
 		private bool debugMode;
@@ -2698,12 +2734,13 @@ namespace Aurora
 
 		public DirectiveProcessType Type { get; private set; }
 
-		public BundleDirective(bool debugMode, string sharedResourceFolderPath, Func<string, string[]> getBundleFiles)
+		public BundleDirective(bool debugMode, string sharedResourceFolderPath,
+			Func<string, string[]> getBundleFiles)
 		{
 			this.debugMode = debugMode;
 			this.sharedResourceFolderPath = sharedResourceFolderPath;
 			this.getBundleFiles = getBundleFiles;
-
+			
 			bundleLinkResults = new Dictionary<string, string>();
 
 			Type = DirectiveProcessType.AfterCompile;
@@ -2740,7 +2777,9 @@ namespace Aurora
 				StringBuilder fileLinkBuilder = new StringBuilder();
 
 				if (bundleLinkResults.ContainsKey(bundleName))
+				{
 					fileLinkBuilder.AppendLine(bundleLinkResults[bundleName]);
+				}
 				else
 				{
 					if (!string.IsNullOrEmpty(bundleName))
@@ -2797,6 +2836,103 @@ namespace Aurora
 	}
 	#endregion
 
+	#region VIEW ENGINE INTERNALS
+	internal class ViewCache
+	{
+		public List<TemplateInfo> ViewTemplates;
+		public List<TemplateInfo> CompiledViews;
+		public Dictionary<string, List<string>> ViewDependencies;
+	}
+
+	internal class TemplateInfo
+	{
+		public string Name { get; set; }
+		public string FullName { get; set; }
+		public string Path { get; set; }
+		public string Template { get; set; }
+		public string TemplateMD5sum { get; set; }
+		public string Result { get; set; }
+	}
+
+	internal class TemplateLoader
+	{
+		private string appRoot;
+		private string[] viewRoots;
+
+		public TemplateLoader(string appRoot,
+													string[] viewRoots)
+		{
+			appRoot.ThrowIfArgumentNull();
+
+			this.appRoot = appRoot;
+			this.viewRoots = viewRoots;
+		}
+
+		public List<TemplateInfo> Load()
+		{
+			List<TemplateInfo> templates = new List<TemplateInfo>();
+
+			foreach (string viewRoot in viewRoots)
+			{
+				string path = Path.Combine(appRoot, viewRoot);
+
+				if (Directory.Exists(path))
+					foreach (FileInfo fi in GetAllFiles(new DirectoryInfo(path), "*.html"))
+						templates.Add(Load(fi.FullName));
+			}
+
+			return templates;
+		}
+
+		// This code was adapted to work with FileInfo/DirectoryInfo but was originally from the following question on SO:
+		// http://stackoverflow.com/questions/929276/how-to-recursively-list-all-the-files-in-a-directory-in-c
+		public static IEnumerable<FileInfo> GetAllFiles(DirectoryInfo dirInfo, string searchPattern = "")
+		{
+			Queue<string> queue = new Queue<string>();
+			queue.Enqueue(dirInfo.FullName);
+
+			while (queue.Count > 0)
+			{
+				string path = queue.Dequeue();
+
+				foreach (string subDir in Directory.GetDirectories(path))
+					queue.Enqueue(subDir);
+
+				FileInfo[] fileInfos = new DirectoryInfo(path).GetFiles(searchPattern);
+
+				if (fileInfos != null)
+					for (int i = 0; i < fileInfos.Length; i++)
+						yield return fileInfos[i];
+			}
+		}
+
+		public TemplateInfo Load(string path)
+		{
+			string viewRoot = viewRoots.FirstOrDefault(x => path.StartsWith(Path.Combine(appRoot, x)));
+
+			if (string.IsNullOrEmpty(viewRoot)) return null;
+
+			DirectoryInfo rootDir = new DirectoryInfo(viewRoot);
+
+			string extension = Path.GetExtension(path);
+			string templateName = Path.GetFileNameWithoutExtension(path);
+			string templateKeyName = path.Replace(rootDir.Parent.FullName, string.Empty)
+																	 .Replace(appRoot, string.Empty)
+																	 .Replace(extension, string.Empty)
+																	 .Replace("\\", "/").TrimStart('/');
+			string template = File.ReadAllText(path);
+
+			return new TemplateInfo()
+			{
+				TemplateMD5sum = template.CalculateMD5sum(),
+				FullName = templateKeyName,
+				Name = templateName,
+				Path = path,
+				Template = template
+			};
+		}
+	}
+
 	internal class ViewCompilerDirectiveInfo
 	{
 		public Match Match { get; set; }
@@ -2808,6 +2944,9 @@ namespace Aurora
 		public Action<string> AddPageDependency { get; set; }
 	}
 
+	// This view engine is a simple tag based engine with master pages, partial views and Html fragments.
+	// The compiler works by executing a number of directive and substitution handlers to transform
+	// the Html templates. All templates are compiled and cached.
 	internal class ViewCompiler : IViewCompiler
 	{
 		private List<IViewCompilerDirectiveHandler> directiveHandlers;
@@ -2820,7 +2959,7 @@ namespace Aurora
 
 		private static Regex directiveTokenRE = new Regex(@"(\%\%(?<directive>[a-zA-Z0-9]+)=(?<value>(\S|\.)+)\%\%)", RegexOptions.Compiled);
 		private static Regex tagRE = new Regex(@"{({|\||\!)([\w]+)(}|\!|\|)}", RegexOptions.Compiled);
-		private static Regex emptyLines = new Regex(@"^\s+$[\r\n]*", RegexOptions.Compiled | RegexOptions.Multiline);
+		//private static Regex emptyLines = new Regex(@"^\s+$[\r\n]*", RegexOptions.Compiled | RegexOptions.Multiline);
 		private static string tagFormatPattern = @"({{({{|\||\!){0}(\||\!|}})}})";
 		private static string tagEncodingHint = "{|";
 		private static string markdownEncodingHint = "{!";
@@ -2919,16 +3058,13 @@ namespace Aurora
 			if (compiledView != null)
 			{
 				StringBuilder compiledViewSB = new StringBuilder(compiledView.Template);
-
+				
 				foreach (IViewCompilerSubstitutionHandler sub in substitutionHandlers.Where(x => x.Type == DirectiveProcessType.Render))
 					compiledViewSB = sub.Process(compiledViewSB);
 
 				if (tags != null)
 				{
 					StringBuilder tagSB = new StringBuilder();
-
-					foreach (Match match in emptyLines.Matches(compiledViewSB.ToString()))
-						compiledViewSB.Replace(match.Value, string.Empty);
 
 					foreach (KeyValuePair<string, string> tag in tags)
 					{
@@ -2971,7 +3107,7 @@ namespace Aurora
 			return null;
 		}
 
-		private StringBuilder ProcessDirectives(string fullViewName, StringBuilder rawView)
+		public StringBuilder ProcessDirectives(string fullViewName, StringBuilder rawView)
 		{
 			StringBuilder pageContent = new StringBuilder(rawView.ToString());
 
@@ -3055,20 +3191,6 @@ namespace Aurora
 		}
 	}
 
-	public interface IViewEngine
-	{
-		string LoadView(string fullName, Dictionary<string, string> tags);
-		string GetCache();
-		bool CacheUpdated { get; }
-	}
-
-	internal class ViewCache
-	{
-		public List<TemplateInfo> ViewTemplates;
-		public List<TemplateInfo> CompiledViews;
-		public Dictionary<string, List<string>> ViewDependencies;
-	}
-
 	internal class ViewEngine : IViewEngine
 	{
 		private string appRoot;
@@ -3102,10 +3224,6 @@ namespace Aurora
 			watcher.IncludeSubdirectories = true;
 			watcher.EnableRaisingEvents = true;
 
-			viewTemplates = new List<TemplateInfo>();
-			compiledViews = new List<TemplateInfo>();
-			viewDependencies = new Dictionary<string, List<string>>();
-
 			if (!(viewRoots.Count() >= 1))
 				throw new ArgumentException("At least one view root is required to load view templates from.");
 
@@ -3124,6 +3242,9 @@ namespace Aurora
 			}
 			else
 			{
+				viewTemplates = new List<TemplateInfo>();
+				compiledViews = new List<TemplateInfo>();
+				viewDependencies = new Dictionary<string, List<string>>();
 				viewTemplates = viewTemplateLoader.Load();
 
 				if (!(viewTemplates.Count() > 0))
@@ -3211,11 +3332,24 @@ namespace Aurora
 			var renderedView = viewCompiler.Render(fullName, tags);
 
 			if (renderedView != null)
-				result = renderedView.Result;
+			{
+				try
+				{
+					// Formats the Html with indents
+					result = XElement.Parse(renderedView.Result).ToString();
+				}
+				catch 
+				{ 
+					// Oops, Html is not well formed, probably tried to parse a fragment
+					// that had embedded string.Format placeholders or something weird.
+					result = renderedView.Result; 
+				}
+			}
 
 			return result;
 		}
 	}
+	#endregion
 	#endregion
 
 	#region EXTENSION METHODS / DYNAMIC DICTIONARY

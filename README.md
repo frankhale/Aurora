@@ -23,6 +23,7 @@ Features
 // - Actions can have aliases. Aliases can also be added dynamically at runtime
 //   along with default parameters.
 // - Bundling/Minifying of Javascript and CSS.
+// - Html Helpers
 //
 // Aurora.Extra 
 //
