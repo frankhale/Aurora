@@ -1,7 +1,7 @@
 ﻿//
 // Aurora.Extra - Additional bits that may be useful in your applications      
 //
-// Updated On: 3 June 2013
+// Updated On: 5 June 2013
 //
 // Contact Info:
 //
@@ -888,6 +888,30 @@ namespace Aurora.Extra
 		public override string ToString()
 		{
 			return string.Format("<img src=\"{0}\" {1}/>", Src, CondenseAttribs());
+		}
+	}
+
+	public class HtmlSimpleList : HtmlBase
+	{
+		private IEnumerable<string> data;
+		private string delimiter;
+
+		public HtmlSimpleList(IEnumerable<string> data, string delimiter, params Func<string, string>[] attribs)
+		{
+			this.data = data;
+			this.delimiter = delimiter;
+			AttribsFunc = attribs;
+		}
+
+		public override string ToString()
+		{
+			StringBuilder result = new StringBuilder();
+
+			result.AppendFormat("<span {0}>", CondenseAttribs());
+			result.Append(string.Join(delimiter, data));
+			result.Append("</span>");
+
+			return result.ToString();
 		}
 	}
 	#endregion

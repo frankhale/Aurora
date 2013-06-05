@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - A Tiny MVC web framework for .NET
 //
-// Updated On: 4 June 2013
+// Updated On: 5 June 2013
 //
 // NOTE: 
 //
@@ -93,7 +93,7 @@ using Yahoo.Yui.Compressor;
 [assembly: AssemblyCopyright("Copyright © 2011-2013 | LICENSE GNU GPLv3")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("2.0.41.0")]
+[assembly: AssemblyVersion("2.0.42.0")]
 #endregion
 
 namespace Aurora
@@ -269,8 +269,6 @@ namespace Aurora
 		public Dictionary<string, string> ProtectedFiles { get; set; }
 		public Dictionary<string, object> ControllersSession { get; set; }
 		public List<Type> Models { get; set; }
-		public Dictionary<string, Dictionary<string, List<object>>> ActionBindings { get; set; }
-		public Dictionary<string, Tuple<List<string>, string>> Bundles { get; set; }
 	}
 
 	// EngineSessionState maps to state that is stored in the ASP.NET Session store.
@@ -281,9 +279,9 @@ namespace Aurora
 		public bool FromRedirectOnly { get; set; }
 		public User CurrentUser { get; set; }
 		public Dictionary<string, StringBuilder> HelperBundles { get; set; }
-		// This is kind of debatable at the moment, should RouteInfos be stored in a per user
-		// session or globally in the application store? I've flip flopped on this numerous times!
 		public List<RouteInfo> RouteInfos { get; set; }
+		public Dictionary<string, Dictionary<string, List<object>>> ActionBindings { get; set; }
+		public Dictionary<string, Tuple<List<string>, string>> Bundles { get; set; }
 	}
 	#endregion
 
@@ -373,10 +371,10 @@ namespace Aurora
 			controllers = engineSessionState.Controllers;
 			frontController = engineSessionState.FrontController;
 			routeInfos = engineSessionState.RouteInfos;
-			actionBindings = engineAppState.ActionBindings;
+			actionBindings = engineSessionState.ActionBindings;
 			users = engineAppState.Users;
 			antiForgeryTokens = engineAppState.AntiForgeryTokens;
-			bundles = engineAppState.Bundles;
+			bundles = engineSessionState.Bundles;
 			models = engineAppState.Models;
 			fromRedirectOnly = engineSessionState.FromRedirectOnly;
 			protectedFiles = engineAppState.ProtectedFiles;
@@ -436,7 +434,7 @@ namespace Aurora
 			if (actionBindings == null)
 			{
 				actionBindings = new Dictionary<string, Dictionary<string, List<object>>>();
-				engineAppState.ActionBindings = actionBindings;
+				engineSessionState.ActionBindings = actionBindings;
 			}
 			#endregion
 
@@ -444,7 +442,7 @@ namespace Aurora
 			if (bundles == null)
 			{
 				bundles = new Dictionary<string, Tuple<List<string>, string>>();
-				engineAppState.Bundles = bundles;
+				engineSessionState.Bundles = bundles;
 			}
 			#endregion
 
@@ -537,39 +535,35 @@ namespace Aurora
 			#region PROCESS REQUEST / RENDER RESPONSE
 			ViewResponse viewResponse = null;
 			Exception exception = serverError;
+			int httpStatus = 200;
 
 			if (exception == null)
 			{
 				try
 				{
 					viewResponse = ProcessRequest();
-					viewResponse.HttpStatus = 200;
 				}
 				catch (Exception ex)
 				{
 					exception = ex;
 				}
 			}
-
-			if (exception != null || viewResponse == null)
+						
+			if (viewResponse == null && exception == null)
 			{
-				int httpStatus;
-				string message;
-
-				if (viewResponse == null)
-				{
-					message = string.Format("Http 404 - Page Not Found : {0}", path);
-					httpStatus = 404;
-				}
-				else
-				{
-					message = (serverError.InnerException != null) ? serverError.InnerException.Message : serverError.Message;
-					httpStatus = 503;
-				}
-
-				viewResponse = GetErrorViewResponse(message, app[HttpAdapterConstants.ServerErrorStackTrace].ToString());
-				viewResponse.HttpStatus = httpStatus;
+				httpStatus = 404;
+				viewResponse = GetErrorViewResponse("Http 404 - Page Not Found", null);
 			}
+			else if (exception != null)
+			{
+				httpStatus = 503;
+				viewResponse = GetErrorViewResponse(
+					(exception.InnerException != null) ? exception.InnerException.Message : exception.Message,
+					(exception.InnerException != null) ? exception.InnerException.StackTrace : exception.StackTrace
+				);
+			}
+
+			viewResponse.HttpStatus = httpStatus;
 
 			RenderResponse(viewResponse);
 			#endregion
@@ -1389,8 +1383,8 @@ namespace Aurora
 			if (c != null)
 			{
 				MethodInfo action = c.GetType().GetMethods().FirstOrDefault(x => x.GetCustomAttributes(typeof(HttpAttribute), false).Count() > 0 && x.Name == actionName);
-				
-				if(action!=null)
+
+				if (action != null)
 					AddRoute(routeInfos, c, action, new List<string> { alias }, defaultParams, dynamic);
 			}
 		}
@@ -3382,8 +3376,7 @@ namespace Aurora
 			{
 				try
 				{
-					// Formats the Html with indents
-					result = XElement.Parse(renderedView.Result).ToString();
+					result = XDocument.Parse(renderedView.Result).ToString();
 				}
 				catch
 				{
