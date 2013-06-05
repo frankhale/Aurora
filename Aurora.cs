@@ -1,14 +1,15 @@
 ﻿//
 // Aurora - A Tiny MVC web framework for .NET
 //
-// Updated On: 3 June 2013
+// Updated On: 4 June 2013
 //
 // NOTE: 
 //
 //	I've started to add comments throughout the code to provide some commentary on
 //  what is going on. This commentary is not meant to supplant formal documentation.
 //
-//  Best way to see how to use Aurora is by looking at Miranda which is a small wiki.
+//  Best way to see how to use Aurora is by looking at Miranda which is a small wiki
+//  and it can be found on my github account (link below).
 //
 // Contact Info:
 //
@@ -92,7 +93,7 @@ using Yahoo.Yui.Compressor;
 [assembly: AssemblyCopyright("Copyright © 2011-2013 | LICENSE GNU GPLv3")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("2.0.40.0")]
+[assembly: AssemblyVersion("2.0.41.0")]
 #endregion
 
 namespace Aurora
@@ -102,6 +103,8 @@ namespace Aurora
 	public enum ActionSecurity { Secure, None }
 
 	#region HTTP REQUEST
+	// FromRedirectOnly is a special action type that denotes that the action cannot
+	// normally be navigated to. Instead, another action has to redirect to it.	
 	public enum ActionType { Get, Post, Put, Delete, FromRedirectOnly, GetOrPost }
 
 	// This is the obligatory attribute that is used to provide meta information for controller actions
@@ -266,6 +269,8 @@ namespace Aurora
 		public Dictionary<string, string> ProtectedFiles { get; set; }
 		public Dictionary<string, object> ControllersSession { get; set; }
 		public List<Type> Models { get; set; }
+		public Dictionary<string, Dictionary<string, List<object>>> ActionBindings { get; set; }
+		public Dictionary<string, Tuple<List<string>, string>> Bundles { get; set; }
 	}
 
 	// EngineSessionState maps to state that is stored in the ASP.NET Session store.
@@ -275,8 +280,6 @@ namespace Aurora
 		public List<Controller> Controllers { get; set; }
 		public bool FromRedirectOnly { get; set; }
 		public User CurrentUser { get; set; }
-		public Dictionary<string, Dictionary<string, List<object>>> ActionBindings { get; set; }
-		public Dictionary<string, Tuple<List<string>, string>> Bundles { get; set; }
 		public Dictionary<string, StringBuilder> HelperBundles { get; set; }
 		// This is kind of debatable at the moment, should RouteInfos be stored in a per user
 		// session or globally in the application store? I've flip flopped on this numerous times!
@@ -292,7 +295,6 @@ namespace Aurora
 		private static string engineSessionStateSessionName = "__ENGINE_SESSION_STATE__";
 		private static string routeInfosSessionName = "__RouteInfos";
 		private static string fromRedirectOnlySessionName = "__FromRedirectOnly";
-		private static string currentUserSessionName = "__CurrentUser";
 		#endregion
 
 		#region ASP.NET ADAPTER STUFF
@@ -339,9 +341,8 @@ namespace Aurora
 		#region FRAMEWORK METHODS
 		public void Init(Dictionary<string, object> app, Dictionary<string, object> request, Action<Dictionary<string, object>> response)
 		{
-			int httpStatus = 200;
-			this.request = request;
 			this.app = app;
+			this.request = request;
 			this.response = response;
 
 			#region INITIALIZE LOCALS FROM APP/REQUEST AND MISC
@@ -372,10 +373,10 @@ namespace Aurora
 			controllers = engineSessionState.Controllers;
 			frontController = engineSessionState.FrontController;
 			routeInfos = engineSessionState.RouteInfos;
-			actionBindings = engineSessionState.ActionBindings;
+			actionBindings = engineAppState.ActionBindings;
 			users = engineAppState.Users;
 			antiForgeryTokens = engineAppState.AntiForgeryTokens;
-			bundles = engineSessionState.Bundles;
+			bundles = engineAppState.Bundles;
 			models = engineAppState.Models;
 			fromRedirectOnly = engineSessionState.FromRedirectOnly;
 			protectedFiles = engineAppState.ProtectedFiles;
@@ -435,7 +436,7 @@ namespace Aurora
 			if (actionBindings == null)
 			{
 				actionBindings = new Dictionary<string, Dictionary<string, List<object>>>();
-				engineSessionState.ActionBindings = actionBindings;
+				engineAppState.ActionBindings = actionBindings;
 			}
 			#endregion
 
@@ -443,7 +444,7 @@ namespace Aurora
 			if (bundles == null)
 			{
 				bundles = new Dictionary<string, Tuple<List<string>, string>>();
-				engineSessionState.Bundles = bundles;
+				engineAppState.Bundles = bundles;
 			}
 			#endregion
 
@@ -535,32 +536,42 @@ namespace Aurora
 
 			#region PROCESS REQUEST / RENDER RESPONSE
 			ViewResponse viewResponse = null;
+			Exception exception = serverError;
 
-			if (serverError == null)
+			if (exception == null)
 			{
 				try
 				{
 					viewResponse = ProcessRequest();
+					viewResponse.HttpStatus = 200;
 				}
-				catch (Exception error)
+				catch (Exception ex)
 				{
-					httpStatus = 503;
-					viewResponse = GetErrorViewResponse((error.InnerException != null) ? error.InnerException.Message : error.Message, error.GetStackTrace());
+					exception = ex;
 				}
+			}
+
+			if (exception != null || viewResponse == null)
+			{
+				int httpStatus;
+				string message;
 
 				if (viewResponse == null)
 				{
+					message = string.Format("Http 404 - Page Not Found : {0}", path);
 					httpStatus = 404;
-					viewResponse = GetErrorViewResponse(string.Format("Http 404 - Page Not Found : {0}", path), null);
 				}
-			}
-			else
-			{
-				httpStatus = 503;
-				viewResponse = GetErrorViewResponse((serverError.InnerException != null) ? serverError.InnerException.Message : serverError.Message, app[HttpAdapterConstants.ServerErrorStackTrace].ToString());
+				else
+				{
+					message = (serverError.InnerException != null) ? serverError.InnerException.Message : serverError.Message;
+					httpStatus = 503;
+				}
+
+				viewResponse = GetErrorViewResponse(message, app[HttpAdapterConstants.ServerErrorStackTrace].ToString());
+				viewResponse.HttpStatus = httpStatus;
 			}
 
-			RenderResponse(viewResponse, httpStatus);
+			RenderResponse(viewResponse);
 			#endregion
 		}
 
@@ -649,8 +660,8 @@ namespace Aurora
 					else
 					{
 						RaiseEventOnFrontController(RouteHandlerEventType.PassedSecurity, path, routeInfo, null);
-						RaiseEventOnFrontController(RouteHandlerEventType.Pre, path, routeInfo, null);
-						routeInfo.Controller.RaiseEvent(RouteHandlerEventType.Pre, path, routeInfo);
+						RaiseEventOnFrontController(RouteHandlerEventType.PreAction, path, routeInfo, null);
+						routeInfo.Controller.RaiseEvent(RouteHandlerEventType.PreAction, path, routeInfo);
 
 						if (routeInfo.RequestTypeAttribute.ActionType == ActionType.FromRedirectOnly && fromRedirectOnly)
 							RemoveSession(fromRedirectOnlySessionName);
@@ -689,8 +700,9 @@ namespace Aurora
 											param = Convert.ChangeType(routeInfo.ActionParams[apt.Item2], t);
 										}
 										catch
-										{ /* Oops! We probably tried to convert a type to another type and it failed! 
-														 * In which case we'll pretend like nothing happened. */
+										{
+											// Oops! We probably tried to convert a type to another type and it failed! 
+											// In which case we'll pretend like nothing happened.
 										}
 									}
 
@@ -700,8 +712,9 @@ namespace Aurora
 											transformMethod.Item1.Invoke(transformMethod.Item2, new object[] { param });
 									}
 									catch
-									{ /* Oops! We probably tried to invoke an action with incorrect types! 
-													 * In which case we'll pretend like nothing happened. */
+									{
+										// Oops! We probably tried to invoke an action with incorrect types! 
+										// In which case we'll pretend like nothing happened.
 									}
 								}
 							}
@@ -723,16 +736,27 @@ namespace Aurora
 						{
 							viewResult = (IViewResult)routeInfo.Action.Invoke(routeInfo.Controller, routeInfo.ActionParams);
 						}
-						catch { throw; }
+						catch (Exception ex)
+						{
+							// I'm not completely sure how I want to ultimately handle this condtion yet,
+							// for now let's fire off the front controllers error event in case anyone is
+							// looking for it. The usefulness of this is questionable, what are they going to
+							// do with the information? Should we allow another action to be potentially 
+							// invoked so that we can get a good viewResult? Thereby dropping the throw below
+							// this call?!? 
+							RaiseEventOnFrontController(RouteHandlerEventType.Error, path, routeInfo, ex);
+
+							throw;
+						}
 
 						if (viewResult != null)
 							viewResponse = viewResult.Render();
 
 						if (viewResponse == null)
-							RaiseEventOnFrontController(RouteHandlerEventType.Error, path, routeInfo, null);
+							RaiseEventOnFrontController(RouteHandlerEventType.Error, path, routeInfo, "A problem occurred trying to render the result causing it to be null. Please check to make sure you have a view for this action.");
 
-						RaiseEventOnFrontController(RouteHandlerEventType.Post, path, routeInfo, null);
-						routeInfo.Controller.RaiseEvent(RouteHandlerEventType.Post, path, routeInfo);
+						RaiseEventOnFrontController(RouteHandlerEventType.PostAction, path, routeInfo, viewResponse);
+						routeInfo.Controller.RaiseEvent(RouteHandlerEventType.PostAction, path, routeInfo);
 					}
 				}
 				#endregion
@@ -786,13 +810,13 @@ namespace Aurora
 			ViewResponse viewResponse = new ViewResponse()
 			{
 				ContentType = "text/html",
-				Content = !string.IsNullOrEmpty(errorView) ? errorView : string.Format("<html><body>{0} : {1} {2}</body></html>", path, error, stackTrace)
+				Content = !string.IsNullOrEmpty(errorView) ? errorView : string.Format("<!DOCTYPE html><body>{0} : {1} {2}</body></html>", path, error, stackTrace)
 			};
 
 			return viewResponse;
 		}
 
-		private void RenderResponse(ViewResponse viewResponse, int httpStatus)
+		private void RenderResponse(ViewResponse viewResponse)
 		{
 			if (string.IsNullOrEmpty(viewResponse.RedirectTo))
 			{
@@ -801,7 +825,7 @@ namespace Aurora
 					{HttpAdapterConstants.ResponseBody, viewResponse.Content},
 					{HttpAdapterConstants.ResponseContentType, viewResponse.ContentType},
 					{HttpAdapterConstants.ResponseHeaders, viewResponse.Headers},
-					{HttpAdapterConstants.ResponseStatus, httpStatus}
+					{HttpAdapterConstants.ResponseStatus, viewResponse.HttpStatus}
 				});
 			}
 			else
@@ -816,7 +840,8 @@ namespace Aurora
 		{
 			List<string> viewRoots = new List<string>() { viewRoot };
 
-			viewRoots.AddRange(controllers.Where(x => !string.IsNullOrEmpty(x.PartitionName)).Select(x => string.Format(@"{0}\{1}", appRoot, x.PartitionName)));
+			viewRoots.AddRange(controllers.Where(x => !string.IsNullOrEmpty(x.PartitionName))
+																		.Select(x => string.Format(@"{0}\{1}", appRoot, x.PartitionName)));
 
 			return viewRoots.ToArray();
 		}
@@ -899,8 +924,9 @@ namespace Aurora
 		{
 			t.ThrowIfArgumentNull();
 
-			return AppDomain.CurrentDomain.GetAssemblies().AsParallel()
-				// DotNetOpenAuth depends on System.Web.Mvc which is not referenced, this will fail if we don't eliminate it
+			// DotNetOpenAuth depends on System.Web.Mvc which is not referenced, this will fail if we don't eliminate it
+			return AppDomain.CurrentDomain.GetAssemblies()
+																		.AsParallel()
 																		.Where(x => x.GetName().Name != "DotNetOpenAuth")
 																		.SelectMany(x => x.GetTypes().Where(y => y.BaseType == t)).ToList();
 		}
@@ -917,7 +943,7 @@ namespace Aurora
 			{
 				result = controller.GetType()
 													 .GetMethods()
-													 .AsParallel()
+													 .AsParallel() // this is debatable, how many actions is your controller gonna have?
 													 .Where(x => x.GetCustomAttributes(typeof(HttpAttribute), false).Count() > 0)
 													 .Select(x => x.Name)
 													 .ToList();
@@ -950,15 +976,16 @@ namespace Aurora
 
 			foreach (Controller c in controllers)
 			{
-				var actions = c.GetType().GetMethods().AsParallel()
-					.Where(x => x.GetCustomAttributes(typeof(HttpAttribute), false).FirstOrDefault() != null)
-					.Select(x =>
-						new
-						{
-							Method = x,
-							Attribute = (HttpAttribute)x.GetCustomAttributes(typeof(HttpAttribute), false).FirstOrDefault(),
-							Aliases = x.GetCustomAttributes(typeof(AliasAttribute), false).Select(a => (a as AliasAttribute).Alias).ToList()
-						});
+				var actions = c.GetType().GetMethods()
+																 .AsParallel()
+																 .Where(x => x.GetCustomAttributes(typeof(HttpAttribute), false).FirstOrDefault() != null)
+																 .Select(x =>
+																	new
+																	{
+																		Method = x,
+																		Attribute = (HttpAttribute)x.GetCustomAttributes(typeof(HttpAttribute), false).FirstOrDefault(),
+																		Aliases = x.GetCustomAttributes(typeof(AliasAttribute), false).Select(a => (a as AliasAttribute).Alias).ToList()
+																	});
 
 				foreach (var action in actions)
 				{
@@ -976,43 +1003,47 @@ namespace Aurora
 
 		private ActionParameterInfo GetActionParameterTransforms(ParameterInfo[] actionParams, List<object> bindings)
 		{
-			ActionParameterInfo actionParameterInfo = new ActionParameterInfo();
 			Dictionary<string, object> cachedActionParamTransformInstances = new Dictionary<string, object>();
 
 			List<Tuple<ActionParameterTransformAttribute, int>> actionParameterTransforms = actionParams
-					.AsParallel()
 					.Select((x, i) => new Tuple<ActionParameterTransformAttribute, int>((ActionParameterTransformAttribute)x.GetCustomAttributes(typeof(ActionParameterTransformAttribute), false).FirstOrDefault(), i))
-					.Where(x => x.Item1 != null).ToList();
+					.Where(x => x.Item1 != null)
+					.ToList();
 
-			foreach (var apt in actionParameterTransforms)
+			if (actionParameterTransforms.Count > 0)
 			{
-				var actionTransformClassType = AppDomain.CurrentDomain
-																								.GetAssemblies()
-																								.AsParallel()
-																								.Where(x => x.GetName().Name != "DotNetOpenAuth") // DotNetOpenAuth depends on System.Web.Mvc which is not referenced, this will fail if we don't eliminate it
-																								.SelectMany(x => x.GetTypes().Where(y => y.GetInterface(typeof(IActionParamTransform<,>).Name) != null && y.Name == apt.Item1.TransformName))
-																								.FirstOrDefault();
-
-				if (actionTransformClassType != null)
+				foreach (var apt in actionParameterTransforms)
 				{
-					try
-					{
-						var instance = Activator.CreateInstance(actionTransformClassType, (bindings != null) ? bindings.ToArray() : null);
-						var transformMethod = actionTransformClassType.GetMethod("Transform");
+					// DotNetOpenAuth depends on System.Web.Mvc which is not referenced, this will fail if we don't eliminate it
+					var actionTransformClassType = AppDomain.CurrentDomain
+																									.GetAssemblies()
+																									.AsParallel()
+																									.Where(x => x.GetName().Name != "DotNetOpenAuth")
+																									.SelectMany(x => x.GetTypes().Where(y => y.GetInterface(typeof(IActionParamTransform<,>).Name) != null && y.Name == apt.Item1.TransformName))
+																									.FirstOrDefault();
 
-						cachedActionParamTransformInstances[apt.Item1.TransformName] = new Tuple<MethodInfo, object>(transformMethod, instance);
-					}
-					catch
+					if (actionTransformClassType != null)
 					{
-						cachedActionParamTransformInstances[apt.Item1.TransformName] = null;
+						try
+						{
+							var instance = Activator.CreateInstance(actionTransformClassType, (bindings != null) ? bindings.ToArray() : null);
+							var transformMethod = actionTransformClassType.GetMethod("Transform");
+
+							cachedActionParamTransformInstances[apt.Item1.TransformName] = new Tuple<MethodInfo, object>(transformMethod, instance);
+						}
+						catch
+						{
+							cachedActionParamTransformInstances[apt.Item1.TransformName] = null;
+						}
 					}
 				}
 			}
 
-			actionParameterInfo.ActionParamTransforms = actionParameterTransforms.Count() > 0 ? actionParameterTransforms : null;
-			actionParameterInfo.ActionParamTransformInstances = cachedActionParamTransformInstances.Count() > 0 ? cachedActionParamTransformInstances : null;
-
-			return actionParameterInfo;
+			return new ActionParameterInfo()
+			{
+				ActionParamTransforms = actionParameterTransforms.Count() > 0 ? actionParameterTransforms : null,
+				ActionParamTransformInstances = cachedActionParamTransformInstances.Count() > 0 ? cachedActionParamTransformInstances : null
+			};
 		}
 
 		private IActionFilterResult[] ProcessAnyActionFilters(RouteInfo routeInfo)
@@ -1049,6 +1080,7 @@ namespace Aurora
 		#endregion
 
 		#region INTERNAL METHODS
+		// Allows a file to be protected from download by users that are not logged in
 		internal void ProtectFile(string path, string roles)
 		{
 			path.ThrowIfArgumentNull();
@@ -1078,6 +1110,8 @@ namespace Aurora
 			name.ThrowIfArgumentNull();
 			paths.ThrowIfArgumentNull();
 
+			if (paths.Length == 0) return;
+
 			string extension = Path.GetExtension(name);
 			string fileContentResult = null;
 			StringBuilder combinedFiles = new StringBuilder();
@@ -1091,26 +1125,23 @@ namespace Aurora
 					combinedFiles.AppendLine(File.ReadAllText(resourcePath));
 			}
 
-			if (combinedFiles.Length > 0)
+			if (!debugMode)
 			{
-				if (!debugMode)
+				if (extension == ".js")
 				{
-					if (extension == ".js")
-					{
-						try { fileContentResult = new JavaScriptCompressor().Compress(combinedFiles.ToString()); }
-						catch { throw; }
-					}
-					else if (extension == ".css")
-					{
-						try { fileContentResult = new CssCompressor().Compress(combinedFiles.ToString()); }
-						catch { throw; }
-					}
+					try { fileContentResult = new JavaScriptCompressor().Compress(combinedFiles.ToString()); }
+					catch { throw; }
 				}
-				else
-					fileContentResult = combinedFiles.ToString();
-
-				bundles[name] = new Tuple<List<string>, string>(paths.ToList(), fileContentResult);
+				else if (extension == ".css")
+				{
+					try { fileContentResult = new CssCompressor().Compress(combinedFiles.ToString()); }
+					catch { throw; }
+				}
 			}
+			else
+				fileContentResult = combinedFiles.ToString();
+
+			bundles[name] = new Tuple<List<string>, string>(paths.ToList(), fileContentResult);
 		}
 
 		// Helper bundles are a special mechanism that will allow HtmlHelpers to inject CSS or JS when
@@ -1150,6 +1181,9 @@ namespace Aurora
 			}
 		}
 
+		// This is used to provide a way to get the file path so if we are in debug mode
+		// we can ignore the bundles and instead place all of the real file includes in the
+		// HTML head.
 		internal string[] GetBundleFiles(string name)
 		{
 			return (bundles.ContainsKey(name)) ? bundles[name].Item1.ToArray() : null;
@@ -1160,6 +1194,8 @@ namespace Aurora
 			return helperBundles;
 		}
 
+		// Bindings are a poor mans IoC and even then not really. They just provide a mechanism
+		// to predefine what parameters get used to invoke an action.
 		internal void AddBinding(string controllerName, string actionName, object bindInstance)
 		{
 			controllerName.ThrowIfArgumentNull();
@@ -1174,27 +1210,6 @@ namespace Aurora
 
 			if (!actionBindings[controllerName][actionName].Contains(bindInstance))
 				actionBindings[controllerName][actionName].Add(bindInstance);
-		}
-
-		internal List<object> GetBindings(string controllerName, string actionName, string alias, Type[] initializeTypes)
-		{
-			List<object> bindings = (actionBindings.ContainsKey(controllerName) && actionBindings[controllerName].ContainsKey(actionName)) ?
-				actionBindings[controllerName][actionName] : null;
-
-			if (bindings != null)
-			{
-				RouteInfo routeInfo = FindRoute(string.Format("/{0}", actionName));
-
-				if (routeInfo != null && routeInfo.IBoundToActionParams != null)
-				{
-					var boundActionParams = routeInfo.IBoundToActionParams.Where(x => initializeTypes.Any(y => x.GetType() == y));
-
-					foreach (var b in boundActionParams)
-						b.Initialize(routeInfo);
-				}
-			}
-
-			return bindings;
 		}
 
 		internal void AddBinding(string controllerName, string[] actionNames, object bindInstance)
@@ -1221,6 +1236,27 @@ namespace Aurora
 			foreach (string actionName in GetControllerActionNames(controllerName))
 				foreach (object bindInstance in bindInstances)
 					AddBinding(controllerName, actionName, bindInstance);
+		}
+
+		internal List<object> GetBindings(string controllerName, string actionName, string alias, Type[] initializeTypes)
+		{
+			List<object> bindings = (actionBindings.ContainsKey(controllerName) && actionBindings[controllerName].ContainsKey(actionName)) ?
+				actionBindings[controllerName][actionName] : null;
+
+			if (bindings != null)
+			{
+				RouteInfo routeInfo = FindRoute(string.Format("/{0}", actionName));
+
+				if (routeInfo != null && routeInfo.IBoundToActionParams != null)
+				{
+					var boundActionParams = routeInfo.IBoundToActionParams.Where(x => initializeTypes.Any(y => x.GetType() == y));
+
+					foreach (var b in boundActionParams)
+						b.Initialize(routeInfo);
+				}
+			}
+
+			return bindings;
 		}
 
 		internal RouteInfo FindRoute(string path)
@@ -1290,7 +1326,6 @@ namespace Aurora
 					if (actionParamTypes.Except(finalParamTypes).Count() > 0)
 					{
 						finalParamTypes = actionParamTypes;
-
 						Array.Resize(ref finalParams, finalParamTypes.Length);
 					}
 
@@ -1319,15 +1354,13 @@ namespace Aurora
 			if (action != null)
 			{
 				List<object> bindings = null;
-				ActionParameterInfo actionParameterInfo = null;
-				Dictionary<string, object> cachedActionParamTransformInstances = new Dictionary<string, object>();
 				HttpAttribute rta = (HttpAttribute)action.GetCustomAttributes(typeof(HttpAttribute), false).FirstOrDefault();
 
 				if (actionBindings.ContainsKey(c.GetType().Name))
 					if (actionBindings[c.GetType().Name].ContainsKey(action.Name))
 						bindings = actionBindings[c.GetType().Name][action.Name];
 
-				actionParameterInfo = GetActionParameterTransforms(action.GetParameters(), bindings);
+				var actionParameterInfo = GetActionParameterTransforms(action.GetParameters(), bindings);
 
 				routeInfos.Add(new RouteInfo()
 				{
@@ -1356,10 +1389,14 @@ namespace Aurora
 			if (c != null)
 			{
 				MethodInfo action = c.GetType().GetMethods().FirstOrDefault(x => x.GetCustomAttributes(typeof(HttpAttribute), false).Count() > 0 && x.Name == actionName);
-				AddRoute(routeInfos, c, action, new List<string> { alias }, defaultParams, dynamic);
+				
+				if(action!=null)
+					AddRoute(routeInfos, c, action, new List<string> { alias }, defaultParams, dynamic);
 			}
 		}
 
+		// If you are creating dynamic routes it may be useful to obtain a list of all of the
+		// routes the framework knows about.
 		internal List<string> GetAllRouteAliases()
 		{
 			return routeInfos.SelectMany(x => x.Aliases).ToList();
@@ -1374,6 +1411,9 @@ namespace Aurora
 			return token;
 		}
 
+		// The framework per se doesn't really care how you determine who is able to login
+		// the framework only cares about who *you* think should be logged in for the purposes
+		// of keeping track of the users between requests.
 		internal void LogOn(string id, string[] roles, object archeType = null)
 		{
 			id.ThrowIfArgumentNull();
@@ -1407,9 +1447,6 @@ namespace Aurora
 			};
 
 			users.Add(u);
-
-			AddSession("CURRENT_USER", u);
-
 			currentUser = u;
 		}
 
@@ -1418,7 +1455,6 @@ namespace Aurora
 			if (currentUser != null && users.Remove(currentUser))
 			{
 				currentUser = null;
-				RemoveSession(currentUserSessionName);
 
 				return true;
 			}
@@ -1426,6 +1462,7 @@ namespace Aurora
 			return false;
 		}
 
+		// Sessions within the controller are sandboxed.
 		internal void AddControllerSession(string key, object value)
 		{
 			if (!string.IsNullOrEmpty(key))
@@ -1450,7 +1487,6 @@ namespace Aurora
 		#endregion
 
 		#region ASP.NET ADAPTER CALLBACKS
-
 		// All of these methods are callbacks that are defined in the AspNetAdapter class. 
 		// they call their ASP.NET counterparts to access the ASP.NET Application and Session
 		// stores as well as obtain querystring, unvalidated form fields and access the Cache.
@@ -1897,8 +1933,8 @@ namespace Aurora
 
 	internal enum RouteHandlerEventType
 	{
-		Pre,
-		Post,
+		PreAction,
+		PostAction,
 		PostRoutesDiscovery,
 		PreRoute,
 		PostRoute,
@@ -2118,12 +2154,12 @@ namespace Aurora
 
 			switch (type)
 			{
-				case RouteHandlerEventType.Pre:
+				case RouteHandlerEventType.PreAction:
 					if (OnPreActionEvent != null)
 						OnPreActionEvent(this, args);
 					break;
 
-				case RouteHandlerEventType.Post:
+				case RouteHandlerEventType.PostAction:
 					if (OnPostActionEvent != null)
 						OnPostActionEvent(this, args);
 					break;
@@ -2245,12 +2281,12 @@ namespace Aurora
 
 			switch (type)
 			{
-				case RouteHandlerEventType.Pre:
+				case RouteHandlerEventType.PreAction:
 					if (OnPreActionEvent != null)
 						OnPreActionEvent(this, args);
 					break;
 
-				case RouteHandlerEventType.Post:
+				case RouteHandlerEventType.PostAction:
 					if (OnPostActionEvent != null)
 						OnPostActionEvent(this, args);
 					break;
@@ -2392,6 +2428,7 @@ namespace Aurora
 	#region VIEW RESULTS
 	public class ViewResponse
 	{
+		public int HttpStatus { get; set; }
 		public Dictionary<string, string> Headers { get; set; }
 		public string ContentType { get; set; }
 		public object Content { get; set; }
@@ -2635,7 +2672,10 @@ namespace Aurora
 				StringBuilder finalPage = new StringBuilder();
 
 				string masterPageName = directiveInfo.DetermineKeyName(directiveInfo.Value);
-				string masterPageTemplate = directiveInfo.ViewTemplates.AsParallel().FirstOrDefault(x => x.FullName == masterPageName).Template;
+				string masterPageTemplate = directiveInfo.ViewTemplates
+																								 .AsParallel()
+																								 .FirstOrDefault(x => x.FullName == masterPageName)
+																								 .Template;
 
 				directiveInfo.AddPageDependency(masterPageName);
 
@@ -2664,7 +2704,10 @@ namespace Aurora
 			if (directiveInfo.Directive == "Partial")
 			{
 				string partialPageName = directiveInfo.DetermineKeyName(directiveInfo.Value);
-				string partialPageTemplate = directiveInfo.ViewTemplates.AsParallel().FirstOrDefault(x => x.FullName == partialPageName).Template;
+				string partialPageTemplate = directiveInfo.ViewTemplates
+																									.AsParallel()
+																									.FirstOrDefault(x => x.FullName == partialPageName)
+																									.Template;
 
 				directiveInfo.Content.Replace(directiveInfo.Match.Groups[0].Value, partialPageTemplate);
 			}
@@ -2740,7 +2783,7 @@ namespace Aurora
 			this.debugMode = debugMode;
 			this.sharedResourceFolderPath = sharedResourceFolderPath;
 			this.getBundleFiles = getBundleFiles;
-			
+
 			bundleLinkResults = new Dictionary<string, string>();
 
 			Type = DirectiveProcessType.AfterCompile;
@@ -3014,7 +3057,8 @@ namespace Aurora
 
 		public TemplateInfo Compile(string fullName)
 		{
-			TemplateInfo viewTemplate = viewTemplates.AsParallel().FirstOrDefault(x => x.FullName == fullName);
+			TemplateInfo viewTemplate = viewTemplates.AsParallel()
+																							 .FirstOrDefault(x => x.FullName == fullName);
 
 			if (viewTemplate != null)
 			{
@@ -3038,7 +3082,8 @@ namespace Aurora
 					TemplateMD5sum = viewTemplate.TemplateMD5sum
 				};
 
-				TemplateInfo previouslyCompiled = compiledViews.AsParallel().FirstOrDefault(x => x.FullName == viewTemplate.FullName);
+				TemplateInfo previouslyCompiled = compiledViews.AsParallel()
+																											 .FirstOrDefault(x => x.FullName == viewTemplate.FullName);
 
 				if (previouslyCompiled != null)
 					compiledViews.Remove(previouslyCompiled);
@@ -3053,12 +3098,13 @@ namespace Aurora
 
 		public TemplateInfo Render(string fullName, Dictionary<string, string> tags)
 		{
-			TemplateInfo compiledView = compiledViews.AsParallel().FirstOrDefault(x => x.FullName == fullName);
+			TemplateInfo compiledView = compiledViews.AsParallel()
+																							 .FirstOrDefault(x => x.FullName == fullName);
 
 			if (compiledView != null)
 			{
 				StringBuilder compiledViewSB = new StringBuilder(compiledView.Template);
-				
+
 				foreach (IViewCompilerSubstitutionHandler sub in substitutionHandlers.Where(x => x.Type == DirectiveProcessType.Render))
 					compiledViewSB = sub.Process(compiledViewSB);
 
@@ -3173,7 +3219,8 @@ namespace Aurora
 
 			Action<string> compile = name =>
 			{
-				var template = viewTemplates.AsParallel().FirstOrDefault(x => x.FullName == name);
+				var template = viewTemplates.AsParallel()
+																		.FirstOrDefault(x => x.FullName == name);
 
 				if (template != null)
 					Compile(template.FullName);
@@ -3338,11 +3385,11 @@ namespace Aurora
 					// Formats the Html with indents
 					result = XElement.Parse(renderedView.Result).ToString();
 				}
-				catch 
-				{ 
+				catch
+				{
 					// Oops, Html is not well formed, probably tried to parse a fragment
 					// that had embedded string.Format placeholders or something weird.
-					result = renderedView.Result; 
+					result = renderedView.Result;
 				}
 			}
 
@@ -3472,53 +3519,53 @@ namespace Aurora
 
 	public class DynamicDictionary : DynamicObject
 	{
-		private Dictionary<string, object> _members = new Dictionary<string, object>();
+		private Dictionary<string, object> members = new Dictionary<string, object>();
 
 		public bool IsEmpty()
 		{
-			return !(_members.Keys.Count() > 0);
+			return !(members.Keys.Count() > 0);
 		}
 
 		public override IEnumerable<string> GetDynamicMemberNames()
 		{
-			return _members.Keys;
+			return members.Keys;
 		}
 
 		public IEnumerable<string> GetDynamicMemberNames(string key)
 		{
-			if (_members.ContainsKey(key) && _members[key] is DynamicDictionary)
-				return (_members[key] as DynamicDictionary)._members.Keys;
+			if (members.ContainsKey(key) && members[key] is DynamicDictionary)
+				return (members[key] as DynamicDictionary).members.Keys;
 
 			return null;
 		}
 
 		public Dictionary<string, object> AsDictionary()
 		{
-			return _members;
+			return members;
 		}
 
 		public Dictionary<string, object> AsDictionary(string key)
 		{
-			if (_members.ContainsKey(key) && (_members[key] is DynamicDictionary))
-				return (_members[key] as DynamicDictionary)._members;
+			if (members.ContainsKey(key) && (members[key] is DynamicDictionary))
+				return (members[key] as DynamicDictionary).members;
 
 			return null;
 		}
 
 		public override bool TrySetMember(SetMemberBinder binder, object value)
 		{
-			if (!_members.ContainsKey(binder.Name))
-				_members.Add(binder.Name, value);
+			if (!members.ContainsKey(binder.Name))
+				members.Add(binder.Name, value);
 			else
-				_members[binder.Name] = value;
+				members[binder.Name] = value;
 
 			return true;
 		}
 
 		public override bool TryGetMember(GetMemberBinder binder, out object result)
 		{
-			result = (_members.ContainsKey(binder.Name)) ?
-				result = _members[binder.Name] : _members[binder.Name] = new DynamicDictionary();
+			result = (members.ContainsKey(binder.Name)) ?
+				result = members[binder.Name] : members[binder.Name] = new DynamicDictionary();
 
 			return true;
 		}
