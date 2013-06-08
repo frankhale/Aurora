@@ -6,7 +6,7 @@
 //	A thin wrapper around the ASP.NET Request/Reponse objects to make it easier
 //	to disconnect applications from the intrinsics of the HttpContext.
 //
-// Date: 30 May 2013
+// Date: 7 June 2013
 //
 // Contact Info:
 //
@@ -93,7 +93,7 @@ using Microsoft.Web.Infrastructure.DynamicValidationHelper;
 //[assembly: AssemblyCopyright("Copyright © 2012-2013 | LICENSE GNU GPLv3")]
 //[assembly: ComVisible(false)]
 //[assembly: CLSCompliant(true)]
-//[assembly: AssemblyVersion("0.0.17.0")]
+//[assembly: AssemblyVersion("0.0.18.0")]
 //#endif
 
 namespace AspNetAdapter
@@ -126,9 +126,7 @@ namespace AspNetAdapter
 
 		private void app_Error(object sender, EventArgs e)
 		{
-			HttpContext context = HttpContext.Current;
-			new HttpContextAdapter(context);
-			context.Server.ClearError();
+			new HttpContextAdapter(HttpContext.Current);
 		}
 	}
 	#endregion
@@ -292,7 +290,7 @@ namespace AspNetAdapter
 		{
 			Dictionary<string, object> request = new Dictionary<string, object>();
 
-			request[HttpAdapterConstants.SessionID] = context.Session.SessionID;
+			request[HttpAdapterConstants.SessionID] = (context.Session!=null) ? context.Session.SessionID : null;
 			request[HttpAdapterConstants.ServerVariables] = NameValueCollectionToDictionary(context.Request.ServerVariables);
 			request[HttpAdapterConstants.RequestScheme] = context.Request.Url.Scheme;
 			request[HttpAdapterConstants.RequestIsSecure] = context.Request.IsSecureConnection;
@@ -304,7 +302,14 @@ namespace AspNetAdapter
 			request[HttpAdapterConstants.RequestQueryString] = NameValueCollectionToDictionary(unvalidatedQueryString);
 			request[HttpAdapterConstants.RequestQueryStringCallback] = new Func<string, bool, string>(RequestQueryStringGetCallback);
 			request[HttpAdapterConstants.RequestCookie] = StringToDictionary(context.Request.ServerVariables["HTTP_COOKIE"], ';', '=');
-			request[HttpAdapterConstants.RequestBody] = StringToDictionary(new StreamReader(context.Request.InputStream).ReadToEnd(), '&', '=');
+			try
+			{
+				request[HttpAdapterConstants.RequestBody] = (context.Request.InputStream != null) ? StringToDictionary(new StreamReader(context.Request.InputStream).ReadToEnd(), '&', '=') : null;
+			}
+			catch 
+			{
+				request[HttpAdapterConstants.RequestBody] = null;
+			}
 			request[HttpAdapterConstants.RequestForm] = NameValueCollectionToDictionary(unvalidatedForm);
 			request[HttpAdapterConstants.RequestFormCallback] = new Func<string, bool, string>(RequestFormGetCallback);
 			request[HttpAdapterConstants.RequestIPAddress] = GetIPAddress();
@@ -322,6 +327,9 @@ namespace AspNetAdapter
 			Dictionary<string, object> application = new Dictionary<string, object>();
 
 			Exception serverError = context.Server.GetLastError();
+
+			if (serverError != null)
+				context.Server.ClearError();
 
 			application[HttpAdapterConstants.DebugMode] = debugMode;
 			application[HttpAdapterConstants.User] = context.User;
@@ -484,6 +492,8 @@ namespace AspNetAdapter
 						(response[HttpAdapterConstants.ResponseErrorCallback] as Action<Exception>)(e);
 				}
 			}
+
+			context.Response.End();
 		}
 
 		private void ResponseRedirectCallback(string path, Dictionary<string, string> headers)
@@ -530,19 +540,34 @@ namespace AspNetAdapter
 		#region SESSION STATE
 		private void UserSessionStoreAddCallback(string key, object value)
 		{
-			if (!string.IsNullOrEmpty(key))
-				context.Session[key] = value;
+			try
+			{
+				if (!string.IsNullOrEmpty(key))
+					context.Session[key] = value;
+			}
+			catch { }
 		}
 
 		private void UserSessionStoreRemoveCallback(string key)
 		{
-			if (!string.IsNullOrEmpty(key))
-				context.Session.Remove(key);
+			try
+			{
+				if (!string.IsNullOrEmpty(key))
+					context.Session.Remove(key);
+			}
+			catch { }
 		}
 
 		private object UserSessionStoreGetCallback(string key)
 		{
-			return context.Session[key];
+			try
+			{
+				return context.Session[key];
+			}
+			catch
+			{
+				return null;
+			}
 		}
 
 		private void UserSessionStoreAbandonCallback()

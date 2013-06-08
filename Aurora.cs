@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - A Tiny MVC web framework for .NET
 //
-// Updated On: 5 June 2013
+// Updated On: 7 June 2013
 //
 // NOTE: 
 //
@@ -93,7 +93,7 @@ using Yahoo.Yui.Compressor;
 [assembly: AssemblyCopyright("Copyright © 2011-2013 | LICENSE GNU GPLv3")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("2.0.42.0")]
+[assembly: AssemblyVersion("2.0.43.0")]
 #endregion
 
 namespace Aurora
@@ -276,6 +276,7 @@ namespace Aurora
 	{
 		public FrontController FrontController { get; set; }
 		public List<Controller> Controllers { get; set; }
+		public List<MethodInfo> ControllerActions { get; set; }
 		public bool FromRedirectOnly { get; set; }
 		public User CurrentUser { get; set; }
 		public Dictionary<string, StringBuilder> HelperBundles { get; set; }
@@ -291,7 +292,6 @@ namespace Aurora
 		#region SESSION NAMES
 		private static string engineAppStateSessionName = "__ENGINE_APP_STATE__";
 		private static string engineSessionStateSessionName = "__ENGINE_SESSION_STATE__";
-		private static string routeInfosSessionName = "__RouteInfos";
 		private static string fromRedirectOnlySessionName = "__FromRedirectOnly";
 		#endregion
 
@@ -351,7 +351,7 @@ namespace Aurora
 			appRoot = request[HttpAdapterConstants.RequestPathBase].ToString();
 			viewRoot = string.Format(@"{0}\Views", appRoot);
 			ipAddress = request[HttpAdapterConstants.RequestIPAddress].ToString();
-			sessionID = request[HttpAdapterConstants.SessionID].ToString();
+			sessionID = (request[HttpAdapterConstants.SessionID] != null) ? request[HttpAdapterConstants.SessionID].ToString() : null;
 			path = request[HttpAdapterConstants.RequestPath].ToString();
 			pathSegments = request[HttpAdapterConstants.RequestPathSegments] as string[];
 			cookies = request[HttpAdapterConstants.RequestCookie] as Dictionary<string, string>;
@@ -387,7 +387,10 @@ namespace Aurora
 			cacheFilePath = Path.Combine(cachePath, compiledViewsCacheFileName);
 
 			if (routeInfos == null)
+			{
 				routeInfos = new List<RouteInfo>();
+				engineSessionState.RouteInfos = routeInfos;
+			}
 			#endregion
 
 			#region INITIALIZE USERS
@@ -467,65 +470,45 @@ namespace Aurora
 			#region INITIALIZE CONTROLLER INSTANCES
 			if (controllers == null)
 			{
-				controllers = GetControllerInstances();
+				controllers = new List<Controller>();
 				engineSessionState.Controllers = controllers;
 			}
-			else
-				controllers.ForEach(c => c.engine = this);
 			#endregion
 
 			#region RUN ALL CONTROLLER ONINIT METHODS
 			if (frontController != null)
 				frontController.RaiseEvent(EventType.OnInit);
-
-			controllers.ForEach(x => x.RaiseEvent(EventType.OnInit));
 			#endregion
 
-			if (!allowedFilePattern.IsMatch(path))
+			#region INITIALIZE VIEW ENGINE
+			if (!allowedFilePattern.IsMatch(path) && (ViewEngine == null || debugMode))
 			{
-				#region INITIALIZE ROUTEINFOS
-				if (GetSession(routeInfosSessionName) == null)
-				{
-					routeInfos.Clear();
-					routeInfos.AddRange(GetRouteInfos());
-					engineSessionState.RouteInfos = routeInfos;
-					AddSession(routeInfosSessionName, routeInfos);
+				string viewCache = null;
+				List<IViewCompilerDirectiveHandler> dirHandlers = new List<IViewCompilerDirectiveHandler>();
+				List<IViewCompilerSubstitutionHandler> substitutionHandlers = new List<IViewCompilerSubstitutionHandler>();
 
-					if (frontController != null)
-						frontController.RaiseEvent(RouteHandlerEventType.PostRoutesDiscovery, path, null, routeInfos);
-				}
-				#endregion
+				dirHandlers.Add(new MasterPageDirective());
+				dirHandlers.Add(new PlaceHolderDirective());
+				dirHandlers.Add(new PartialPageDirective());
+				dirHandlers.Add(new BundleDirective(debugMode, sharedResourceFolderPath, GetBundleFiles));
+				substitutionHandlers.Add(new HelperBundleDirective(sharedResourceFolderPath, GetHelperBundle));
+				substitutionHandlers.Add(new CommentSubstitution());
+				substitutionHandlers.Add(new AntiForgeryTokenSubstitution(CreateAntiForgeryToken));
+				substitutionHandlers.Add(new HeadSubstitution());
 
-				#region INITIALIZE VIEW ENGINE
-				if (ViewEngine == null || debugMode)
-				{
-					string viewCache = null;
-					List<IViewCompilerDirectiveHandler> dirHandlers = new List<IViewCompilerDirectiveHandler>();
-					List<IViewCompilerSubstitutionHandler> substitutionHandlers = new List<IViewCompilerSubstitutionHandler>();
+				if (File.Exists(cacheFilePath) && !debugMode)
+					viewCache = File.ReadAllText(cacheFilePath);
 
-					dirHandlers.Add(new MasterPageDirective());
-					dirHandlers.Add(new PlaceHolderDirective());
-					dirHandlers.Add(new PartialPageDirective());
-					dirHandlers.Add(new BundleDirective(debugMode, sharedResourceFolderPath, GetBundleFiles));
-					substitutionHandlers.Add(new HelperBundleDirective(sharedResourceFolderPath, GetHelperBundle));
-					substitutionHandlers.Add(new CommentSubstitution());
-					substitutionHandlers.Add(new AntiForgeryTokenSubstitution(CreateAntiForgeryToken));
-					substitutionHandlers.Add(new HeadSubstitution());
+				ViewEngine = new ViewEngine(appRoot, GetViewRoots(), dirHandlers, substitutionHandlers, viewCache);
 
-					if (File.Exists(cacheFilePath) && !debugMode)
-						viewCache = File.ReadAllText(cacheFilePath);
-
-					ViewEngine = new ViewEngine(appRoot, GetViewRoots(), dirHandlers, substitutionHandlers, viewCache);
-
-					if (string.IsNullOrEmpty(viewCache) || debugMode)
-						UpdateCache(cacheFilePath);
-
-					engineAppState.ViewEngine = ViewEngine;
-				}
-				else if (ViewEngine.CacheUpdated || !Directory.Exists(cachePath) || !File.Exists(cacheFilePath))
+				if (string.IsNullOrEmpty(viewCache) || debugMode)
 					UpdateCache(cacheFilePath);
-				#endregion
+
+				engineAppState.ViewEngine = ViewEngine;
 			}
+			else if (ViewEngine.CacheUpdated || !Directory.Exists(cachePath) || !File.Exists(cacheFilePath))
+				UpdateCache(cacheFilePath);
+			#endregion
 
 			AddApplication(engineAppStateSessionName, engineAppState);
 			AddSession(engineSessionStateSessionName, engineSessionState);
@@ -548,7 +531,7 @@ namespace Aurora
 					exception = ex;
 				}
 			}
-						
+
 			if (viewResponse == null && exception == null)
 			{
 				httpStatus = 404;
@@ -557,10 +540,15 @@ namespace Aurora
 			else if (exception != null)
 			{
 				httpStatus = 503;
-				viewResponse = GetErrorViewResponse(
-					(exception.InnerException != null) ? exception.InnerException.Message : exception.Message,
-					(exception.InnerException != null) ? exception.InnerException.StackTrace : exception.StackTrace
-				);
+				if (debugMode)
+				{
+					viewResponse = GetErrorViewResponse(
+						(exception.InnerException != null) ? exception.InnerException.Message : exception.Message,
+						(exception.InnerException != null) ? exception.InnerException.StackTrace : exception.StackTrace
+					);
+				}
+				else
+					viewResponse = GetErrorViewResponse("A problem occurred trying to process this request.", null);
 			}
 
 			viewResponse.HttpStatus = httpStatus;
@@ -834,8 +822,11 @@ namespace Aurora
 		{
 			List<string> viewRoots = new List<string>() { viewRoot };
 
-			viewRoots.AddRange(controllers.Where(x => !string.IsNullOrEmpty(x.PartitionName))
-																		.Select(x => string.Format(@"{0}\{1}", appRoot, x.PartitionName)));
+			var controllers = GetTypeList(typeof(Controller));
+			var partitionAttributes = controllers.SelectMany(x => 
+				x.GetCustomAttributes(typeof(PartitionAttribute), false).Cast<PartitionAttribute>());
+
+			viewRoots.AddRange(partitionAttributes.Select(x=> string.Format(@"{0}\{1}", appRoot, x.Name)));
 
 			return viewRoots.ToArray();
 		}
@@ -931,28 +922,33 @@ namespace Aurora
 
 			List<string> result = new List<string>();
 
-			var controller = controllers.FirstOrDefault(x => x.GetType().Name == controllerName);
+			var controller = GetTypeList(typeof(Controller)).FirstOrDefault(x => x.Name == controllerName);
 
 			if (controller != null)
 			{
-				result = controller.GetType()
-													 .GetMethods()
-													 .AsParallel() // this is debatable, how many actions is your controller gonna have?
-													 .Where(x => x.GetCustomAttributes(typeof(HttpAttribute), false).Count() > 0)
-													 .Select(x => x.Name)
-													 .ToList();
+			  result = controller.GetMethods()
+			                     .Where(x => x.GetCustomAttributes(typeof(HttpAttribute), false).Count() > 0)
+			                     .Select(x => x.Name)
+			                     .ToList();
 			}
 
 			return result;
 		}
 
-		private List<Controller> GetControllerInstances()
+		private Controller GetControllerInstances(string controllerName)
 		{
-			List<Controller> instances = new List<Controller>();
+			var ctrlInstance = controllers.FirstOrDefault(x => x.GetType().Name == controllerName);
 
-			GetTypeList(typeof(Controller)).ForEach(x => instances.Add(Controller.CreateInstance(x, this)));
+			if (ctrlInstance == null)
+			{
+				ctrlInstance = Controller.CreateInstance(GetTypeList(typeof(Controller)).FirstOrDefault(x => x.Name == controllerName), this);
+				controllers.Add(ctrlInstance);
+				ctrlInstance.RaiseEvent(EventType.OnInit);
+			}
+			else
+				ctrlInstance.engine = this;
 
-			return instances;
+			return ctrlInstance;
 		}
 
 		private FrontController GetFrontControllerInstance()
@@ -964,31 +960,39 @@ namespace Aurora
 			return fc;
 		}
 
-		private List<RouteInfo> GetRouteInfos()
+		private List<RouteInfo> GetRouteInfos(string path)
 		{
-			List<RouteInfo> routeInfos = new List<RouteInfo>();
-
-			foreach (Controller c in controllers)
+			foreach (Type c in GetTypeList(typeof(Controller)))
 			{
-				var actions = c.GetType().GetMethods()
-																 .AsParallel()
-																 .Where(x => x.GetCustomAttributes(typeof(HttpAttribute), false).FirstOrDefault() != null)
-																 .Select(x =>
-																	new
-																	{
-																		Method = x,
-																		Attribute = (HttpAttribute)x.GetCustomAttributes(typeof(HttpAttribute), false).FirstOrDefault(),
-																		Aliases = x.GetCustomAttributes(typeof(AliasAttribute), false).Select(a => (a as AliasAttribute).Alias).ToList()
-																	});
+				List<MethodInfo> actions = null;
 
-				foreach (var action in actions)
+				if (engineSessionState.ControllerActions == null)
+				{
+					actions = c.GetMethods()
+										 .Where(x => x.GetCustomAttributes(typeof(HttpAttribute), false).Count() > 0)
+										 .ToList();
+
+					engineSessionState.ControllerActions = actions;
+				}
+				else
+					actions = engineSessionState.ControllerActions;
+
+				var refinedActions = actions.Select(x => new
+				{
+					Method = x,
+					Attribute = (HttpAttribute)x.GetCustomAttributes(typeof(HttpAttribute), false).FirstOrDefault(),
+					Aliases = x.GetCustomAttributes(typeof(AliasAttribute), false).Select(a => (a as AliasAttribute).Alias).ToList()
+				})
+				.Where(x => (x.Aliases.Count() > 0) ? x.Aliases.FirstOrDefault(y => y == path).Count() > 0 : x.Attribute.RouteAlias == path);
+
+				foreach (var action in refinedActions)
 				{
 					if (string.IsNullOrEmpty(action.Attribute.RouteAlias))
 						action.Aliases.Add(string.Format("/{0}/{1}", c.GetType().Name, action.Method.Name));
 					else
 						action.Aliases.Add(action.Attribute.RouteAlias);
 
-					AddRoute(routeInfos, c, action.Method, action.Aliases, null, false);
+					AddRoute(routeInfos, GetControllerInstances(c.Name), action.Method, action.Aliases, null, false);
 				}
 			}
 
@@ -1259,8 +1263,7 @@ namespace Aurora
 
 			RouteInfo result = null;
 
-			var routeSlice = routeInfos.AsParallel()
-																 .SelectMany(routeInfo => routeInfo.Aliases, (routeInfo, alias) => new { routeInfo, alias }).Where(x => path == x.alias)
+			var routeSlice = GetRouteInfos(path).SelectMany(routeInfo => routeInfo.Aliases, (routeInfo, alias) => new { routeInfo, alias }).Where(x => path == x.alias)
 																 .OrderBy(x => x.routeInfo.Action.GetParameters().Length)
 																 .ToList();
 
@@ -1929,7 +1932,6 @@ namespace Aurora
 	{
 		PreAction,
 		PostAction,
-		PostRoutesDiscovery,
 		PreRoute,
 		PostRoute,
 		Static,
@@ -2119,7 +2121,7 @@ namespace Aurora
 	public abstract class FrontController : BaseController
 	{
 		protected event EventHandler<RouteHandlerEventArgs> OnPreActionEvent,
-			OnPostActionEvent, OnPostRoutesDiscovery, OnStaticRouteEvent, OnPreRouteDeterminationEvent, OnPostRouteDeterminationEvent,
+			OnPostActionEvent, OnStaticRouteEvent, OnPreRouteDeterminationEvent, OnPostRouteDeterminationEvent,
 			OnPassedSecurityEvent, OnFailedSecurityEvent, OnMissingRouteEvent, OnErrorEvent;
 
 		internal static FrontController CreateInstance(Type type, Engine engine)
@@ -2156,11 +2158,6 @@ namespace Aurora
 				case RouteHandlerEventType.PostAction:
 					if (OnPostActionEvent != null)
 						OnPostActionEvent(this, args);
-					break;
-
-				case RouteHandlerEventType.PostRoutesDiscovery:
-					if (OnPostRoutesDiscovery != null)
-						OnPostRoutesDiscovery(this, args);
 					break;
 
 				case RouteHandlerEventType.PreRoute:
@@ -2996,7 +2993,6 @@ namespace Aurora
 
 		private static Regex directiveTokenRE = new Regex(@"(\%\%(?<directive>[a-zA-Z0-9]+)=(?<value>(\S|\.)+)\%\%)", RegexOptions.Compiled);
 		private static Regex tagRE = new Regex(@"{({|\||\!)([\w]+)(}|\!|\|)}", RegexOptions.Compiled);
-		//private static Regex emptyLines = new Regex(@"^\s+$[\r\n]*", RegexOptions.Compiled | RegexOptions.Multiline);
 		private static string tagFormatPattern = @"({{({{|\||\!){0}(\||\!|}})}})";
 		private static string tagEncodingHint = "{|";
 		private static string markdownEncodingHint = "{!";
@@ -3257,7 +3253,7 @@ namespace Aurora
 			this.substitutionHandlers = substitutionHandlers;
 
 			viewTemplateLoader = new TemplateLoader(appRoot, viewRoots);
-
+						
 			FileSystemWatcher watcher = new FileSystemWatcher(appRoot, "*.html");
 
 			watcher.NotifyFilter = NotifyFilters.LastWrite;
