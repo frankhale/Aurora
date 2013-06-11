@@ -123,31 +123,7 @@ namespace AspNetAdapter
 		public void Init(HttpApplication context)
 		{
 			context.Error += new EventHandler(app_Error);
-			//context.PreRequestHandlerExecute += new EventHandler(app_PreRequestHandlerExecute);
-			//context.PostRequestHandlerExecute += new EventHandler(app_PostRequestHandlerExecute);
 		}
-
-		//void app_PreRequestHandlerExecute(object sender, EventArgs e)
-		//{
-		//  HttpContext context = ((HttpApplication)sender).Context;
-		//  Stopwatch sw = new Stopwatch();
-		//  context.Items["timer"] = sw;
-		//  sw.Start();
-		//}
-
-		//void app_PostRequestHandlerExecute(object sender, EventArgs e)
-		//{
-		//  HttpContext context = ((HttpApplication)sender).Context;
-		//  Stopwatch sw = (Stopwatch)context.Items["timer"];
-		//  sw.Stop();
-
-		//  if (context.Response.ContentType == "text/html")
-		//  {
-		//    double seconds = (double)sw.ElapsedTicks / Stopwatch.Frequency;
-		//    string result = string.Format("{0:F4} sec ({1:F0} req/sec)", seconds, 1 / seconds);
-		//    context.Response.Write("Rendered in: " + result);
-		//  }
-		//}
 
 		private void app_Error(object sender, EventArgs e)
 		{
