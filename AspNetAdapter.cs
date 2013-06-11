@@ -6,7 +6,7 @@
 //	A thin wrapper around the ASP.NET Request/Reponse objects to make it easier
 //	to disconnect applications from the intrinsics of the HttpContext.
 //
-// Date: 7 June 2013
+// Date: 10 June 2013
 //
 // Contact Info:
 //
@@ -82,6 +82,7 @@ using System.Web;
 using System.Web.Caching;
 using System.Web.SessionState;
 using Microsoft.Web.Infrastructure.DynamicValidationHelper;
+using HtmlAgilityPack;
 
 //#if LIBRARY
 //using System.Runtime.InteropServices;
@@ -122,7 +123,31 @@ namespace AspNetAdapter
 		public void Init(HttpApplication context)
 		{
 			context.Error += new EventHandler(app_Error);
+			//context.PreRequestHandlerExecute += new EventHandler(app_PreRequestHandlerExecute);
+			//context.PostRequestHandlerExecute += new EventHandler(app_PostRequestHandlerExecute);
 		}
+
+		//void app_PreRequestHandlerExecute(object sender, EventArgs e)
+		//{
+		//  HttpContext context = ((HttpApplication)sender).Context;
+		//  Stopwatch sw = new Stopwatch();
+		//  context.Items["timer"] = sw;
+		//  sw.Start();
+		//}
+
+		//void app_PostRequestHandlerExecute(object sender, EventArgs e)
+		//{
+		//  HttpContext context = ((HttpApplication)sender).Context;
+		//  Stopwatch sw = (Stopwatch)context.Items["timer"];
+		//  sw.Stop();
+
+		//  if (context.Response.ContentType == "text/html")
+		//  {
+		//    double seconds = (double)sw.ElapsedTicks / Stopwatch.Frequency;
+		//    string result = string.Format("{0:F4} sec ({1:F0} req/sec)", seconds, 1 / seconds);
+		//    context.Response.Write("Rendered in: " + result);
+		//  }
+		//}
 
 		private void app_Error(object sender, EventArgs e)
 		{
@@ -227,6 +252,7 @@ namespace AspNetAdapter
 	{
 		private static object syncInitLock = new object();
 
+		private Stopwatch timer;
 		private readonly HttpContext context;
 		private bool firstRun, debugMode;
 		private static string AspNetApplicationTypeSessionName = "__AspNetApplicationType";
@@ -234,6 +260,9 @@ namespace AspNetAdapter
 
 		public HttpContextAdapter(HttpContext ctx)
 		{
+			timer = new Stopwatch();
+			timer.Start();
+
 			context = ctx;
 
 			firstRun = Convert.ToBoolean(context.Application["__SyncInitLock"]);
@@ -253,7 +282,7 @@ namespace AspNetAdapter
 														.Where(x => x.GetName().Name != "DotNetOpenAuth") // DotNetOpenAuth depends on System.Web.Mvc which is not referenced, this will fail if we don't eliminate it
 														.SelectMany(x => x.GetTypes()
 																							.Where(y => y.GetInterfaces()
-																													 .FirstOrDefault(i => i.UnderlyingSystemType == typeof(IAspNetAdapterApplication)) != null));
+																													 .FirstOrDefault(i => i.IsInterface && i.UnderlyingSystemType == typeof(IAspNetAdapterApplication)) != null));
 
 				if (apps != null)
 				{
@@ -459,6 +488,8 @@ namespace AspNetAdapter
 		{
 			response.ThrowIfArgumentNull();
 
+			timer.Stop();
+
 			if (!response.ContainsKey(HttpAdapterConstants.ResponseStatus))
 				response[HttpAdapterConstants.ResponseStatus] = 200;
 
@@ -479,7 +510,22 @@ namespace AspNetAdapter
 			try
 			{
 				if (response[HttpAdapterConstants.ResponseBody] is string)
-					context.Response.Write((string)response[HttpAdapterConstants.ResponseBody]);
+				{
+					string result = (string)response[HttpAdapterConstants.ResponseBody];
+
+					if (response[HttpAdapterConstants.ResponseContentType].ToString() == "text/html")
+					{
+						double seconds = (double)timer.ElapsedTicks / Stopwatch.Frequency;
+
+						var doc = new HtmlDocument();
+						doc.LoadHtml(result);
+						var titleNode = doc.DocumentNode.SelectSingleNode("//head//title//text()") as HtmlTextNode;
+						titleNode.Text = titleNode.Text + string.Format(" ({0:F4} sec)", seconds);
+						result = doc.DocumentNode.InnerHtml;
+					}
+
+					context.Response.Write(result);
+				}
 				else if (response[HttpAdapterConstants.ResponseBody] is byte[])
 					context.Response.BinaryWrite((byte[])response[HttpAdapterConstants.ResponseBody]);
 			}

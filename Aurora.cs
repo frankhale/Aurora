@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - A Tiny MVC web framework for .NET
 //
-// Updated On: 7 June 2013
+// Updated On: 10 June 2013
 //
 // NOTE: 
 //
@@ -93,7 +93,7 @@ using Yahoo.Yui.Compressor;
 [assembly: AssemblyCopyright("Copyright © 2011-2013 | LICENSE GNU GPLv3")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("2.0.43.0")]
+[assembly: AssemblyVersion("2.0.44.0")]
 #endregion
 
 namespace Aurora
@@ -269,6 +269,7 @@ namespace Aurora
 		public Dictionary<string, string> ProtectedFiles { get; set; }
 		public Dictionary<string, object> ControllersSession { get; set; }
 		public List<Type> Models { get; set; }
+		public string CacheFilePath { get; set; }
 	}
 
 	// EngineSessionState maps to state that is stored in the ASP.NET Session store.
@@ -383,8 +384,16 @@ namespace Aurora
 			#endregion
 
 			#region INITIALIZE MISCELLANEOUS
-			cachePath = MapPath(compiledViewsCacheFolderPath);
-			cacheFilePath = Path.Combine(cachePath, compiledViewsCacheFileName);
+			if (string.IsNullOrEmpty(engineAppState.CacheFilePath))
+			{
+				cachePath = MapPath(compiledViewsCacheFolderPath);
+				engineAppState.CacheFilePath = cacheFilePath = Path.Combine(cachePath, compiledViewsCacheFileName);
+			}
+			else
+			{
+				cacheFilePath = engineAppState.CacheFilePath;
+				cachePath = Path.GetDirectoryName(cacheFilePath);
+			}
 
 			if (routeInfos == null)
 			{
@@ -501,7 +510,7 @@ namespace Aurora
 
 				ViewEngine = new ViewEngine(appRoot, GetViewRoots(), dirHandlers, substitutionHandlers, viewCache);
 
-				if (string.IsNullOrEmpty(viewCache) || debugMode)
+				if (string.IsNullOrEmpty(viewCache) || !debugMode)
 					UpdateCache(cacheFilePath);
 
 				engineAppState.ViewEngine = ViewEngine;
@@ -823,10 +832,10 @@ namespace Aurora
 			List<string> viewRoots = new List<string>() { viewRoot };
 
 			var controllers = GetTypeList(typeof(Controller));
-			var partitionAttributes = controllers.SelectMany(x => 
+			var partitionAttributes = controllers.SelectMany(x =>
 				x.GetCustomAttributes(typeof(PartitionAttribute), false).Cast<PartitionAttribute>());
 
-			viewRoots.AddRange(partitionAttributes.Select(x=> string.Format(@"{0}\{1}", appRoot, x.Name)));
+			viewRoots.AddRange(partitionAttributes.Select(x => string.Format(@"{0}\{1}", appRoot, x.Name)));
 
 			return viewRoots.ToArray();
 		}
@@ -913,7 +922,9 @@ namespace Aurora
 			return AppDomain.CurrentDomain.GetAssemblies()
 																		.AsParallel()
 																		.Where(x => x.GetName().Name != "DotNetOpenAuth")
-																		.SelectMany(x => x.GetTypes().Where(y => y.BaseType == t)).ToList();
+																		.SelectMany(x => x.GetTypes()
+																											.AsParallel()
+																											.Where(y => y.IsClass && y.BaseType == t)).ToList();
 		}
 
 		private List<string> GetControllerActionNames(string controllerName)
@@ -926,10 +937,10 @@ namespace Aurora
 
 			if (controller != null)
 			{
-			  result = controller.GetMethods()
-			                     .Where(x => x.GetCustomAttributes(typeof(HttpAttribute), false).Count() > 0)
-			                     .Select(x => x.Name)
-			                     .ToList();
+				result = controller.GetMethods()
+													 .Where(x => x.GetCustomAttributes(typeof(HttpAttribute), false).Count() > 0)
+													 .Select(x => x.Name)
+													 .ToList();
 			}
 
 			return result;
@@ -953,11 +964,13 @@ namespace Aurora
 
 		private FrontController GetFrontControllerInstance()
 		{
-			FrontController fc = null;
+			FrontController result = null;
+			Type fcType = GetTypeList(typeof(FrontController)).FirstOrDefault();
 
-			GetTypeList(typeof(FrontController)).ForEach(x => { fc = FrontController.CreateInstance(x, this); return; });
+			if (fcType != null)
+				result = FrontController.CreateInstance(fcType, this);
 
-			return fc;
+			return result;
 		}
 
 		private List<RouteInfo> GetRouteInfos(string path)
@@ -1340,9 +1353,9 @@ namespace Aurora
 
 		internal void RemoveRoute(string alias)
 		{
-			RouteInfo routeInfo = routeInfos.FirstOrDefault(x => x.Aliases.FirstOrDefault(a => a == alias) != null);
+			RouteInfo routeInfo = routeInfos.FirstOrDefault(x => x.Aliases.FirstOrDefault(a => a == alias) != null && x.Dynamic);
 
-			if (routeInfo != null && routeInfo.Dynamic)
+			if (routeInfo != null)
 				routeInfos.Remove(routeInfo);
 		}
 
@@ -1393,7 +1406,7 @@ namespace Aurora
 		}
 
 		// If you are creating dynamic routes it may be useful to obtain a list of all of the
-		// routes the framework knows about.
+		// routes the framework knows about, especially for debugging purposes.
 		internal List<string> GetAllRouteAliases()
 		{
 			return routeInfos.SelectMany(x => x.Aliases).ToList();
@@ -2664,7 +2677,6 @@ namespace Aurora
 
 				string masterPageName = directiveInfo.DetermineKeyName(directiveInfo.Value);
 				string masterPageTemplate = directiveInfo.ViewTemplates
-																								 .AsParallel()
 																								 .FirstOrDefault(x => x.FullName == masterPageName)
 																								 .Template;
 
@@ -2696,7 +2708,6 @@ namespace Aurora
 			{
 				string partialPageName = directiveInfo.DetermineKeyName(directiveInfo.Value);
 				string partialPageTemplate = directiveInfo.ViewTemplates
-																									.AsParallel()
 																									.FirstOrDefault(x => x.FullName == partialPageName)
 																									.Template;
 
@@ -2777,7 +2788,7 @@ namespace Aurora
 
 			bundleLinkResults = new Dictionary<string, string>();
 
-			Type = DirectiveProcessType.AfterCompile;
+			Type = DirectiveProcessType.Render;
 		}
 
 		public string ProcessBundleLink(string bundlePath)
@@ -3047,8 +3058,7 @@ namespace Aurora
 
 		public TemplateInfo Compile(string fullName)
 		{
-			TemplateInfo viewTemplate = viewTemplates.AsParallel()
-																							 .FirstOrDefault(x => x.FullName == fullName);
+			TemplateInfo viewTemplate = viewTemplates.FirstOrDefault(x => x.FullName == fullName);
 
 			if (viewTemplate != null)
 			{
@@ -3072,8 +3082,7 @@ namespace Aurora
 					TemplateMD5sum = viewTemplate.TemplateMD5sum
 				};
 
-				TemplateInfo previouslyCompiled = compiledViews.AsParallel()
-																											 .FirstOrDefault(x => x.FullName == viewTemplate.FullName);
+				TemplateInfo previouslyCompiled = compiledViews.FirstOrDefault(x => x.FullName == viewTemplate.FullName);
 
 				if (previouslyCompiled != null)
 					compiledViews.Remove(previouslyCompiled);
@@ -3088,8 +3097,7 @@ namespace Aurora
 
 		public TemplateInfo Render(string fullName, Dictionary<string, string> tags)
 		{
-			TemplateInfo compiledView = compiledViews.AsParallel()
-																							 .FirstOrDefault(x => x.FullName == fullName);
+			TemplateInfo compiledView = compiledViews.FirstOrDefault(x => x.FullName == fullName);
 
 			if (compiledView != null)
 			{
@@ -3097,6 +3105,31 @@ namespace Aurora
 
 				foreach (IViewCompilerSubstitutionHandler sub in substitutionHandlers.Where(x => x.Type == DirectiveProcessType.Render))
 					compiledViewSB = sub.Process(compiledViewSB);
+
+				foreach (IViewCompilerDirectiveHandler dir in directiveHandlers.Where(x => x.Type == DirectiveProcessType.Render))
+				{
+					MatchCollection dirMatches = directiveTokenRE.Matches(compiledViewSB.ToString());
+
+					foreach (Match match in dirMatches)
+					{
+						directive.Clear();
+						directive.Insert(0, match.Groups["directive"].Value);
+
+						value.Clear();
+						value.Insert(0, match.Groups["value"].Value);
+
+						compiledViewSB = dir.Process(new ViewCompilerDirectiveInfo()
+						{
+							Match = match,
+							Directive = directive.ToString(),
+							Value = value.ToString(),
+							Content = compiledViewSB,
+							ViewTemplates = viewTemplates,
+							AddPageDependency = null, // This is in the pipeline to be fixed
+							DetermineKeyName = null // This is in the pipeline to be fixed
+						});
+					}
+				}
 
 				if (tags != null)
 				{
@@ -3150,18 +3183,18 @@ namespace Aurora
 			if (!viewDependencies.ContainsKey(fullViewName))
 				viewDependencies[fullViewName] = new List<string>();
 
-			Func<string, string> determineKeyName = name =>
-			{
-				return viewTemplates.AsParallel()
-														.Select(y => y.FullName)
-														.Where(z => z.Contains("Shared/" + name))
-														.FirstOrDefault();
-			};
-
+			#region CLOSURES
 			Action<string> addPageDependency = x =>
 			{
 				if (!viewDependencies[fullViewName].Contains(x))
 					viewDependencies[fullViewName].Add(x);
+			};
+
+			Func<string, string> determineKeyName = name =>
+			{
+				return viewTemplates.Select(y => y.FullName)
+														.Where(z => z.Contains("Shared/" + name))
+														.FirstOrDefault();
 			};
 
 			Action<IEnumerable<IViewCompilerDirectiveHandler>> performCompilerPass = x =>
@@ -3192,6 +3225,7 @@ namespace Aurora
 					}
 				}
 			};
+			#endregion
 
 			performCompilerPass(directiveHandlers.Where(x => x.Type == DirectiveProcessType.Compile));
 
@@ -3209,8 +3243,7 @@ namespace Aurora
 
 			Action<string> compile = name =>
 			{
-				var template = viewTemplates.AsParallel()
-																		.FirstOrDefault(x => x.FullName == name);
+				var template = viewTemplates.FirstOrDefault(x => x.FullName == name);
 
 				if (template != null)
 					Compile(template.FullName);
@@ -3219,9 +3252,7 @@ namespace Aurora
 			if (deps.Count() > 0)
 			{
 				foreach (KeyValuePair<string, List<string>> view in deps)
-				{
 					compile(view.Key);
-				}
 			}
 			else
 				compile(fullViewName);
@@ -3253,7 +3284,7 @@ namespace Aurora
 			this.substitutionHandlers = substitutionHandlers;
 
 			viewTemplateLoader = new TemplateLoader(appRoot, viewRoots);
-						
+
 			FileSystemWatcher watcher = new FileSystemWatcher(appRoot, "*.html");
 
 			watcher.NotifyFilter = NotifyFilters.LastWrite;
@@ -3279,7 +3310,6 @@ namespace Aurora
 			}
 			else
 			{
-				viewTemplates = new List<TemplateInfo>();
 				compiledViews = new List<TemplateInfo>();
 				viewDependencies = new Dictionary<string, List<string>>();
 				viewTemplates = viewTemplateLoader.Load();
