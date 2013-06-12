@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - A Tiny MVC web framework for .NET
 //
-// Updated On: 10 June 2013
+// Updated On: 11 June 2013
 //
 // NOTE: 
 //
@@ -17,7 +17,7 @@
 //
 // Source Code Location:
 //
-//	https://github.com/frankhale/aurora
+//	https://github.com/frankhale
 //
 // --------------------
 // --- Feature List ---
@@ -93,7 +93,7 @@ using Yahoo.Yui.Compressor;
 [assembly: AssemblyCopyright("Copyright © 2011-2013 | LICENSE GNU GPLv3")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("2.0.44.0")]
+[assembly: AssemblyVersion("2.0.4.0")]
 #endregion
 
 namespace Aurora
@@ -263,6 +263,13 @@ namespace Aurora
 	// EngineAppState maps to state that is stored in the ASP.NET Application store.
 	internal class EngineAppState
 	{
+		public static readonly Regex AllowedFilePattern = new Regex(@"^.*\.(js|css|png|jpg|gif|ico|pptx|xlsx|csv|txt)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+		public static readonly Regex CSSOrJSExtPattern = new Regex(@"^.*\.(js|css)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+		public static readonly string SharedResourceFolderPath = "/Resources";
+		public static readonly string CompiledViewsCacheFolderPath = "/Views/Cache";
+		public static readonly string CompiledViewsCacheFileName = "viewsCache.json";
+		public static readonly string AntiForgeryTokenName = "AntiForgeryToken";
+
 		public ViewEngine ViewEngine { get; set; }
 		public List<User> Users { get; set; }
 		public List<string> AntiForgeryTokens { get; set; }
@@ -270,6 +277,7 @@ namespace Aurora
 		public Dictionary<string, object> ControllersSession { get; set; }
 		public List<Type> Models { get; set; }
 		public string CacheFilePath { get; set; }
+		public List<RouteInfo> RouteInfos { get; set; }
 	}
 
 	// EngineSessionState maps to state that is stored in the ASP.NET Session store.
@@ -280,8 +288,7 @@ namespace Aurora
 		public List<MethodInfo> ControllerActions { get; set; }
 		public bool FromRedirectOnly { get; set; }
 		public User CurrentUser { get; set; }
-		public Dictionary<string, StringBuilder> HelperBundles { get; set; }
-		public List<RouteInfo> RouteInfos { get; set; }
+		public Dictionary<string, StringBuilder> HelperBundles { get; set; }		
 		public Dictionary<string, Dictionary<string, List<object>>> ActionBindings { get; set; }
 		public Dictionary<string, Tuple<List<string>, string>> Bundles { get; set; }
 	}
@@ -311,12 +318,6 @@ namespace Aurora
 		#endregion
 
 		#region MISCELLANEOUS VARIABLES
-		private static Regex allowedFilePattern = new Regex(@"^.*\.(js|css|png|jpg|gif|ico|pptx|xlsx|csv|txt)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-		private static Regex cssOrJSExtPattern = new Regex(@"^.*\.(js|css)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-		private static string sharedResourceFolderPath = "/Resources";
-		private static string compiledViewsCacheFolderPath = "/Views/Cache";
-		private static string compiledViewsCacheFileName = "viewsCache.json";
-		private static string antiForgeryTokenName = "AntiForgeryToken";
 		private bool debugMode;
 		internal ViewEngine ViewEngine;
 		private FrontController frontController;
@@ -371,7 +372,7 @@ namespace Aurora
 			ViewEngine = engineAppState.ViewEngine;
 			controllers = engineSessionState.Controllers;
 			frontController = engineSessionState.FrontController;
-			routeInfos = engineSessionState.RouteInfos;
+			routeInfos = engineAppState.RouteInfos;
 			actionBindings = engineSessionState.ActionBindings;
 			users = engineAppState.Users;
 			antiForgeryTokens = engineAppState.AntiForgeryTokens;
@@ -386,8 +387,8 @@ namespace Aurora
 			#region INITIALIZE MISCELLANEOUS
 			if (string.IsNullOrEmpty(engineAppState.CacheFilePath))
 			{
-				cachePath = MapPath(compiledViewsCacheFolderPath);
-				engineAppState.CacheFilePath = cacheFilePath = Path.Combine(cachePath, compiledViewsCacheFileName);
+				cachePath = MapPath(EngineAppState.CompiledViewsCacheFolderPath);
+				engineAppState.CacheFilePath = cacheFilePath = Path.Combine(cachePath, EngineAppState.CompiledViewsCacheFileName);
 			}
 			else
 			{
@@ -398,8 +399,10 @@ namespace Aurora
 			if (routeInfos == null)
 			{
 				routeInfos = new List<RouteInfo>();
-				engineSessionState.RouteInfos = routeInfos;
+				engineAppState.RouteInfos = routeInfos;
 			}
+			else
+				routeInfos.ForEach(x => x.Controller.engine = this);
 			#endregion
 
 			#region INITIALIZE USERS
@@ -482,6 +485,8 @@ namespace Aurora
 				controllers = new List<Controller>();
 				engineSessionState.Controllers = controllers;
 			}
+			//else
+			//	controllers.ForEach(c => c.engine = this);
 			#endregion
 
 			#region RUN ALL CONTROLLER ONINIT METHODS
@@ -490,7 +495,7 @@ namespace Aurora
 			#endregion
 
 			#region INITIALIZE VIEW ENGINE
-			if (!allowedFilePattern.IsMatch(path) && (ViewEngine == null || debugMode))
+			if (!EngineAppState.AllowedFilePattern.IsMatch(path) && (ViewEngine == null || debugMode))
 			{
 				string viewCache = null;
 				List<IViewCompilerDirectiveHandler> dirHandlers = new List<IViewCompilerDirectiveHandler>();
@@ -499,8 +504,8 @@ namespace Aurora
 				dirHandlers.Add(new MasterPageDirective());
 				dirHandlers.Add(new PlaceHolderDirective());
 				dirHandlers.Add(new PartialPageDirective());
-				dirHandlers.Add(new BundleDirective(debugMode, sharedResourceFolderPath, GetBundleFiles));
-				substitutionHandlers.Add(new HelperBundleDirective(sharedResourceFolderPath, GetHelperBundle));
+				dirHandlers.Add(new BundleDirective(debugMode, EngineAppState.SharedResourceFolderPath, GetBundleFiles));
+				substitutionHandlers.Add(new HelperBundleDirective(EngineAppState.SharedResourceFolderPath, GetHelperBundle));
 				substitutionHandlers.Add(new CommentSubstitution());
 				substitutionHandlers.Add(new AntiForgeryTokenSubstitution(CreateAntiForgeryToken));
 				substitutionHandlers.Add(new HeadSubstitution());
@@ -571,19 +576,19 @@ namespace Aurora
 		{
 			ViewResponse viewResponse = null;
 
-			if (allowedFilePattern.IsMatch(path))
+			if (EngineAppState.AllowedFilePattern.IsMatch(path))
 			{
 				#region FILE RESPONSE
 				RaiseEventOnFrontController(RouteHandlerEventType.Static, path, null, null);
 
-				if (path.StartsWith(sharedResourceFolderPath) || path.EndsWith(".ico"))
+				if (path.StartsWith(EngineAppState.SharedResourceFolderPath) || path.EndsWith(".ico"))
 				{
 					string filePath = MapPath(path);
 
 					if (CanAccessFile(filePath))
 					{
 						if (File.Exists(filePath))
-							viewResponse = new FileResult(allowedFilePattern, filePath).Render();
+							viewResponse = new FileResult(EngineAppState.AllowedFilePattern, filePath).Render();
 						else
 						{
 							string fileName = Path.GetFileName(filePath);
@@ -628,12 +633,12 @@ namespace Aurora
 					if (routeInfo.RequestTypeAttribute.RequireAntiForgeryToken &&
 							requestType == "post" || requestType == "put" || requestType == "delete")
 					{
-						if (!(form.ContainsKey(antiForgeryTokenName) || payload.ContainsKey(antiForgeryTokenName)))
+						if (!(form.ContainsKey(EngineAppState.AntiForgeryTokenName) || payload.ContainsKey(EngineAppState.AntiForgeryTokenName)))
 							throw new Exception("An AntiForgeryToken is required on all forms by default.");
 						else
 						{
-							antiForgeryTokens.Remove(form[antiForgeryTokenName]);
-							antiForgeryTokens.Remove(payload[antiForgeryTokenName]);
+							antiForgeryTokens.Remove(form[EngineAppState.AntiForgeryTokenName]);
+							antiForgeryTokens.Remove(payload[EngineAppState.AntiForgeryTokenName]);
 						}
 					}
 
@@ -1164,7 +1169,7 @@ namespace Aurora
 
 			if (!debugMode)
 			{
-				var match = cssOrJSExtPattern.Match(name);
+				var match = EngineAppState.CSSOrJSExtPattern.Match(name);
 
 				if (match.Value.EndsWith(".js"))
 				{
