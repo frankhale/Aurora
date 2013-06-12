@@ -485,8 +485,6 @@ namespace Aurora
 				controllers = new List<Controller>();
 				engineSessionState.Controllers = controllers;
 			}
-			//else
-			//	controllers.ForEach(c => c.engine = this);
 			#endregion
 
 			#region RUN ALL CONTROLLER ONINIT METHODS
