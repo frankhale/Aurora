@@ -6,7 +6,7 @@
 //	A thin wrapper around the ASP.NET Request/Reponse objects to make it easier
 //	to disconnect applications from the intrinsics of the HttpContext.
 //
-// Date: 10 June 2013
+// Date: 12 June 2013
 //
 // Contact Info:
 //
@@ -94,7 +94,7 @@ using HtmlAgilityPack;
 //[assembly: AssemblyCopyright("Copyright © 2012-2013 | LICENSE GNU GPLv3")]
 //[assembly: ComVisible(false)]
 //[assembly: CLSCompliant(true)]
-//[assembly: AssemblyVersion("0.0.18.0")]
+//[assembly: AssemblyVersion("0.0.19.0")]
 //#endif
 
 namespace AspNetAdapter
@@ -163,6 +163,9 @@ namespace AspNetAdapter
 		public static string CacheAddCallback = "CacheAddCallback";
 		public static string CacheGetCallback = "CacheGetCallback";
 		public static string CacheRemoveCallback = "CacheRemoveCallback";
+		public static string CookieAddCallback = "CookieAddCallback";
+		public static string CookieGetCallback = "CookieGetCallback";
+		public static string CookieRemoveCallback = "CookieRemoveCallback";
 		#endregion
 
 		#region REQUEST
@@ -348,6 +351,9 @@ namespace AspNetAdapter
 			application[HttpAdapterConstants.CacheAddCallback] = new Action<string, object, DateTime>(CacheAddCallback);
 			application[HttpAdapterConstants.CacheGetCallback] = new Func<string, object>(CacheGetCallback);
 			application[HttpAdapterConstants.CacheRemoveCallback] = new Action<string>(CacheRemoveCallback);
+			application[HttpAdapterConstants.CookieAddCallback] = new Action<HttpCookie>(CookieAddCallback);
+			application[HttpAdapterConstants.CookieGetCallback] = new Func<string, HttpCookie>(CookieGetCallback);
+			application[HttpAdapterConstants.CookieRemoveCallback] = new Action<string>(CookieRemoveCallback);
 			application[HttpAdapterConstants.ResponseRedirectCallback] = new Action<string, Dictionary<string, string>>(ResponseRedirectCallback);
 			application[HttpAdapterConstants.ServerError] = serverError;
 			application[HttpAdapterConstants.ServerErrorStackTrace] = (serverError != null) ? serverError.GetStackTrace() : null;
@@ -601,17 +607,22 @@ namespace AspNetAdapter
 		#region CACHE STATE
 		private void CacheAddCallback(string key, object value, DateTime expiresOn)
 		{
-			context.Cache.Insert(key, value, null, expiresOn, Cache.NoSlidingExpiration);
+			if(!string.IsNullOrEmpty(key))
+				context.Cache.Insert(key, value, null, expiresOn, Cache.NoSlidingExpiration);
 		}
 
 		private object CacheGetCallback(string key)
 		{
-			return context.Cache.Get(key);
+			if(!string.IsNullOrEmpty(key))
+				return context.Cache.Get(key);
+
+			return null;
 		}
 
 		private void CacheRemoveCallback(string key)
 		{
-			context.Cache.Remove(key);
+			if(!string.IsNullOrEmpty(key))
+				context.Cache.Remove(key);
 		}
 		#endregion
 
@@ -658,6 +669,28 @@ namespace AspNetAdapter
 				result = unvalidatedQueryString[key];
 
 			return result;
+		}
+		#endregion
+
+		#region COOKIES
+		private void CookieAddCallback(HttpCookie cookie)
+		{
+			if (cookie != null)
+				context.Response.Cookies.Add(cookie);		
+		}
+
+		private HttpCookie CookieGetCallback(string name)
+		{
+			if(context.Request.Cookies.AllKeys.Contains(name))
+				return context.Request.Cookies[name];
+
+			return null;
+		}
+
+		private void CookieRemoveCallback(string name)
+		{
+			if (!string.IsNullOrEmpty(name))
+				context.Response.Cookies.Remove(name);
 		}
 		#endregion
 		#endregion
