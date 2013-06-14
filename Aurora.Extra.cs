@@ -1321,7 +1321,7 @@ string.Format(@"
 					connectionStringName = ConfigurationManager.ConnectionStrings[1].Name;
 				}
 
-				if (ConfigurationManager.ConnectionStrings[connectionStringName].ProviderName != null)
+				if (!string.IsNullOrWhiteSpace(ConfigurationManager.ConnectionStrings[connectionStringName].ProviderName))
 					_providerName = ConfigurationManager.ConnectionStrings[connectionStringName].ProviderName;
 
 				_factory = DbProviderFactories.GetFactory(_providerName);

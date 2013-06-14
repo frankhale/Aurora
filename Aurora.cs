@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - A Tiny MVC web framework for .NET
 //
-// Updated On: 12 June 2013
+// Updated On: 13 June 2013
 //
 // NOTE: 
 //
@@ -93,7 +93,7 @@ using Yahoo.Yui.Compressor;
 [assembly: AssemblyCopyright("Copyright © 2011-2013 | LICENSE GNU GPLv3")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("2.0.46.0")]
+[assembly: AssemblyVersion("2.0.47.0")]
 #endregion
 
 namespace Aurora
@@ -284,6 +284,8 @@ namespace Aurora
 		public string[] ViewRoots { get; set; }
 		public List<IViewCompilerDirectiveHandler> ViewEngineDirectiveHandlers { get; set; }
 		public List<IViewCompilerSubstitutionHandler> ViewEngineSubstitutionHandlers { get; set; }
+		public Dictionary<string, StringBuilder> HelperBundles { get; set; }
+		public Dictionary<string, Tuple<List<string>, string>> Bundles { get; set; }
 	}
 
 	// EngineSessionState maps to state that is stored in the ASP.NET Session store.
@@ -294,9 +296,7 @@ namespace Aurora
 		public List<MethodInfo> ControllerActions { get; set; }
 		public bool FromRedirectOnly { get; set; }
 		public User CurrentUser { get; set; }
-		public Dictionary<string, StringBuilder> HelperBundles { get; set; }
 		public Dictionary<string, Dictionary<string, List<object>>> ActionBindings { get; set; }
-		public Dictionary<string, Tuple<List<string>, string>> Bundles { get; set; }
 	}
 	#endregion
 
@@ -392,13 +392,13 @@ namespace Aurora
 			#endregion
 
 			#region INITIALIZE BUNDLES
-			if (engineSessionState.Bundles == null)
-				engineSessionState.Bundles = new Dictionary<string, Tuple<List<string>, string>>();
+			if (engineAppState.Bundles == null)
+				engineAppState.Bundles = new Dictionary<string, Tuple<List<string>, string>>();
 			#endregion
 
 			#region INITIALIZE HELPER BUNDLES
-			if (engineSessionState.HelperBundles == null)
-				engineSessionState.HelperBundles = new Dictionary<string, StringBuilder>();
+			if (engineAppState.HelperBundles == null)
+				engineAppState.HelperBundles = new Dictionary<string, StringBuilder>();
 			#endregion
 
 			#region INTIALIZE FRONT CONTROLLER
@@ -525,10 +525,10 @@ namespace Aurora
 						{
 							string fileName = Path.GetFileName(filePath);
 
-							if (engineSessionState.Bundles.ContainsKey(fileName))
-								viewResponse = new FileResult(fileName, engineSessionState.Bundles[fileName].Item2).Render();
-							else if (engineSessionState.HelperBundles.ContainsKey(fileName))
-								viewResponse = new FileResult(fileName, engineSessionState.HelperBundles[fileName].ToString()).Render();
+							if (engineAppState.Bundles.ContainsKey(fileName))
+								viewResponse = new FileResult(fileName, engineAppState.Bundles[fileName].Item2).Render();
+							else if (engineAppState.HelperBundles.ContainsKey(fileName))
+								viewResponse = new FileResult(fileName, engineAppState.HelperBundles[fileName].ToString()).Render();
 						}
 					}
 				}
@@ -583,7 +583,9 @@ namespace Aurora
 						RaiseEventOnFrontController(RouteHandlerEventType.FailedSecurity, path, routeInfo, null);
 
 						if (!string.IsNullOrEmpty(routeInfo.RequestTypeAttribute.RedirectWithoutAuthorizationTo))
+						{
 							viewResponse = new ViewResponse() { RedirectTo = routeInfo.RequestTypeAttribute.RedirectWithoutAuthorizationTo };
+						}
 					}
 					else
 					{
@@ -758,6 +760,7 @@ namespace Aurora
 			}
 			else
 			{
+				pathSegments = new string[] {};
 				var redirectRoute = FindRoute(viewResponse.RedirectTo);
 
 				if (redirectRoute != null)
@@ -1094,7 +1097,7 @@ namespace Aurora
 			else
 				fileContentResult = combinedFiles.ToString();
 
-			engineSessionState.Bundles[name] = new Tuple<List<string>, string>(paths.ToList(), fileContentResult);
+			engineAppState.Bundles[name] = new Tuple<List<string>, string>(paths.ToList(), fileContentResult);
 		}
 
 		// Helper bundles are a special mechanism that will allow HtmlHelpers to inject CSS or JS when
@@ -1102,7 +1105,7 @@ namespace Aurora
 		// and over.
 		internal void AddHelperBundle(string name, string code)
 		{
-			engineSessionState.HelperBundles[name] = new StringBuilder(code);
+			engineAppState.HelperBundles[name] = new StringBuilder(code);
 
 			if (!debugMode)
 			{
@@ -1112,8 +1115,8 @@ namespace Aurora
 				{
 					try
 					{
-						if (!engineSessionState.HelperBundles[name].ToString().Contains(code))
-							engineSessionState.HelperBundles[name].AppendLine(new JavaScriptCompressor().Compress(code));
+						if (!engineAppState.HelperBundles[name].ToString().Contains(code))
+							engineAppState.HelperBundles[name].AppendLine(new JavaScriptCompressor().Compress(code));
 					}
 					catch { throw; }
 				}
@@ -1121,16 +1124,16 @@ namespace Aurora
 				{
 					try
 					{
-						if (!engineSessionState.HelperBundles[name].ToString().Contains(code))
-							engineSessionState.HelperBundles[name].AppendLine(new CssCompressor().Compress(code));
+						if (!engineAppState.HelperBundles[name].ToString().Contains(code))
+							engineAppState.HelperBundles[name].AppendLine(new CssCompressor().Compress(code));
 					}
 					catch { throw; }
 				}
 			}
 			else
 			{
-				if (!engineSessionState.HelperBundles[name].ToString().Contains(code))
-					engineSessionState.HelperBundles[name].AppendLine(code);
+				if (!engineAppState.HelperBundles[name].ToString().Contains(code))
+					engineAppState.HelperBundles[name].AppendLine(code);
 			}
 		}
 
@@ -1139,12 +1142,12 @@ namespace Aurora
 		// HTML head.
 		internal string[] GetBundleFiles(string name)
 		{
-			return (engineSessionState.Bundles.ContainsKey(name)) ? engineSessionState.Bundles[name].Item1.ToArray() : null;
+			return (engineAppState.Bundles.ContainsKey(name)) ? engineAppState.Bundles[name].Item1.ToArray() : null;
 		}
 
 		internal Dictionary<string, StringBuilder> GetHelperBundle()
 		{
-			return engineSessionState.HelperBundles;
+			return engineAppState.HelperBundles;
 		}
 
 		// Bindings are a poor mans IoC and even then not really. They just provide a mechanism
@@ -1303,6 +1306,9 @@ namespace Aurora
 
 		internal void AddRoute(List<RouteInfo> routeInfos, Controller c, MethodInfo action, List<string> aliases, string defaultParams, bool dynamic)
 		{
+			if (engineAppState.RouteInfos.FirstOrDefault(x => x.Aliases.Except(aliases).Count() == 0) != null)
+				return;
+
 			if (action != null)
 			{
 				List<object> bindings = null;
@@ -1313,7 +1319,7 @@ namespace Aurora
 						bindings = engineSessionState.ActionBindings[c.GetType().Name][action.Name];
 
 				var actionParameterInfo = GetActionParameterTransforms(action.GetParameters(), bindings);
-
+				
 				routeInfos.Add(new RouteInfo()
 				{
 					Aliases = aliases,
@@ -1341,7 +1347,7 @@ namespace Aurora
 			if (c != null)
 			{
 				MethodInfo action = c.GetType().GetMethods().FirstOrDefault(x => x.GetCustomAttributes(typeof(HttpAttribute), false).Count() > 0 && x.Name == actionName);
-
+				
 				if (action != null)
 					AddRoute(routeInfos, c, action, new List<string> { alias }, defaultParams, dynamic);
 			}
@@ -1919,6 +1925,10 @@ namespace Aurora
 		Error
 	}
 
+	// Because the framework needs to know who's logged in and what roles they have it may
+	// be beneficial to add a handler for the check roles event so that before a secure action
+	// is invoked we make sure that the frameworks list of roles for this user is actually
+	// still inline with what roles the user actually has.
 	public class CheckRolesHandlerEventArgs : EventArgs
 	{
 		public bool Result { get; set; }
@@ -2129,9 +2139,6 @@ namespace Aurora
 
 		internal RouteInfo RaiseEvent(RouteHandlerEventType type, string path, RouteInfo routeInfo, object data = null)
 		{
-			if (OnPreActionEvent == null || OnPostActionEvent == null || OnStaticRouteEvent == null || OnPreRouteDeterminationEvent == null || OnPostRouteDeterminationEvent == null || OnPassedSecurityEvent == null || OnFailedSecurityEvent == null || OnMissingRouteEvent == null || OnErrorEvent == null)
-				return routeInfo;
-
 			RouteInfo route = routeInfo;
 
 			RouteHandlerEventArgs args = new RouteHandlerEventArgs()
@@ -2256,9 +2263,6 @@ namespace Aurora
 
 		internal void RaiseEvent(RouteHandlerEventType type, string path, RouteInfo routeInfo)
 		{
-			if (OnPreActionEvent == null || OnPostActionEvent == null)
-				return;
-
 			RouteHandlerEventArgs args = new RouteHandlerEventArgs()
 			{
 				Path = path,

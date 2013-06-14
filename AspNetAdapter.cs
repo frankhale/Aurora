@@ -6,7 +6,9 @@
 //	A thin wrapper around the ASP.NET Request/Reponse objects to make it easier
 //	to disconnect applications from the intrinsics of the HttpContext.
 //
-// Date: 12 June 2013
+// Requirements: .NET 4 or higher
+//
+// Date: 13 June 2013
 //
 // Contact Info:
 //
@@ -78,11 +80,12 @@ using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Web;
 using System.Web.Caching;
 using System.Web.SessionState;
-using Microsoft.Web.Infrastructure.DynamicValidationHelper;
 using HtmlAgilityPack;
+using Microsoft.Web.Infrastructure.DynamicValidationHelper;
 
 //#if LIBRARY
 //using System.Runtime.InteropServices;
@@ -94,40 +97,89 @@ using HtmlAgilityPack;
 //[assembly: AssemblyCopyright("Copyright © 2012-2013 | LICENSE GNU GPLv3")]
 //[assembly: ComVisible(false)]
 //[assembly: CLSCompliant(true)]
-//[assembly: AssemblyVersion("0.0.19.0")]
+//[assembly: AssemblyVersion("0.0.20.0")]
 //#endif
 
 namespace AspNetAdapter
 {
 	#region ASP.NET HOOKS - IHTTPHANDLER / IHTTPMODULE
-	public sealed class AspNetAdapterHandler : IHttpHandler, IRequiresSessionState
+	public sealed class AspNetAdapterHandler : IHttpAsyncHandler, IRequiresSessionState
 	{
-		public bool IsReusable
+		public IAsyncResult BeginProcessRequest(HttpContext context, AsyncCallback cb, object extraData)
 		{
-			get
+			var frameworkCompletionSource = new TaskCompletionSource<bool>();
+			var httpContextAdapter = new HttpContextAdapter();
+
+			httpContextAdapter.OnComplete += (o, e) =>
 			{
-				return false;
+				ResponseEventArgs args = (e as ResponseEventArgs);
+
+				if (args.Redirect)
+				{
+					var redirectInfo = args.Data as RedirectInfo;
+					httpContextAdapter.SendRedirectResponse(redirectInfo.Path, redirectInfo.Headers);
+				}
+				else
+				{
+					var response = args.Data as Dictionary<string, object>;
+					httpContextAdapter.SendResponse(response);
+				}
+				
+				frameworkCompletionSource.SetResult(true);
+			};
+
+			httpContextAdapter.Init(context);
+
+			var frameworkTask = frameworkCompletionSource.Task;
+
+			if (cb != null)
+			{
+				frameworkTask.ContinueWith(x => cb(x), TaskContinuationOptions.ExecuteSynchronously);
 			}
+
+			return frameworkTask;
 		}
 
-		public void ProcessRequest(HttpContext context)
+		public void EndProcessRequest(IAsyncResult result)
 		{
-			new HttpContextAdapter(context);
+			((Task)result).Wait();
 		}
+
+		public bool IsReusable { get { return true; } }
+
+		public void ProcessRequest(HttpContext context) { }
 	}
 
 	public sealed class AspNetAdapterModule : IHttpModule
 	{
 		public void Dispose() { }
 
-		public void Init(HttpApplication context)
+		public void Init(HttpApplication app)
 		{
-			context.Error += new EventHandler(app_Error);
+			app.Error += new EventHandler(app_Error);
 		}
 
-		private void app_Error(object sender, EventArgs e)
+		private void app_Error(object sender, EventArgs eventArgs)
 		{
-			new HttpContextAdapter(HttpContext.Current);
+			var httpContextAdapter = new HttpContextAdapter();
+
+			httpContextAdapter.OnComplete += (o, e) =>
+			{
+				ResponseEventArgs args = (e as ResponseEventArgs);
+
+				if (args.Redirect)
+				{
+					var redirectInfo = args.Data as RedirectInfo;
+					httpContextAdapter.SendRedirectResponse(redirectInfo.Path, redirectInfo.Headers);
+				}
+				else
+				{
+					var response = args.Data as Dictionary<string, object>;
+					httpContextAdapter.SendResponse(response);
+				}
+			};
+
+			httpContextAdapter.Init(HttpContext.Current);			
 		}
 	}
 	#endregion
@@ -143,68 +195,68 @@ namespace AspNetAdapter
 	public static class HttpAdapterConstants
 	{
 		#region MISCELLANEOUS
-		public static string ServerError = "ServerError";
-		public static string ServerErrorStackTrace = "StackTrace";
-		public static string ServerVariables = "ServerVariables";
-		public static string RewritePathCallback = "RewritePathCallback";
-		public static string User = "User";
-		public static string SessionID = "SessionID";
-		public static string DebugMode = "DebugMode";
+		public static readonly string ServerError = "ServerError";
+		public static readonly string ServerErrorStackTrace = "StackTrace";
+		public static readonly string ServerVariables = "ServerVariables";
+		public static readonly string RewritePathCallback = "RewritePathCallback";
+		public static readonly string User = "User";
+		public static readonly string SessionID = "SessionID";
+		public static readonly string DebugMode = "DebugMode";
 		#endregion
 
 		#region APPLICATION CALLBACKS
-		public static string ApplicationSessionStoreAddCallback = "ApplicationSessionStoreAddCallback";
-		public static string ApplicationSessionStoreRemoveCallback = "ApplicationSessionStoreRemoveCallback";
-		public static string ApplicationSessionStoreGetCallback = "ApplicationSessionStoreGetCallback";
-		public static string UserSessionStoreAddCallback = "UserSessionStoreAddCallback";
-		public static string UserSessionStoreRemoveCallback = "UserSessionStoreRemoveCallback";
-		public static string UserSessionStoreGetCallback = "UserSessionStoreGetCallback";
-		public static string UserSessionStoreAbandonCallback = "UserSessionStoreAbandonCallback";
-		public static string CacheAddCallback = "CacheAddCallback";
-		public static string CacheGetCallback = "CacheGetCallback";
-		public static string CacheRemoveCallback = "CacheRemoveCallback";
-		public static string CookieAddCallback = "CookieAddCallback";
-		public static string CookieGetCallback = "CookieGetCallback";
-		public static string CookieRemoveCallback = "CookieRemoveCallback";
+		public static readonly string ApplicationSessionStoreAddCallback = "ApplicationSessionStoreAddCallback";
+		public static readonly string ApplicationSessionStoreRemoveCallback = "ApplicationSessionStoreRemoveCallback";
+		public static readonly string ApplicationSessionStoreGetCallback = "ApplicationSessionStoreGetCallback";
+		public static readonly string UserSessionStoreAddCallback = "UserSessionStoreAddCallback";
+		public static readonly string UserSessionStoreRemoveCallback = "UserSessionStoreRemoveCallback";
+		public static readonly string UserSessionStoreGetCallback = "UserSessionStoreGetCallback";
+		public static readonly string UserSessionStoreAbandonCallback = "UserSessionStoreAbandonCallback";
+		public static readonly string CacheAddCallback = "CacheAddCallback";
+		public static readonly string CacheGetCallback = "CacheGetCallback";
+		public static readonly string CacheRemoveCallback = "CacheRemoveCallback";
+		public static readonly string CookieAddCallback = "CookieAddCallback";
+		public static readonly string CookieGetCallback = "CookieGetCallback";
+		public static readonly string CookieRemoveCallback = "CookieRemoveCallback";
 		#endregion
 
 		#region REQUEST
-		public static string RequestScheme = "RequestScheme";
-		public static string RequestMethod = "RequestMethod";
-		public static string RequestPathBase = "RequestPathBase";
-		public static string RequestPath = "RequestPath";
-		public static string RequestPathSegments = "RequestPathSegments";
-		public static string RequestQueryString = "RequestQueryString";
-		public static string RequestQueryStringCallback = "RequestQueryStringCallback";
-		public static string RequestHeaders = "RequestHeaders";
-		public static string RequestBody = "RequestBody";
-		public static string RequestCookie = "RequestCookie";
-		public static string RequestIsSecure = "RequestIsSecure";
-		public static string RequestIPAddress = "RequestIPAddress";
-		public static string RequestForm = "RequestForm";
-		public static string RequestFormCallback = "RequestFormCallback";
-		public static string RequestClientCertificate = "RequestClientCertificate";
-		public static string RequestFiles = "RequestFiles";
-		public static string RequestUrl = "RequestUrl";
-		public static string RequestUrlAuthority = "RequestUrlAuthority";
-		public static string RequestIdentity = "RequestIdentity";
+		public static readonly string RequestScheme = "RequestScheme";
+		public static readonly string RequestMethod = "RequestMethod";
+		public static readonly string RequestPathBase = "RequestPathBase";
+		public static readonly string RequestPath = "RequestPath";
+		public static readonly string RequestPathSegments = "RequestPathSegments";
+		public static readonly string RequestQueryString = "RequestQueryString";
+		public static readonly string RequestQueryStringCallback = "RequestQueryStringCallback";
+		public static readonly string RequestHeaders = "RequestHeaders";
+		public static readonly string RequestBody = "RequestBody";
+		public static readonly string RequestCookie = "RequestCookie";
+		public static readonly string RequestIsSecure = "RequestIsSecure";
+		public static readonly string RequestIPAddress = "RequestIPAddress";
+		public static readonly string RequestForm = "RequestForm";
+		public static readonly string RequestFormCallback = "RequestFormCallback";
+		public static readonly string RequestClientCertificate = "RequestClientCertificate";
+		public static readonly string RequestFiles = "RequestFiles";
+		public static readonly string RequestUrl = "RequestUrl";
+		public static readonly string RequestUrlAuthority = "RequestUrlAuthority";
+		public static readonly string RequestIdentity = "RequestIdentity";
 		#endregion
 
 		#region RESPONSE
-		public static string ResponseCache = "ResponseCache";
-		public static string ResponseCacheabilityOption = "ResponseCacheabilityOption";
-		public static string ResponseCacheExpiry = "ResponseCacheExpiry";
-		public static string ResponseCacheMaxAge = "ResponseCacheMaxAge";
-		public static string ResponseCookie = "ResponseCookie";
-		public static string ResponseStatus = "ResponseStatus";
-		public static string ResponseContentType = "ResponseContentType";
-		public static string ResponseHeaders = "ResponseHeaders";
-		public static string ResponseBody = "ResponseBody";
-		public static string ResponseRedirectCallback = "ResponseRedirectCallback";
-		public static string ResponseErrorCallback = "ResponseErrorCallback";
+		public static readonly string ResponseCache = "ResponseCache";
+		public static readonly string ResponseCacheabilityOption = "ResponseCacheabilityOption";
+		public static readonly string ResponseCacheExpiry = "ResponseCacheExpiry";
+		public static readonly string ResponseCacheMaxAge = "ResponseCacheMaxAge";
+		public static readonly string ResponseCookie = "ResponseCookie";
+		public static readonly string ResponseStatus = "ResponseStatus";
+		public static readonly string ResponseContentType = "ResponseContentType";
+		public static readonly string ResponseHeaders = "ResponseHeaders";
+		public static readonly string ResponseBody = "ResponseBody";
+		public static readonly string ResponseRedirectCallback = "ResponseRedirectCallback";
+		public static readonly string ResponseErrorCallback = "ResponseErrorCallback";
 		#endregion
 
-		public static Dictionary<string, string> MimeTypes = new Dictionary<string, string>()
+		public static readonly Dictionary<string, string> MimeTypes = new Dictionary<string, string>()
 		{
 			{ ".js",  "application/x-javascript" },  
 			{ ".css", "text/css" },
@@ -227,17 +279,45 @@ namespace AspNetAdapter
 							Action<Dictionary<string, object>> response);
 	}
 
+	public class RedirectInfo
+	{
+		public string Path { get; private set; }
+		public Dictionary<string, string> Headers { get; private set; }
+
+		public RedirectInfo(string path, Dictionary<string, string> headers)
+		{
+			Path = path;
+			Headers = headers;
+		}
+	}
+
+	public class ResponseEventArgs : EventArgs
+	{
+		public bool Redirect { get; private set; }
+		public object Data { get; private set; }
+
+		public ResponseEventArgs(bool redirect, object data)
+		{
+			Redirect = redirect;
+			Data = data;
+		}
+	}
+
 	public sealed class HttpContextAdapter
 	{
 		private static object syncInitLock = new object();
 
 		private Stopwatch timer;
-		private readonly HttpContext context;
+		private HttpContext context;
 		private bool firstRun, debugMode;
 		private static string AspNetApplicationTypeSessionName = "__AspNetApplicationType";
 		private NameValueCollection unvalidatedForm, unvalidatedQueryString;
 
-		public HttpContextAdapter(HttpContext ctx)
+		public event EventHandler<ResponseEventArgs> OnComplete;
+
+		public HttpContextAdapter() { }
+
+		public void Init(HttpContext ctx)
 		{
 			timer = new Stopwatch();
 			timer.Start();
@@ -298,7 +378,7 @@ namespace AspNetAdapter
 		{
 			Dictionary<string, object> request = new Dictionary<string, object>();
 
-			request[HttpAdapterConstants.SessionID] = (context.Session!=null) ? context.Session.SessionID : null;
+			request[HttpAdapterConstants.SessionID] = (context.Session != null) ? context.Session.SessionID : null;
 			request[HttpAdapterConstants.ServerVariables] = NameValueCollectionToDictionary(context.Request.ServerVariables);
 			request[HttpAdapterConstants.RequestScheme] = context.Request.Url.Scheme;
 			request[HttpAdapterConstants.RequestIsSecure] = context.Request.IsSecureConnection;
@@ -314,7 +394,7 @@ namespace AspNetAdapter
 			{
 				request[HttpAdapterConstants.RequestBody] = (context.Request.InputStream != null) ? StringToDictionary(new StreamReader(context.Request.InputStream).ReadToEnd(), '&', '=') : null;
 			}
-			catch 
+			catch
 			{
 				request[HttpAdapterConstants.RequestBody] = null;
 			}
@@ -465,8 +545,7 @@ namespace AspNetAdapter
 		}
 		#endregion
 
-		#region CALLBACKS
-		private void ResponseCallback(Dictionary<string, object> response)
+		public void SendResponse(Dictionary<string, object> response)
 		{
 			response.ThrowIfArgumentNull();
 
@@ -501,9 +580,13 @@ namespace AspNetAdapter
 
 						var doc = new HtmlDocument();
 						doc.LoadHtml(result);
-						var titleNode = doc.DocumentNode.SelectSingleNode("//head//title//text()") as HtmlTextNode;
-						titleNode.Text = titleNode.Text + string.Format(" ({0:F4} sec)", seconds);
-						result = doc.DocumentNode.InnerHtml;
+						var titleNode = doc.DocumentNode.SelectSingleNode("//title//text()") as HtmlTextNode;
+						
+						if (titleNode != null)
+						{
+							titleNode.Text = titleNode.Text + string.Format(" ({0:F4} sec)", seconds);
+							result = doc.DocumentNode.InnerHtml;
+						}
 					}
 
 					context.Response.Write(result);
@@ -524,7 +607,7 @@ namespace AspNetAdapter
 			context.Response.End();
 		}
 
-		private void ResponseRedirectCallback(string path, Dictionary<string, string> headers)
+		public void SendRedirectResponse(string path, Dictionary<string, string> headers)
 		{
 			if (headers != null)
 			{
@@ -532,7 +615,26 @@ namespace AspNetAdapter
 					context.Response.AddHeader(kvp.Key, kvp.Value);
 			}
 
-			context.Response.Redirect(path);
+			context.Response.Redirect(path, true);
+		}
+
+		#region CALLBACKS
+		private void ResponseCallback(Dictionary<string, object> response)
+		{
+			if (OnComplete != null)
+			{
+				OnComplete(this, new ResponseEventArgs(false, response));
+				OnComplete = null;
+			}
+		}
+
+		private void ResponseRedirectCallback(string path, Dictionary<string, string> headers)
+		{
+			if (OnComplete != null)
+			{
+				OnComplete(this, new ResponseEventArgs(true, new RedirectInfo(path, headers)));
+				OnComplete = null;
+			}
 		}
 
 		#region APPLICATION STATE
@@ -607,13 +709,13 @@ namespace AspNetAdapter
 		#region CACHE STATE
 		private void CacheAddCallback(string key, object value, DateTime expiresOn)
 		{
-			if(!string.IsNullOrEmpty(key))
+			if (!string.IsNullOrEmpty(key))
 				context.Cache.Insert(key, value, null, expiresOn, Cache.NoSlidingExpiration);
 		}
 
 		private object CacheGetCallback(string key)
 		{
-			if(!string.IsNullOrEmpty(key))
+			if (!string.IsNullOrEmpty(key))
 				return context.Cache.Get(key);
 
 			return null;
@@ -621,7 +723,7 @@ namespace AspNetAdapter
 
 		private void CacheRemoveCallback(string key)
 		{
-			if(!string.IsNullOrEmpty(key))
+			if (!string.IsNullOrEmpty(key))
 				context.Cache.Remove(key);
 		}
 		#endregion
@@ -676,12 +778,12 @@ namespace AspNetAdapter
 		private void CookieAddCallback(HttpCookie cookie)
 		{
 			if (cookie != null)
-				context.Response.Cookies.Add(cookie);		
+				context.Response.Cookies.Add(cookie);
 		}
 
 		private HttpCookie CookieGetCallback(string name)
 		{
-			if(context.Request.Cookies.AllKeys.Contains(name))
+			if (context.Request.Cookies.AllKeys.Contains(name))
 				return context.Request.Cookies[name];
 
 			return null;
