@@ -8,7 +8,7 @@
 //
 // Requirements: .NET 4 or higher
 //
-// Date: 13 June 2013
+// Date: 14 June 2013
 //
 // Contact Info:
 //
@@ -97,7 +97,7 @@ using Microsoft.Web.Infrastructure.DynamicValidationHelper;
 //[assembly: AssemblyCopyright("Copyright © 2012-2013 | LICENSE GNU GPLv3")]
 //[assembly: ComVisible(false)]
 //[assembly: CLSCompliant(true)]
-//[assembly: AssemblyVersion("0.0.20.0")]
+//[assembly: AssemblyVersion("0.0.21.0")]
 //#endif
 
 namespace AspNetAdapter
@@ -338,7 +338,10 @@ namespace AspNetAdapter
 				var apps = AppDomain.CurrentDomain
 														.GetAssemblies()
 														.AsParallel()
-														.Where(x => x.GetName().Name != "DotNetOpenAuth") // DotNetOpenAuth depends on System.Web.Mvc which is not referenced, this will fail if we don't eliminate it
+#if OPENAUTH
+// DotNetOpenAuth depends on System.Web.Mvc which is not referenced, this will fail if we don't eliminate it
+														.Where(x => x.GetName().Name != "DotNetOpenAuth") 
+#endif
 														.SelectMany(x => x.GetTypes()
 																							.Where(y => y.GetInterfaces()
 																													 .FirstOrDefault(i => i.IsInterface && i.UnderlyingSystemType == typeof(IAspNetAdapterApplication)) != null));

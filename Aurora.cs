@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - A Tiny MVC web framework for .NET
 //
-// Updated On: 13 June 2013
+// Updated On: 14 June 2013
 //
 // NOTE: 
 //
@@ -93,7 +93,7 @@ using Yahoo.Yui.Compressor;
 [assembly: AssemblyCopyright("Copyright © 2011-2013 | LICENSE GNU GPLv3")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("2.0.47.0")]
+[assembly: AssemblyVersion("2.0.48.0")]
 #endregion
 
 namespace Aurora
@@ -183,6 +183,10 @@ namespace Aurora
 	[AttributeUsage(AttributeTargets.Property | AttributeTargets.Parameter)]
 	public sealed class UnsafeAttribute : Attribute { }
 
+	// This feature isn't quite what I want yet. In the future I'd like to have this be able
+	// to be figured out from the parameter list of the action rather than having to explictly
+	// label a parameter with this attribute.
+	//
 	// This denotes that a transformation is necessary to transform incoming posted data into
 	// another type.
 	[AttributeUsage(AttributeTargets.Parameter)]
@@ -263,11 +267,11 @@ namespace Aurora
 	// EngineAppState maps to state that is stored in the ASP.NET Application store.
 	internal class EngineAppState
 	{
+		public static readonly Regex AllowedFilePattern = new Regex(@"^.*\.(js|css|png|jpg|gif|ico|pptx|xlsx|csv|txt)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+		public static readonly Regex CSSOrJSExtPattern = new Regex(@"^.*\.(js|css)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 		public static readonly string EngineAppStateSessionName = "__ENGINE_APP_STATE__";
 		public static readonly string EngineSessionStateSessionName = "__ENGINE_SESSION_STATE__";
 		public static readonly string FromRedirectOnlySessionName = "__FromRedirectOnly";
-		public static readonly Regex AllowedFilePattern = new Regex(@"^.*\.(js|css|png|jpg|gif|ico|pptx|xlsx|csv|txt)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-		public static readonly Regex CSSOrJSExtPattern = new Regex(@"^.*\.(js|css)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 		public static readonly string SharedResourceFolderPath = "/Resources";
 		public static readonly string CompiledViewsCacheFolderPath = "/Views/Cache";
 		public static readonly string CompiledViewsCacheFileName = "viewsCache.json";
@@ -284,7 +288,6 @@ namespace Aurora
 		public string[] ViewRoots { get; set; }
 		public List<IViewCompilerDirectiveHandler> ViewEngineDirectiveHandlers { get; set; }
 		public List<IViewCompilerSubstitutionHandler> ViewEngineSubstitutionHandlers { get; set; }
-		public Dictionary<string, StringBuilder> HelperBundles { get; set; }
 		public Dictionary<string, Tuple<List<string>, string>> Bundles { get; set; }
 	}
 
@@ -293,10 +296,11 @@ namespace Aurora
 	{
 		public FrontController FrontController { get; set; }
 		public List<Controller> Controllers { get; set; }
+		public Dictionary<string, Dictionary<string, List<object>>> ActionBindings { get; set; }
+		public Dictionary<string, StringBuilder> HelperBundles { get; set; }
 		public List<MethodInfo> ControllerActions { get; set; }
 		public bool FromRedirectOnly { get; set; }
 		public User CurrentUser { get; set; }
-		public Dictionary<string, Dictionary<string, List<object>>> ActionBindings { get; set; }
 	}
 	#endregion
 
@@ -397,8 +401,8 @@ namespace Aurora
 			#endregion
 
 			#region INITIALIZE HELPER BUNDLES
-			if (engineAppState.HelperBundles == null)
-				engineAppState.HelperBundles = new Dictionary<string, StringBuilder>();
+			if (engineSessionState.HelperBundles == null)
+				engineSessionState.HelperBundles = new Dictionary<string, StringBuilder>();
 			#endregion
 
 			#region INTIALIZE FRONT CONTROLLER
@@ -527,8 +531,8 @@ namespace Aurora
 
 							if (engineAppState.Bundles.ContainsKey(fileName))
 								viewResponse = new FileResult(fileName, engineAppState.Bundles[fileName].Item2).Render();
-							else if (engineAppState.HelperBundles.ContainsKey(fileName))
-								viewResponse = new FileResult(fileName, engineAppState.HelperBundles[fileName].ToString()).Render();
+							else if (engineSessionState.HelperBundles.ContainsKey(fileName))
+								viewResponse = new FileResult(fileName, engineSessionState.HelperBundles[fileName].ToString()).Render();
 						}
 					}
 				}
@@ -548,7 +552,7 @@ namespace Aurora
 
 				RaiseEventOnFrontController(RouteHandlerEventType.PreRoute, path, null, null);
 
-				routeInfo = FindRoute(string.Concat("/", pathSegments[0]));
+				routeInfo = FindRoute(string.Concat("/", pathSegments[0]), pathSegments);
 
 				RaiseEventOnFrontController(RouteHandlerEventType.PostRoute, path, routeInfo, null);
 
@@ -620,14 +624,14 @@ namespace Aurora
 								if (transformMethod != null)
 								{
 									Type t = transformMethod.Item1.GetParameters()[0].ParameterType;
-									object param = routeInfo.ActionParams[apt.Item2];
+									object param = routeInfo.ActionURLParams[apt.Item2];
 
-									if (routeInfo.ActionParams[apt.Item2] != null &&
-											routeInfo.ActionParams[apt.Item2].GetType() != t)
+									if (routeInfo.ActionURLParams[apt.Item2] != null &&
+											routeInfo.ActionURLParams[apt.Item2].GetType() != t)
 									{
 										try
 										{
-											param = Convert.ChangeType(routeInfo.ActionParams[apt.Item2], t);
+											param = Convert.ChangeType(routeInfo.ActionURLParams[apt.Item2], t);
 										}
 										catch
 										{
@@ -638,7 +642,7 @@ namespace Aurora
 
 									try
 									{
-										routeInfo.ActionParams[apt.Item2] =
+										routeInfo.ActionURLParams[apt.Item2] =
 											transformMethod.Item1.Invoke(transformMethod.Item2, new object[] { param });
 									}
 									catch
@@ -654,17 +658,17 @@ namespace Aurora
 
 						if (filterResults.Count() > 0)
 						{
-							object[] actionParams = routeInfo.ActionParams;
+							object[] actionParams = routeInfo.ActionURLParams;
 							Array.Resize(ref actionParams, actionParams.Count() + filterResults.Count());
 							filterResults.CopyTo(actionParams, engineSessionState.ActionBindings.Count());
-							routeInfo.ActionParams = actionParams;
+							routeInfo.ActionURLParams = actionParams;
 						}
 
 						routeInfo.Controller.HttpAttribute = routeInfo.RequestTypeAttribute;
 
 						try
 						{
-							viewResult = (IViewResult)routeInfo.Action.Invoke(routeInfo.Controller, routeInfo.ActionParams);
+							viewResult = (IViewResult)routeInfo.Action.Invoke(routeInfo.Controller, routeInfo.ActionURLParams);
 						}
 						catch (Exception ex)
 						{
@@ -760,8 +764,7 @@ namespace Aurora
 			}
 			else
 			{
-				pathSegments = new string[] {};
-				var redirectRoute = FindRoute(viewResponse.RedirectTo);
+				var redirectRoute = FindRoute(viewResponse.RedirectTo, new string[] { });
 
 				if (redirectRoute != null)
 					ResponseRedirect(viewResponse.RedirectTo, (redirectRoute != null && redirectRoute.RequestTypeAttribute.ActionType == ActionType.FromRedirectOnly) ? true : false);
@@ -861,11 +864,14 @@ namespace Aurora
 		{
 			t.ThrowIfArgumentNull();
 
-			// DotNetOpenAuth depends on System.Web.Mvc which is not referenced, this will fail if we don't eliminate it
+
 			return AppDomain.CurrentDomain.GetAssemblies()
 																		.AsParallel()
+#if OPENAUTH
+// DotNetOpenAuth depends on System.Web.Mvc which is not referenced, this will fail if we don't eliminate it																		
 																		.Where(x => x.GetName().Name != "DotNetOpenAuth")
-																		.SelectMany(x => x.GetTypes()
+#endif
+.SelectMany(x => x.GetTypes()
 																											.AsParallel()
 																											.Where(y => y.IsClass && y.BaseType == t)).ToList();
 		}
@@ -961,8 +967,15 @@ namespace Aurora
 		{
 			Dictionary<string, object> cachedActionParamTransformInstances = new Dictionary<string, object>();
 
+			// Eventually I want to change this algorithm to not require the attribute and instead figure
+			// it out based on the type parameter and if there are any action parameter transform classes
+			// that implement the IActionParamTransform<T, V> with the type parameter. This may make it slower
+			// since it would have to check more action parameters in it's parameter list.
+
+			// The int in this is for the index of the parameter in the action parameter list.
 			List<Tuple<ActionParameterTransformAttribute, int>> actionParameterTransforms = actionParams
-					.Select((x, i) => new Tuple<ActionParameterTransformAttribute, int>((ActionParameterTransformAttribute)x.GetCustomAttributes(typeof(ActionParameterTransformAttribute), false).FirstOrDefault(), i))
+					.Select((x, i) => new Tuple<ActionParameterTransformAttribute, int>
+						((ActionParameterTransformAttribute)x.GetCustomAttributes(typeof(ActionParameterTransformAttribute), false).FirstOrDefault(), i))
 					.Where(x => x.Item1 != null)
 					.ToList();
 
@@ -970,12 +983,18 @@ namespace Aurora
 			{
 				foreach (var apt in actionParameterTransforms)
 				{
-					// DotNetOpenAuth depends on System.Web.Mvc which is not referenced, this will fail if we don't eliminate it
+					// I think the below query should stuff be a little more generic and select all
+					// of the transform classes. This can be ripped out of here and done ahead of time
+					// and cached in the engine app state variable.
+
 					var actionTransformClassType = AppDomain.CurrentDomain
 																									.GetAssemblies()
 																									.AsParallel()
+#if OPENAUTH
+// DotNetOpenAuth depends on System.Web.Mvc which is not referenced, this will fail if we don't eliminate it																									
 																									.Where(x => x.GetName().Name != "DotNetOpenAuth")
-																									.SelectMany(x => x.GetTypes().Where(y => y.GetInterface(typeof(IActionParamTransform<,>).Name) != null && y.Name == apt.Item1.TransformName))
+#endif
+.SelectMany(x => x.GetTypes().Where(y => y.GetInterface(typeof(IActionParamTransform<,>).Name) != null && y.Name == apt.Item1.TransformName))
 																									.FirstOrDefault();
 
 					if (actionTransformClassType != null)
@@ -1014,6 +1033,9 @@ namespace Aurora
 				afa.Controller = routeInfo.Controller;
 				afa.OnFilter(routeInfo);
 
+				if (afa.DivertRoute != null)
+					routeInfo = afa.DivertRoute;
+
 				if (afa.FilterResult != null)
 					results.Add(afa.FilterResult);
 			}
@@ -1024,7 +1046,7 @@ namespace Aurora
 		private RouteInfo RaiseEventOnFrontController(RouteHandlerEventType eventType, string path, RouteInfo routeInfo, object data)
 		{
 			if (engineSessionState.FrontController != null)
-				routeInfo = engineSessionState.FrontController.RaiseEvent(eventType, path, routeInfo, data);
+				return engineSessionState.FrontController.RaiseEvent(eventType, path, routeInfo, data);
 
 			return routeInfo;
 		}
@@ -1105,7 +1127,7 @@ namespace Aurora
 		// and over.
 		internal void AddHelperBundle(string name, string code)
 		{
-			engineAppState.HelperBundles[name] = new StringBuilder(code);
+			engineSessionState.HelperBundles[name] = new StringBuilder(code);
 
 			if (!debugMode)
 			{
@@ -1115,8 +1137,8 @@ namespace Aurora
 				{
 					try
 					{
-						if (!engineAppState.HelperBundles[name].ToString().Contains(code))
-							engineAppState.HelperBundles[name].AppendLine(new JavaScriptCompressor().Compress(code));
+						if (!engineSessionState.HelperBundles[name].ToString().Contains(code))
+							engineSessionState.HelperBundles[name].AppendLine(new JavaScriptCompressor().Compress(code));
 					}
 					catch { throw; }
 				}
@@ -1124,16 +1146,16 @@ namespace Aurora
 				{
 					try
 					{
-						if (!engineAppState.HelperBundles[name].ToString().Contains(code))
-							engineAppState.HelperBundles[name].AppendLine(new CssCompressor().Compress(code));
+						if (!engineSessionState.HelperBundles[name].ToString().Contains(code))
+							engineSessionState.HelperBundles[name].AppendLine(new CssCompressor().Compress(code));
 					}
 					catch { throw; }
 				}
 			}
 			else
 			{
-				if (!engineAppState.HelperBundles[name].ToString().Contains(code))
-					engineAppState.HelperBundles[name].AppendLine(code);
+				if (!engineSessionState.HelperBundles[name].ToString().Contains(code))
+					engineSessionState.HelperBundles[name].AppendLine(code);
 			}
 		}
 
@@ -1147,7 +1169,7 @@ namespace Aurora
 
 		internal Dictionary<string, StringBuilder> GetHelperBundle()
 		{
-			return engineAppState.HelperBundles;
+			return engineSessionState.HelperBundles;
 		}
 
 		// Bindings are a poor mans IoC and even then not really. They just provide a mechanism
@@ -1201,7 +1223,7 @@ namespace Aurora
 
 			if (bindings != null)
 			{
-				RouteInfo routeInfo = FindRoute(string.Format("/{0}", actionName));
+				RouteInfo routeInfo = FindRoute(string.Format("/{0}", actionName), pathSegments);
 
 				if (routeInfo != null && routeInfo.IBoundToActionParams != null)
 				{
@@ -1217,6 +1239,11 @@ namespace Aurora
 
 		internal RouteInfo FindRoute(string path)
 		{
+			return FindRoute(path, pathSegments);
+		}
+
+		internal RouteInfo FindRoute(string path, string[] urlParameters)
+		{
 			path.ThrowIfArgumentNull();
 
 			RouteInfo result = null;
@@ -1229,7 +1256,7 @@ namespace Aurora
 			{
 				List<object> allParams = new List<object>()
 					.Concat(routeSlice[0].routeInfo.BoundParams)
-					.Concat(pathSegments.Skip(1))
+					.Concat(urlParameters.Skip(1))
 					.Concat(routeSlice[0].routeInfo.DefaultParams)
 					.ToList();
 
@@ -1286,7 +1313,7 @@ namespace Aurora
 
 					if (finalParamTypes.SequenceEqual(actionParamTypes))
 					{
-						routeInfo.ActionParams = finalParams;
+						routeInfo.ActionURLParams = finalParams;
 						result = routeInfo;
 						break;
 					}
@@ -1306,7 +1333,7 @@ namespace Aurora
 
 		internal void AddRoute(List<RouteInfo> routeInfos, Controller c, MethodInfo action, List<string> aliases, string defaultParams, bool dynamic)
 		{
-			if (engineAppState.RouteInfos.FirstOrDefault(x => x.Aliases.Except(aliases).Count() == 0) != null)
+			if (engineAppState.RouteInfos.FirstOrDefault(x => x.Action.GetParameters().Count() == action.GetParameters().Count() && x.Aliases.Except(aliases).Count() == 0) != null)
 				return;
 
 			if (action != null)
@@ -1319,7 +1346,7 @@ namespace Aurora
 						bindings = engineSessionState.ActionBindings[c.GetType().Name][action.Name];
 
 				var actionParameterInfo = GetActionParameterTransforms(action.GetParameters(), bindings);
-				
+
 				routeInfos.Add(new RouteInfo()
 				{
 					Aliases = aliases,
@@ -1347,7 +1374,7 @@ namespace Aurora
 			if (c != null)
 			{
 				MethodInfo action = c.GetType().GetMethods().FirstOrDefault(x => x.GetCustomAttributes(typeof(HttpAttribute), false).Count() > 0 && x.Name == actionName);
-				
+
 				if (action != null)
 					AddRoute(routeInfos, c, action, new List<string> { alias }, defaultParams, dynamic);
 			}
@@ -1592,7 +1619,7 @@ namespace Aurora
 		public HttpAttribute RequestTypeAttribute { get; internal set; }
 		// The parameters passed in the URL eg. anything that is not the alias or querystring
 		// action parameters are delimited like /alias/param1/param2/param3
-		public object[] ActionParams { get; internal set; }
+		public object[] ActionURLParams { get; internal set; }
 		// The parameters that are bound to this action that are declared in an OnInit method of 
 		// the constructor
 		public object[] BoundParams { get; internal set; }
@@ -1638,6 +1665,7 @@ namespace Aurora
 	public abstract class ActionFilterAttribute : Attribute
 	{
 		private Engine engine;
+		public RouteInfo DivertRoute { get; set; }
 		internal Controller Controller { get; set; }
 		public IActionFilterResult FilterResult { get; set; }
 		public User CurrentUser { get { return engine.currentUser; } }
@@ -1649,21 +1677,81 @@ namespace Aurora
 		}
 
 		#region WRAPPERS FOR ENGINE METHODS
-		public void Redirect(string alias)
+		protected RouteInfo FindRoute(string path)
+		{
+			return engine.FindRoute(path);
+		}
+		protected RouteInfo FindRoute(string path, string[] urlParameters)
+		{
+			return engine.FindRoute(path, urlParameters);
+		}
+		protected void Redirect(string alias)
 		{
 			engine.ResponseRedirect(alias, false);
 		}
-		public void RedirectOnly(string alias)
+		protected void RedirectOnly(string alias)
 		{
 			engine.ResponseRedirect(alias, true);
 		}
-		public void LogOn(string id, string[] roles, object archeType = null)
+		protected void LogOn(string id, string[] roles, object archeType = null)
 		{
 			engine.LogOn(id, roles, archeType);
 		}
-		public void LogOff()
+		protected void LogOff()
 		{
 			engine.LogOff();
+		}
+		protected void AddApplication(string key, object value)
+		{
+			engine.AddApplication(key, value);
+		}
+		protected object GetApplication(string key)
+		{
+			return engine.GetApplication(key);
+		}
+		protected void AddSession(string key, object value)
+		{
+			engine.AddControllerSession(key, value);
+		}
+		protected object GetSession(string key)
+		{
+			return engine.GetControllerSession(key);
+		}
+		protected void AddCache(string key, object value, DateTime expiresOn)
+		{
+			engine.AddCache(key, value, expiresOn);
+		}
+		protected object GetCache(string key)
+		{
+			return engine.GetCache(key);
+		}
+		protected void RemoveCache(string key)
+		{
+			engine.RemoveCache(key);
+		}
+		protected void AbandonSession()
+		{
+			engine.AbandonControllerSession();
+		}
+		protected string GetQueryString(string key, bool validate)
+		{
+			return engine.GetQueryString(key, validate);
+		}
+		protected string MapPath(string path)
+		{
+			return engine.MapPath(path);
+		}
+		protected void AddCookie(HttpCookie cookie)
+		{
+			engine.AddCookie(cookie);
+		}
+		protected HttpCookie GetCookie(string name)
+		{
+			return engine.GetCookie(name);
+		}
+		protected void RemoveCookie(string name)
+		{
+			engine.RemoveCookie(name);
 		}
 		#endregion
 	}
@@ -1985,6 +2073,10 @@ namespace Aurora
 		{
 			return engine.FindRoute(path);
 		}
+		protected RouteInfo FindRoute(string path, string[] urlParameters)
+		{
+			return engine.FindRoute(path, urlParameters);
+		}
 		protected void AddRoute(string alias, string controllerName, string actionName, string defaultParams)
 		{
 			engine.AddRoute(engine.engineAppState.RouteInfos, alias, controllerName, actionName, defaultParams, true);
@@ -2061,31 +2153,31 @@ namespace Aurora
 		{
 			engine.ProtectFile(path, roles);
 		}
-		public void AddApplication(string key, object value)
+		protected void AddApplication(string key, object value)
 		{
 			engine.AddApplication(key, value);
 		}
-		public object GetApplication(string key)
+		protected object GetApplication(string key)
 		{
 			return engine.GetApplication(key);
 		}
-		public void AddSession(string key, object value)
+		protected void AddSession(string key, object value)
 		{
 			engine.AddControllerSession(key, value);
 		}
-		public object GetSession(string key)
+		protected object GetSession(string key)
 		{
 			return engine.GetControllerSession(key);
 		}
-		public void AddCache(string key, object value, DateTime expiresOn)
+		protected void AddCache(string key, object value, DateTime expiresOn)
 		{
 			engine.AddCache(key, value, expiresOn);
 		}
-		public object GetCache(string key)
+		protected object GetCache(string key)
 		{
 			return engine.GetCache(key);
 		}
-		public void RemoveCache(string key)
+		protected void RemoveCache(string key)
 		{
 			engine.RemoveCache(key);
 		}
@@ -2534,7 +2626,7 @@ namespace Aurora
 		{
 			json = JsonConvert.SerializeObject(data);
 		}
-		
+
 		public ViewResponse Render()
 		{
 			return new ViewResponse() { Content = json, ContentType = "application/json" };
@@ -2556,14 +2648,14 @@ namespace Aurora
 		{
 			this.value = value;
 			this.contentType = contentType;
-			
-			if(headers==null)
+
+			if (headers == null)
 				this.headers = new Dictionary<string, string>();
 		}
 
 		public ViewResponse Render()
 		{
-			return new ViewResponse() { Headers=headers, Content = value, ContentType = contentType };
+			return new ViewResponse() { Headers = headers, Content = value, ContentType = contentType };
 		}
 	}
 	#endregion
