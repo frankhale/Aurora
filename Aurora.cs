@@ -2153,35 +2153,35 @@ namespace Aurora
 		{
 			engine.ProtectFile(path, roles);
 		}
-		protected void AddApplication(string key, object value)
+		public void AddApplication(string key, object value)
 		{
 			engine.AddApplication(key, value);
 		}
-		protected object GetApplication(string key)
+		public object GetApplication(string key)
 		{
 			return engine.GetApplication(key);
 		}
-		protected void AddSession(string key, object value)
+		public void AddSession(string key, object value)
 		{
 			engine.AddControllerSession(key, value);
 		}
-		protected object GetSession(string key)
+		public object GetSession(string key)
 		{
 			return engine.GetControllerSession(key);
 		}
-		protected void AddCache(string key, object value, DateTime expiresOn)
+		public void AddCache(string key, object value, DateTime expiresOn)
 		{
 			engine.AddCache(key, value, expiresOn);
 		}
-		protected object GetCache(string key)
+		public object GetCache(string key)
 		{
 			return engine.GetCache(key);
 		}
-		protected void RemoveCache(string key)
+		public void RemoveCache(string key)
 		{
 			engine.RemoveCache(key);
 		}
-		protected void AbandonSession()
+		public void AbandonSession()
 		{
 			engine.AbandonControllerSession();
 		}
