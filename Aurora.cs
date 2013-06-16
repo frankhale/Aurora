@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - A Tiny MVC web framework for .NET
 //
-// Updated On: 14 June 2013
+// Updated On: 15 June 2013
 //
 // NOTE: 
 //
@@ -107,9 +107,10 @@ namespace Aurora
 	// normally be navigated to. Instead, another action has to redirect to it.	
 	public enum ActionType { Get, Post, Put, Delete, FromRedirectOnly, GetOrPost }
 
-	// This is the obligatory attribute that is used to provide meta information for controller actions
+	// This is the obligatory attribute that is used to provide meta information for controller actions. 	
 	public class HttpAttribute : Attribute
 	{
+		// RequireAntiForgeryToken is only checked for HTTP Post and Put and Delete and doesn't make any sense to a Get.
 		public bool RequireAntiForgeryToken { get; set; }
 		public bool HttpsOnly { get; set; }
 		public string RedirectWithoutAuthorizationTo { get; set; }
@@ -296,7 +297,14 @@ namespace Aurora
 	{
 		public FrontController FrontController { get; set; }
 		public List<Controller> Controllers { get; set; }
+		// I've wanted to put this in app state but it's problematic because the OnInit method
+		// for a controller is ran for each new session and that is kind of where I want to add
+		// new bindings which means they will run each time an instance of a controller is created.
+		// I haven't figured out a good method to ignore this. So since adding bindings is something
+		// that happens per controller instance it is stuck here for now even though bindings won't
+		// change between instances. 
 		public Dictionary<string, Dictionary<string, List<object>>> ActionBindings { get; set; }
+		// Helper bundles are impromptu bundles that are added by HTML Helpers
 		public Dictionary<string, StringBuilder> HelperBundles { get; set; }
 		public List<MethodInfo> ControllerActions { get; set; }
 		public bool FromRedirectOnly { get; set; }
