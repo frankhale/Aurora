@@ -1,23 +1,17 @@
 ﻿//
-// Aurora - A Tiny MVC web framework for .NET
+// Aurora - An MVC web framework for .NET
 //
-// Updated On: 15 June 2013
+// Updated On: 17 June 2013
 //
-// NOTE: 
-//
-//	I've started to add comments throughout the code to provide some commentary on
-//  what is going on. This commentary is not meant to supplant formal documentation.
-//
-//  Best way to see how to use Aurora is by looking at Miranda which is a small wiki
-//  and it can be found on my github account (link below).
-//
-// Contact Info:
-//
-//  Frank Hale - <frankhale@gmail.com> 
+// NOTE: Documentation has been started in the comments below. Still in early phase!
 //
 // Source Code Location:
 //
 //	https://github.com/frankhale
+//
+// Contact Info:
+//
+//  Frank Hale - <frankhale@gmail.com> 
 //
 // --------------------
 // --- Feature List ---
@@ -40,6 +34,197 @@
 //   along with default parameters.
 // - Bundling/Minifying of Javascript and CSS.
 // - Html Helpers
+//
+// ---------------------
+// --- Documentation ---
+// ---------------------
+// 
+// Aurora is an MVC web framework for .NET and aims to provide a lot of functionality
+// in a slim codebase. 
+// 
+// Aurora maintains a simplistic vision of MVC in that the primary focus is on controllers,
+// actions and views and models are this loose thing that can be any number of things that
+// allow you to manipulate your data and validate it. In Aurora there is a Model base class
+// which can be used for validation of posted models or be used in HTML helpers. Aurora
+// kind of expects that the programmer will have his own notion of models and construct
+// them in the way that makes sense for them rather than providing a bunch of hurdles
+// and obstacles to jump through. Aurora considers Models as something that is intermediate
+// or a view model where it's this entity that exists in a transitional state either
+// getting ready to be converted into an HTML fragment or be validated from a post request
+// and then put into a database. 
+//
+// Controllers are simply classes that inherit from the Controller base class. Controllers
+// have a series of events that can be listened to in order to perform logic at specific
+// points in time. Aurora provides a FrontController base class that can be inherited
+// to allow for interception of requests before they are dispatched to the proper controller.
+// Regular controllers can have actions (C# methods), these actions are fired per the 
+// request path and once these actions are complete will return a view. Views can be HTML
+// views, partial HTMl views, file views, JSON views or string views. String views are a way 
+// to custom format a string response in any way you need.
+//
+// A quick note on how Aurora interfaces with ASP.NET. Aurora uses a small class that
+// bootstraps the framework and provides it with simple dictionaries with the request
+// data, response and callbacks to interact with a few aspects of ASP.NET such as Cache,
+// Session, Application, Cookies and sending the final response.
+//
+// As of now there are no Visual Studio templates or similiar helpers to assist in project
+// management. 
+//
+// The best way to see Aurora in action is to look at a small wiki application called 
+// Miranda which can be found on my github site (link above).
+//  
+// Aurora's project structure is flexible but relies on the folder that contains views
+// having the name Views and a structure of subdirectories named Fragments, Shared
+// and one directory for each controller with a structure underneath it with Fragments
+// and Shared directories.
+// 
+// Here is a typical project structure (almost all of which is by convention):
+// 
+// AppName/
+// AppName/Web.Config
+// AppName/favicon.ico
+// AppName/Controllers
+// AppName/Models
+// AppName/Resources/
+// AppName/Resources/Scripts
+// AppName/Resources/Styles
+// AppName/Resources/Images
+// AppName/Views
+// AppName/Views/Fragments
+// AppName/Views/Shared
+// AppName/Views/ControllerName
+// AppName/Views/ControllerName/Fragments
+// AppName/Views/ControllerName/Shared
+//
+// The Views folder is really the only hard assumption that is made by the framework
+// on where files it needs should exist. This folder will contain all of the views
+// used for master pages or partials that will be shared between controllers. Additionally,
+// this will include any globally reachable HTML fragments. If not using Controller 
+// partitions then all controllers should have a folder underneath Views that is named
+// with the controller name to place their specific views.
+//
+// NOTE: The sample Aurora projects contained on my github account all include
+// Aurora in the project solution instead of just referencing a precompiled class library.
+// This is being done on purpose to make it easier to debug web apps using the framework.
+// Additionally, the framework proper is just a single source file so in theory can and
+// should be tailored to the needs of the application using it.
+//
+// Here is a minimal web.config
+//
+// <?xml version="1.0"?>
+// <configuration>
+//   <system.web>
+//     <compilation debug="true" targetFramework="4.0" />
+//     <customErrors mode="On"/>
+//     <httpHandlers>
+//       <add verb="*" path="*" validate="false" type="AspNetAdapter.AspNetAdapterHandler"/>
+//     </httpHandlers>
+//     <httpModules>
+//       <add type="AspNetAdapter.AspNetAdapterModule" name="AspNetAdapterModule"/>
+//     </httpModules>    
+//   </system.web>
+// </configuration>
+//
+// ------------------
+// --- Attributes ---
+// ------------------
+// 
+// All actions use the Http attribute to denote how the framework should interpret them.
+// 
+// A typical usage would be:
+//
+//  [Http(ActionType.Get, "/Index")]
+//  public ViewResult Index() 
+//  {
+//     // Todo...
+//
+//		 return View();
+//  }
+//
+// The following action types can be used for actions to denote what HTTP method they respond to:
+//
+//  Get, Post, GetOrPost, Put, Delete, FromRedirectOnly
+//
+// The Http attribute has the following public properties:
+//
+// NOTE: Aurora provides only one attribute to denote metadata for a route even though at least
+//       one property RequireAntiForgeryToken makes no sense in terms of an HTTP Get, FromRedirectOnly verb.
+//       This property is only checked in instances of Post, Put or Delete.
+//
+// 		bool RequireAntiForgeryToken 
+//		bool HttpsOnly 
+//		string RedirectWithoutAuthorizationTo 
+//		string RouteAlias 
+//		string Roles 
+//		string View 
+//		ActionSecurity SecurityType
+//
+// RequireAntiForgeryToken is fulfilled by placing a view compiler directive in your view inside your form
+// so that it will place the antiforgery token element into your form.
+//
+// To add an antiforgery token to a form use the following: (more on views later)
+//
+// <input type="hidden" name="AntiForgeryToken" value="%%AntiForgeryToken%%" />
+//
+// ------------------------
+// --- Front Controller ---
+// ------------------------
+//
+// The front controller is optional. When inherited it allows notification of various events that
+// happen ramping up to the invocation of an action. You can theoretically divert (different from
+// an ordinary redirect) a route but the usefulness of this has yet to be determined. FrontController's
+// have the ability to redirect to another route in the traditional sense of redirecting.
+//
+// FrontController's can be used to set up bundles, add dynamic routes, logging...
+//
+// -------------------
+// --- Controllers ---
+// -------------------
+//
+// ---------------
+// --- Actions ---
+// ---------------
+//
+// --------------------
+// --- View Results ---
+// --------------------
+//
+// -------------
+// --- Views ---
+// -------------
+// 
+// All views (except fragments) are compiled a head of time and are written to a JSON formatted
+// file in the Cache directory under Views.
+//
+// -----------------------
+// --- Action Bindings ---
+// -----------------------
+//
+// TODO
+// 
+// -----------------------------------
+// --- Action Parameter Transforms ---
+// -----------------------------------
+//
+// TODO
+//
+// ----------------------
+// --- Action Filters ---
+// ----------------------
+//
+// TODO
+//
+// --------------
+// --- Models ---
+// --------------
+//
+// TODO
+//
+// ---------------
+// --- Bundles ---
+// ---------------
+//
+// TODO
 //
 
 #region LICENSE - GPL version 3 <http://www.gnu.org/licenses/gpl-3.0.html>
@@ -1198,6 +1383,16 @@ namespace Aurora
 				engineSessionState.ActionBindings[controllerName][actionName].Add(bindInstance);
 		}
 
+		#region BINDINGS
+		// Bindings can be a source of confusion. These methods tell the famework that you want
+		// to pass certain objects in the parameter list of the action. If you forget to add these
+		// bound parameters to your actions parameter list then upon navigating you'll receive an
+		// HTTP 404.
+		// 
+		// The framework is not forgiving, the framework should probably spit out a message if
+		// in debug mode that says "Hey, you reqested this action but we didn't find that and instead we found
+		// this action that is similiar but your parameters are not correct."
+
 		internal void AddBinding(string controllerName, string[] actionNames, object bindInstance)
 		{
 			foreach (string actionName in actionNames)
@@ -1244,6 +1439,7 @@ namespace Aurora
 
 			return bindings;
 		}
+		#endregion
 
 		internal RouteInfo FindRoute(string path)
 		{
