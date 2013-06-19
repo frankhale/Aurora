@@ -1,9 +1,10 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 17 June 2013
+// Updated On: 18 June 2013
 //
-// NOTE: Documentation has been started in the comments below. Still in early phase!
+// NOTE: Documentation has been started in the comments below. Still in early 
+//			 phase!
 //
 // Source Code Location:
 //
@@ -22,11 +23,13 @@
 //   arbitrary logic before actions are invoked.
 // - Simple tag based view engine with master pages and partial views as well as
 //   fragments. 
-// - URL parameters bind to action method parameters automatically, no fiddling with
-//   routes declarations. 
+// - URL parameters bind to action method parameters automatically, no fiddling 
+//	 with routes declarations. 
 // - Posted forms binds to post models or action parameters automatically. 
-// - Actions can have bound parameters that are bound to actions (dependency injection)
-// - Actions can be segregated based on Get, Post, GetOrPost, Put and Delete action 
+// - Actions can have bound parameters that are bound to actions (dependency 
+//	 injection)
+// - Actions can be segregated based on Get, Post, GetOrPost, Put and Delete 
+//   action 
 //   type and you can secure them with the ActionSecurity named parameter.
 // - Actions can have filters with optional filter results that bind to action
 //   parameters.  
@@ -39,44 +42,47 @@
 // --- Documentation ---
 // ---------------------
 // 
-// Aurora is an MVC web framework for .NET and aims to provide a lot of functionality
-// in a slim codebase. 
+// Aurora is an MVC web framework for .NET and aims to provide a lot of 
+// functionality in a slim codebase. 
 // 
-// Aurora maintains a simplistic vision of MVC in that the primary focus is on controllers,
-// actions and views and models are this loose thing that can be any number of things that
-// allow you to manipulate your data and validate it. In Aurora there is a Model base class
-// which can be used for validation of posted models or be used in HTML helpers. Aurora
-// kind of expects that the programmer will have his own notion of models and construct
-// them in the way that makes sense for them rather than providing a bunch of hurdles
-// and obstacles to jump through. Aurora considers Models as something that is intermediate
-// or a view model where it's this entity that exists in a transitional state either
-// getting ready to be converted into an HTML fragment or be validated from a post request
-// and then put into a database. 
+// Aurora maintains a simplistic vision of MVC in that the primary focus is on 
+// controllers, actions and views and models are this loose thing that can be 
+// any number of things that allow you to manipulate your data and validate it. 
+// In Aurora there is a Model base class which can be used for validation of 
+// posted models or be used in HTML helpers. Aurora kind of expects that the 
+// programmer will have his own notion of models and construct them in the way 
+// that makes sense for them rather than providing a bunch of hurdles and 
+// obstacles to jump through. Aurora considers Models as something that is 
+// intermediate or a view model where it's this entity that exists in a 
+// transitional state either getting ready to be converted into an HTML fragment 
+// or be validated from a post request and then put into a database. 
 //
-// Controllers are simply classes that inherit from the Controller base class. Controllers
-// have a series of events that can be listened to in order to perform logic at specific
-// points in time. Aurora provides a FrontController base class that can be inherited
-// to allow for interception of requests before they are dispatched to the proper controller.
-// Regular controllers can have actions (C# methods), these actions are fired per the 
-// request path and once these actions are complete will return a view. Views can be HTML
-// views, partial HTMl views, file views, JSON views or string views. String views are a way 
-// to custom format a string response in any way you need.
+// Controllers are simply classes that inherit from the Controller base class. 
+// Controllers have a series of events that can be listened to in order to 
+// perform logic at specific points in time. Aurora provides a FrontController 
+// base class that can be inherited to allow for interception of requests before 
+// they are dispatched to the proper controller.  Regular controllers can have 
+// actions (C# methods), these actions are fired per the request path and once 
+// these actions are complete will return a view. Views can be HTML views, 
+// partial HTMl views, file views, JSON views or string views. String views are 
+// a way to custom format a string response in any way you need.
 //
-// A quick note on how Aurora interfaces with ASP.NET. Aurora uses a small class that
-// bootstraps the framework and provides it with simple dictionaries with the request
-// data, response and callbacks to interact with a few aspects of ASP.NET such as Cache,
-// Session, Application, Cookies and sending the final response.
+// A quick note on how Aurora interfaces with ASP.NET. Aurora uses a small class 
+// that bootstraps the framework and provides it with simple dictionaries with 
+// the request data, response and callbacks to interact with a few aspects of 
+// ASP.NET such as Cache, Session, Application, Cookies and sending the final 
+// response.
 //
-// As of now there are no Visual Studio templates or similiar helpers to assist in project
-// management. 
+// As of now there are no Visual Studio templates or similiar helpers to assist 
+// in project management. 
 //
-// The best way to see Aurora in action is to look at a small wiki application called 
-// Miranda which can be found on my github site (link above).
+// The best way to see Aurora in action is to look at a small wiki application 
+// called Miranda which can be found on my github site (link above).
 //  
-// Aurora's project structure is flexible but relies on the folder that contains views
-// having the name Views and a structure of subdirectories named Fragments, Shared
-// and one directory for each controller with a structure underneath it with Fragments
-// and Shared directories.
+// Aurora's project structure is flexible but relies on the folder that contains 
+// views having the name Views and a structure of subdirectories named 
+// Fragments, Shared and one directory for each controller with a structure 
+// underneath it with Fragments and Shared directories.
 // 
 // Here is a typical project structure (almost all of which is by convention):
 // 
@@ -96,18 +102,20 @@
 // AppName/Views/ControllerName/Fragments
 // AppName/Views/ControllerName/Shared
 //
-// The Views folder is really the only hard assumption that is made by the framework
-// on where files it needs should exist. This folder will contain all of the views
-// used for master pages or partials that will be shared between controllers. Additionally,
-// this will include any globally reachable HTML fragments. If not using Controller 
-// partitions then all controllers should have a folder underneath Views that is named
-// with the controller name to place their specific views.
+// The Views folder is really the only hard assumption that is made by the 
+// framework on where files it needs should exist. This folder will contain all 
+// of the views used for master pages or partials that will be shared between 
+// controllers. Additionally, this will include any globally reachable HTML 
+// fragments. If not using Controller partitions then all controllers should 
+// have a folder underneath Views that is named with the controller name to 
+// place their specific views.
 //
 // NOTE: The sample Aurora projects contained on my github account all include
-// Aurora in the project solution instead of just referencing a precompiled class library.
-// This is being done on purpose to make it easier to debug web apps using the framework.
-// Additionally, the framework proper is just a single source file so in theory can and
-// should be tailored to the needs of the application using it.
+// Aurora in the project solution instead of just referencing a precompiled 
+// class library. This is being done on purpose to make it easier to debug web 
+// apps using the framework. Additionally, the framework proper is just a single 
+// source file so in theory can and should be tailored to the needs of the 
+// application using it.
 //
 // Here is a minimal web.config
 //
@@ -117,10 +125,12 @@
 //     <compilation debug="true" targetFramework="4.0" />
 //     <customErrors mode="On"/>
 //     <httpHandlers>
-//       <add verb="*" path="*" validate="false" type="AspNetAdapter.AspNetAdapterHandler"/>
+//       <add verb="*" path="*" validate="false" 
+//					type="AspNetAdapter.AspNetAdapterHandler"/>
 //     </httpHandlers>
 //     <httpModules>
-//       <add type="AspNetAdapter.AspNetAdapterModule" name="AspNetAdapterModule"/>
+//       <add type="AspNetAdapter.AspNetAdapterModule" 
+//					name="AspNetAdapterModule"/>
 //     </httpModules>    
 //   </system.web>
 // </configuration>
@@ -129,7 +139,8 @@
 // --- Attributes ---
 // ------------------
 // 
-// All actions use the Http attribute to denote how the framework should interpret them.
+// All actions use the Http attribute to denote how the framework should 
+// interpret them.
 // 
 // A typical usage would be:
 //
@@ -141,15 +152,17 @@
 //		 return View();
 //  }
 //
-// The following action types can be used for actions to denote what HTTP method they respond to:
+// The following action types can be used for actions to denote what HTTP method 
+// they respond to:
 //
 //  Get, Post, GetOrPost, Put, Delete, FromRedirectOnly
 //
 // The Http attribute has the following public properties:
 //
-// NOTE: Aurora provides only one attribute to denote metadata for a route even though at least
-//       one property RequireAntiForgeryToken makes no sense in terms of an HTTP Get, FromRedirectOnly verb.
-//       This property is only checked in instances of Post, Put or Delete.
+// NOTE: Aurora provides only one attribute to denote metadata for a route even 
+//			 though at least one property RequireAntiForgeryToken makes no sense in 
+//			 terms of an HTTP Get, FromRedirectOnly verb. This property is only 
+//			 checked in instances of Post, Put or Delete.
 //
 // 		bool RequireAntiForgeryToken 
 //		bool HttpsOnly 
@@ -159,10 +172,12 @@
 //		string View 
 //		ActionSecurity SecurityType
 //
-// RequireAntiForgeryToken is fulfilled by placing a view compiler directive in your view inside your form
-// so that it will place the antiforgery token element into your form.
+// RequireAntiForgeryToken is fulfilled by placing a view compiler directive in 
+// your view inside your form so that it will place the antiforgery token 
+// element into your form.
 //
-// To add an antiforgery token to a form use the following: (more on views later)
+// To add an antiforgery token to a form use the following: (more on views 
+// later)
 //
 // <input type="hidden" name="AntiForgeryToken" value="%%AntiForgeryToken%%" />
 //
@@ -170,43 +185,106 @@
 // --- Front Controller ---
 // ------------------------
 //
-// The front controller is optional. When inherited it allows notification of various events that
-// happen ramping up to the invocation of an action. You can theoretically divert (different from
-// an ordinary redirect) a route but the usefulness of this has yet to be determined. FrontController's
-// have the ability to redirect to another route in the traditional sense of redirecting.
+// The front controller is optional. When inherited it allows notification of 
+// various events that happen ramping up to the invocation of an action. You can 
+// theoretically divert (different from an ordinary redirect) a route but the 
+// usefulness of this has yet to be determined. FrontController's have the 
+// ability to redirect to another route in the traditional sense of redirecting.
 //
-// FrontController's can be used to set up bundles, add dynamic routes, logging...
+// FrontController's can be used to set up bundles, add dynamic routes, logging.
 //
 // -------------------
 // --- Controllers ---
 // -------------------
+// 
+// Controllers are classes that inherit from the Controller base class. 
+// Controllers can optionally listen for events. These events are triggered at
+// various points in the lifecycle of the request. The following events are able
+// to be listened to by Controllers:
+//
+// OnInit: 
+//
+//	Only fired when the controller instance is created.
+//
+// OnCheckRoles: 
+//	
+//	If an action is secure this gives you the opportunity to check the users 
+//	roles before the action is invoked and either grant access or not.
+//
+// OnPreAction: 
+//
+//	This event executes right before the action is invoked.
+//
+// OnPostAction:
+//
+//	This event executes right after the action is invoked.
 //
 // ---------------
 // --- Actions ---
 // ---------------
 //
+// Actions are nothing more than C# methods decorated with the Http attribute.
+// Actions will normally return a IViewResult or optionally redirect to other 
+// views, for instance an action that responds to an Http Post and has a void
+// return type would need to redirect to an action that returns a IViewResult.
+//
 // --------------------
 // --- View Results ---
 // --------------------
+//
+// The following types of view results are built in:
+//
+// ViewResult:
+//
+//	This is an ordinary HTML view result
+//
+// FileResult:
+//
+//	This result is for a physical file or a file built on the fly
+//
+// JsonResult:
+//
+//	This is a very basic result that processes a type through Newtonsoft.JSON
+//  serialize object. If you need more control over the JSON result you can hack
+//  the code or use the StringResult instead.
+//
+// StringResult:
+//
+//	The string result was added to allow for times when the simple JsonResult 
+//	was not good enough. You can format your string in any way you like and it
+//  will be sent to the client as is.
 //
 // -------------
 // --- Views ---
 // -------------
 // 
-// All views (except fragments) are compiled a head of time and are written to a JSON formatted
-// file in the Cache directory under Views.
+// All views (except fragments) are compiled a head of time and are written to 
+// a JSON formatted file in the Cache directory under Views.
 //
 // -----------------------
 // --- Action Bindings ---
 // -----------------------
 //
-// TODO
+// Action bindings are somewhat of a poor man's IoC. They denote that actions
+// will have additional parameters passed to them at the time they are invoked.
+// This is great for instances of database access objects, user objects, etc...
 // 
+// Action bindings can be custom types that implement the IBoundToAction 
+// interface. This interface allows you to perform some custom initialization
+// logic that will be executed right after an instance of this object is 
+// created.
+//
 // -----------------------------------
 // --- Action Parameter Transforms ---
 // -----------------------------------
 //
-// TODO
+// Action parameter transforms are a mechanism to transpose incoming request
+// variables into another type. For instance, say an incoming request variable
+// was a string representing a username, this could then be transformed into
+// a user object so that the action would not need to perform the transformation
+// itself and instead receive the user object as a parameter to the action.
+//
+// 
 //
 // ----------------------
 // --- Action Filters ---
@@ -2509,7 +2587,7 @@ namespace Aurora
 		public dynamic ViewBag { get; private set; }
 		public dynamic FragBag { get; private set; }
 
-		protected event EventHandler<RouteHandlerEventArgs> OnPreActionEvent, OnPostActionEvent;
+		protected event EventHandler<RouteHandlerEventArgs> OnPreAction, OnPostAction;
 
 		internal void initializeViewTags()
 		{
@@ -2569,13 +2647,13 @@ namespace Aurora
 			switch (type)
 			{
 				case RouteHandlerEventType.PreAction:
-					if (OnPreActionEvent != null)
-						OnPreActionEvent(this, args);
+					if (OnPreAction != null)
+						OnPreAction(this, args);
 					break;
 
 				case RouteHandlerEventType.PostAction:
-					if (OnPostActionEvent != null)
-						OnPostActionEvent(this, args);
+					if (OnPostAction != null)
+						OnPostAction(this, args);
 					break;
 			}
 		}
