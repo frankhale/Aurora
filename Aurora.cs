@@ -3348,33 +3348,11 @@ namespace Aurora
 								string path = Path.Combine(appRoot, viewRoot);
 
 								if (Directory.Exists(path))
-										foreach (FileInfo fi in GetAllFiles(new DirectoryInfo(path), "*.html"))
+									foreach (FileInfo fi in new DirectoryInfo(path).GetFiles("*.html", SearchOption.AllDirectories))
 												templates.Add(Load(fi.FullName));
 						}
 
 						return templates;
-				}
-
-				// This code was adapted to work with FileInfo/DirectoryInfo but was originally from the following question on SO:
-				// http://stackoverflow.com/questions/929276/how-to-recursively-list-all-the-files-in-a-directory-in-c
-				public static IEnumerable<FileInfo> GetAllFiles(DirectoryInfo dirInfo, string searchPattern = "")
-				{
-						Queue<string> queue = new Queue<string>();
-						queue.Enqueue(dirInfo.FullName);
-
-						while (queue.Count > 0)
-						{
-								string path = queue.Dequeue();
-
-								foreach (string subDir in Directory.GetDirectories(path))
-										queue.Enqueue(subDir);
-
-								FileInfo[] fileInfos = new DirectoryInfo(path).GetFiles(searchPattern);
-
-								if (fileInfos != null)
-										for (int i = 0; i < fileInfos.Length; i++)
-												yield return fileInfos[i];
-						}
 				}
 
 				public TemplateInfo Load(string path)
