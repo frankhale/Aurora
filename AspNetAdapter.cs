@@ -8,7 +8,7 @@
 //
 // Requirements: .NET 4 or higher
 //
-// Date: 14 June 2013
+// Date: 17 December 2013
 //
 // Contact Info:
 //
@@ -85,7 +85,7 @@ using System.Web;
 using System.Web.Caching;
 using System.Web.SessionState;
 using HtmlAgilityPack;
-using Microsoft.Web.Infrastructure.DynamicValidationHelper;
+//using Microsoft.Web.Infrastructure.DynamicValidationHelper;
 
 //#if LIBRARY
 //using System.Runtime.InteropServices;
@@ -97,7 +97,7 @@ using Microsoft.Web.Infrastructure.DynamicValidationHelper;
 //[assembly: AssemblyCopyright("Copyright © 2012-2013 | LICENSE GNU GPLv3")]
 //[assembly: ComVisible(false)]
 //[assembly: CLSCompliant(true)]
-//[assembly: AssemblyVersion("0.0.21.0")]
+//[assembly: AssemblyVersion("0.0.22.0")]
 //#endif
 
 namespace AspNetAdapter
@@ -311,7 +311,6 @@ namespace AspNetAdapter
 		private HttpContext context;
 		private bool firstRun, debugMode;
 		private static string AspNetApplicationTypeSessionName = "__AspNetApplicationType";
-		private NameValueCollection unvalidatedForm, unvalidatedQueryString;
 
 		public event EventHandler<ResponseEventArgs> OnComplete;
 
@@ -326,39 +325,43 @@ namespace AspNetAdapter
 
 			firstRun = Convert.ToBoolean(context.Application["__SyncInitLock"]);
 
-			SetupUnvalidatedFormAndQueryStringCollections();
-
 			Type adapterApp = null;
 
 			if (context.Application[AspNetApplicationTypeSessionName] == null)
 			{
 				context.Application["__SyncInitLock"] = true;
 
-				// Look for a class inside the executing assembly that implements IAspNetAdapterApplication
-				var apps = AppDomain.CurrentDomain
-														.GetAssemblies()
-														.AsParallel()
-#if OPENAUTH
+                try
+                {
+
+                    // Look for a class inside the executing assembly that implements IAspNetAdapterApplication
+                    var apps = AppDomain.CurrentDomain
+                                                            .GetAssemblies()
+                                                            .AsParallel()
 // DotNetOpenAuth depends on System.Web.Mvc which is not referenced, this will fail if we don't eliminate it
 														.Where(x => x.GetName().Name != "DotNetOpenAuth") 
-#endif
-														.SelectMany(x => x.GetTypes()
-																							.Where(y => y.GetInterfaces()
-																													 .FirstOrDefault(i => i.IsInterface && i.UnderlyingSystemType == typeof(IAspNetAdapterApplication)) != null));
+.SelectMany(x => x.GetTypes()
+                                                                                                .Where(y => y.GetInterfaces()
+                                                                                                                         .FirstOrDefault(i => i.IsInterface && i.UnderlyingSystemType == typeof(IAspNetAdapterApplication)) != null));
 
-				if (apps != null)
-				{
-					if (apps.Count() > 1)
-						throw new Exception("The executing assembly can contain only one application utilizing AspNetAdapter");
+                    if (apps != null)
+                    {
+                        if (apps.Count() > 1)
+                            throw new Exception("The executing assembly can contain only one application utilizing AspNetAdapter");
 
-					adapterApp = apps.FirstOrDefault() as Type;
+                        adapterApp = apps.FirstOrDefault() as Type;
 
-					context.Application.Lock();
-					context.Application[AspNetApplicationTypeSessionName] = adapterApp;
-					context.Application.UnLock();
-				}
-				else
-					throw new Exception("Could not find any apps utilizing AspNetAdapter");
+                        context.Application.Lock();
+                        context.Application[AspNetApplicationTypeSessionName] = adapterApp;
+                        context.Application.UnLock();
+                    }
+                    else
+                        throw new Exception("Could not find any apps utilizing AspNetAdapter");
+                }
+                catch
+                {
+                    throw;
+                }
 			}
 			else
 				adapterApp = ctx.Application[AspNetApplicationTypeSessionName] as Type;
@@ -390,7 +393,7 @@ namespace AspNetAdapter
 			request[HttpAdapterConstants.RequestPathBase] = context.Request.PhysicalApplicationPath.TrimEnd('\\');
 			request[HttpAdapterConstants.RequestPath] = (string.IsNullOrEmpty(context.Request.Path)) ? "/" : (context.Request.Path.Length > 1) ? context.Request.Path.TrimEnd('/') : context.Request.Path;
 			request[HttpAdapterConstants.RequestPathSegments] = SplitPathSegments(context.Request.Path);
-			request[HttpAdapterConstants.RequestQueryString] = NameValueCollectionToDictionary(unvalidatedQueryString);
+            request[HttpAdapterConstants.RequestQueryString] = NameValueCollectionToDictionary(context.Request.Unvalidated.QueryString);
 			request[HttpAdapterConstants.RequestQueryStringCallback] = new Func<string, bool, string>(RequestQueryStringGetCallback);
 			request[HttpAdapterConstants.RequestCookie] = StringToDictionary(context.Request.ServerVariables["HTTP_COOKIE"], ';', '=');
 			try
@@ -401,7 +404,7 @@ namespace AspNetAdapter
 			{
 				request[HttpAdapterConstants.RequestBody] = null;
 			}
-			request[HttpAdapterConstants.RequestForm] = NameValueCollectionToDictionary(unvalidatedForm);
+            request[HttpAdapterConstants.RequestForm] = NameValueCollectionToDictionary(context.Request.Unvalidated.Form);
 			request[HttpAdapterConstants.RequestFormCallback] = new Func<string, bool, string>(RequestFormGetCallback);
 			request[HttpAdapterConstants.RequestIPAddress] = GetIPAddress();
 			request[HttpAdapterConstants.RequestClientCertificate] = (context.Request.ClientCertificate != null) ? new X509Certificate2(context.Request.ClientCertificate.Certificate) : null;
@@ -533,18 +536,6 @@ namespace AspNetAdapter
 				sum += count;
 
 			return buffer;
-		}
-
-		private void SetupUnvalidatedFormAndQueryStringCollections()
-		{
-			ValidationUtility.EnableDynamicValidation(context.ApplicationInstance.Context);
-
-			Func<NameValueCollection> _unvalidatedForm, _unvalidatedQueryString;
-
-			ValidationUtility.GetUnvalidatedCollections(context.ApplicationInstance.Context, out _unvalidatedForm, out _unvalidatedQueryString);
-
-			unvalidatedForm = _unvalidatedForm();
-			unvalidatedQueryString = _unvalidatedQueryString();
 		}
 		#endregion
 
@@ -745,11 +736,11 @@ namespace AspNetAdapter
 				catch
 				{
 					// <httpRuntime encoderType="Microsoft.Security.Application.AntiXssEncoder, AntiXssLibrary"/>
-					result = HttpUtility.HtmlEncode(unvalidatedForm[key]);
+                    result = HttpUtility.HtmlEncode(context.Request.Unvalidated.Form[key]);
 				}
 			}
 			else
-				result = unvalidatedForm[key];
+                result = context.Request.Unvalidated.Form[key];
 
 			return result;
 		}
@@ -767,11 +758,11 @@ namespace AspNetAdapter
 				catch
 				{
 					// <httpRuntime encoderType="Microsoft.Security.Application.AntiXssEncoder, AntiXssLibrary"/>
-					result = HttpUtility.HtmlEncode(unvalidatedQueryString[key]);
+                    result = HttpUtility.HtmlEncode(context.Request.Unvalidated.QueryString[key]);
 				}
 			}
 			else
-				result = unvalidatedQueryString[key];
+                result = context.Request.Unvalidated.QueryString[key];
 
 			return result;
 		}

@@ -1,10 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 2 July 2013
-//
-// NOTE: Documentation has been started in the comments below. Still in early 
-//			 phase!
+// Updated On: 17 December 2013
 //
 // Source Code Location:
 //
@@ -284,8 +281,6 @@
 // a user object so that the action would not need to perform the transformation
 // itself and instead receive the user object as a parameter to the action.
 //
-// 
-//
 // ----------------------
 // --- Action Filters ---
 // ----------------------
@@ -356,7 +351,7 @@ using Yahoo.Yui.Compressor;
 [assembly: AssemblyCopyright("Copyright © 2011-2013 | LICENSE GNU GPLv3")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("2.0.49.0")]
+[assembly: AssemblyVersion("2.0.51.0")]
 #endregion
 
 namespace Aurora
@@ -1138,10 +1133,8 @@ namespace Aurora
 
 						return AppDomain.CurrentDomain.GetAssemblies()
 																					.AsParallel()
-#if OPENAUTH
 // DotNetOpenAuth depends on System.Web.Mvc which is not referenced, this will fail if we don't eliminate it																		
 																		.Where(x => x.GetName().Name != "DotNetOpenAuth")
-#endif
 .SelectMany(x => x.GetTypes()
 																														.AsParallel()
 																														.Where(y => y.IsClass && y.BaseType == t)).ToList();
@@ -1261,10 +1254,8 @@ namespace Aurora
 										var actionTransformClassType = AppDomain.CurrentDomain
 																														.GetAssemblies()
 																														.AsParallel()
-#if OPENAUTH
 // DotNetOpenAuth depends on System.Web.Mvc which is not referenced, this will fail if we don't eliminate it																									
 																									.Where(x => x.GetName().Name != "DotNetOpenAuth")
-#endif
 .SelectMany(x => x.GetTypes().Where(y => y.GetInterface(typeof(IActionParamTransform<,>).Name) != null && y.Name == apt.Item1.TransformName))
 																														.FirstOrDefault();
 
@@ -3984,8 +3975,7 @@ namespace Aurora
 
 				public override bool TryGetMember(GetMemberBinder binder, out object result)
 				{
-						result = (members.ContainsKey(binder.Name)) ?
-							result = members[binder.Name] : members[binder.Name] = new DynamicDictionary();
+						result = (members.ContainsKey(binder.Name)) ? members[binder.Name] : members[binder.Name] = new DynamicDictionary();
 
 						return true;
 				}
