@@ -1,6 +1,4 @@
-#Aurora - An MVC web framework for .NET 
-
-An MVC web framework for .NET
+#Aurora - An MVC web framework for .NET
 
 ##Features
 
@@ -25,7 +23,7 @@ For a comprehensive example of what Aurora can do and how to use it see the sour
 
 https://github.com/frankhale/Miranda
 
-#License 
+#License
 
 GNU GPL version 3 <http://www.gnu.org/licenses/gpl-3.0.html>
 ```
