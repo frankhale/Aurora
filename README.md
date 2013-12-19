@@ -1,6 +1,6 @@
 #Aurora - An MVC web framework for .NET
 
-##Features
+###Features
 
 - Model View Controller based 
 - Apps can have a Front controller to intercept various events and perform arbitrary logic before actions are invoked.
@@ -17,13 +17,13 @@
 - OpenID authentication which is as easy as calling two methods. One to initiate the login with the provider and then one to finalize authentication.
 - Active Directory querying so you can authenticate your user against an Active Directory user. Typically for use in client certificate authentication.
  
-##Example Showing How To Use Aurora to Build an Application
+###Example Showing How To Use Aurora to Build an Application
 
 For a comprehensive example of what Aurora can do and how to use it see the source code to Miranda my wiki application.
 
 https://github.com/frankhale/Miranda
 
-#License
+###License
 
 GNU GPL version 3 <http://www.gnu.org/licenses/gpl-3.0.html>
 ```
