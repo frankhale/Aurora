@@ -1,4 +1,4 @@
-#Aurora - An MVC web framework for .NET
+##Aurora - An MVC web framework for .NET
 
 ###Features
 
