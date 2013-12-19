@@ -3,14 +3,15 @@
 	<metadata>
 		<id>Aurora</id>
 		<version>2.0.52</version>
-		<title>Aurora - An MVC Web Framework for .NET</title>
+		<title>Aurora</title>
 		<authors>Frank Hale</authors>
 		<owners>Frank Hale</owners>
 		<licenseUrl>http://www.gnu.org/licenses/gpl-3.0.html</licenseUrl>
 		<projectUrl>https://github.com/frankhale/aurora</projectUrl>
 		<iconUrl>https://github.com/frankhale/aurora/blob/master/aurora.png</iconUrl>
 		<requireLicenseAcceptance>false</requireLicenseAcceptance>
-		<description>An MVC web framework for .NET</description>
+		<description>A minimal MVC web framework for .NET</description>
+		<summary>A minimal MVC web framework for .NET that attempts to support a nice feature set but with a small footprint</summary>
 		<releaseNotes>Code cleanup</releaseNotes>
 		<copyright>Copyright 2013</copyright>
 		<tags>C# MVC ASP.NET</tags>
