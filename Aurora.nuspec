@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<package >
+	<metadata>
+		<id>Aurora</id>
+		<version>2.0.52</version>
+		<title>Aurora - An MVC Web Framework for .NET</title>
+		<authors>Frank Hale</authors>
+		<owners>Frank Hale</owners>
+		<licenseUrl>http://www.gnu.org/licenses/gpl-3.0.html</licenseUrl>
+		<projectUrl>https://github.com/frankhale/aurora</projectUrl>
+		<iconUrl>https://github.com/frankhale/aurora/blob/master/aurora.png</iconUrl>
+		<requireLicenseAcceptance>false</requireLicenseAcceptance>
+		<description>An MVC web framework for .NET</description>
+		<releaseNotes>Code cleanup</releaseNotes>
+		<copyright>Copyright 2013</copyright>
+		<tags>C# MVC ASP.NET</tags>
+		<dependencies>
+			<dependency id="YUICompressor.NET" version="2.3.0" />
+			<dependency id="AntiXSS" version="4.2.1" />
+			<dependency id="Newtonsoft.Json" version="5.0.8" />
+			<dependency id="HtmlAgilityPack" version="1.4.6" />
+			<dependency id="MarkdownSharp" version="1.13.0" />
+			<dependency id="DotNetOpenAuth" version="4.3.4.13329" />
+		</dependencies>
+		</metadata>
+	<files>
+		<file src="lib\net40\Aurora.dll" target="lib\net40\Aurora.dll" />
+		<file src="README.md" target="README.md" />
+	</files>
+</package>
