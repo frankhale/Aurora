@@ -93,7 +93,7 @@ using System.Web.SessionState;
 //[assembly: AssemblyDescription("An ASP.NET HttpContext Adapter")]
 //[assembly: AssemblyCompany("Frank Hale")]
 //[assembly: AssemblyProduct("AspNetAdapter")]
-//[assembly: AssemblyCopyright("Copyright © 2012-2013 | LICENSE GNU GPLv3")]
+//[assembly: AssemblyCopyright("Copyright © 2014 | LICENSE GNU GPLv3")]
 //[assembly: ComVisible(false)]
 //[assembly: CLSCompliant(true)]
 //[assembly: AssemblyVersion("0.0.24.0")]

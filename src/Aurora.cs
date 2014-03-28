@@ -348,10 +348,10 @@ using Yahoo.Yui.Compressor;
 [assembly: AssemblyDescription("A Tiny MVC web framework for .NET")]
 [assembly: AssemblyCompany("Frank Hale")]
 [assembly: AssemblyProduct("Aurora")]
-[assembly: AssemblyCopyright("Copyright © 2011-2013 | LICENSE GNU GPLv3")]
+[assembly: AssemblyCopyright("Copyright © 2014 | LICENSE GNU GPLv3")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("2.0.52.0")]
+[assembly: AssemblyVersion("2.0.53.0")]
 #endregion
 
 namespace Aurora
