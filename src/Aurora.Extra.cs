@@ -1,7 +1,7 @@
 ﻿//
 // Aurora.Extra - Additional bits that may be useful in your applications      
 //
-// Updated On: 5 June 2013
+// Updated On: 28 March 2014
 //
 // Contact Info:
 //
@@ -55,7 +55,7 @@ using System.IO;
 using System.Text.RegularExpressions;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using System.Runtime.InteropServices;
+using System.Web;
 
 #if MASSIVE
 using System.Data;
@@ -117,12 +117,8 @@ namespace Aurora.Extra
 		public string PerformOperation(string name)
 		{
 			// This regex comes from this StackOverflow question answer:
-			//
 			// http://stackoverflow.com/questions/155303/net-how-can-you-split-a-caps-delimited-string-into-an-array
-			if (Op == DescriptiveNameOperation.SplitCamelCase)
-				return Regex.Replace(name, @"([a-z](?=[A-Z])|[A-Z](?=[A-Z][a-z]))", "$1 ");
-
-			return null;
+			return Op == DescriptiveNameOperation.SplitCamelCase ? Regex.Replace(name, @"([a-z](?=[A-Z])|[A-Z](?=[A-Z][a-z]))", "$1 ") : null;
 		}
 	}
 
@@ -167,8 +163,8 @@ namespace Aurora.Extra
 				return value;
 			}
 
-			System.Globalization.CultureInfo cultureInfo = System.Threading.Thread.CurrentThread.CurrentCulture;
-			System.Globalization.TextInfo textInfo = cultureInfo.TextInfo;
+			var cultureInfo = System.Threading.Thread.CurrentThread.CurrentCulture;
+			var textInfo = cultureInfo.TextInfo;
 
 			// TextInfo.ToTitleCase only operates on the string if is all lower case, otherwise it returns the string unchanged.
 			return textInfo.ToTitleCase(value.ToLower());
@@ -185,22 +181,17 @@ namespace Aurora.Extra
 		public static string Wordify(this string camelCaseWord)
 		{
 			// if the word is all upper, just return it
-			if (!Regex.IsMatch(camelCaseWord, "[a-z]"))
-				return camelCaseWord;
-
-			return string.Join(" ", Regex.Split(camelCaseWord, @"(?<!^)(?=[A-Z])"));
+			return !Regex.IsMatch(camelCaseWord, "[a-z]") ? camelCaseWord : string.Join(" ", Regex.Split(camelCaseWord, @"(?<!^)(?=[A-Z])"));
 		}
 
 		public static string GetMetadata(this Enum obj)
 		{
 			if (obj != null)
 			{
-				MetadataAttribute mda = (MetadataAttribute)obj.GetType().GetField(obj.ToString()).GetCustomAttributes(false).FirstOrDefault(x => x is MetadataAttribute);
+				var mda = (MetadataAttribute)obj.GetType().GetField(obj.ToString()).GetCustomAttributes(false).FirstOrDefault(x => x is MetadataAttribute);
 
 				if (mda != null)
-				{
 					return mda.Metadata;
-				}
 			}
 
 			return null;
@@ -210,7 +201,7 @@ namespace Aurora.Extra
 		{
 			if (obj != null)
 			{
-				DescriptiveNameAttribute dna = (DescriptiveNameAttribute)obj.GetType().GetField(obj.ToString()).GetCustomAttributes(false).FirstOrDefault(x => x is DescriptiveNameAttribute);
+				var dna = (DescriptiveNameAttribute)obj.GetType().GetField(obj.ToString()).GetCustomAttributes(false).FirstOrDefault(x => x is DescriptiveNameAttribute);
 
 				if (dna != null)
 					return dna.Name;
@@ -228,9 +219,9 @@ namespace Aurora.Extra
 		{
 			byte[] phash;
 
-			using (SHA1CryptoServiceProvider hashsha1 = new SHA1CryptoServiceProvider())
+			using (var hashsha1 = new SHA1CryptoServiceProvider())
 			{
-				phash = hashsha1.ComputeHash(ASCIIEncoding.ASCII.GetBytes(passphrase));
+				phash = hashsha1.ComputeHash(Encoding.ASCII.GetBytes(passphrase));
 				Array.Resize(ref phash, size);
 			}
 
@@ -239,16 +230,16 @@ namespace Aurora.Extra
 
 		public static string Encrypt(string original, string key)
 		{
-			string encrypted = string.Empty;
+			string encrypted;
 
-			using (TripleDESCryptoServiceProvider des = new TripleDESCryptoServiceProvider())
+			using (var des = new TripleDESCryptoServiceProvider())
 			{
 				des.Key = GetPassphraseHash(key, des.KeySize / 8);
 				des.IV = GetPassphraseHash(key, des.BlockSize / 8);
 				des.Padding = PaddingMode.PKCS7;
 				des.Mode = CipherMode.ECB;
 
-				byte[] buff = ASCIIEncoding.ASCII.GetBytes(original);
+				byte[] buff = Encoding.ASCII.GetBytes(original);
 				encrypted = Convert.ToBase64String(des.CreateEncryptor().TransformFinalBlock(buff, 0, buff.Length));
 			}
 
@@ -257,9 +248,9 @@ namespace Aurora.Extra
 
 		public static string Decrypt(string encrypted, string key)
 		{
-			string decrypted = string.Empty;
+			string decrypted;
 
-			using (TripleDESCryptoServiceProvider des = new TripleDESCryptoServiceProvider())
+			using (var des = new TripleDESCryptoServiceProvider())
 			{
 				des.Key = GetPassphraseHash(key, des.KeySize / 8);
 				des.IV = GetPassphraseHash(key, des.BlockSize / 8);
@@ -267,7 +258,7 @@ namespace Aurora.Extra
 				des.Mode = CipherMode.ECB;
 
 				byte[] buff = Convert.FromBase64String(encrypted);
-				decrypted = ASCIIEncoding.ASCII.GetString(des.CreateDecryptor().TransformFinalBlock(buff, 0, buff.Length));
+				decrypted = Encoding.ASCII.GetString(des.CreateDecryptor().TransformFinalBlock(buff, 0, buff.Length));
 			}
 
 			return decrypted;
@@ -331,13 +322,12 @@ namespace Aurora.Extra
 
 		private string GetParams()
 		{
-			StringBuilder sb = new StringBuilder();
-
-			Dictionary<string, string> attribs = new Dictionary<string, string>();
+			var sb = new StringBuilder();
+			var attribs = new Dictionary<string, string>();
 
 			if (AttribsFunc != null)
 			{
-				foreach (Func<string, string> f in AttribsFunc)
+				foreach (var f in AttribsFunc)
 				{
 					attribs.Add(f.Method.GetParameters()[0].Name == "@class" ? "class" : f.Method.GetParameters()[0].Name, f(null));
 				}
@@ -347,7 +337,7 @@ namespace Aurora.Extra
 				attribs = AttribsDict;
 			}
 
-			foreach (KeyValuePair<string, string> kvp in attribs)
+			foreach (var kvp in attribs)
 			{
 				sb.AppendFormat("{0}=\"{1}\" ", kvp.Key, kvp.Value);
 			}
@@ -371,77 +361,63 @@ namespace Aurora.Extra
 
 	public class RowTransform<T> where T : Model
 	{
-		private List<T> Models;
-		private Func<T, string> Func;
+		private readonly List<T> _models;
+		private readonly Func<T, string> _func;
 
 		public RowTransform(List<T> models, Func<T, string> func)
 		{
-			Models = models;
-			Func = func;
+			_models = models;
+			_func = func;
 		}
 
 		public string Result(int index)
 		{
-			return Func(Models[index]);
+			return _func(_models[index]);
 		}
 
 		public IEnumerable<string> Results()
 		{
-			foreach (T t in Models)
-			{
-				yield return Func(t);
-			}
+			return _models.Select(t => _func(t));
 		}
 	}
 
 	public class ColumnTransform<T> where T : Model
 	{
-		private List<T> Models;
-		private Func<T, string> TransformFunc;
-		private PropertyInfo ColumnInfo;
+		private readonly List<T> _models;
+		private readonly Func<T, string> _transformFunc;
 		internal ColumnTransformType TransformType { get; private set; }
 
 		public string ColumnName { get; private set; }
 
 		public ColumnTransform(List<T> models, string columnName, Func<T, string> transformFunc)
 		{
-			Models = models;
-			TransformFunc = transformFunc;
+			_models = models;
+			_transformFunc = transformFunc;
 			ColumnName = columnName;
-			ColumnInfo = typeof(T).GetProperties().FirstOrDefault(x => x.Name == ColumnName);
+			PropertyInfo columnInfo = typeof(T).GetProperties().FirstOrDefault(x => x.Name == ColumnName);
 
-			if (ColumnInfo != null)
-			{
-				TransformType = ColumnTransformType.Existing;
-			}
-			else
-			{
-				TransformType = ColumnTransformType.New;
-			}
+			TransformType = columnInfo != null ? ColumnTransformType.Existing : ColumnTransformType.New;
 		}
 
 		public string Result(int index)
 		{
-			return TransformFunc(Models[index]);
+			return _transformFunc(_models[index]);
 		}
 
 		public IEnumerable<string> Results()
 		{
-			foreach (T t in Models)
-			{
-				yield return TransformFunc(t);
-			}
+			return _models.Select(t => _transformFunc(t));
 		}
 	}
 
 	public class HtmlTable<T> : HtmlBase where T : Model
 	{
-		private List<T> Models;
-		private List<string> PropertyNames;
-		private List<PropertyInfo> PropertyInfos;
-		private List<string> IgnoreColumns;
-		private List<ColumnTransform<T>> ColumnTransforms;
-		private List<RowTransform<T>> RowTransforms;
+		private List<T> _models;
+		private List<string> _propertyNames;
+		private List<PropertyInfo> _propertyInfos;
+		private List<string> _ignoreColumns;
+		private List<ColumnTransform<T>> _columnTransforms;
+		private List<RowTransform<T>> _rowTransforms;
 		public string AlternateRowColor { get; set; }
 		public bool AlternateRowColorEnabled { get; set; }
 
@@ -476,55 +452,54 @@ namespace Aurora.Extra
 											List<RowTransform<T>> rowTransforms,
 											params Func<string, string>[] attribs)
 		{
-			Models = models;
+			_models = models;
 
-			IgnoreColumns = ignoreColumns;
+			_ignoreColumns = ignoreColumns;
 			AttribsFunc = attribs;
-			ColumnTransforms = columnTransforms;
-			RowTransforms = rowTransforms;
+			_columnTransforms = columnTransforms;
+			_rowTransforms = rowTransforms;
 			AlternateRowColor = "#dddddd";
 
-			PropertyNames = ObtainPropertyNames();
+			_propertyNames = ObtainPropertyNames();
 		}
 
 		private List<string> ObtainPropertyNames()
 		{
-			PropertyNames = new List<string>();
-			List<string> hasDescriptiveNames = new List<string>();
+			_propertyNames = new List<string>();
+			var hasDescriptiveNames = new List<string>();
 
-			if (Models.Count() > 0)
+			if (_models.Any())
 			{
-				PropertyInfos = Model.GetPropertiesWithExclusions(Models[0].GetType(), false);
+				_propertyInfos = Model.GetPropertiesWithExclusions(_models[0].GetType(), false);
 
-				foreach (PropertyInfo p in PropertyInfos)
+				foreach (var p in _propertyInfos)
 				{
-					DescriptiveNameAttribute pn = (DescriptiveNameAttribute)p.GetCustomAttributes(typeof(DescriptiveNameAttribute), false).FirstOrDefault();
+					var pn = (DescriptiveNameAttribute)p.GetCustomAttributes(typeof(DescriptiveNameAttribute), false).FirstOrDefault();
 
-					if ((IgnoreColumns != null) && IgnoreColumns.Contains(p.Name))
+					if ((_ignoreColumns != null) && _ignoreColumns.Contains(p.Name))
 						continue;
 
 					if (pn != null)
 					{
-						if (pn.Op == DescriptiveNameOperation.SplitCamelCase)
-							PropertyNames.Add(CultureInfo.InvariantCulture.TextInfo.ToTitleCase(pn.PerformOperation(p.Name)));
-						else
-							PropertyNames.Add(pn.Name);
+						_propertyNames.Add(pn.Op == DescriptiveNameOperation.SplitCamelCase
+							? CultureInfo.InvariantCulture.TextInfo.ToTitleCase(pn.PerformOperation(p.Name))
+							: pn.Name);
 
 						hasDescriptiveNames.Add(p.Name);
 					}
 					else
-						PropertyNames.Add(p.Name);
+						_propertyNames.Add(p.Name);
 				}
 
-				if (ColumnTransforms != null)
+				if (_columnTransforms != null)
 				{
-					foreach (ColumnTransform<T> addColumn in ColumnTransforms)
-						if ((!PropertyNames.Contains(addColumn.ColumnName)) && (!hasDescriptiveNames.Contains(addColumn.ColumnName)))
-							PropertyNames.Add(addColumn.ColumnName);
+					foreach (ColumnTransform<T> addColumn in _columnTransforms)
+						if ((!_propertyNames.Contains(addColumn.ColumnName)) && (!hasDescriptiveNames.Contains(addColumn.ColumnName)))
+							_propertyNames.Add(addColumn.ColumnName);
 				}
 
-				if (PropertyNames.Count > 0)
-					return PropertyNames;
+				if (_propertyNames.Count > 0)
+					return _propertyNames;
 			}
 
 			return null;
@@ -532,30 +507,30 @@ namespace Aurora.Extra
 
 		public string ToString(int start, int length, bool displayNull)
 		{
-			if (start > Models.Count() ||
+			if (start > _models.Count() ||
 					start < 0 ||
-					(length - start) > Models.Count() ||
+					(length - start) > _models.Count() ||
 					(length - start) < 0)
 			{
 				throw new ArgumentOutOfRangeException("The start or length is out of bounds with the model");
 			}
 
-			StringBuilder html = new StringBuilder();
+			var html = new StringBuilder();
 
 			html.AppendFormat("<table {0}><thead>", CondenseAttribs());
 
-			foreach (string pn in PropertyNames)
+			foreach (var pn in _propertyNames)
 				html.AppendFormat("<th>{0}</th>", pn);
 
 			html.Append("</thead><tbody>");
 
-			for (int i = start; i < length; i++)
+			for (var i = start; i < length; i++)
 			{
-				string rowClass = string.Empty;
-				string alternatingColor = string.Empty;
+				var rowClass = string.Empty;
+				var alternatingColor = string.Empty;
 
-				if (RowTransforms != null)
-					foreach (RowTransform<T> rt in RowTransforms)
+				if (_rowTransforms != null)
+					foreach (var rt in _rowTransforms)
 						rowClass = rt.Result(i);
 
 				if (AlternateRowColorEnabled && !string.IsNullOrEmpty(AlternateRowColor) && (i & 1) != 0)
@@ -563,17 +538,16 @@ namespace Aurora.Extra
 
 				html.AppendFormat("<tr {0} {1}>", rowClass, alternatingColor);
 
-				foreach (PropertyInfo pn in PropertyInfos)
+				foreach (var pn in _propertyInfos)
 				{
-					if ((IgnoreColumns != null) && IgnoreColumns.Contains(pn.Name))
+					if ((_ignoreColumns != null) && _ignoreColumns.Contains(pn.Name))
 						continue;
 
 					if (pn.CanRead)
 					{
-						string value = string.Empty;
-						object o = pn.GetValue(Models[i], null);
-
-						StringFormatAttribute sfa = (StringFormatAttribute)Attribute.GetCustomAttribute(pn, typeof(StringFormatAttribute));
+						string value;
+						var o = pn.GetValue(_models[i], null);
+						var sfa = (StringFormatAttribute)Attribute.GetCustomAttribute(pn, typeof(StringFormatAttribute));
 
 						if (sfa != null)
 							value = string.Format(sfa.Format, o);
@@ -582,15 +556,15 @@ namespace Aurora.Extra
 
 						if (o is DateTime)
 						{
-							DateFormatAttribute dfa = (DateFormatAttribute)Attribute.GetCustomAttribute(pn, typeof(DateFormatAttribute));
+							var dfa = (DateFormatAttribute)Attribute.GetCustomAttribute(pn, typeof(DateFormatAttribute));
 
 							if (dfa != null)
 								value = ((DateTime)o).ToString(dfa.Format);
 						}
 
-						if (ColumnTransforms != null)
+						if (_columnTransforms != null)
 						{
-							ColumnTransform<T> transform = (ColumnTransform<T>)ColumnTransforms.FirstOrDefault(x => x.ColumnName == pn.Name && x.TransformType == ColumnTransformType.Existing);
+							var transform = (ColumnTransform<T>)_columnTransforms.FirstOrDefault(x => x.ColumnName == pn.Name && x.TransformType == ColumnTransformType.Existing);
 
 							if (transform != null)
 								value = transform.Result(i);
@@ -600,9 +574,9 @@ namespace Aurora.Extra
 					}
 				}
 
-				if (ColumnTransforms != null)
+				if (_columnTransforms != null)
 				{
-					foreach (ColumnTransform<T> ct in ColumnTransforms.Where(x => x.TransformType == ColumnTransformType.New))
+					foreach (var ct in _columnTransforms.Where(x => x.TransformType == ColumnTransformType.New))
 						html.AppendFormat("<td>{0}</td>", ct.Result(i));
 				}
 
@@ -616,7 +590,7 @@ namespace Aurora.Extra
 
 		public override string ToString()
 		{
-			return ToString(0, Models.Count(), false);
+			return ToString(0, _models.Count(), false);
 		}
 	}
 	#endregion
@@ -638,12 +612,11 @@ namespace Aurora.Extra
 
 		public string ToString(bool lineBreak)
 		{
-			StringBuilder sb = new StringBuilder();
-			int counter = 0;
+			var sb = new StringBuilder();
+			var counter = 0;
+			var br = (lineBreak) ? "<br />" : string.Empty;
 
-			string br = (lineBreak) ? "<br />" : string.Empty;
-
-			foreach (HtmlListItem i in Items)
+			foreach (var i in Items)
 			{
 				sb.AppendFormat("<input type=\"checkbox\" name=\"checkboxItem{0}\" value=\"{1}\">{2}</input>{3}", counter, i.Value, i.Text, br);
 				counter++;
@@ -674,12 +647,11 @@ namespace Aurora.Extra
 
 		public string ToString(bool lineBreak)
 		{
-			StringBuilder sb = new StringBuilder();
-			int counter = 0;
+			var sb = new StringBuilder();
+			var counter = 0;
+			var br = (lineBreak) ? "<br />" : string.Empty;
 
-			string br = (lineBreak) ? "<br />" : string.Empty;
-
-			foreach (HtmlListItem i in Items)
+			foreach (var i in Items)
 			{
 				sb.AppendFormat("<input type=\"radio\" name=\"radioItem{0}\" value=\"{1}\">{2}</input>{3}", counter, i.Value, i.Text, br);
 				counter++;
@@ -698,74 +670,64 @@ namespace Aurora.Extra
 	#region MISC HELPERS
 	public class HtmlAnchor : HtmlBase
 	{
-		private string Url;
-		private string Description;
+		private readonly string _url;
+		private readonly string _description;
 
 		public HtmlAnchor(string url, string description, params Func<string, string>[] attribs)
 		{
-			Url = url;
-			Description = description;
+			_url = url;
+			_description = description;
 			AttribsFunc = attribs;
 		}
 
 		public override string ToString()
 		{
-			return string.Format("<a {0} href=\"{1}\">{2}</a>", CondenseAttribs(), Url, Description);
+			return string.Format("<a {0} href=\"{1}\">{2}</a>", CondenseAttribs(), _url, _description);
 		}
 	}
 
 	public class HtmlInput : HtmlBase
 	{
-		private HtmlInputType InputType;
+		private readonly HtmlInputType _inputType;
 
 		public HtmlInput(HtmlInputType type, params Func<string, string>[] attribs)
 		{
 			AttribsFunc = attribs;
-			InputType = type;
+			_inputType = type;
 		}
 
 		public override string ToString()
 		{
-			if (InputType == HtmlInputType.TextArea)
-			{
-				return string.Format(InputType.GetMetadata(), CondenseAttribs(), string.Empty);
-			}
-
-			return string.Format(InputType.GetMetadata(), CondenseAttribs());
+			return _inputType == HtmlInputType.TextArea ? string.Format(_inputType.GetMetadata(), CondenseAttribs(), string.Empty) : string.Format(_inputType.GetMetadata(), CondenseAttribs());
 		}
 
 		public string ToString(string text)
 		{
-			if (InputType == HtmlInputType.TextArea)
-			{
-				return string.Format(InputType.GetMetadata(), CondenseAttribs(), text);
-			}
-
-			return string.Format(InputType.GetMetadata(), CondenseAttribs());
+			return _inputType == HtmlInputType.TextArea ? string.Format(_inputType.GetMetadata(), CondenseAttribs(), text) : string.Format(_inputType.GetMetadata(), CondenseAttribs());
 		}
 	}
 
 	public class HtmlForm : HtmlBase
 	{
-		private string Action;
-		private HtmlFormPostMethod Method;
-		private List<string> InputTags;
+		private readonly string _action;
+		private readonly HtmlFormPostMethod _method;
+		private readonly List<string> _inputTags;
 
 		public HtmlForm(string action, HtmlFormPostMethod method, List<string> inputTags, params Func<string, string>[] attribs)
 		{
-			Action = action;
-			Method = method;
+			_action = action;
+			_method = method;
 			AttribsFunc = attribs;
-			InputTags = inputTags;
+			_inputTags = inputTags;
 		}
 
 		public override string ToString()
 		{
-			StringBuilder sb = new StringBuilder();
+			var sb = new StringBuilder();
 
-			sb.AppendFormat("<form action=\"{0}\" method=\"{1}\" {2}>", Action, Method, CondenseAttribs());
+			sb.AppendFormat("<form action=\"{0}\" method=\"{1}\" {2}>", _action, _method, CondenseAttribs());
 
-			foreach (string i in InputTags)
+			foreach (var i in _inputTags)
 			{
 				sb.Append(i);
 			}
@@ -778,19 +740,19 @@ namespace Aurora.Extra
 
 	public class HtmlSpan : HtmlBase
 	{
-		private string Contents;
+		private readonly string _contents;
 
 		public HtmlSpan(string contents, params Func<string, string>[] attribs)
 		{
-			Contents = contents;
+			_contents = contents;
 			AttribsFunc = attribs;
 		}
 
 		public override string ToString()
 		{
-			StringBuilder sb = new StringBuilder();
+			var sb = new StringBuilder();
 
-			sb.AppendFormat("<span {0}>{1}</span>", CondenseAttribs(), Contents);
+			sb.AppendFormat("<span {0}>{1}</span>", CondenseAttribs(), _contents);
 
 			return sb.ToString();
 		}
@@ -798,38 +760,38 @@ namespace Aurora.Extra
 
 	public class HtmlSelect : HtmlBase
 	{
-		private List<string> Options;
-		private string SelectedDefault;
-		private bool EmptyOption;
-		private string Enabled;
+		private readonly List<string> _options;
+		private readonly string _selectedDefault;
+		private readonly bool _emptyOption;
+		private readonly string _enabled;
 
 		public HtmlSelect(List<string> options, string selectedDefault, bool emptyOption, bool enabled, params Func<string, string>[] attribs)
 		{
-			Options = options;
+			_options = options;
 			AttribsFunc = attribs;
-			SelectedDefault = selectedDefault ?? string.Empty;
-			EmptyOption = emptyOption;
-			Enabled = (enabled) ? "disabled=\"disabled\"" : string.Empty;
+			_selectedDefault = selectedDefault ?? string.Empty;
+			_emptyOption = emptyOption;
+			_enabled = (enabled) ? "disabled=\"disabled\"" : string.Empty;
 		}
 
 		public override string ToString()
 		{
-			StringBuilder sb = new StringBuilder();
+			var sb = new StringBuilder();
 
-			sb.AppendFormat("<select {0} {1}>", CondenseAttribs(), Enabled);
+			sb.AppendFormat("<select {0} {1}>", CondenseAttribs(), _enabled);
 
-			if (EmptyOption)
+			if (_emptyOption)
 			{
 				sb.Append("<option selected=\"selected\"></option>");
 			}
 
-			int count = 0;
+			var count = 0;
 
-			foreach (string o in Options)
+			foreach (var o in _options)
 			{
-				string selected = string.Empty;
+				var selected = string.Empty;
 
-				if (!string.IsNullOrEmpty(SelectedDefault) && o == SelectedDefault)
+				if (!string.IsNullOrEmpty(_selectedDefault) && o == _selectedDefault)
 				{
 					selected = "selected=\"selected\"";
 				}
@@ -846,24 +808,24 @@ namespace Aurora.Extra
 
 	public class HtmlCheckBox : HtmlBase
 	{
-		private string ID;
-		private string Name;
-		private string CssClass;
-		private string Check;
-		private string Enabled;
+		private readonly string _id;
+		private readonly string _name;
+		private readonly string _cssClass;
+		private readonly string _check;
+		private readonly string _enabled;
 
 		public HtmlCheckBox(string id, string name, string cssClass, bool enabled, bool check)
 		{
-			ID = id;
-			Name = name;
-			CssClass = cssClass;
-			Check = (check) ? "checked=\"checked\"" : string.Empty;
-			Enabled = (enabled) ? "disabled=\"disabled\"" : string.Empty;
+			_id = id;
+			_name = name;
+			_cssClass = cssClass;
+			_check = (check) ? "checked=\"checked\"" : string.Empty;
+			_enabled = (enabled) ? "disabled=\"disabled\"" : string.Empty;
 		}
 
 		public override string ToString()
 		{
-			return string.Format("<input type=\"checkbox\" id=\"{0}\" name=\"{1}\" class=\"{2}\" {3} {4} />", ID, Name, CssClass, Check, Enabled);
+			return string.Format("<input type=\"checkbox\" id=\"{0}\" name=\"{1}\" class=\"{2}\" {3} {4} />", _id, _name, _cssClass, _check, _enabled);
 		}
 	}
 
@@ -893,22 +855,22 @@ namespace Aurora.Extra
 
 	public class HtmlSimpleList : HtmlBase
 	{
-		private IEnumerable<string> data;
-		private string delimiter;
+		private readonly IEnumerable<string> _data;
+		private readonly string _delimiter;
 
 		public HtmlSimpleList(IEnumerable<string> data, string delimiter, params Func<string, string>[] attribs)
 		{
-			this.data = data;
-			this.delimiter = delimiter;
+			_data = data;
+			_delimiter = delimiter;
 			AttribsFunc = attribs;
 		}
 
 		public override string ToString()
 		{
-			StringBuilder result = new StringBuilder();
+			var result = new StringBuilder();
 
 			result.AppendFormat("<span {0}>", CondenseAttribs());
-			result.Append(string.Join(delimiter, data));
+			result.Append(string.Join(_delimiter, _data));
 			result.Append("</span>");
 
 			return result.ToString();
@@ -921,8 +883,7 @@ namespace Aurora.Extra
 	{
 		public HtmlHelperTest(Controller c)
 		{
-			string css =
-@"
+			const string css = @"
 .foobar 
 { 
 	margin-top: 10px;
@@ -940,16 +901,15 @@ namespace Aurora.Extra
 
 	public class HtmlUserNameAndPasswordForm : HtmlBase
 	{
-		string applicationTitle;
-		string loginAlias;
+		private readonly string _applicationTitle;
+		private readonly string _loginAlias;
 
 		public HtmlUserNameAndPasswordForm(Controller c, string loginAlias, string applicationTitle)
 		{
-			this.loginAlias = loginAlias;
-			this.applicationTitle = applicationTitle;
+			_loginAlias = loginAlias;
+			_applicationTitle = applicationTitle;
 
-			string css =
-@"
+			const string css = @"
 .userNameAndPassword {
 	margin: 0 auto; 
 	width: 155px;  
@@ -975,7 +935,7 @@ string.Format(@"
 		</table>
 	</form>
 </div>
-", applicationTitle, loginAlias);
+", _applicationTitle, _loginAlias);
 		}
 	}
 	#endregion
@@ -1611,9 +1571,9 @@ string.Format(@"
 
 				var query = "";
 				if (!string.IsNullOrEmpty(sql))
-					query = string.Format("SELECT {0} FROM (SELECT ROW_NUMBER() OVER (ORDER BY {2}) AS Row, {0} FROM ({3}) AS PagedTable {4}) AS Paged ", columns, pageSize, orderBy, sql, where);
+					query = string.Format("SELECT {0} FROM (SELECT ROW_NUMBER() OVER (ORDER BY {1}) AS Row, {0} FROM ({2}) AS PagedTable {3}) AS Paged ", columns, orderBy, sql, where);
 				else
-					query = string.Format("SELECT {0} FROM (SELECT ROW_NUMBER() OVER (ORDER BY {2}) AS Row, {0} FROM {3} {4}) AS Paged ", columns, pageSize, orderBy, TableName, where);
+					query = string.Format("SELECT {0} FROM (SELECT ROW_NUMBER() OVER (ORDER BY {1}) AS Row, {0} FROM {2} {3}) AS Paged ", columns, orderBy, TableName, where);
 
 				var pageStart = (currentPage - 1) * pageSize;
 				query += string.Format(" WHERE Row > {0} AND Row <={1}", pageStart, (pageStart + pageSize));
@@ -1814,7 +1774,7 @@ string.Format(@"
 						var cmd = CreateInsertCommand(ex);
 						cmd.Connection = conn;
 						cmd.ExecuteNonQuery();
-						cmd.CommandText = "SELECT @@IDENTITY as newID";
+						cmd.CommandText = "SELECT SCOPE_IDENTITY() as newID";
 						ex.ID = cmd.ExecuteScalar();
 						Inserted(ex);
 					}
@@ -2030,28 +1990,28 @@ string.Format(@"
 		}
 
 		[ConfigurationProperty("UserName", DefaultValue = null, IsRequired = false)]
-		public string ADSearchUser
+		public string AdSearchUser
 		{
 			get { return this["UserName"].ToString(); }
 			set { this["UserName"] = value; }
 		}
 
 		[ConfigurationProperty("Password", DefaultValue = null, IsRequired = false)]
-		public string ADSearchPW
+		public string AdSearchPw
 		{
 			get { return this["Password"].ToString(); }
 			set { this["Password"] = value; }
 		}
 
 		[ConfigurationProperty("Domain", DefaultValue = null, IsRequired = false)]
-		public string ADSearchDomain
+		public string AdSearchDomain
 		{
 			get { return this["Domain"].ToString(); }
 			set { this["Domain"] = value; }
 		}
 
 		[ConfigurationProperty("SearchRoot", DefaultValue = null, IsRequired = false)]
-		public string ADSearchRoot
+		public string AdSearchRoot
 		{
 			get { return this["SearchRoot"].ToString(); }
 			set { this["SearchRoot"] = value; }
@@ -2074,20 +2034,20 @@ string.Format(@"
 
 	public static class ActiveDirectory
 	{
-		public static ActiveDirectoryWebConfig webConfig = ConfigurationManager.GetSection("ActiveDirectory") as ActiveDirectoryWebConfig;
-		public static string ADSearchUser = (webConfig == null) ? null : (!string.IsNullOrEmpty(webConfig.ADSearchUser) && !string.IsNullOrEmpty(webConfig.EncryptionKey)) ? Encryption.Decrypt(webConfig.ADSearchUser, webConfig.EncryptionKey) : null;
-		public static string ADSearchPW = (webConfig == null) ? null : (!string.IsNullOrEmpty(webConfig.ADSearchPW) && !string.IsNullOrEmpty(webConfig.EncryptionKey)) ? Encryption.Decrypt(webConfig.ADSearchPW, webConfig.EncryptionKey) : null;
-		public static string ADSearchDomain = (webConfig == null) ? null : webConfig.ADSearchDomain;
+		public static ActiveDirectoryWebConfig WebConfig = ConfigurationManager.GetSection("ActiveDirectory") as ActiveDirectoryWebConfig;
+		public static string AdSearchUser = (WebConfig == null) ? null : (!string.IsNullOrEmpty(WebConfig.AdSearchUser) && !string.IsNullOrEmpty(WebConfig.EncryptionKey)) ? Encryption.Decrypt(WebConfig.AdSearchUser, WebConfig.EncryptionKey) : null;
+		public static string AdSearchPw = (WebConfig == null) ? null : (!string.IsNullOrEmpty(WebConfig.AdSearchPw) && !string.IsNullOrEmpty(WebConfig.EncryptionKey)) ? Encryption.Decrypt(WebConfig.AdSearchPw, WebConfig.EncryptionKey) : null;
+		public static string AdSearchDomain = (WebConfig == null) ? null : WebConfig.AdSearchDomain;
 
 		public static ActiveDirectoryUser LookupUserByUpn(string upn)
 		{
-			PrincipalContext ctx = new PrincipalContext(ContextType.Domain, ADSearchDomain, ADSearchUser, ADSearchPW);
-			UserPrincipal usr = UserPrincipal.FindByIdentity(ctx, IdentityType.UserPrincipalName, upn);
+			var ctx = new PrincipalContext(ContextType.Domain, AdSearchDomain, AdSearchUser, AdSearchPw);
+			var usr = UserPrincipal.FindByIdentity(ctx, IdentityType.UserPrincipalName, upn);
 			ActiveDirectoryUser adUser = null;
 
 			if (usr != null)
 			{
-				DirectoryEntry de = usr.GetUnderlyingObject() as DirectoryEntry;
+				var de = usr.GetUnderlyingObject() as DirectoryEntry;
 
 				adUser = GetUser(de);
 			}
@@ -2105,7 +2065,7 @@ string.Format(@"
 							de.Properties["userPrincipalName"].Value.ToString() : null,
 				DisplayName = de.Properties["displayName"].Value.ToString(),
 				UserName = (de.Properties["samAccountName"].Value != null) ? de.Properties["samAccountName"].Value.ToString() : null,
-				PrimaryEmailAddress = GetPrimarySMTP(de) ?? string.Empty,
+				PrimaryEmailAddress = GetPrimarySmtp(de) ?? string.Empty,
 				PhoneNumber = de.Properties["telephoneNumber"].Value.ToString(),
 				Path = de.Path,
 				ClientCertificate = de.Properties.Contains("userSMIMECertificate") ?
@@ -2116,26 +2076,17 @@ string.Format(@"
 
 		private static List<string> GetProxyAddresses(DirectoryEntry user)
 		{
-			List<string> addresses = new List<string>();
+			var addresses = new List<string>();
 
 			if (user.Properties.Contains("proxyAddresses"))
-			{
-				foreach (string addr in user.Properties["proxyAddresses"])
-					addresses.Add(Regex.Replace(addr, @"\s+", string.Empty, RegexOptions.IgnoreCase).Trim());
-			}
+				addresses.AddRange(from string addr in user.Properties["proxyAddresses"] select Regex.Replace(addr, @"\s+", string.Empty, RegexOptions.IgnoreCase).Trim());
 
 			return addresses;
 		}
 
-		private static string GetPrimarySMTP(DirectoryEntry user)
+		private static string GetPrimarySmtp(DirectoryEntry user)
 		{
-			foreach (string p in GetProxyAddresses(user))
-			{
-				if (p.StartsWith("SMTP:", StringComparison.Ordinal))
-					return p.Replace("SMTP:", string.Empty).ToLowerInvariant();
-			}
-
-			return null;
+			return (from p in GetProxyAddresses(user) where p.StartsWith("SMTP:", StringComparison.Ordinal) select p.Replace("SMTP:", string.Empty).ToLowerInvariant()).FirstOrDefault();
 		}
 	}
 
@@ -2148,7 +2099,7 @@ string.Format(@"
 
 	public class ActiveDirectoryAuthentication : IBoundToAction
 	{
-		private Controller controller;
+		private Controller _controller;
 		public ActiveDirectoryUser User { get; private set; }
 		public bool Authenticated { get; private set; }
 		public string CACID { get; private set; }
@@ -2168,39 +2119,33 @@ string.Format(@"
 		{
 			ActiveDirectoryLookupEvent.ThrowIfArgumentNull();
 
-			controller = routeInfo.Controller;
+			_controller = routeInfo.Controller;
 
 			Authenticate();
 		}
 
 		public string GetCACIDFromCN()
 		{
-			if (controller.ClientCertificate == null)
+			if (_controller.ClientCertificate == null)
 				throw new Exception("The HttpContext.Request.ClientCertificate did not contain a valid certificate");
 
-			string cn = controller.ClientCertificate.GetNameInfo(X509NameType.SimpleName, false);
-			string cacid = string.Empty;
-			bool valid = true;
+			var cn = _controller.ClientCertificate.GetNameInfo(X509NameType.SimpleName, false);
+			var cacid = string.Empty;
+			var valid = true;
 
 			if (string.IsNullOrEmpty(cn))
 				throw new Exception("Cannot determine the simple name from the client certificate");
 
 			if (cn.Contains("."))
 			{
-				string[] fields = cn.Split('.');
+				var fields = cn.Split('.');
 
 				if (fields.Length > 0)
 				{
 					cacid = fields[fields.Length - 1];
 
-					foreach (char c in cacid.ToCharArray())
-					{
-						if (!Char.IsDigit(c))
-						{
-							valid = false;
-							break;
-						}
-					}
+					if (cacid.ToCharArray().Any(c => !Char.IsDigit(c)))
+						valid = false;
 				}
 			}
 
@@ -2212,7 +2157,7 @@ string.Format(@"
 
 		public void Authenticate()
 		{
-			ActiveDirectoryAuthenticationEventArgs args = new ActiveDirectoryAuthenticationEventArgs();
+			var args = new ActiveDirectoryAuthenticationEventArgs();
 
 #if DEBUG
 			ActiveDirectoryLookupEvent(this, args);
@@ -2228,12 +2173,17 @@ string.Format(@"
 
 			if (!String.IsNullOrEmpty(CACID))
 			{
-				X509Chain chain = new X509Chain();
-				chain.ChainPolicy.RevocationFlag = X509RevocationFlag.EntireChain;
-				chain.ChainPolicy.RevocationMode = X509RevocationMode.Online;
-				chain.ChainPolicy.UrlRetrievalTimeout = new TimeSpan(0, 0, 30);
+				var chain = new X509Chain
+				{
+					ChainPolicy =
+					{
+						RevocationFlag = X509RevocationFlag.EntireChain,
+						RevocationMode = X509RevocationMode.Online,
+						UrlRetrievalTimeout = new TimeSpan(0, 0, 30)
+					}
+				};
 
-				if (chain.Build(controller.ClientCertificate))
+				if (chain.Build(_controller.ClientCertificate))
 				{
 					try
 					{
@@ -2270,7 +2220,7 @@ string.Format(@"
 
 	public static class OpenAuth
 	{
-		public static void LogonViaOpenAuth(string identifier, Uri requestUrl, Action<Uri> providerURI, Action<string> invalidLogon)
+		public static void LogonViaOpenAuth(string identifier, Uri requestUrl, Action<Uri> providerUri, Action<string> invalidLogon)
 		{
 			identifier.ThrowIfArgumentNull();
 			invalidLogon.ThrowIfArgumentNull();
@@ -2284,29 +2234,21 @@ string.Format(@"
 			{
 				using (var openid = new OpenIdRelyingParty())
 				{
-					try
+					//ServicePointManager.SecurityProtocol = SecurityProtocolType.Ssl3;
+
+					var uriBuilder = new UriBuilder(requestUrl) { Query = "" };
+					var request = openid.CreateRequest(Identifier.Parse(identifier), Realm.AutoDetect, uriBuilder.Uri);
+
+					providerUri(request.Provider.Uri);
+
+					request.AddExtension(new ClaimsRequest
 					{
-						//ServicePointManager.SecurityProtocol = SecurityProtocolType.Ssl3;
+						Email = DemandLevel.Require,
+						FullName = DemandLevel.Require,
+						Nickname = DemandLevel.Request
+					});
 
-						var uriBuilder = new UriBuilder(requestUrl) { Query = "" };
-
-						IAuthenticationRequest request = openid.CreateRequest(Identifier.Parse(identifier), Realm.AutoDetect, uriBuilder.Uri);
-
-						providerURI(request.Provider.Uri);
-
-						request.AddExtension(new ClaimsRequest
-						{
-							Email = DemandLevel.Require,
-							FullName = DemandLevel.Require,
-							Nickname = DemandLevel.Request
-						});
-
-						request.RedirectToProvider();
-					}
-					catch
-					{
-						throw;
-					}
+					request.RedirectToProvider();
 				}
 			}
 		}
@@ -2319,7 +2261,7 @@ string.Format(@"
 
 			using (var openid = new OpenIdRelyingParty())
 			{
-				IAuthenticationResponse response = openid.GetResponse();
+				var response = openid.GetResponse();
 
 				if (response != null)
 				{
@@ -2330,14 +2272,14 @@ string.Format(@"
 					{
 						case AuthenticationStatus.Authenticated:
 
-							ClaimsResponse claimsResponse = response.GetExtension<ClaimsResponse>();
+							var claimsResponse = response.GetExtension<ClaimsResponse>();
 
 							if (claimsResponse != null)
 							{
 								if (string.IsNullOrEmpty(claimsResponse.Email))
 									throw new Exception("The open auth provider did not return a claims response with a valid email address");
 
-								OpenAuthClaimsResponse openAuthClaimsResponse = new OpenAuthClaimsResponse()
+								var openAuthClaimsResponse = new OpenAuthClaimsResponse()
 								{
 									Email = claimsResponse.Email,
 									FullName = claimsResponse.FullName,
@@ -2360,6 +2302,386 @@ string.Format(@"
 							break;
 					}
 				}
+			}
+		}
+	}
+#endif
+	#endregion
+
+	#region GRAVATAR (FORKED : NON-GPL)
+#if GRAVATAR
+	// https://github.com/runeborg
+	//
+	// "Gravatar wrapper for ASP.NET MVC. Feel free to use it any way you want."
+	//    
+	namespace Gravatar
+	{
+		/// <summary>
+		/// Specifies what displays if the email has no matching Gravatar image.
+		/// </summary>
+		public enum DefaultGravatar
+		{
+			/// <summary>
+			/// Use the default image (Gravatar logo)
+			/// </summary>
+			GravatarLogo,
+			/// <summary>
+			/// Do not load any image if none is associated with the email, instead return an HTTP 404 (File Not Found) response.
+			/// </summary>
+			None,
+			/// <summary>
+			/// A simple, cartoon-style silhouetted outline of a person (does not vary by email).
+			/// </summary>
+			MysteryMan,
+			/// <summary>
+			/// A geometric pattern based on an email.
+			/// </summary>
+			IdentIcon,
+			/// <summary>
+			/// A generated 'monster' with different colors, faces, etc.
+			/// </summary>
+			MonsterId,
+			/// <summary>
+			/// Generated faces with differing features and backgrounds.
+			/// </summary>
+			Wavatar,
+			/// <summary>
+			/// Generated, 8-bit arcade-style pixelated faces.
+			/// </summary>
+			Retro
+		}
+
+		/// <summary>
+		/// If the requested email hash does not have an image meeting the requested rating level, then the default image is returned (or the specified default).
+		/// </summary>
+		public enum GravatarRating
+		{
+			/// <summary>
+			///  Default rating (G)
+			/// </summary>
+			Default,
+			/// <summary>
+			/// Suitable for display on all websites with any audience type.
+			/// </summary>
+			G,
+			/// <summary>
+			/// May contain rude gestures, provocatively dressed individuals, the lesser swear words, or mild violence.
+			/// </summary>
+			PG,
+			/// <summary>
+			/// May contain such things as harsh profanity, intense violence, nudity, or hard drug use.
+			/// </summary>
+			R,
+			/// <summary>
+			/// May contain hardcore sexual imagery or extremely disturbing violence.
+			/// </summary>
+			X
+		}
+
+		/// <summary>
+		/// Generates a Gravatar url
+		/// </summary>
+		public class GravatarGenerator
+		{
+			/// <summary>
+			/// Email to generate a Gravatar image for
+			/// </summary>
+			private string _email { get; set; }
+			/// <summary>
+			/// The size of the image in pixels. Defaults to 80px
+			/// </summary>
+			private int _size { get; set; }
+			/// <summary>
+			/// A default image to fall back to.
+			/// </summary>
+			private string _defaultImage { get; set; }
+			/// <summary>
+			/// Wether to append a file ending to the url (.jpg).
+			/// </summary>
+			private bool _appendFileType { get; set; }
+			/// <summary>
+			/// Force the default image to display.
+			/// </summary>
+			private bool _forceDefaultImage { get; set; }
+			/// <summary>
+			/// Image rating to display for. See <see cref="Gravatar.GravatarRating"/> for details.
+			/// </summary>
+			private GravatarRating _displayRating { get; set; }
+			/// <summary>
+			/// How to generate a default image if no gravatar exists for the email. See <see cref="Gravatar.DefaultGravatar"/> for details.
+			/// </summary>
+			private DefaultGravatar _defaultDisplay { get; set; }
+			/// <summary>
+			/// If https should be used.
+			/// </summary>
+			private bool _useHttps { get; set; }
+
+			/// <summary>
+			/// Creates a GravatarGenerator.
+			/// </summary>
+			/// <param name="email">Email to generate Gravatar for.</param>
+			/// <param name="useHttps">Wether to use https or not.</param>
+			public GravatarGenerator(string email, bool useHttps)
+			{
+				_email = email;
+				_useHttps = useHttps;
+			}
+
+			/// <summary>
+			/// Gets the Url for the Gravatar
+			/// </summary>
+			public string Url
+			{
+				get
+				{
+					var prefix = this._useHttps ? "https://" : "http://";
+					var url = prefix + "gravatar.com/avatar/" + Encode(Encoding.UTF8);
+
+					if (this._appendFileType)
+						url += ".jpg";
+
+					url += BuildUrlParams();
+
+					return url;
+				}
+			}
+
+			/// <summary>
+			/// Sets the size of the Gravatar.
+			/// </summary>
+			/// <param name="size">Size in pixels between 1 and 512.</param>
+			public GravatarGenerator Size(int size)
+			{
+				if (size < 0 || size > 512)
+					throw new ArgumentOutOfRangeException("size", "Image size must be between 1 and 512");
+
+				_size = size;
+				return this;
+			}
+
+			/// <summary>
+			/// A default image to fall back to.
+			/// </summary>
+			/// <param name="defaultImage">A url to use as a default image.</param>
+			public GravatarGenerator DefaultImage(string defaultImage)
+			{
+				_defaultImage = defaultImage;
+				return this;
+			}
+
+			/// <summary>
+			/// How to generate a default image if no gravatar exists for the email. See <see cref="Gravatar.DefaultGravatar"/> for details.
+			/// </summary>
+			/// <param name="defaultImage">What type of default image to generate.</param>
+			public GravatarGenerator DefaultImage(DefaultGravatar defaultImage)
+			{
+				_defaultDisplay = defaultImage;
+				return this;
+			}
+
+			/// <summary>
+			/// Image rating to display for. See <see cref="Gravatar.GravatarRating"/> for details.
+			/// </summary>
+			/// <param name="rating">The rating to filter Gravatars for.</param>
+			public GravatarGenerator Rating(GravatarRating rating)
+			{
+				_displayRating = rating;
+				return this;
+			}
+
+			/// <summary>
+			/// Wether to append a file ending to the url (.jpg).
+			/// </summary>
+			public GravatarGenerator AppendFileType()
+			{
+				_appendFileType = true;
+				return this;
+			}
+
+			/// <summary>
+			/// Force the default image to display.
+			/// </summary>
+			public GravatarGenerator ForceDefaultImage()
+			{
+				_forceDefaultImage = true;
+				return this;
+			}
+
+			private string Encode(Encoding encoding)
+			{
+				var x = new System.Security.Cryptography.MD5CryptoServiceProvider();
+				var hash = encoding.GetBytes(_email);
+				hash = x.ComputeHash(hash);
+
+				var sb = new StringBuilder();
+				foreach (var t in hash)
+				{
+					sb.Append(t.ToString("x2"));
+				}
+
+				return sb.ToString();
+			}
+
+			private string GetRatingParam()
+			{
+				switch (this._displayRating)
+				{
+					case GravatarRating.G: return "r=g";
+					case GravatarRating.PG: return "r=pg";
+					case GravatarRating.R: return "r=r";
+					case GravatarRating.X: return "r=x";
+					default: return null;
+				}
+			}
+
+			private string GetDefaultImageParam()
+			{
+				if (!string.IsNullOrWhiteSpace(this._defaultImage))
+					return "d=" + HttpUtility.UrlEncode(this._defaultImage);
+
+				switch (this._defaultDisplay)
+				{
+					case DefaultGravatar.IdentIcon: return "d=identicon";
+					case DefaultGravatar.MonsterId: return "d=monsterid";
+					case DefaultGravatar.MysteryMan: return "d=mm";
+					case DefaultGravatar.None: return "d=404";
+					case DefaultGravatar.Retro: return "d=retro";
+					case DefaultGravatar.Wavatar: return "d=wavatar";
+					default: return null;
+				}
+			}
+
+			private string BuildUrlParams()
+			{
+				if (this._size < 0 || this._size > 512)
+					throw new ArgumentOutOfRangeException("Size", "Image size must be between 1 and 512");
+
+				var defaultImageParam = GetDefaultImageParam();
+				var ratingParam = GetRatingParam();
+
+				var urlParams = new List<string>();
+				if (this._size > 0)
+					urlParams.Add("s=" + this._size);
+				if (!string.IsNullOrWhiteSpace(ratingParam))
+					urlParams.Add(ratingParam);
+				if (!string.IsNullOrWhiteSpace(defaultImageParam))
+					urlParams.Add(defaultImageParam);
+				if (this._forceDefaultImage)
+					urlParams.Add("f=y");
+
+				if (urlParams.Count == 0)
+					return "";
+
+				var paramString = "?";
+
+				for (var i = 0; i < urlParams.Count; ++i)
+				{
+					paramString += urlParams[i];
+					if (i < urlParams.Count - 1)
+						paramString += "&";
+				}
+
+				return paramString;
+			}
+		}
+
+		public static class GravatarURL
+		{
+			/// <summary>
+			/// Gets a <see cref="Gravatar.GravatarGenerator"/> object.
+			/// </summary>
+			/// <param name="email">Email to generate Gravatar for.</param>
+			/// <returns>A GravatarGenerator object.</returns>
+			public static GravatarGenerator Generator(string email)
+			{
+				return new GravatarGenerator(email, false);
+			}
+
+			/// <summary>
+			/// Gets a <see cref="Gravatar.GravatarGenerator"/> object.
+			/// </summary>
+			/// <param name="email">Email to generate Gravatar for.</param>
+			/// <param name="size">The size in pixels, between 1 and 512.</param>
+			/// <returns>A GravatarGenerator object</returns>
+			public static GravatarGenerator Generator(string email, int size)
+			{
+				return new GravatarGenerator(email, false).Size(size);
+			}
+
+			/// <summary>
+			/// Gets a Gravatar Url as string.
+			/// </summary>
+			/// <param name="email">Email to generate Gravatar for.</param>
+			/// <param name="size">The size in pixels, between 1 and 512.</param>
+			/// <returns>A Gravatar Url</returns>
+			public static string Generate(string email, int size)
+			{
+				var gravatar = new GravatarGenerator(email, false).Size(size);
+				return gravatar.Url;
+			}
+
+			/// <summary>
+			/// Gets a Gravatar Url as string.
+			/// </summary>
+			/// <param name="email">Email to generate Gravatar for.</param>
+			/// <param name="size">The size in pixels, between 1 and 512.</param>
+			/// <param name="defaultImage">A default Gravatar generation policy. See <see cref="Gravatar.DefaultGravatar"/> for details.</param>
+			/// <returns>A Gravatar Url</returns>
+			public static string Generate(string email, int size, DefaultGravatar defaultImage)
+			{
+				var gravatar = new GravatarGenerator(email, false)
+					.Size(size)
+					.DefaultImage(defaultImage);
+				return gravatar.Url;
+			}
+
+			/// <summary>
+			/// Gets a Gravatar Url as string.
+			/// </summary>
+			/// <param name="email">Email to generate Gravatar for.</param>
+			/// <param name="size">The size in pixels, between 1 and 512.</param>
+			/// <param name="defaultImage">An Url to a default image to use if no Gravatar exists.</param>
+			/// <returns>A Gravatar Url</returns>
+			public static string Generate(string email, int size, string defaultImage)
+			{
+				var gravatar = new GravatarGenerator(email, false)
+					.Size(size)
+					.DefaultImage(defaultImage);
+				return gravatar.Url;
+			}
+
+			/// <summary>
+			/// Gets a Gravatar Url as string.
+			/// </summary>
+			/// <param name="email">Email to generate Gravatar for.</param>
+			/// <param name="size">The size in pixels, between 1 and 512.</param>
+			/// <param name="defaultImage">A default Gravatar generation policy. See <see cref="Gravatar.DefaultGravatar"/> for details.</param>
+			/// <param name="rating">Image rating to display for. See <see cref="Gravatar.GravatarRating"/> for details.</param>
+			/// <returns>A Gravatar Url</returns>
+			public static string Generate(string email, int size, DefaultGravatar defaultImage, GravatarRating rating)
+			{
+				var gravatar = new GravatarGenerator(email, false)
+					.Size(size)
+					.Rating(rating)
+					.DefaultImage(defaultImage);
+				return gravatar.Url;
+			}
+
+			/// <summary>
+			/// Gets a Gravatar Url as string.
+			/// </summary>
+			/// <param name="email">Email to generate Gravatar for.</param>
+			/// <param name="size">The size in pixels, between 1 and 512.</param>
+			/// <param name="defaultImage">An Url to a default image to use if no Gravatar exists.</param>
+			/// <param name="rating">Image rating to display for. See <see cref="Gravatar.GravatarRating"/> for details.</param>
+			/// <returns>A Gravatar Url</returns>
+			public static string Generate(string email, int size, string defaultImage, GravatarRating rating)
+			{
+				var gravatar = new GravatarGenerator(email, false)
+					.Size(size)
+					.Rating(rating)
+					.DefaultImage(defaultImage);
+				return gravatar.Url;
 			}
 		}
 	}

@@ -21,7 +21,7 @@
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>ACTIVEDIRECTORY OPENAUTH MASSIVE</DefineConstants>
+    <DefineConstants>ACTIVEDIRECTORY OPENAUTH MASSIVE GRAVATAR</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <Prefer32Bit>false</Prefer32Bit>
@@ -30,7 +30,7 @@
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>ACTIVEDIRECTORY OPENAUTH MASSIVE</DefineConstants>
+    <DefineConstants>ACTIVEDIRECTORY OPENAUTH MASSIVE GRAVATAR</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <Prefer32Bit>false</Prefer32Bit>
@@ -97,14 +97,13 @@
     <Compile Include="src\AspNetAdapter.cs" />
     <Compile Include="src\Aurora.cs" />
     <Compile Include="src\Aurora.Extra.cs" />
-    <Compile Include="src\Aurora.Misc.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>copy $(SolutionDir)\bin\Release\Aurora.dll $(SolutionDir)\lib\net40</PostBuildEvent>
+    <PostBuildEvent>copy $(SolutionDir)\$(OutDir)\Aurora.dll $(SolutionDir)\lib\net40</PostBuildEvent>
   </PropertyGroup>
   <Import Project="packages\Microsoft.Bcl.Build.1.0.13\tools\Microsoft.Bcl.Build.targets" Condition="Exists('packages\Microsoft.Bcl.Build.1.0.13\tools\Microsoft.Bcl.Build.targets')" />
   <Target Name="EnsureBclBuildImported" BeforeTargets="BeforeBuild" Condition="'$(BclBuildImported)' == ''">
