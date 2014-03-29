@@ -8,7 +8,7 @@
 //
 // Requirements: .NET 4.5
 //
-// Date: 28 March 2014
+// Date: 29 March 2014
 //
 // Contact Info:
 //
@@ -74,6 +74,7 @@ using HtmlAgilityPack;
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.Configuration;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -85,19 +86,6 @@ using System.Threading.Tasks;
 using System.Web;
 using System.Web.Caching;
 using System.Web.SessionState;
-
-//#if LIBRARY
-//using System.Runtime.InteropServices;
-
-//[assembly: AssemblyTitle("AspNetAdapter")]
-//[assembly: AssemblyDescription("An ASP.NET HttpContext Adapter")]
-//[assembly: AssemblyCompany("Frank Hale")]
-//[assembly: AssemblyProduct("AspNetAdapter")]
-//[assembly: AssemblyCopyright("Copyright © 2014 | LICENSE GNU GPLv3")]
-//[assembly: ComVisible(false)]
-//[assembly: CLSCompliant(true)]
-//[assembly: AssemblyVersion("0.0.24.0")]
-//#endif
 
 namespace AspNetAdapter
 {
@@ -181,6 +169,88 @@ namespace AspNetAdapter
 			httpContextAdapter.Init(HttpContext.Current);
 		}
 	}
+	#endregion
+
+	#region MIDDLEWARE
+	public class MiddlewareResult
+	{
+		public Dictionary<string, object> App { get; set; }
+		public Dictionary<string, object> Request { get; set; }
+	}
+
+	public interface IAspNetAdapterMiddleware
+	{
+		MiddlewareResult Transform(Dictionary<string, object> app,
+															 Dictionary<string, object> request);
+	}
+
+	#region WEB.CONFIG SECTION
+	// For reference: http://net.tutsplus.com/tutorials/asp-net/how-to-add-custom-configuration-settings-for-your-asp-net-application/
+	public class AspNetAdapterMiddlewareConfigurationElement : ConfigurationElement
+	{
+		[ConfigurationProperty("name", IsKey = true, IsRequired = true)]
+		public string Name
+		{
+			get
+			{
+				return this["name"] as string;
+			}
+		}
+
+		[ConfigurationProperty("type", IsRequired = true)]
+		public string Type
+		{
+			get
+			{
+				return this["type"] as string;
+			}
+		}
+	}
+
+	public class AspNetAdapterMiddlewareConfigurationCollection : ConfigurationElementCollection
+	{
+		public AspNetAdapterMiddlewareConfigurationElement this[int index]
+		{
+			get
+			{
+				return base.BaseGet(index) as AspNetAdapterMiddlewareConfigurationElement;
+			}
+
+			set
+			{
+				if (base.BaseGet(index) != null)
+				{
+					base.BaseRemoveAt(index);
+				}
+
+				this.BaseAdd(index, value);
+			}
+		}
+
+		protected override ConfigurationElement CreateNewElement()
+		{
+			return new AspNetAdapterMiddlewareConfigurationElement();
+		}
+
+		protected override object GetElementKey(ConfigurationElement element)
+		{
+			return ((AspNetAdapterMiddlewareConfigurationElement)element).Type;
+		}
+	}
+
+	public class AspNetAdapterWebConfig : ConfigurationSection
+	{
+		[ConfigurationProperty("middleware", IsRequired = false)]
+		public AspNetAdapterMiddlewareConfigurationCollection AspNetAdapterMiddlewareCollection
+		{
+			get
+			{
+				return this["middleware"] as AspNetAdapterMiddlewareConfigurationCollection;
+			}
+		}
+	}
+	#endregion
+
 	#endregion
 
 	#region ASP.NET ADAPTER
@@ -305,18 +375,18 @@ namespace AspNetAdapter
 	public sealed class HttpContextAdapter
 	{
 		private static readonly object SyncInitLock = new object();
-
+		private static readonly AspNetAdapterWebConfig _webConfig = ConfigurationManager.GetSection("aspNetAdapter") as AspNetAdapterWebConfig;
 		private Stopwatch _timer;
 		private HttpContext _context;
 		private bool _firstRun, _debugMode;
 		private const string AspNetApplicationTypeSessionName = "__AspNetApplicationType";
+		private const string AspNetMiddlewareSessionName = "__AspNetMiddleware";
 
 		public event EventHandler<ResponseEventArgs> OnComplete;
 
-		public HttpContextAdapter() { }
-
 		public void Init(HttpContext ctx)
 		{
+			_context = ctx;
 			_timer = new Stopwatch();
 			_timer.Start();
 			_context = ctx;
@@ -355,6 +425,51 @@ namespace AspNetAdapter
 			var requestDictionary = InitializeRequestDictionary();
 			var appInstance = (IAspNetAdapterApplication)Activator.CreateInstance(adapterApp);
 
+			ProcessMiddleware(appDictionary, requestDictionary);
+			InitializeApplication(appInstance, appDictionary, requestDictionary);
+		}
+
+		private void ProcessMiddleware(Dictionary<string, object> appDictionary, Dictionary<string, object> requestDictionary)
+		{
+			// Middleware in the context of AspNetAdapter is simply a class implementing the IAspNetMiddleware interface that
+			// has the ability to modify the 'app' and/or 'request' dictionaries. 
+			if (_webConfig != null)
+			{
+				IEnumerable<Type> middleware = null;
+
+				if (_context.Application[AspNetMiddlewareSessionName] == null)
+				{
+					middleware = Utility.GetAssemblies()
+															.SelectMany(x => x.GetTypes().Where(y => y.GetInterfaces()
+																																				.FirstOrDefault(i => i.IsInterface && i.UnderlyingSystemType == typeof(IAspNetAdapterMiddleware)) != null));
+				}
+				else
+					middleware = _context.Application[AspNetMiddlewareSessionName] as IEnumerable<Type>;
+
+				if (middleware == null) return;
+
+				foreach (AspNetAdapterMiddlewareConfigurationElement mw in _webConfig.AspNetAdapterMiddlewareCollection)
+				{
+					var m = middleware.FirstOrDefault(x => x.FullName == mw.Type);
+
+					if (m != null)
+					{
+						// The big question is, should this instance be cached?
+						var min = (IAspNetAdapterMiddleware)Activator.CreateInstance(m);
+						var result = min.Transform(appDictionary, requestDictionary);
+
+						if (result != null)
+						{
+							appDictionary = result.App;
+							requestDictionary = result.Request;
+						}
+					}
+				}
+			}
+		}
+
+		private void InitializeApplication(IAspNetAdapterApplication appInstance, Dictionary<string, object> appDictionary, Dictionary<string, object> requestDictionary)
+		{
 			if (_firstRun)
 				lock (SyncInitLock) appInstance.Init(appDictionary, requestDictionary, ResponseCallback);
 			else
