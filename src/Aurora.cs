@@ -350,7 +350,7 @@ using Yahoo.Yui.Compressor;
 [assembly: AssemblyCopyright("Copyright © 2014 | LICENSE GNU GPLv3")]
 [assembly: ComVisible(false)]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("2.0.53.0")]
+[assembly: AssemblyVersion("2.0.54.0")]
 #endregion
 
 namespace Aurora
