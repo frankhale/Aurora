@@ -323,6 +323,7 @@
 //
 #endregion
 
+using System.Web;
 using AspNetAdapter;
 using MarkdownSharp;
 using Newtonsoft.Json;
@@ -334,12 +335,10 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
-using System.Web;
 using System.Xml.Linq;
 using Yahoo.Yui.Compressor;
 
@@ -595,21 +594,27 @@ namespace Aurora
 		#endregion
 
 		#region FRAMEWORK METHODS
-		public void Init(Dictionary<string, object> app, Dictionary<string, object> request, Action<Dictionary<string, object>> response)
+
+		public void Init(Dictionary<string, object> app, Dictionary<string, object> request,
+			Action<Dictionary<string, object>> response)
 		{
-			this._app = app;
-			this.Request = request;
-			this._response = response;
+			_app = app;
+			Request = request;
+			_response = response;
 
 			#region INITIALIZE LOCALS FROM APP/REQUEST AND MISC
+
 			EngineAppState = GetApplication(EngineAppState.EngineAppStateSessionName) as EngineAppState ?? new EngineAppState();
-			EngineSessionState = GetSession(EngineAppState.EngineSessionStateSessionName) as EngineSessionState ?? new EngineSessionState();
+			EngineSessionState = GetSession(EngineAppState.EngineSessionStateSessionName) as EngineSessionState ??
+													 new EngineSessionState();
 
 			RequestType = request[HttpAdapterConstants.RequestMethod].ToString().ToLower();
 			AppRoot = request[HttpAdapterConstants.RequestPathBase].ToString();
 			ViewRoot = string.Format(@"{0}\Views", AppRoot);
 			IpAddress = request[HttpAdapterConstants.RequestIpAddress].ToString();
-			SessionId = (request[HttpAdapterConstants.SessionId] != null) ? request[HttpAdapterConstants.SessionId].ToString() : null;
+			SessionId = (request[HttpAdapterConstants.SessionId] != null)
+				? request[HttpAdapterConstants.SessionId].ToString()
+				: null;
 			Path = request[HttpAdapterConstants.RequestPath].ToString();
 			_pathSegments = request[HttpAdapterConstants.RequestPathSegments] as string[];
 			_cookies = request[HttpAdapterConstants.RequestCookie] as Dictionary<string, string>;
@@ -622,73 +627,99 @@ namespace Aurora
 			ClientCertificate = request[HttpAdapterConstants.RequestClientCertificate] as X509Certificate2;
 			Url = request[HttpAdapterConstants.RequestUrl] as Uri;
 			Identity = request[HttpAdapterConstants.RequestIdentity] as string;
+
 			#endregion
 
 			#region INITIALIZE MISCELLANEOUS
+
 			if (EngineAppState.RouteInfos == null)
 				EngineAppState.RouteInfos = new List<RouteInfo>();
 			else
 				EngineAppState.RouteInfos.ForEach(x => x.Controller.Engine = this);
+
 			#endregion
 
 			#region INITIALIZE USERS
+
 			if (EngineAppState.Users == null)
 				EngineAppState.Users = new List<User>();
+
 			#endregion
 
 			#region INITIALIZE ANTIFORGERYTOKENS
+
 			if (EngineAppState.AntiForgeryTokens == null)
 				EngineAppState.AntiForgeryTokens = new List<string>();
+
 			#endregion
 
 			#region INITIALIZE MODELS
+
 			if (EngineAppState.Models == null)
 				EngineAppState.Models = GetTypeList(typeof(Model));
+
 			#endregion
 
 			#region INITIALIZE CONTROLLERS SESSION
+
 			if (EngineAppState.ControllersSession == null)
 				EngineAppState.ControllersSession = new Dictionary<string, object>();
+
 			#endregion
 
 			#region INITIALIZE PROTECTED FILES
+
 			if (EngineAppState.ProtectedFiles == null)
 				EngineAppState.ProtectedFiles = new Dictionary<string, string>();
+
 			#endregion
 
 			#region INITIALIZE ACTION BINDINGS
+
 			if (EngineSessionState.ActionBindings == null)
 				EngineSessionState.ActionBindings = new Dictionary<string, Dictionary<string, List<object>>>();
+
 			#endregion
 
 			#region INITIALIZE BUNDLES
+
 			if (EngineAppState.Bundles == null)
 				EngineAppState.Bundles = new Dictionary<string, Tuple<List<string>, string>>();
+
 			#endregion
 
 			#region INITIALIZE HELPER BUNDLES
+
 			if (EngineSessionState.HelperBundles == null)
 				EngineSessionState.HelperBundles = new Dictionary<string, StringBuilder>();
+
 			#endregion
 
 			#region INTIALIZE FRONT CONTROLLER
+
 			if (EngineSessionState.FrontController == null)
 				EngineSessionState.FrontController = GetFrontControllerInstance();
 			else
 				EngineSessionState.FrontController.Engine = this;
+
 			#endregion
 
 			#region INITIALIZE CONTROLLER INSTANCES
+
 			if (EngineSessionState.Controllers == null)
 				EngineSessionState.Controllers = new List<Controller>();
+
 			#endregion
 
 			#region RUN ALL CONTROLLER ONINIT METHODS
+
 			if (EngineSessionState.FrontController != null)
 				EngineSessionState.FrontController.RaiseEvent(EventType.OnInit);
+
 			#endregion
 
 			#region INITIALIZE VIEW ENGINE
+
 			if (!EngineAppState.AllowedFilePattern.IsMatch(Path) && (EngineAppState.ViewEngine == null || _debugMode))
 			{
 				string viewCache = null;
@@ -701,15 +732,18 @@ namespace Aurora
 					EngineAppState.ViewEngineDirectiveHandlers.Add(new MasterPageDirective());
 					EngineAppState.ViewEngineDirectiveHandlers.Add(new PlaceHolderDirective());
 					EngineAppState.ViewEngineDirectiveHandlers.Add(new PartialPageDirective());
-					EngineAppState.ViewEngineDirectiveHandlers.Add(new BundleDirective(_debugMode, EngineAppState.SharedResourceFolderPath, GetBundleFiles));
-					EngineAppState.ViewEngineSubstitutionHandlers.Add(new HelperBundleDirective(EngineAppState.SharedResourceFolderPath, GetHelperBundle));
+					EngineAppState.ViewEngineDirectiveHandlers.Add(new BundleDirective(_debugMode,
+						EngineAppState.SharedResourceFolderPath, GetBundleFiles));
+					EngineAppState.ViewEngineSubstitutionHandlers.Add(new HelperBundleDirective(
+						EngineAppState.SharedResourceFolderPath, GetHelperBundle));
 					EngineAppState.ViewEngineSubstitutionHandlers.Add(new CommentSubstitution());
 					EngineAppState.ViewEngineSubstitutionHandlers.Add(new AntiForgeryTokenSubstitution(CreateAntiForgeryToken));
 					EngineAppState.ViewEngineSubstitutionHandlers.Add(new HeadSubstitution());
 				}
 
 				if (string.IsNullOrEmpty(EngineAppState.CacheFilePath))
-					EngineAppState.CacheFilePath = System.IO.Path.Combine(MapPath(EngineAppState.CompiledViewsCacheFolderPath), EngineAppState.CompiledViewsCacheFileName);
+					EngineAppState.CacheFilePath = System.IO.Path.Combine(MapPath(EngineAppState.CompiledViewsCacheFolderPath),
+						EngineAppState.CompiledViewsCacheFileName);
 
 				if (File.Exists(EngineAppState.CacheFilePath) && !_debugMode)
 					viewCache = File.ReadAllText(EngineAppState.CacheFilePath);
@@ -717,13 +751,17 @@ namespace Aurora
 				if (EngineAppState.ViewRoots == null)
 					EngineAppState.ViewRoots = GetViewRoots();
 
-				EngineAppState.ViewEngine = new ViewEngine(AppRoot, EngineAppState.ViewRoots, EngineAppState.ViewEngineDirectiveHandlers, EngineAppState.ViewEngineSubstitutionHandlers, viewCache);
+				EngineAppState.ViewEngine = new ViewEngine(AppRoot, EngineAppState.ViewRoots,
+					EngineAppState.ViewEngineDirectiveHandlers, EngineAppState.ViewEngineSubstitutionHandlers, viewCache);
 
 				if (string.IsNullOrEmpty(viewCache) || !_debugMode)
 					UpdateCache(EngineAppState.CacheFilePath);
 			}
-			else if (EngineAppState.ViewEngine.CacheUpdated || !Directory.Exists(System.IO.Path.GetDirectoryName(EngineAppState.CacheFilePath)) || !File.Exists(EngineAppState.CacheFilePath))
+			else if (EngineAppState.ViewEngine.CacheUpdated ||
+							 !Directory.Exists(System.IO.Path.GetDirectoryName(EngineAppState.CacheFilePath)) ||
+							 !File.Exists(EngineAppState.CacheFilePath))
 				UpdateCache(EngineAppState.CacheFilePath);
+
 			#endregion
 
 			AddApplication(EngineAppState.EngineAppStateSessionName, EngineAppState);
@@ -732,6 +770,7 @@ namespace Aurora
 			CurrentUser = EngineAppState.Users.FirstOrDefault(x => x.SessionId == SessionId);
 
 			#region PROCESS REQUEST / RENDER RESPONSE
+
 			ViewResponse viewResponse = null;
 			Exception exception = _serverError;
 			int httpStatus = 200;
@@ -748,6 +787,8 @@ namespace Aurora
 				}
 			}
 
+			if (viewResponse == null && _currentRoute != null && _currentRoute.Action.ReturnType != typeof(void)) return;
+
 			if (viewResponse == null && exception == null)
 			{
 				httpStatus = 404;
@@ -761,7 +802,7 @@ namespace Aurora
 					viewResponse = GetErrorViewResponse(
 						(exception.InnerException != null) ? exception.InnerException.Message : exception.Message,
 						(exception.InnerException != null) ? exception.InnerException.StackTrace : exception.StackTrace
-					);
+						);
 				}
 				else
 					viewResponse = GetErrorViewResponse("A problem occurred trying to process this request.", null);
@@ -770,6 +811,7 @@ namespace Aurora
 			viewResponse.HttpStatus = httpStatus;
 
 			RenderResponse(viewResponse);
+
 			#endregion
 		}
 
@@ -931,7 +973,7 @@ namespace Aurora
 
 						routeInfo.Controller.HttpAttribute = routeInfo.RequestTypeAttribute;
 
-						IViewResult viewResult = null;
+						IViewResult viewResult;
 						try
 						{
 							viewResult = (IViewResult)routeInfo.Action.Invoke(routeInfo.Controller, routeInfo.ActionUrlParams);
@@ -949,11 +991,15 @@ namespace Aurora
 							throw;
 						}
 
-						if (viewResult != null)
-							viewResponse = viewResult.Render();
+						if (routeInfo.Action.ReturnType != typeof(void))
+						{
+							if (viewResult != null)
+								viewResponse = viewResult.Render();
 
-						if (viewResponse == null)
-							RaiseEventOnFrontController(RouteHandlerEventType.Error, Path, routeInfo, "A problem occurred trying to render the result causing it to be null. Please check to make sure you have a view for this action.");
+							if (viewResponse == null)
+								RaiseEventOnFrontController(RouteHandlerEventType.Error, Path, routeInfo,
+									"A problem occurred trying to render the result causing it to be null. Please check to make sure you have a view for this action.");
+						}
 
 						RaiseEventOnFrontController(RouteHandlerEventType.PostAction, Path, routeInfo, viewResponse);
 						routeInfo.Controller.RaiseEvent(RouteHandlerEventType.PostAction, Path, routeInfo);
@@ -994,9 +1040,9 @@ namespace Aurora
 
 			if (_currentRoute != null)
 			{
-				Dictionary<string, string> ttags = _currentRoute.Controller.ViewBag.AsDictionary();
+				Dictionary<string, object> ttags = _currentRoute.Controller.ViewBag.AsDictionary();
 
-				tags = ttags.ToDictionary(k => k.Key, k => k.Value ?? string.Empty);
+				tags = ttags.ToDictionary(k => k.Key, k => k.Value.ToString());
 			}
 			else
 				tags = new Dictionary<string, string>();
@@ -1574,6 +1620,7 @@ namespace Aurora
 
 					routeInfo.ActionUrlParams = finalParams;
 					result = routeInfo;
+					_currentRoute = routeInfo;
 					break;
 				}
 			}
@@ -2794,7 +2841,6 @@ namespace Aurora
 	public class FileResult : IViewResult
 	{
 		private readonly byte[] _file;
-		private string _path;
 		private readonly string _contentType;
 		private readonly Dictionary<string, string> _headers = new Dictionary<string, string>();
 
@@ -2811,7 +2857,7 @@ namespace Aurora
 				contentType = HttpAdapterConstants.MimeTypes[fileExtension];
 			}
 
-			this._contentType = contentType;
+			_contentType = contentType;
 			_file = data;
 
 			_headers["content-disposition"] = string.Format("attachment;filename=\"{0}\"", name);
@@ -2819,13 +2865,11 @@ namespace Aurora
 
 		public FileResult(Regex allowedFilePattern, string path)
 		{
-			this._path = path;
-			var fileName = Path.GetFileName(path);
 			var fileExtension = Path.GetExtension(path);
 
-			if (!File.Exists(path) || !allowedFilePattern.IsMatch(path))
+			if (File.Exists(path) || allowedFilePattern.IsMatch(path))
 			{
-				if (!HttpAdapterConstants.MimeTypes.ContainsKey(fileExtension))
+				if (HttpAdapterConstants.MimeTypes.ContainsKey(fileExtension))
 					_contentType = HttpAdapterConstants.MimeTypes[fileExtension];
 
 				_file = File.ReadAllBytes(path);

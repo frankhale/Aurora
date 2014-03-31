@@ -8,7 +8,7 @@
 //
 // Requirements: .NET 4.5
 //
-// Date: 29 March 2014
+// Date: 30 March 2014
 //
 // Contact Info:
 //
@@ -930,15 +930,13 @@ namespace AspNetAdapter
 	{
 		public static IEnumerable<Assembly> GetAssemblies(Predicate<Assembly> predicate = null)
 		{
-			//NOTE: DotNetOpenAuth depends on System.Web.Mvc 1.0, don't attempt to load it here!
-			//      It's probable you won't have that version and iterating over the assemblies
-			//		  will barf if it's not present!
+			//NOTE: DotNetOpenAuth depends on System.Web.Mvc 1.0 if you don't have MVC 1.0
+			//      this is gonna barf and throw an exception...
 
 			return AppDomain.CurrentDomain
 							.GetAssemblies()
 							.AsParallel()
-							.Where(x => x.GetName().Name == "DotNetOpenAuth" || (predicate == null) || predicate(x));
-			//.Where(x => x.GetName().Name != "DotNetOpenAuth" && (predicate != null) ? predicate(x) : true);
+ 						  .Where(x => (predicate == null) || predicate(x));
 		}
 	}
 }

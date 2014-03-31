@@ -55,7 +55,6 @@ using System.IO;
 using System.Text.RegularExpressions;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using System.Web;
 
 #if MASSIVE
 using System.Data;
@@ -1774,7 +1773,8 @@ string.Format(@"
 						var cmd = CreateInsertCommand(ex);
 						cmd.Connection = conn;
 						cmd.ExecuteNonQuery();
-						cmd.CommandText = "SELECT SCOPE_IDENTITY() as newID";
+						//cmd.CommandText = "SELECT SCOPE_IDENTITY() as newID";
+						cmd.CommandText = "SELECT @@IDENTITY as newID";
 						ex.ID = cmd.ExecuteScalar();
 						Inserted(ex);
 					}
