@@ -1,7 +1,7 @@
 ﻿//
 // Aurora.Extra - Additional bits that may be useful in your applications      
 //
-// Updated On: 28 March 2014
+// Updated On: 30 March 2014
 //
 // Contact Info:
 //
@@ -55,6 +55,7 @@ using System.IO;
 using System.Text.RegularExpressions;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Web;
 
 #if MASSIVE
 using System.Data;
