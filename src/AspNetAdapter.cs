@@ -8,7 +8,7 @@
 //
 // Requirements: .NET 4.5
 //
-// Date: 30 March 2014
+// Date: 4 April 2014
 //
 // Contact Info:
 //
@@ -47,6 +47,17 @@
 // expect from an http request and finally the response callback takes a 
 // dictionary with response values. All of the dictionary keys can be found in
 // the HttpAdapterConstants class.
+//
+// Middleware:
+//
+//	<configSections>
+//		<section name="aspNetAdapter" type="AspNetAdapter.AspNetAdapterWebConfig"/>
+//	</configSections>
+//	<aspNetAdapter>
+//		<middleware>
+//			<add name="Foo" type="MyApp.Foo" />
+//		</middleware>
+//	</aspNetAdapter>
 //
 
 #region LICENSE - GPL version 3 <http://www.gnu.org/licenses/gpl-3.0.html>
@@ -172,16 +183,16 @@ namespace AspNetAdapter
 	#endregion
 
 	#region MIDDLEWARE
-	public class MiddlewareResult
-	{
-		public Dictionary<string, object> App { get; set; }
-		public Dictionary<string, object> Request { get; set; }
-	}
-
 	public interface IAspNetAdapterMiddleware
 	{
 		MiddlewareResult Transform(Dictionary<string, object> app,
 															 Dictionary<string, object> request);
+	}
+
+	public class MiddlewareResult
+	{
+		public Dictionary<string, object> App { get; set; }
+		public Dictionary<string, object> Request { get; set; }
 	}
 
 	#region WEB.CONFIG SECTION
@@ -254,6 +265,14 @@ namespace AspNetAdapter
 	#endregion
 
 	#region ASP.NET ADAPTER
+	// An application that wants to hook into ASP.NET and be sent the goodies that the HttpContextAdapter has to offer
+	public interface IAspNetAdapterApplication
+	{
+		void Init(Dictionary<string, object> app,
+							Dictionary<string, object> request,
+							Action<Dictionary<string, object>> response);
+	}
+
 	public sealed class PostedFile
 	{
 		public string ContentType { get; set; }
@@ -338,14 +357,6 @@ namespace AspNetAdapter
 			{ ".xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
 			{ ".pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"}
 		};
-	}
-
-	// An application that wants to hook into ASP.NET and be sent the goodies that the HttpContextAdapter has to offer
-	public interface IAspNetAdapterApplication
-	{
-		void Init(Dictionary<string, object> app,
-							Dictionary<string, object> request,
-							Action<Dictionary<string, object>> response);
 	}
 
 	public class RedirectInfo
@@ -433,38 +444,47 @@ namespace AspNetAdapter
 		{
 			// Middleware in the context of AspNetAdapter is simply a class implementing the IAspNetMiddleware interface that
 			// has the ability to modify the 'app' and/or 'request' dictionaries. 
-			if (_webConfig != null)
+			if (_webConfig == null) return;
+
+			var middlewareDict = new Dictionary<string, Type>();
+
+			if (_context.Application[AspNetMiddlewareSessionName] == null)
 			{
-				IEnumerable<Type> middleware = null;
-
-				if (_context.Application[AspNetMiddlewareSessionName] == null)
-				{
-					middleware = Utility.GetAssemblies()
-															.SelectMany(x => x.GetTypes().Where(y => y.GetInterfaces()
-																																				.FirstOrDefault(i => i.IsInterface && i.UnderlyingSystemType == typeof(IAspNetAdapterMiddleware)) != null));
-				}
-				else
-					middleware = _context.Application[AspNetMiddlewareSessionName] as IEnumerable<Type>;
-
-				if (middleware == null) return;
+				var middleware = Utility.GetAssemblies()
+					.SelectMany(x => x.GetTypes().Where(y => y.GetInterfaces()
+						.FirstOrDefault(i => i.IsInterface &&
+																 i.UnderlyingSystemType == typeof(IAspNetAdapterMiddleware)) != null));
 
 				foreach (AspNetAdapterMiddlewareConfigurationElement mw in _webConfig.AspNetAdapterMiddlewareCollection)
 				{
 					var m = middleware.FirstOrDefault(x => x.FullName == mw.Type);
 
 					if (m != null)
-					{
-						// The big question is, should this instance be cached?
-						var min = (IAspNetAdapterMiddleware)Activator.CreateInstance(m);
-						var result = min.Transform(appDictionary, requestDictionary);
-
-						if (result != null)
-						{
-							appDictionary = result.App;
-							requestDictionary = result.Request;
-						}
-					}
+						middlewareDict[m.FullName] = m;
 				}
+
+				_context.Application.Lock();
+				_context.Application[AspNetMiddlewareSessionName] = middlewareDict;
+				_context.Application.UnLock();
+			}
+			else
+				middlewareDict = _context.Application[AspNetMiddlewareSessionName] as Dictionary<string, Type>;
+
+			if (middlewareDict == null) return;
+
+			foreach (AspNetAdapterMiddlewareConfigurationElement mw in _webConfig.AspNetAdapterMiddlewareCollection)
+			{
+				var m = middlewareDict[mw.Type];
+				if (m == null) continue;
+
+				// The big question is, should this instance be cached?
+				var min = (IAspNetAdapterMiddleware)Activator.CreateInstance(m);
+				var result = min.Transform(appDictionary, requestDictionary);
+
+				if (result == null) continue;
+
+				appDictionary = result.App;
+				requestDictionary = result.Request;
 			}
 		}
 
@@ -671,9 +691,10 @@ namespace AspNetAdapter
 
 			try
 			{
-				if (response[HttpAdapterConstants.ResponseBody] is string)
+				var rb = response[HttpAdapterConstants.ResponseBody] as string;
+				if (rb != null)
 				{
-					var result = (string)response[HttpAdapterConstants.ResponseBody];
+					var result = rb;
 
 					if (response[HttpAdapterConstants.ResponseContentType].ToString() == "text/html")
 					{
@@ -936,7 +957,7 @@ namespace AspNetAdapter
 			return AppDomain.CurrentDomain
 							.GetAssemblies()
 							.AsParallel()
- 						  .Where(x => (predicate == null) || predicate(x));
+							.Where(x => (predicate == null) || predicate(x));
 		}
 	}
 }
