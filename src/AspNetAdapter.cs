@@ -411,7 +411,7 @@ namespace AspNetAdapter
 
 				// Look for a class inside the executing assembly that implements IAspNetAdapterApplication
 				var app = Utility.GetAssemblies(x => x.GetName().Name != "DotNetOpenAuth")
-									.SelectMany(x => x.GetTypes()
+									.SelectMany(x => x.GetLoadableTypes()
 													.Where(y => y.GetInterfaces().FirstOrDefault(i => i.IsInterface && i.UnderlyingSystemType == typeof(IAspNetAdapterApplication)) != null))
 													.FirstOrDefault();
 
@@ -451,7 +451,7 @@ namespace AspNetAdapter
 			if (_context.Application[AspNetMiddlewareSessionName] == null)
 			{
 				var middleware = Utility.GetAssemblies()
-					.SelectMany(x => x.GetTypes().Where(y => y.GetInterfaces()
+					.SelectMany(x => x.GetLoadableTypes().Where(y => y.GetInterfaces()
 						.FirstOrDefault(i => i.IsInterface &&
 																 i.UnderlyingSystemType == typeof(IAspNetAdapterMiddleware)) != null));
 
@@ -951,13 +951,25 @@ namespace AspNetAdapter
 	{
 		public static IEnumerable<Assembly> GetAssemblies(Predicate<Assembly> predicate = null)
 		{
-			//NOTE: DotNetOpenAuth depends on System.Web.Mvc 1.0 if you don't have MVC 1.0
-			//      this is gonna barf and throw an exception...
-
 			return AppDomain.CurrentDomain
 							.GetAssemblies()
 							.AsParallel()
 							.Where(x => (predicate == null) || predicate(x));
+		}
+
+		// Thanks to: http://stackoverflow.com/a/11915414/170217
+		public static IEnumerable<Type> GetLoadableTypes(this Assembly assembly)
+		{
+			assembly.ThrowIfArgumentNull("assembly");
+
+			try
+			{
+				return assembly.GetTypes();
+			}
+			catch (ReflectionTypeLoadException e)
+			{
+				return e.Types.Where(t => t != null);
+			}
 		}
 	}
 }

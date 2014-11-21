@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 28 March 2014
+// Updated On: 20 November 2014
 //
 // Source Code Location:
 //
@@ -28,8 +28,7 @@
 // - Actions can have bound parameters that are bound to actions (dependency 
 //	 injection)
 // - Actions can be segregated based on Get, Post, GetOrPost, Put and Delete 
-//   action 
-//   type and you can secure them with the ActionSecurity named parameter.
+//   action type and you can secure them with the ActionSecurity named parameter.
 // - Actions can have filters with optional filter results that bind to action
 //   parameters.  
 // - Actions can have aliases. Aliases can also be added dynamically at runtime
@@ -301,8 +300,7 @@
 //
 // TODO
 //
-
-#region LICENSE - GPL version 3 <http://www.gnu.org/licenses/gpl-3.0.html>
+// LICENSE:
 //
 // GNU GPLv3 quick guide: http://www.gnu.org/licenses/quick-guide-gplv3.html
 //
@@ -321,9 +319,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
-#endregion
 
-using System.Web;
 using AspNetAdapter;
 using MarkdownSharp;
 using Newtonsoft.Json;
@@ -334,24 +330,14 @@ using System.Dynamic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.Web;
 using System.Xml.Linq;
 using Yahoo.Yui.Compressor;
-
-#region ASSEMBLY INFO
-[assembly: AssemblyTitle("Aurora")]
-[assembly: AssemblyDescription("A Tiny MVC web framework for .NET")]
-[assembly: AssemblyCompany("Frank Hale")]
-[assembly: AssemblyProduct("Aurora")]
-[assembly: AssemblyCopyright("Copyright © 2014 | LICENSE GNU GPLv3")]
-[assembly: ComVisible(false)]
-[assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("2.0.54.0")]
-#endregion
 
 namespace Aurora
 {
@@ -1174,11 +1160,11 @@ namespace Aurora
 		private static List<Type> GetTypeList(Type t)
 		{
 			t.ThrowIfArgumentNull();
-
+			
 			return Utility.GetAssemblies()
-							.SelectMany(x => x.GetTypes()
-											.AsParallel()
-											.Where(y => y.IsClass && y.BaseType == t)).ToList();
+							.SelectMany(x => x.GetLoadableTypes()
+							.AsParallel()
+							.Where(y => y.IsClass && y.BaseType == t)).ToList();
 		}
 
 		private static List<string> GetControllerActionNames(string controllerName)
@@ -1289,7 +1275,7 @@ namespace Aurora
 				foreach (var apt in actionParameterTransforms)
 				{
 					var actionTransformClassType = Utility.GetAssemblies()
-															.SelectMany(x => x.GetTypes().Where(y => y.GetInterface(typeof(IActionParamTransform<,>).Name) != null && y.Name == apt.Item1.TransformName))
+															.SelectMany(x => x.GetLoadableTypes().Where(y => y.GetInterface(typeof(IActionParamTransform<,>).Name) != null && y.Name == apt.Item1.TransformName))
 															.FirstOrDefault();
 
 					if (actionTransformClassType != null)
@@ -3803,19 +3789,21 @@ namespace Aurora
 				throw new ArgumentException(argName, message);
 		}
 
-		// from: http://blogs.msdn.com/b/csharpfaq/archive/2006/10/09/how-do-i-calculate-a-md5-hash-from-a-string_3f00_.aspx
 		public static string CalculateMd5Sum(this string input)
 		{
-			var md5 = System.Security.Cryptography.MD5.Create();
-			var inputBytes = System.Text.Encoding.UTF8.GetBytes(input);
-			var hash = md5.ComputeHash(inputBytes);
+			var md5 = MD5.Create();
+			var hash = md5.ComputeHash(Encoding.UTF8.GetBytes(input));
 
-			var sb = new StringBuilder();
+			return Convert.ToBase64String(hash);
+		}
 
-			foreach (var t in hash)
-				sb.Append(t.ToString("X2"));
-
-			return sb.ToString();
+		public static string CalculateSHA1Sum(this string input)
+		{
+			using (SHA1Managed sha1 = new SHA1Managed())
+			{
+        var hash = sha1.ComputeHash(Encoding.UTF8.GetBytes(input));
+				return Convert.ToBase64String(hash);
+			}
 		}
 
 		public static object[] ConvertToObjectTypeArray(this string[] parms)
