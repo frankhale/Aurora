@@ -1,5 +1,7 @@
 ﻿//
-// AspNetAdapter 
+// AspNetAdapter - A thin wrapper around the ASP.NET request and response objects.
+//
+// Updated On: 21 November 2014
 //
 // Description: 
 //
@@ -7,8 +9,6 @@
 //	to disconnect applications from the intrinsics of the HttpContext.
 //
 // Requirements: .NET 4.5
-//
-// Date: 4 April 2014
 //
 // Contact Info:
 //
@@ -59,10 +59,6 @@
 //		</middleware>
 //	</aspNetAdapter>
 //
-
-#region LICENSE - GPL version 3 <http://www.gnu.org/licenses/gpl-3.0.html>
-//
-// GNU GPLv3 quick guide: http://www.gnu.org/licenses/quick-guide-gplv3.html
 //
 // GNU GPLv3 license <http://www.gnu.org/licenses/gpl-3.0.html>
 //
@@ -79,7 +75,6 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
-#endregion
 
 using HtmlAgilityPack;
 using System;
@@ -289,7 +284,8 @@ namespace AspNetAdapter
 		public static readonly string RewritePathCallback = "RewritePathCallback";
 		public static readonly string User = "User";
 		public static readonly string SessionId = "SessionID";
-		public static readonly string DebugMode = "DebugMode";
+		public static readonly string DebugModeAssembly = "DebugModeAssembly";
+		public static readonly string DebugModeASPNET = "DebugModeASPNET";
 		#endregion
 
 		#region APPLICATION CALLBACKS
@@ -389,7 +385,7 @@ namespace AspNetAdapter
 		private static readonly AspNetAdapterWebConfig _webConfig = ConfigurationManager.GetSection("aspNetAdapter") as AspNetAdapterWebConfig;
 		private Stopwatch _timer;
 		private HttpContext _context;
-		private bool _firstRun, _debugMode;
+		private bool _firstRun, _debugModeAssembly;
 		private const string AspNetApplicationTypeSessionName = "__AspNetApplicationType";
 		private const string AspNetMiddlewareSessionName = "__AspNetMiddleware";
 
@@ -400,7 +396,6 @@ namespace AspNetAdapter
 			_context = ctx;
 			_timer = new Stopwatch();
 			_timer.Start();
-			_context = ctx;
 			_firstRun = Convert.ToBoolean(_context.Application["__SyncInitLock"]);
 
 			Type adapterApp = null;
@@ -410,10 +405,10 @@ namespace AspNetAdapter
 				_context.Application["__SyncInitLock"] = true;
 
 				// Look for a class inside the executing assembly that implements IAspNetAdapterApplication
-				var app = Utility.GetAssemblies(x => x.GetName().Name != "DotNetOpenAuth")
-									.SelectMany(x => x.GetLoadableTypes()
-													.Where(y => y.GetInterfaces().FirstOrDefault(i => i.IsInterface && i.UnderlyingSystemType == typeof(IAspNetAdapterApplication)) != null))
-													.FirstOrDefault();
+				var app = Utility.GetAssemblies()
+												 .SelectMany(x => x.GetLoadableTypes()
+												 .Where(y => y.GetInterfaces().FirstOrDefault(i => i.IsInterface && i.UnderlyingSystemType == typeof(IAspNetAdapterApplication)) != null))
+												 .FirstOrDefault();
 
 				if (app == null)
 					throw new Exception("Failed to find an assembly the IAspNetAdapterApplication interface");
@@ -430,7 +425,7 @@ namespace AspNetAdapter
 
 			if (adapterApp == null) return;
 
-			_debugMode = IsAssemblyDebugBuild(adapterApp.Assembly);
+			_debugModeAssembly = IsAssemblyDebugBuild(adapterApp.Assembly);
 
 			var appDictionary = InitializeApplicationDictionary();
 			var requestDictionary = InitializeRequestDictionary();
@@ -519,8 +514,7 @@ namespace AspNetAdapter
 
 			try
 			{
-				request[HttpAdapterConstants.RequestBody] = StringToDictionary(new StreamReader(_context.Request.InputStream).ReadToEnd(), '&', '=');
-				//request[HttpAdapterConstants.RequestBody] = (_context.Request.InputStream != null) ? StringToDictionary(new StreamReader(_context.Request.InputStream).ReadToEnd(), '&', '=') : null;
+				request[HttpAdapterConstants.RequestBody] = StringToDictionary(new StreamReader(_context.Request.InputStream).ReadToEnd(), '&', '=');				
 			}
 			catch
 			{
@@ -547,7 +541,11 @@ namespace AspNetAdapter
 			if (serverError != null)
 				_context.Server.ClearError();
 
-			application[HttpAdapterConstants.DebugMode] = _debugMode;
+			// This debug mode tells us if the assembly is in debug mode, not if the web.config is.
+			// TODO: We may want to be able to tell if the web.config is in debug mode as well if
+			//       the assembly is.
+			application[HttpAdapterConstants.DebugModeAssembly] = _debugModeAssembly;
+			application[HttpAdapterConstants.DebugModeASPNET] = _context.IsDebuggingEnabled;
 			application[HttpAdapterConstants.User] = _context.User;
 			application[HttpAdapterConstants.ApplicationSessionStoreAddCallback] = new Action<string, object>(ApplicationSessionStoreAddCallback);
 			application[HttpAdapterConstants.ApplicationSessionStoreRemoveCallback] = new Action<string>(ApplicationSessionStoreRemoveCallback);
@@ -597,7 +595,7 @@ namespace AspNetAdapter
 			if (assembly == null) throw new ArgumentNullException("assembly");
 
 			var debuggableAttribute = assembly.GetCustomAttributes(typeof(DebuggableAttribute), false)
-																				 .FirstOrDefault() as DebuggableAttribute;
+																				.FirstOrDefault() as DebuggableAttribute;
 
 			return debuggableAttribute != null && debuggableAttribute.IsJITTrackingEnabled;
 		}
@@ -618,7 +616,9 @@ namespace AspNetAdapter
 
 			if (string.IsNullOrEmpty(value)) return result;
 
-			foreach (var arr in value.Split(new char[] { splitOn }, StringSplitOptions.RemoveEmptyEntries).Select(x => x.Split(delimiter)).Where(arr => !result.ContainsKey(arr[0])))
+			foreach (var arr in value.Split(new char[] { splitOn }, StringSplitOptions.RemoveEmptyEntries)
+															 .Select(x => x.Split(delimiter))
+															 .Where(arr => !result.ContainsKey(arr[0])))
 				result.Add(arr[0].Trim(), arr[1].Trim());
 
 			return result;
@@ -635,13 +635,14 @@ namespace AspNetAdapter
 
 		private List<PostedFile> GetRequestFiles()
 		{
-			var postedFiles = (from HttpPostedFileBase pf in _context.Request.Files
-												 select new PostedFile()
-												 {
-													 ContentType = pf.ContentType,
-													 FileName = pf.FileName,
-													 FileBytes = ReadStream(pf.InputStream)
-												 }).ToList();
+			var postedFiles = _context.Request.Files.Cast<HttpPostedFileBase>()
+																.Select(x => new PostedFile
+																{
+																	ContentType = x.ContentType,
+																	FileName = x.FileName,
+																	FileBytes = ReadStream(x.InputStream)
+																})
+																.ToList();
 
 			return (postedFiles.Count > 0) ? postedFiles : null;
 		}
