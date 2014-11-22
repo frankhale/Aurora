@@ -1,13 +1,13 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 28 March 2014
+// Updated On: 21 November 2014
 //
 // Source Code Location:
 //
-//	https://github.com/frankhale
+//	https://github.com/frankhale/aurora
 //
-// Requirements: .NET 4.0 or higher
+// Requirements: .NET 4.5
 //
 // Contact Info:
 //
@@ -28,8 +28,7 @@
 // - Actions can have bound parameters that are bound to actions (dependency 
 //	 injection)
 // - Actions can be segregated based on Get, Post, GetOrPost, Put and Delete 
-//   action 
-//   type and you can secure them with the ActionSecurity named parameter.
+//   action type and you can secure them with the ActionSecurity named parameter.
 // - Actions can have filters with optional filter results that bind to action
 //   parameters.  
 // - Actions can have aliases. Aliases can also be added dynamically at runtime
@@ -37,274 +36,7 @@
 // - Bundling/Minifying of Javascript and CSS.
 // - Html Helpers
 //
-// ---------------------
-// --- Documentation ---
-// ---------------------
-// 
-// Aurora is an MVC web framework for .NET and aims to provide a lot of 
-// functionality in a slim codebase. 
-// 
-// Aurora maintains a simplistic vision of MVC in that the primary focus is on 
-// controllers, actions and views and models are this loose thing that can be 
-// any number of things that allow you to manipulate your data and validate it. 
-// In Aurora there is a Model base class which can be used for validation of 
-// posted models or be used in HTML helpers. Aurora kind of expects that the 
-// programmer will have his own notion of models and construct them in the way 
-// that makes sense for them rather than providing a bunch of hurdles and 
-// obstacles to jump through. Aurora considers Models as something that is 
-// intermediate or a view model where it's this entity that exists in a 
-// transitional state either getting ready to be converted into an HTML fragment 
-// or be validated from a post request and then put into a database. 
-//
-// Controllers are simply classes that inherit from the Controller base class. 
-// Controllers have a series of events that can be listened to in order to 
-// perform logic at specific points in time. Aurora provides a FrontController 
-// base class that can be inherited to allow for interception of requests before 
-// they are dispatched to the proper controller.  Regular controllers can have 
-// actions (C# methods), these actions are fired per the request path and once 
-// these actions are complete will return a view. Views can be HTML views, 
-// partial HTMl views, file views, JSON views or string views. String views are 
-// a way to custom format a string response in any way you need.
-//
-// A quick note on how Aurora interfaces with ASP.NET. Aurora uses a small class 
-// that bootstraps the framework and provides it with simple dictionaries with 
-// the request data, response and callbacks to interact with a few aspects of 
-// ASP.NET such as Cache, Session, Application, Cookies and sending the final 
-// response.
-//
-// As of now there are no Visual Studio templates or similiar helpers to assist 
-// in project management. 
-//
-// The best way to see Aurora in action is to look at a small wiki application 
-// called Miranda which can be found on my github site (link above).
-//  
-// Aurora's project structure is flexible but relies on the folder that contains 
-// views having the name Views and a structure of subdirectories named 
-// Fragments, Shared and one directory for each controller with a structure 
-// underneath it with Fragments and Shared directories.
-// 
-// Here is a typical project structure (almost all of which is by convention):
-// 
-// AppName/
-// AppName/Web.Config
-// AppName/favicon.ico
-// AppName/Controllers
-// AppName/Models
-// AppName/Resources/
-// AppName/Resources/Scripts
-// AppName/Resources/Styles
-// AppName/Resources/Images
-// AppName/Views
-// AppName/Views/Fragments
-// AppName/Views/Shared
-// AppName/Views/ControllerName
-// AppName/Views/ControllerName/Fragments
-// AppName/Views/ControllerName/Shared
-//
-// The Views folder is really the only hard assumption that is made by the 
-// framework on where files it needs should exist. This folder will contain all 
-// of the views used for master pages or partials that will be shared between 
-// controllers. Additionally, this will include any globally reachable HTML 
-// fragments. If not using Controller partitions then all controllers should 
-// have a folder underneath Views that is named with the controller name to 
-// place their specific views.
-//
-// NOTE: The sample Aurora projects contained on my github account all include
-// Aurora in the project solution instead of just referencing a precompiled 
-// class library. This is being done on purpose to make it easier to debug web 
-// apps using the framework. Additionally, the framework proper is just a single 
-// source file so in theory can and should be tailored to the needs of the 
-// application using it.
-//
-// Here is a minimal web.config
-//
-// <?xml version="1.0"?>
-// <configuration>
-//   <system.web>
-//     <compilation debug="true" targetFramework="4.0" />
-//     <customErrors mode="On"/>
-//     <httpHandlers>
-//       <add verb="*" path="*" validate="false" 
-//					type="AspNetAdapter.AspNetAdapterHandler"/>
-//     </httpHandlers>
-//     <httpModules>
-//       <add type="AspNetAdapter.AspNetAdapterModule" 
-//					name="AspNetAdapterModule"/>
-//     </httpModules>    
-//   </system.web>
-// </configuration>
-//
-// ------------------
-// --- Attributes ---
-// ------------------
-// 
-// All actions use the Http attribute to denote how the framework should 
-// interpret them.
-// 
-// A typical usage would be:
-//
-//  [Http(ActionType.Get, "/Index")]
-//  public ViewResult Index() 
-//  {
-//     // Todo...
-//
-//		 return View();
-//  }
-//
-// The following action types can be used for actions to denote what HTTP method 
-// they respond to:
-//
-//  Get, Post, GetOrPost, Put, Delete, FromRedirectOnly
-//
-// The Http attribute has the following public properties:
-//
-// NOTE: Aurora provides only one attribute to denote metadata for a route even 
-//			 though at least one property RequireAntiForgeryToken makes no sense in 
-//			 terms of an HTTP Get, FromRedirectOnly verb. This property is only 
-//			 checked in instances of Post, Put or Delete.
-//
-// 		bool RequireAntiForgeryToken 
-//		bool HttpsOnly 
-//		string RedirectWithoutAuthorizationTo 
-//		string RouteAlias 
-//		string Roles 
-//		string View 
-//		ActionSecurity SecurityType
-//
-// RequireAntiForgeryToken is fulfilled by placing a view compiler directive in 
-// your view inside your form so that it will place the antiforgery token 
-// element into your form.
-//
-// To add an antiforgery token to a form use the following: (more on views 
-// later)
-//
-// <input type="hidden" name="AntiForgeryToken" value="%%AntiForgeryToken%%" />
-//
-// ------------------------
-// --- Front Controller ---
-// ------------------------
-//
-// The front controller is optional. When inherited it allows notification of 
-// various events that happen ramping up to the invocation of an action. You can 
-// theoretically divert (different from an ordinary redirect) a route but the 
-// usefulness of this has yet to be determined. FrontController's have the 
-// ability to redirect to another route in the traditional sense of redirecting.
-//
-// FrontController's can be used to set up bundles, add dynamic routes, logging.
-//
-// -------------------
-// --- Controllers ---
-// -------------------
-// 
-// Controllers are classes that inherit from the Controller base class. 
-// Controllers can optionally listen for events. These events are triggered at
-// various points in the lifecycle of the request. The following events are able
-// to be listened to by Controllers:
-//
-// OnInit: 
-//
-//	Only fired when the controller instance is created.
-//
-// OnCheckRoles: 
-//	
-//	If an action is secure this gives you the opportunity to check the users 
-//	roles before the action is invoked and either grant access or not.
-//
-// OnPreAction: 
-//
-//	This event executes right before the action is invoked.
-//
-// OnPostAction:
-//
-//	This event executes right after the action is invoked.
-//
-// ---------------
-// --- Actions ---
-// ---------------
-//
-// Actions are nothing more than C# methods decorated with the Http attribute.
-// Actions will normally return a IViewResult or optionally redirect to other 
-// views, for instance an action that responds to an Http Post and has a void
-// return type would need to redirect to an action that returns a IViewResult.
-//
-// --------------------
-// --- View Results ---
-// --------------------
-//
-// The following types of view results are built in:
-//
-// ViewResult:
-//
-//	This is an ordinary HTML view result
-//
-// FileResult:
-//
-//	This result is for a physical file or a file built on the fly
-//
-// JsonResult:
-//
-//	This is a very basic result that processes a type through Newtonsoft.JSON
-//  serialize object. If you need more control over the JSON result you can hack
-//  the code or use the StringResult instead.
-//
-// StringResult:
-//
-//	The string result was added to allow for times when the simple JsonResult 
-//	was not good enough. You can format your string in any way you like and it
-//  will be sent to the client as is.
-//
-// -------------
-// --- Views ---
-// -------------
-// 
-// All views (except fragments) are compiled a head of time and are written to 
-// a JSON formatted file in the Cache directory under Views.
-//
-// -----------------------
-// --- Action Bindings ---
-// -----------------------
-//
-// Action bindings are somewhat of a poor man's IoC. They denote that actions
-// will have additional parameters passed to them at the time they are invoked.
-// This is great for instances of database access objects, user objects, etc...
-// 
-// Action bindings can be custom types that implement the IBoundToAction 
-// interface. This interface allows you to perform some custom initialization
-// logic that will be executed right after an instance of this object is 
-// created.
-//
-// -----------------------------------
-// --- Action Parameter Transforms ---
-// -----------------------------------
-//
-// Action parameter transforms are a mechanism to transpose incoming request
-// variables into another type. For instance, say an incoming request variable
-// was a string representing a username, this could then be transformed into
-// a user object so that the action would not need to perform the transformation
-// itself and instead receive the user object as a parameter to the action.
-//
-// ----------------------
-// --- Action Filters ---
-// ----------------------
-//
-// TODO
-//
-// --------------
-// --- Models ---
-// --------------
-//
-// TODO
-//
-// ---------------
-// --- Bundles ---
-// ---------------
-//
-// TODO
-//
-
-#region LICENSE - GPL version 3 <http://www.gnu.org/licenses/gpl-3.0.html>
-//
-// GNU GPLv3 quick guide: http://www.gnu.org/licenses/quick-guide-gplv3.html
+// LICENSE:
 //
 // GNU GPLv3 license <http://www.gnu.org/licenses/gpl-3.0.html>
 //
@@ -321,9 +53,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
-#endregion
 
-using System.Web;
 using AspNetAdapter;
 using MarkdownSharp;
 using Newtonsoft.Json;
@@ -334,24 +64,14 @@ using System.Dynamic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.Web;
 using System.Xml.Linq;
 using Yahoo.Yui.Compressor;
-
-#region ASSEMBLY INFO
-[assembly: AssemblyTitle("Aurora")]
-[assembly: AssemblyDescription("A Tiny MVC web framework for .NET")]
-[assembly: AssemblyCompany("Frank Hale")]
-[assembly: AssemblyProduct("Aurora")]
-[assembly: AssemblyCopyright("Copyright © 2014 | LICENSE GNU GPLv3")]
-[assembly: ComVisible(false)]
-[assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("2.0.54.0")]
-#endregion
 
 namespace Aurora
 {
@@ -382,7 +102,7 @@ namespace Aurora
 		public HttpAttribute(ActionType actionType, string alias) : this(actionType, alias, ActionSecurity.None) { }
 
 		public HttpAttribute(ActionType actionType, ActionSecurity actionSecurity) : this(actionType, null, actionSecurity) { }
-
+		
 		public HttpAttribute(ActionType actionType, string alias, ActionSecurity actionSecurity)
 		{
 			RequireAntiForgeryToken = true; // require by default : This is only used for post/put/delete
@@ -522,7 +242,8 @@ namespace Aurora
 	#endregion
 
 	#region FRAMEWORK ENGINE STATE
-	// EngineAppState maps to state that is stored in the ASP.NET Application store.
+	
+	// EngineAppState maps to state that is stored in the ASP.NET Application store. 
 	internal class EngineAppState
 	{
 		public static readonly Regex AllowedFilePattern = new Regex(@"^.*\.(js|css|png|jpg|gif|ico|pptx|xlsx|csv|txt)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -539,7 +260,6 @@ namespace Aurora
 		public List<User> Users { get; set; }
 		public List<string> AntiForgeryTokens { get; set; }
 		public Dictionary<string, string> ProtectedFiles { get; set; }
-		public Dictionary<string, object> ControllersSession { get; set; }
 		public List<Type> Models { get; set; }
 		public string CacheFilePath { get; set; }
 		public List<RouteInfo> RouteInfos { get; set; }
@@ -554,6 +274,7 @@ namespace Aurora
 	{
 		public FrontController FrontController { get; set; }
 		public List<Controller> Controllers { get; set; }
+		public Dictionary<string, object> ControllersSession { get; set; }
 		// I've wanted to put this in app state but it's problematic because the OnInit method
 		// for a controller is ran for each new session and that is kind of where I want to add
 		// new bindings which means they will run each time an instance of a controller is created.
@@ -622,7 +343,7 @@ namespace Aurora
 			_payload = request[HttpAdapterConstants.RequestBody] as Dictionary<string, string>;
 			_files = request[HttpAdapterConstants.RequestFiles] as List<PostedFile>;
 			_queryString = request[HttpAdapterConstants.RequestQueryString] as Dictionary<string, string>;
-			_debugMode = Convert.ToBoolean(app[HttpAdapterConstants.DebugMode]);
+			_debugMode = Convert.ToBoolean(app[HttpAdapterConstants.DebugModeASPNET]);
 			_serverError = app[HttpAdapterConstants.ServerError] as Exception;
 			ClientCertificate = request[HttpAdapterConstants.RequestClientCertificate] as X509Certificate2;
 			Url = request[HttpAdapterConstants.RequestUrl] as Uri;
@@ -662,8 +383,8 @@ namespace Aurora
 
 			#region INITIALIZE CONTROLLERS SESSION
 
-			if (EngineAppState.ControllersSession == null)
-				EngineAppState.ControllersSession = new Dictionary<string, object>();
+			if (EngineSessionState.ControllersSession == null)
+				EngineSessionState.ControllersSession = new Dictionary<string, object>();
 
 			#endregion
 
@@ -750,10 +471,10 @@ namespace Aurora
 
 				if (EngineAppState.ViewRoots == null)
 					EngineAppState.ViewRoots = GetViewRoots();
-
+				
 				EngineAppState.ViewEngine = new ViewEngine(AppRoot, EngineAppState.ViewRoots,
 					EngineAppState.ViewEngineDirectiveHandlers, EngineAppState.ViewEngineSubstitutionHandlers, viewCache);
-
+                
 				if (string.IsNullOrEmpty(viewCache) || !_debugMode)
 					UpdateCache(EngineAppState.CacheFilePath);
 			}
@@ -786,18 +507,18 @@ namespace Aurora
 					exception = ex;
 				}
 			}
-
+			
 			if (viewResponse == null && _currentRoute != null && _currentRoute.Action.ReturnType != typeof(void)) return;
 
 			if (viewResponse == null && exception == null)
 			{
 				httpStatus = 404;
 				viewResponse = GetErrorViewResponse("Http 404 - Page Not Found", null);
-			}
+			} 
 			else if (exception != null)
 			{
 				httpStatus = 503;
-				if (_debugMode)
+				if (_debugMode) 
 				{
 					viewResponse = GetErrorViewResponse(
 						(exception.InnerException != null) ? exception.InnerException.Message : exception.Message,
@@ -819,7 +540,7 @@ namespace Aurora
 		private ViewResponse ProcessRequest()
 		{
 			ViewResponse viewResponse = null;
-
+            
 			if (EngineAppState.AllowedFilePattern.IsMatch(Path))
 			{
 				#region FILE RESPONSE
@@ -850,7 +571,7 @@ namespace Aurora
 			{
 				#region ACTION RESPONSE
 				RouteInfo routeInfo = null;
-
+                
 				if (Path == "/" || Path == "~/" || Path.ToLower() == "/default.aspx" || Path == "/Index")
 				{
 					Path = "/Index";
@@ -876,12 +597,24 @@ namespace Aurora
 					if (routeInfo.RequestTypeAttribute.RequireAntiForgeryToken &&
 							RequestType == "post" || RequestType == "put" || RequestType == "delete")
 					{
-						if (!(_form.ContainsKey(EngineAppState.AntiForgeryTokenName) || _payload.ContainsKey(EngineAppState.AntiForgeryTokenName)))
-							throw new Exception("An AntiForgeryToken is required on all forms by default.");
+						if (!(_form.ContainsKey(EngineAppState.AntiForgeryTokenName) ||
+									_payload.ContainsKey(EngineAppState.AntiForgeryTokenName)))
+						{
+							// i
+							return GetErrorViewResponse("AntiForgeryToken Required", "All forms require an AntiForgeryToken by default.");
+						}
 						else
 						{
-							EngineAppState.AntiForgeryTokens.Remove(_form[EngineAppState.AntiForgeryTokenName]);
-							EngineAppState.AntiForgeryTokens.Remove(_payload[EngineAppState.AntiForgeryTokenName]);
+							if (EngineAppState.AntiForgeryTokens.Contains(_form[EngineAppState.AntiForgeryTokenName]) ||
+								EngineAppState.AntiForgeryTokens.Contains(_payload[EngineAppState.AntiForgeryTokenName]))
+							{
+								EngineAppState.AntiForgeryTokens.Remove(_form[EngineAppState.AntiForgeryTokenName]);
+								EngineAppState.AntiForgeryTokens.Remove(_payload[EngineAppState.AntiForgeryTokenName]);
+							}
+							else
+							{
+								return GetErrorViewResponse("AntiForgeryToken Required", "All forms require a valid AntiForgeryToken.");
+							}
 						}
 					}
 
@@ -1087,9 +820,9 @@ namespace Aurora
 		private string[] GetViewRoots()
 		{
 			var viewRoots = new List<string>() { ViewRoot };
-			var controllers = GetTypeList(typeof(Controller));
-			var partitionAttributes = controllers.SelectMany(x =>
-				x.GetCustomAttributes(typeof(PartitionAttribute), false).Cast<PartitionAttribute>());
+			var partitionAttributes = GetTypeList(typeof(Controller))
+				.SelectMany(x => x.GetCustomAttributes(typeof(PartitionAttribute), false)
+				.Cast<PartitionAttribute>());
 
 			viewRoots.AddRange(partitionAttributes.Select(x => string.Format(@"{0}\{1}", AppRoot, x.Name)));
 
@@ -1174,11 +907,11 @@ namespace Aurora
 		private static List<Type> GetTypeList(Type t)
 		{
 			t.ThrowIfArgumentNull();
-
+			
 			return Utility.GetAssemblies()
-							.SelectMany(x => x.GetTypes()
-											.AsParallel()
-											.Where(y => y.IsClass && y.BaseType == t)).ToList();
+							.SelectMany(x => x.GetLoadableTypes()
+							.AsParallel()
+							.Where(y => y.IsClass && y.BaseType == t)).ToList();
 		}
 
 		private static List<string> GetControllerActionNames(string controllerName)
@@ -1206,7 +939,8 @@ namespace Aurora
 
 			if (ctrlInstance == null)
 			{
-				ctrlInstance = Controller.CreateInstance(GetTypeList(typeof(Controller)).FirstOrDefault(x => x.Name == controllerName), this);
+				ctrlInstance = Controller.CreateInstance(GetTypeList(typeof(Controller))
+																 .FirstOrDefault(x => x.Name == controllerName), this);
 				EngineSessionState.Controllers.Add(ctrlInstance);
 				ctrlInstance.RaiseEvent(EventType.OnInit);
 			}
@@ -1289,7 +1023,7 @@ namespace Aurora
 				foreach (var apt in actionParameterTransforms)
 				{
 					var actionTransformClassType = Utility.GetAssemblies()
-															.SelectMany(x => x.GetTypes().Where(y => y.GetInterface(typeof(IActionParamTransform<,>).Name) != null && y.Name == apt.Item1.TransformName))
+															.SelectMany(x => x.GetLoadableTypes().Where(y => y.GetInterface(typeof(IActionParamTransform<,>).Name) != null && y.Name == apt.Item1.TransformName))
 															.FirstOrDefault();
 
 					if (actionTransformClassType != null)
@@ -1348,7 +1082,7 @@ namespace Aurora
 
 		private static string CreateToken()
 		{
-			return (Guid.NewGuid().ToString() + Guid.NewGuid().ToString()).Replace("-", string.Empty);
+			return Guid.NewGuid().ToString().Replace("-", string.Empty);
 		}
 		#endregion
 
@@ -1694,8 +1428,7 @@ namespace Aurora
 
 		internal string CreateAntiForgeryToken()
 		{
-			string token = CreateToken();
-
+			var token = CreateToken();
 			EngineAppState.AntiForgeryTokens.Add(token);
 
 			return token;
@@ -1753,17 +1486,17 @@ namespace Aurora
 		internal void AddControllerSession(string key, object value)
 		{
 			if (!string.IsNullOrEmpty(key))
-				EngineAppState.ControllersSession[key] = value;
+				EngineSessionState.ControllersSession[key] = value;
 		}
 
 		internal object GetControllerSession(string key)
 		{
-			return (EngineAppState.ControllersSession.ContainsKey(key)) ? EngineAppState.ControllersSession[key] : null;
+			return (EngineSessionState.ControllersSession.ContainsKey(key)) ? EngineSessionState.ControllersSession[key] : null;
 		}
 
 		internal void AbandonControllerSession()
 		{
-			EngineAppState.ControllersSession = null;
+			EngineSessionState.ControllersSession = null;
 		}
 
 		internal string MapPath(string path)
@@ -1931,7 +1664,7 @@ namespace Aurora
 		public List<Tuple<ActionParameterTransformAttribute, int>> ActionParamTransforms { get; internal set; }
 		public Dictionary<string, object> CachedActionParamTransformInstances { get; internal set; }
 		// Routes that are created by the framework are not dynamic. Dynamic routes are created 
-		// in the controller.
+		// in the controller by the end user.
 		public bool Dynamic { get; internal set; }
 	}
 	#endregion
@@ -2480,6 +2213,10 @@ namespace Aurora
 		protected void RemoveCookie(string name)
 		{
 			Engine.RemoveCookie(name);
+		}
+		protected string CreateAntiForgeryToken()
+		{
+			return Engine.CreateAntiForgeryToken();
 		}
 		#endregion
 	}
@@ -3146,7 +2883,6 @@ namespace Aurora
 
 		public string ProcessBundleLink(string bundlePath)
 		{
-			// ReSharper disable once PossibleNullReferenceException
 			var extension = Path.GetExtension(bundlePath).Substring(1).ToLower();
 
 			if (string.IsNullOrEmpty(extension)) return null;
@@ -3803,19 +3539,21 @@ namespace Aurora
 				throw new ArgumentException(argName, message);
 		}
 
-		// from: http://blogs.msdn.com/b/csharpfaq/archive/2006/10/09/how-do-i-calculate-a-md5-hash-from-a-string_3f00_.aspx
 		public static string CalculateMd5Sum(this string input)
 		{
-			var md5 = System.Security.Cryptography.MD5.Create();
-			var inputBytes = System.Text.Encoding.UTF8.GetBytes(input);
-			var hash = md5.ComputeHash(inputBytes);
+			var md5 = MD5.Create();
+			var hash = md5.ComputeHash(Encoding.UTF8.GetBytes(input));
 
-			var sb = new StringBuilder();
+			return Convert.ToBase64String(hash);
+		}
 
-			foreach (var t in hash)
-				sb.Append(t.ToString("X2"));
-
-			return sb.ToString();
+		public static string CalculateSHA1Sum(this string input)
+		{
+			using (SHA1Managed sha1 = new SHA1Managed())
+			{
+        var hash = sha1.ComputeHash(Encoding.UTF8.GetBytes(input));
+				return Convert.ToBase64String(hash);
+			}
 		}
 
 		public static object[] ConvertToObjectTypeArray(this string[] parms)

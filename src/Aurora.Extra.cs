@@ -14,17 +14,12 @@
 // NON-GPL code = my fork of Rob Conery's Massive which is under the 
 //                "New BSD License"
 //
-
-#region LICENSE - GPL version 3 <http://www.gnu.org/licenses/gpl-3.0.html>
-//
 // NOTE: Aurora contains some code that is not licensed under the GPLv3. 
 //       that code has been labeled with it's respective license below. 
 //
 // NON-GPL code = Rob Conery's Massive which is under the "New BSD License" and
 //                My Gravatar fork which the original author did not include
 //                a license.
-//
-// GNU GPLv3 quick guide: http://www.gnu.org/licenses/quick-guide-gplv3.html
 //
 // GNU GPLv3 license <http://www.gnu.org/licenses/gpl-3.0.html>
 //
@@ -41,7 +36,6 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
-#endregion
 
 using System;
 using System.Collections.Generic;
@@ -901,13 +895,18 @@ namespace Aurora.Extra
 
 	public class HtmlUserNameAndPasswordForm : HtmlBase
 	{
-		private readonly string _applicationTitle;
+		private Controller _controller;
 		private readonly string _loginAlias;
+		private readonly string _applicationTitle;
+		private readonly string _antiForgeryToken;
 
-		public HtmlUserNameAndPasswordForm(Controller c, string loginAlias, string applicationTitle)
+
+		public HtmlUserNameAndPasswordForm(Controller c, string loginAlias, string applicationTitle, string antiForgeryToken)
 		{
+			_controller = c;
 			_loginAlias = loginAlias;
 			_applicationTitle = applicationTitle;
+			_antiForgeryToken = antiForgeryToken;
 
 			const string css = @"
 .userNameAndPassword {
@@ -916,18 +915,27 @@ namespace Aurora.Extra
 	text-align: center;  
 }
 ";
-
-			c.AddHelperBundle("HtmlUserNameAndPasswordForm.css", css);
+		
+			_controller.AddHelperBundle("HtmlUserNameAndPasswordForm.css", css);
 		}
 
 		public override string ToString()
 		{
+			//TODO: The AntiForgeryToken is never going to be rendered because this helper does not
+			//			pass through the view engine. We need a way to pass helpers through the view 
+			//			engine to perform additional processing. I've removed the %%AntiForgeryToken%%
+			//			directive and replaced it with a token that is passed in via the constructor
+			//			for now. The view engine was never created with this type of scenario in mind.
+			//			The view engine assumed all templates would come from files on the hard drive. 
+			//			ARGH! If the view engine ever supports arbitrary strings passing through then
+			//			it'll likely take a rewrite of the view engine to make that a reality! DAMNIT!
+
 			return
 string.Format(@"
 <div class=""userNameAndPassword"">
 	<h1>{0}</h1>
 	<form action=""{1}"" method=""post"">
-		<input type=""hidden"" name=""AntiForgeryToken"" value=""%%AntiForgeryToken%%"" />
+		<input type=""hidden"" name=""AntiForgeryToken"" value=""{2}"" />
 		<table>
 		<tr><td>UserName:<br /><input type=""text"" name=""UserName"" id=""UserName"" /></td></tr>
 		<tr><td>Password:<br /><input type=""password"" name=""Password"" id=""Password"" /></td></tr>
@@ -935,7 +943,7 @@ string.Format(@"
 		</table>
 	</form>
 </div>
-", _applicationTitle, _loginAlias);
+", _applicationTitle, _loginAlias, _antiForgeryToken);
 		}
 	}
 	#endregion
