@@ -1,0 +1,148 @@
+﻿body
+{
+	font-family: "Lucida Sans Unicode", "Lucida Grande", sans-serif;
+	color: #333;
+	font-size: 10pt;
+}
+
+a:link
+{
+	color: blue;
+	text-decoration: underline;
+}
+a:visited
+{
+	color: blue;
+	text-decoration: underline;
+}
+a:hover
+{
+	color: blue;
+	text-decoration: underline;
+}
+a:active
+{
+	color: blue;
+	text-decoration: underline;
+}
+
+input, textarea
+{
+	border: 1px solid black;
+}
+
+.titleTextBox
+{
+	width: 100%;
+}
+
+textarea
+{
+	width: 100%;
+}
+
+.warning
+{
+	border: 2px solid red;
+	background-color: #CD5C5C;
+}
+
+.notice
+{
+	border: 2px solid green;
+	background-color: #AAAAAA;
+}
+
+.openid
+{
+	background: url(/Resources/Images/openid.png) scroll left center transparent;
+	background-repeat: no-repeat;
+	height: 22px;
+	width: 500px;
+	font-size: 14pt;
+	padding-left: 34px;
+	right: 5px;
+}
+
+.menuitems
+{
+	margin-left: 5px;
+}
+
+#calendar
+{
+	width: 900px;
+	margin: 0 auto;
+}
+
+.menu
+{
+	margin-top: 5px;
+	margin-left: 5px;
+	text-align: left;
+}
+
+.content
+{
+	margin-left: 5px;
+	margin-right: 5px;
+}
+
+.syntaxhighlighter
+{
+	overflow-y: hidden !important;
+}
+
+.logOnOff
+{
+	position: absolute;
+	right: 0;
+	margin-right: 5px;
+}
+
+.wikiTitle
+{
+	font-family: 'Merriweather' , serif;
+	font-weight: 400;
+	font-size: 28pt;
+}
+
+.logonButton
+{
+	font-size: 34pt;
+	width: 350px;
+	height: 100px;
+}
+
+.openAuthlogonButton
+{
+	font-size: 14pt;
+	width: 100px;
+	height: 35px;
+}
+
+.logonMessage
+{
+	color: red;
+	font-size: 12pt;
+}
+
+.logonContainer
+{
+	margin: 150px auto;
+	text-align: center;
+}
+
+.tagGroup {
+	border:1px solid #ccc;
+	vertical-align:top; 
+	display:inline-block;
+	width:275px;
+	margin:5px;
+}
+
+.userNameAndPassword {
+	margin: 0 auto; 
+	width: 155px;  
+	text-align: center;  
+}

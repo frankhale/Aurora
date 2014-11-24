@@ -102,7 +102,7 @@ namespace Aurora
 		public HttpAttribute(ActionType actionType, string alias) : this(actionType, alias, ActionSecurity.None) { }
 
 		public HttpAttribute(ActionType actionType, ActionSecurity actionSecurity) : this(actionType, null, actionSecurity) { }
-		
+
 		public HttpAttribute(ActionType actionType, string alias, ActionSecurity actionSecurity)
 		{
 			RequireAntiForgeryToken = true; // require by default : This is only used for post/put/delete
@@ -242,7 +242,7 @@ namespace Aurora
 	#endregion
 
 	#region FRAMEWORK ENGINE STATE
-	
+
 	// EngineAppState maps to state that is stored in the ASP.NET Application store. 
 	internal class EngineAppState
 	{
@@ -471,10 +471,10 @@ namespace Aurora
 
 				if (EngineAppState.ViewRoots == null)
 					EngineAppState.ViewRoots = GetViewRoots();
-				
+
 				EngineAppState.ViewEngine = new ViewEngine(AppRoot, EngineAppState.ViewRoots,
 					EngineAppState.ViewEngineDirectiveHandlers, EngineAppState.ViewEngineSubstitutionHandlers, viewCache);
-                
+
 				if (string.IsNullOrEmpty(viewCache) || !_debugMode)
 					UpdateCache(EngineAppState.CacheFilePath);
 			}
@@ -507,18 +507,18 @@ namespace Aurora
 					exception = ex;
 				}
 			}
-			
+
 			if (viewResponse == null && _currentRoute != null && _currentRoute.Action.ReturnType != typeof(void)) return;
 
 			if (viewResponse == null && exception == null)
 			{
 				httpStatus = 404;
 				viewResponse = GetErrorViewResponse("Http 404 - Page Not Found", null);
-			} 
+			}
 			else if (exception != null)
 			{
 				httpStatus = 503;
-				if (_debugMode) 
+				if (_debugMode)
 				{
 					viewResponse = GetErrorViewResponse(
 						(exception.InnerException != null) ? exception.InnerException.Message : exception.Message,
@@ -540,7 +540,7 @@ namespace Aurora
 		private ViewResponse ProcessRequest()
 		{
 			ViewResponse viewResponse = null;
-            
+
 			if (EngineAppState.AllowedFilePattern.IsMatch(Path))
 			{
 				#region FILE RESPONSE
@@ -571,7 +571,7 @@ namespace Aurora
 			{
 				#region ACTION RESPONSE
 				RouteInfo routeInfo = null;
-                
+
 				if (Path == "/" || Path == "~/" || Path.ToLower() == "/default.aspx" || Path == "/Index")
 				{
 					Path = "/Index";
@@ -907,7 +907,7 @@ namespace Aurora
 		private static List<Type> GetTypeList(Type t)
 		{
 			t.ThrowIfArgumentNull();
-			
+
 			return Utility.GetAssemblies()
 							.SelectMany(x => x.GetLoadableTypes()
 							.AsParallel()
@@ -3551,7 +3551,7 @@ namespace Aurora
 		{
 			using (SHA1Managed sha1 = new SHA1Managed())
 			{
-        var hash = sha1.ComputeHash(Encoding.UTF8.GetBytes(input));
+				var hash = sha1.ComputeHash(Encoding.UTF8.GetBytes(input));
 				return Convert.ToBase64String(hash);
 			}
 		}

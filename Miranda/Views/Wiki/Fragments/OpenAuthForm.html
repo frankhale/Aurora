@@ -1,0 +1,11 @@
+﻿<form action="/Logon" method="post">
+  <input type="hidden" name="AntiForgeryToken" value="%%AntiForgeryToken%%" />
+  <!-- 
+      OpenID Identifiers:
+      
+        http://myopenid.com
+        https://www.google.com/accounts/o8/id
+  -->
+  <input type="text" class="openid" style="height: 34px;" name="Identifier" id="Identifier" value="https://www.google.com/accounts/o8/id" />
+  <input type="submit" value="Login" class="openAuthlogonButton" />
+</form>

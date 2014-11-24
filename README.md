@@ -1,5 +1,9 @@
 ##Aurora - An MVC web framework for .NET
 
+**THIS IS THE REWRITE BRANCH**
+
+This is the big rethink of everything! This is probably going to take a while to figure out!
+
 ###Features
 
 - Model View Controller based
