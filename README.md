@@ -1,5 +1,8 @@
 ##Aurora - An MVC web framework for .NET
 
+NOTE: I've created a new branch where I'm rewriting Aurora. That is where
+all new major work will happen for a while... =)
+
 ###Features
 
 - Model View Controller based
