@@ -1,7 +1,7 @@
 ﻿//
 // AspNetAdapter - A thin wrapper around the ASP.NET request and response objects.
 //
-// Updated On: 21 November 2014
+// Updated On: 23 November 2014
 //
 // Description: 
 //
@@ -59,6 +59,10 @@
 //		</middleware>
 //	</aspNetAdapter>
 //
+// Additionally to the middleware you can specify the application that implements
+// the IAspNetAdapterApplication interface:
+//
+//	<application name="Engine" type="Aurora.Engine" /> 
 //
 // GNU GPLv3 license <http://www.gnu.org/licenses/gpl-3.0.html>
 //
@@ -213,6 +217,27 @@ namespace AspNetAdapter
 		}
 	}
 
+	public class AspNetAdapterApplicationConfigurationElement : ConfigurationElement
+	{
+		[ConfigurationProperty("name", IsKey = true, IsRequired = true)]
+		public string Name
+		{
+			get
+			{
+				return this["name"] as string;
+			}
+		}
+
+		[ConfigurationProperty("type", IsRequired = true)]
+		public string Type
+		{
+			get
+			{
+				return this["type"] as string;
+			}
+		}
+	}
+
 	public class AspNetAdapterMiddlewareConfigurationCollection : ConfigurationElementCollection
 	{
 		public AspNetAdapterMiddlewareConfigurationElement this[int index]
@@ -252,6 +277,15 @@ namespace AspNetAdapter
 			get
 			{
 				return this["middleware"] as AspNetAdapterMiddlewareConfigurationCollection;
+			}
+		}
+
+		[ConfigurationProperty("application", IsRequired = false)]
+		public AspNetAdapterApplicationConfigurationElement AspNetAdapterApplication
+		{
+			get
+			{
+				return this["application"] as AspNetAdapterApplicationConfigurationElement;
 			}
 		}
 	}
@@ -404,16 +438,31 @@ namespace AspNetAdapter
 			{
 				_context.Application["__SyncInitLock"] = true;
 
-				// Look for a class inside the executing assembly that implements IAspNetAdapterApplication
-				var app = Utility.GetAssemblies()
-												 .SelectMany(x => x.GetLoadableTypes()
-												 .Where(y => y.GetInterfaces().FirstOrDefault(i => i.IsInterface && i.UnderlyingSystemType == typeof(IAspNetAdapterApplication)) != null))
-												 .FirstOrDefault();
+				List<Type> apps = null;
 
-				if (app == null)
-					throw new Exception("Failed to find an assembly the IAspNetAdapterApplication interface");
+				if (_webConfig.AspNetAdapterApplication == null)
+				{
+					apps = Utility.GetAssemblies()
+												.SelectMany(x => x.GetLoadableTypes()
+												.Where(y => y.GetInterfaces().FirstOrDefault(i => i.IsInterface && i.UnderlyingSystemType == typeof(IAspNetAdapterApplication)) != null))
+												.ToList();
+				}
+				else
+				{
+					apps = Utility.GetAssemblies()
+												.SelectMany(x => x.GetLoadableTypes())
+												.Where(y => y.Name == _webConfig.AspNetAdapterApplication.Name &&
+																		y.FullName == _webConfig.AspNetAdapterApplication.Type &&
+																		y.GetInterfaces().FirstOrDefault(i => i.IsInterface && i.UnderlyingSystemType == typeof(IAspNetAdapterApplication)) != null)
+												.ToList();
+				}
+				
+				if (apps == null)
+					throw new Exception("Failed to find an assembly the IAspNetAdapterApplication interface.");
+				else if(apps.Count() > 1)
+					throw new Exception("You can only have one IAspNetAdapterApplication interface.");
 
-				adapterApp = app;
+				adapterApp = apps.FirstOrDefault();
 
 				_context.Application.Lock();
 				_context.Application[AspNetApplicationTypeSessionName] = adapterApp;
