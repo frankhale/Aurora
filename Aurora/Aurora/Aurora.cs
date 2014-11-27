@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 21 November 2014
+// Updated On: 26 November 2014
 //
 // Source Code Location:
 //
@@ -28,7 +28,8 @@
 // - Actions can have bound parameters that are bound to actions (dependency 
 //	 injection)
 // - Actions can be segregated based on Get, Post, GetOrPost, Put and Delete 
-//   action type and you can secure them with the ActionSecurity named parameter.
+//   action type and you can secure them with the ActionSecurity named 
+//	 parameter.
 // - Actions can have filters with optional filter results that bind to action
 //   parameters.  
 // - Actions can have aliases. Aliases can also be added dynamically at runtime
@@ -73,47 +74,18 @@ using System.Web;
 using System.Xml.Linq;
 using Yahoo.Yui.Compressor;
 
-namespace Aurora
+namespace Aurora.Common
 {
 	#region ATTRIBUTES
-	// None isn't really used other than to provide a default when used within the HttpAttribute
-	public enum ActionSecurity { Secure, None }
-
-	#region HTTP REQUEST
-	// FromRedirectOnly is a special action type that denotes that the action cannot
-	// normally be navigated to. Instead, another action has to redirect to it.	
+	// FromRedirectOnly is a special action type that denotes that the action 
+	// cannot normally be navigated to. Instead, another action has to redirect to 
+	// it.	
 	public enum ActionType { Get, Post, Put, Delete, FromRedirectOnly, GetOrPost }
 
-	// This is the obligatory attribute that is used to provide meta information for controller actions. 	
-	public class HttpAttribute : Attribute
-	{
-		// RequireAntiForgeryToken is only checked for HTTP Post and Put and Delete and doesn't make any sense to a Get.
-		public bool RequireAntiForgeryToken { get; set; }
-		public bool HttpsOnly { get; set; }
-		public string RedirectWithoutAuthorizationTo { get; set; }
-		public string RouteAlias { get; set; }
-		public string Roles { get; set; }
-		public string View { get; set; }
-		public ActionSecurity SecurityType { get; set; }
-		public ActionType ActionType { get; private set; }
+	// None isn't really used other than to provide a default when used within the 
+	// HttpAttribute
+	public enum ActionSecurity { Secure, None }
 
-		public HttpAttribute(ActionType actionType) : this(actionType, string.Empty, ActionSecurity.None) { }
-
-		public HttpAttribute(ActionType actionType, string alias) : this(actionType, alias, ActionSecurity.None) { }
-
-		public HttpAttribute(ActionType actionType, ActionSecurity actionSecurity) : this(actionType, null, actionSecurity) { }
-
-		public HttpAttribute(ActionType actionType, string alias, ActionSecurity actionSecurity)
-		{
-			RequireAntiForgeryToken = true; // require by default : This is only used for post/put/delete
-			SecurityType = actionSecurity;
-			RouteAlias = alias;
-			ActionType = actionType;
-		}
-	}
-	#endregion
-
-	#region MISCELLANEOUS
 	// This can be used to provide more than one alias to a controller action
 	[AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
 	public sealed class AliasAttribute : Attribute
@@ -126,9 +98,9 @@ namespace Aurora
 		}
 	}
 
-	// Partitions allow you declare that a controller's views will be segrated outside
-	// of the global views directory into it's own directory. The name of this directory
-	// is the same as the controller.
+	// Partitions allow you declare that a controller's views will be segrated 
+	// outside of the global views directory into it's own directory. The Name 
+	// attribute denotes the folder name where the Controller views will live.
 	[AttributeUsage(AttributeTargets.Class)]
 	public sealed class PartitionAttribute : Attribute
 	{
@@ -140,6 +112,460 @@ namespace Aurora
 		}
 	}
 
+	// This is the obligatory attribute that is used to provide meta information 
+	// for controller actions. 	
+	public class HttpAttribute : Attribute
+	{
+		// RequireAntiForgeryToken is only checked for HTTP Post and Put and Delete 
+		// and doesn't make any sense to a Get.
+		public bool RequireAntiForgeryToken { get; set; }
+		public bool HttpsOnly { get; set; }
+		public string RedirectWithoutAuthorizationTo { get; set; }
+		public string RouteAlias { get; set; }
+		public string Roles { get; set; }
+		public string View { get; set; }
+		public ActionSecurity SecurityType { get; set; }
+		public ActionType ActionType { get; private set; }
+
+		public HttpAttribute(ActionType actionType)
+			: this(actionType, string.Empty,
+				ActionSecurity.None) { }
+
+		public HttpAttribute(ActionType actionType, string alias)
+			: this(actionType,
+				alias, ActionSecurity.None) { }
+
+		public HttpAttribute(ActionType actionType, ActionSecurity actionSecurity)
+			: this(actionType, null, actionSecurity) { }
+
+		public HttpAttribute(ActionType actionType, string alias, ActionSecurity
+			actionSecurity)
+		{
+			// require by default : This is only used for post/put/delete
+			RequireAntiForgeryToken = true;
+			SecurityType = actionSecurity;
+			RouteAlias = alias;
+			ActionType = actionType;
+		}
+	}
+	#endregion
+
+	#region SECURITY
+	public class AuthCookie
+	{
+		public string Id { get; set; }
+		public string AuthToken { get; set; }
+		public DateTime Expiration { get; set; }
+	}
+
+	public class User
+	{
+		public string Name { get; internal set; }
+		public AuthCookie AuthenticationCookie { get; internal set; }
+		public string SessionId { get; internal set; }
+		public string IpAddress { get; internal set; }
+		public DateTime LogOnDate { get; internal set; }
+		public List<string> Roles { get; internal set; }
+		public X509Certificate2 ClientCertificate { get; internal set; }
+		public object ArcheType { get; internal set; }
+
+		public bool IsInRole(string role)
+		{
+			return Roles != null && Roles.Contains(role);
+		}
+	}
+	#endregion
+
+	public static class MiscellaneousHelpers
+	{
+		public static string CreateToken()
+		{
+			return Guid.NewGuid().ToString().Replace("-", string.Empty);
+		}
+	}
+
+	public static class ReflectionHelpers
+	{
+		public static List<Type> GetTypeList(Type t)
+		{
+			t.ThrowIfArgumentNull();
+
+			return Utility.GetAssemblies()
+							.SelectMany(x => x.GetLoadableTypes()
+							.AsParallel()
+							.Where(y => y.IsClass && y.BaseType == t)).ToList();
+		}
+
+		public static Type GetTypeByTypeAndName(Type t, string name)
+		{
+			t.ThrowIfArgumentNull();
+			name.ThrowIfArgumentNull();
+
+			return Utility.GetAssemblies()
+							.SelectMany(x => x.GetLoadableTypes()
+							.AsParallel()
+							.Where(y => y.IsClass &&
+													y.BaseType == t &&
+													y.Name == name))
+							.FirstOrDefault();
+		}
+
+		public static List<string> GetControllerActionNames(string controllerName)
+		{
+			controllerName.ThrowIfArgumentNull();
+
+			var result = new List<string>();
+			var controller = GetTypeList(typeof(Controller)).FirstOrDefault(x =>
+				x.Name == controllerName);
+
+			if (controller != null)
+			{
+				result = controller.GetMethods()
+													 .Where(x =>
+														 x.GetCustomAttributes(typeof(HttpAttribute), false)
+														 .Any() && x.IsPublic)
+													 .Select(x => x.Name)
+													 .ToList();
+			}
+
+			return result;
+		}
+
+		public static FrontController GetFrontControllerInstance()
+		{
+			/*FrontController result = null;
+			var fcType = GetTypeList(typeof(FrontController)).FirstOrDefault();
+
+			if (fcType != null)
+				result = FrontController.CreateInstance(fcType, this);
+
+			return result;*/
+
+			throw new NotImplementedException();
+		}
+	}
+}
+
+namespace Aurora.Rewrite
+{
+	using Aurora.Common;
+
+	internal class EngineAppState
+	{
+		public EngineAppState(Dictionary<string, object> app,
+			Dictionary<string, object> request)
+		{
+
+		}
+	}
+
+	internal class EngineSessionState
+	{
+		public EngineSessionState(Dictionary<string, object> app, Dictionary<string,
+			object> request)
+		{
+
+		}
+	}
+
+	internal class AspNetAdapterCallbacks
+	{
+		private Dictionary<string, object> app;
+		private Dictionary<string, object> request;
+
+		public AspNetAdapterCallbacks(Dictionary<string, object> app,
+			Dictionary<string, object> request)
+		{
+			this.app = app;
+			this.request = request;
+		}
+
+		public object GetApplication(string key)
+		{
+			if (app.ContainsKey(HttpAdapterConstants.ApplicationSessionStoreGetCallback) &&
+					app[HttpAdapterConstants.ApplicationSessionStoreGetCallback] is Func<string, object>)
+				return (app[HttpAdapterConstants.ApplicationSessionStoreGetCallback] as Func<string, object>)(key);
+
+			return null;
+		}
+
+		public void AddApplication(string key, object value)
+		{
+			if (app.ContainsKey(HttpAdapterConstants.ApplicationSessionStoreAddCallback) &&
+					app[HttpAdapterConstants.ApplicationSessionStoreAddCallback] is Action<string, object>)
+				(app[HttpAdapterConstants.ApplicationSessionStoreAddCallback] as Action<string, object>)(key, value);
+		}
+
+		public object GetSession(string key)
+		{
+			if (app.ContainsKey(HttpAdapterConstants.UserSessionStoreGetCallback) &&
+					app[HttpAdapterConstants.UserSessionStoreGetCallback] is Func<string, object>)
+				return (app[HttpAdapterConstants.UserSessionStoreGetCallback] as Func<string, object>)(key);
+
+			return null;
+		}
+
+		public void AddSession(string key, object value)
+		{
+			if (app.ContainsKey(HttpAdapterConstants.UserSessionStoreAddCallback) &&
+					app[HttpAdapterConstants.UserSessionStoreAddCallback] is Action<string, object>)
+				(app[HttpAdapterConstants.UserSessionStoreAddCallback] as Action<string, object>)(key, value);
+		}
+
+		public void RemoveSession(string key)
+		{
+			if (app.ContainsKey(HttpAdapterConstants.UserSessionStoreRemoveCallback) &&
+					app[HttpAdapterConstants.UserSessionStoreRemoveCallback] is Action<string>)
+				(app[HttpAdapterConstants.UserSessionStoreRemoveCallback] as Action<string>)(key);
+		}
+
+		public void ResponseRedirect(string path, bool fromRedirectOnly)
+		{
+			if (app.ContainsKey(HttpAdapterConstants.ResponseRedirectCallback) &&
+					app[HttpAdapterConstants.ResponseRedirectCallback] is Action<string, Dictionary<string, string>>)
+			{
+				//FIXME: This needs to happen at the engine level, not here!
+				//if (fromRedirectOnly)
+				//	AddSession(EngineAppState.FromRedirectOnlySessionName, true);
+
+				(app[HttpAdapterConstants.ResponseRedirectCallback] as Action<string, Dictionary<string, string>>)(path, null);
+			}
+		}
+
+		public string GetValidatedFormValue(string key)
+		{
+			if (request.ContainsKey(HttpAdapterConstants.RequestFormCallback) &&
+					request[HttpAdapterConstants.RequestFormCallback] is Func<string, bool, string>)
+				return (request[HttpAdapterConstants.RequestFormCallback] as Func<string, bool, string>)(key, true);
+
+			return null;
+		}
+
+		public string GetQueryString(string key, bool validated)
+		{
+			string result = null;
+
+			if (!validated)
+			{
+				if (request.ContainsKey(HttpAdapterConstants.RequestQueryString) &&
+						request[HttpAdapterConstants.RequestQueryString] is Dictionary<string, string>)
+					(request[HttpAdapterConstants.RequestQueryString] as Dictionary<string, string>).TryGetValue(key, out result);
+			}
+			else
+			{
+				if (request.ContainsKey(HttpAdapterConstants.RequestQueryStringCallback) &&
+					request[HttpAdapterConstants.RequestQueryStringCallback] is Func<string, bool, string>)
+					result = (request[HttpAdapterConstants.RequestQueryStringCallback] as Func<string, bool, string>)(key, true);
+			}
+
+			return result;
+		}
+
+		public void AddCache(string key, object value, DateTime expiresOn)
+		{
+			if (app.ContainsKey(HttpAdapterConstants.CacheAddCallback) &&
+					app[HttpAdapterConstants.CacheAddCallback] is Action<string, object, DateTime>)
+				(app[HttpAdapterConstants.CacheAddCallback] as Action<string, object, DateTime>)(key, value, expiresOn);
+		}
+
+		public object GetCache(string key)
+		{
+			if (app.ContainsKey(HttpAdapterConstants.CacheGetCallback) &&
+				app[HttpAdapterConstants.CacheGetCallback] is Func<string, object>)
+				return (app[HttpAdapterConstants.CacheGetCallback] as Func<string, object>)(key);
+
+			return null;
+		}
+
+		public void RemoveCache(string key)
+		{
+			if (app.ContainsKey(HttpAdapterConstants.CacheRemoveCallback) &&
+			app[HttpAdapterConstants.CacheRemoveCallback] is Action<string>)
+				(app[HttpAdapterConstants.CacheRemoveCallback] as Action<string>)(key);
+		}
+
+		public void AddCookie(HttpCookie cookie)
+		{
+			if (app.ContainsKey(HttpAdapterConstants.CookieAddCallback) &&
+				app[HttpAdapterConstants.CookieAddCallback] is Action<HttpCookie>)
+				(app[HttpAdapterConstants.CookieAddCallback] as Action<HttpCookie>)(cookie);
+		}
+
+		public HttpCookie GetCookie(string name)
+		{
+			if (app.ContainsKey(HttpAdapterConstants.CookieGetCallback) &&
+				app[HttpAdapterConstants.CookieGetCallback] is Func<string, HttpCookie>)
+				return (app[HttpAdapterConstants.CookieGetCallback] as Func<string, HttpCookie>)(name);
+
+			return null;
+		}
+
+		public void RemoveCookie(string name)
+		{
+			if (app.ContainsKey(HttpAdapterConstants.CookieRemoveCallback) &&
+				app[HttpAdapterConstants.CookieRemoveCallback] is Action<string>)
+				(app[HttpAdapterConstants.CookieRemoveCallback] as Action<string>)(name);
+		}
+	}
+
+	#region CONTROLLER
+	public class BaseController
+	{ }
+
+	public class FrontController : BaseController
+	{ }
+
+	public class Controller : BaseController
+	{ }
+	#endregion
+
+	#region ROUTE INFO
+	// This contains all the information necessary to associate a route with a 
+	// controller method this also contains extra information pertaining to 
+	// parameters we may want to pass the method at the time of invocation.
+	public class RouteInfo
+	{
+		// A list of string aliases eg. /Index, /Foo, /Bar that we want to use in 
+		// order to navigate from a URL to the controller action that it represents.
+		public List<string> Aliases { get; internal set; }
+		public MethodInfo Action { get; internal set; }
+		public Controller Controller { get; internal set; }
+		public HttpAttribute RequestTypeAttribute { get; internal set; }
+		// The parameters passed in the URL eg. anything that is not the alias or 
+		// querystring action parameters are delimited like:
+		// /alias/param1/param2/param3
+		public object[] ActionUrlParams { get; internal set; }
+		// The parameters that are bound to this action that are declared in an 
+		// OnInit handler.
+		public object[] ActionBoundParams { get; internal set; }
+		// Default parameters are used if you want to mask a more complex URL with 
+		// just an alias.
+		public object[] ActionDefaultParams { get; internal set; }
+		public IBoundToAction[] BoundToActionParams { get; internal set; }
+		//public List<Tuple<ActionParameterTransformAttribute, int>> 
+		//	ActionParamTransforms { get; internal set; }
+		//public Dictionary<string, object> CachedActionParamTransformInstances 
+		//	{ get; internal set; }
+		// Routes that are created by the framework are not dynamic. Dynamic routes 
+		// are created in the controller by the end user.
+		public bool Dynamic { get; internal set; }
+	}
+	#endregion
+
+	// The router will be responsible for determining all routes, finding routes
+	// and adding and removing of dynamic routes. The router will not maintain
+	// any internal state. It will simply provide the mechanism to do the work.
+	// It's the responsbility of the consumer to manage any residual state.
+	internal static class Router
+	{
+		public static RouteInfo FindRoute(string path)
+		{
+			throw new NotImplementedException();
+		}
+
+		public static RouteInfo FindRoute(string path, string[] urlParameters)
+		{
+			throw new NotImplementedException();
+		}
+
+		public static List<RouteInfo> GetRoutesForController(string controllerName)
+		{
+			var controller =
+				ReflectionHelpers.GetTypeByTypeAndName(typeof(Controller),
+				controllerName);
+
+			var actions = controller.GetMethods()
+				.Where(x => x.GetCustomAttributes(typeof(HttpAttribute), false).Any())
+				.ToList();
+
+			List<RouteInfo> result = null;
+
+			if (actions != null)
+			{
+				foreach (var action in actions)
+				{
+					// Create a RouteInfo for each action in the controller
+				}
+			}
+
+			return result;
+		}
+
+		public static List<RouteInfo> GetAllRoutesForAllControllers()
+		{
+			throw new NotImplementedException();
+		}
+
+		private static RouteInfo AddRoute(Controller c, MethodInfo action, List<string> aliases, string defaultParams, bool dynamic)
+		{
+			c.ThrowIfArgumentNull();
+			action.ThrowIfArgumentNull();
+
+			//List<object> bindings = null;
+
+			//if (EngineSessionState.ActionBindings.ContainsKey(c.GetType().Name))
+			//	if (EngineSessionState.ActionBindings[c.GetType().Name].ContainsKey(action.Name))
+			//		bindings = EngineSessionState.ActionBindings[c.GetType().Name][action.Name];
+
+			//var actionParameterInfo = GetActionParameterTransforms(action.GetParameters(), bindings);
+
+			var result = new RouteInfo()
+			{
+				Aliases = aliases,
+				Action = action,
+				Controller = c,
+				RequestTypeAttribute = (HttpAttribute)action.GetCustomAttributes(typeof(HttpAttribute), false).FirstOrDefault(),
+				//BoundParams = (bindings != null) ? bindings.ToArray() : new object[] { },
+				//BoundToActionParams = (bindings != null) ? bindings.Where(x => x.GetType().GetInterface("IBoundToAction") != null).Cast<IBoundToAction>().ToArray() : null,
+				//DefaultParams = (!string.IsNullOrEmpty(defaultParams)) ? defaultParams.Split('/').ConvertToObjectTypeArray() : new object[] { },
+				//ActionParamTransforms = actionParameterInfo.ActionParamTransforms,
+				//CachedActionParamTransformInstances = actionParameterInfo.ActionParamTransformInstances,
+				Dynamic = dynamic
+			};
+
+			return result;
+		}
+
+		public static RouteInfo AddRoute(string alias, string controllerName, string actionName, string defaultParams, bool dynamic)
+		{
+			throw new NotImplementedException();
+		}
+
+		public static void RemoveRoute(string alias)
+		{
+			throw new NotImplementedException();
+		}
+
+		public static void RemoveRoute(string alias, string controllerName, string actionName)
+		{
+			throw new NotImplementedException();
+		}
+	}
+
+	internal class Engine : IAspNetAdapterApplication
+	{
+		private EngineAppState engineAppState;
+		private EngineSessionState engineSessionState;
+		private AspNetAdapterCallbacks aspNetAdapterCallbacks;
+
+		public void Init(Dictionary<string, object> app,
+										 Dictionary<string, object> request,
+										 Action<Dictionary<string, object>> response)
+		{
+			engineAppState = new EngineAppState(app, request);
+			engineSessionState = new EngineSessionState(app, request);
+			aspNetAdapterCallbacks = new AspNetAdapterCallbacks(app, request);
+		}
+	}
+}
+
+namespace Aurora
+{
+	using Aurora.Common;
+
+	#region ATTRIBUTES
+
+	#region MISCELLANEOUS
 	// Used inside a model to denote that will not be shown if an HTML helper such as the 
 	// HTMLTable helper is used to construct a UI representation from a collection of a 
 	// particular model.
@@ -239,6 +665,7 @@ namespace Aurora
 		}
 	}
 	#endregion
+
 	#endregion
 
 	#region FRAMEWORK ENGINE STATE
@@ -288,19 +715,20 @@ namespace Aurora
 		public bool FromRedirectOnly { get; set; }
 		public User CurrentUser { get; set; }
 	}
+
 	#endregion
 
 	#region FRAMEWORK ENGINE
 	internal class Engine : IAspNetAdapterApplication
 	{
 		#region ASP.NET ADAPTER STUFF
-		private Dictionary<string, object> _app;
+		private Dictionary<string, object> app;
 		internal Dictionary<string, object> Request;
-		private Dictionary<string, string> _queryString, _cookies, _form, _payload;
-		private Action<Dictionary<string, object>> _response;
-		private List<PostedFile> _files;
-		private string[] _pathSegments;
-		private Exception _serverError;
+		private Dictionary<string, string> queryString, cookies, form, payload;
+		private Action<Dictionary<string, object>> response;
+		private List<PostedFile> files;
+		private string[] pathSegments;
+		private Exception serverError;
 		internal X509Certificate2 ClientCertificate { get; private set; }
 		internal string IpAddress, Path, RequestType, AppRoot, ViewRoot, SessionId, Identity;
 		internal Uri Url;
@@ -309,7 +737,7 @@ namespace Aurora
 		#region MISCELLANEOUS VARIABLES
 		internal EngineAppState EngineAppState;
 		internal EngineSessionState EngineSessionState;
-		private bool _debugMode;
+		private bool debugMode;
 		internal User CurrentUser;
 		private RouteInfo _currentRoute;
 		#endregion
@@ -319,9 +747,9 @@ namespace Aurora
 		public void Init(Dictionary<string, object> app, Dictionary<string, object> request,
 			Action<Dictionary<string, object>> response)
 		{
-			_app = app;
+			this.app = app;
 			Request = request;
-			_response = response;
+			this.response = response;
 
 			#region INITIALIZE LOCALS FROM APP/REQUEST AND MISC
 
@@ -337,14 +765,14 @@ namespace Aurora
 				? request[HttpAdapterConstants.SessionId].ToString()
 				: null;
 			Path = request[HttpAdapterConstants.RequestPath].ToString();
-			_pathSegments = request[HttpAdapterConstants.RequestPathSegments] as string[];
-			_cookies = request[HttpAdapterConstants.RequestCookie] as Dictionary<string, string>;
-			_form = request[HttpAdapterConstants.RequestForm] as Dictionary<string, string>;
-			_payload = request[HttpAdapterConstants.RequestBody] as Dictionary<string, string>;
-			_files = request[HttpAdapterConstants.RequestFiles] as List<PostedFile>;
-			_queryString = request[HttpAdapterConstants.RequestQueryString] as Dictionary<string, string>;
-			_debugMode = Convert.ToBoolean(app[HttpAdapterConstants.DebugModeASPNET]);
-			_serverError = app[HttpAdapterConstants.ServerError] as Exception;
+			pathSegments = request[HttpAdapterConstants.RequestPathSegments] as string[];
+			cookies = request[HttpAdapterConstants.RequestCookie] as Dictionary<string, string>;
+			form = request[HttpAdapterConstants.RequestForm] as Dictionary<string, string>;
+			payload = request[HttpAdapterConstants.RequestBody] as Dictionary<string, string>;
+			files = request[HttpAdapterConstants.RequestFiles] as List<PostedFile>;
+			queryString = request[HttpAdapterConstants.RequestQueryString] as Dictionary<string, string>;
+			debugMode = Convert.ToBoolean(app[HttpAdapterConstants.DebugModeASPNET]);
+			serverError = app[HttpAdapterConstants.ServerError] as Exception;
 			ClientCertificate = request[HttpAdapterConstants.RequestClientCertificate] as X509Certificate2;
 			Url = request[HttpAdapterConstants.RequestUrl] as Uri;
 			Identity = request[HttpAdapterConstants.RequestIdentity] as string;
@@ -441,7 +869,7 @@ namespace Aurora
 
 			#region INITIALIZE VIEW ENGINE
 
-			if (!EngineAppState.AllowedFilePattern.IsMatch(Path) && (EngineAppState.ViewEngine == null || _debugMode))
+			if (!EngineAppState.AllowedFilePattern.IsMatch(Path) && (EngineAppState.ViewEngine == null || debugMode))
 			{
 				string viewCache = null;
 
@@ -453,7 +881,7 @@ namespace Aurora
 					EngineAppState.ViewEngineDirectiveHandlers.Add(new MasterPageDirective());
 					EngineAppState.ViewEngineDirectiveHandlers.Add(new PlaceHolderDirective());
 					EngineAppState.ViewEngineDirectiveHandlers.Add(new PartialPageDirective());
-					EngineAppState.ViewEngineDirectiveHandlers.Add(new BundleDirective(_debugMode,
+					EngineAppState.ViewEngineDirectiveHandlers.Add(new BundleDirective(debugMode,
 						EngineAppState.SharedResourceFolderPath, GetBundleFiles));
 					EngineAppState.ViewEngineSubstitutionHandlers.Add(new HelperBundleDirective(
 						EngineAppState.SharedResourceFolderPath, GetHelperBundle));
@@ -466,7 +894,7 @@ namespace Aurora
 					EngineAppState.CacheFilePath = System.IO.Path.Combine(MapPath(EngineAppState.CompiledViewsCacheFolderPath),
 						EngineAppState.CompiledViewsCacheFileName);
 
-				if (File.Exists(EngineAppState.CacheFilePath) && !_debugMode)
+				if (File.Exists(EngineAppState.CacheFilePath) && !debugMode)
 					viewCache = File.ReadAllText(EngineAppState.CacheFilePath);
 
 				if (EngineAppState.ViewRoots == null)
@@ -475,7 +903,7 @@ namespace Aurora
 				EngineAppState.ViewEngine = new ViewEngine(AppRoot, EngineAppState.ViewRoots,
 					EngineAppState.ViewEngineDirectiveHandlers, EngineAppState.ViewEngineSubstitutionHandlers, viewCache);
 
-				if (string.IsNullOrEmpty(viewCache) || !_debugMode)
+				if (string.IsNullOrEmpty(viewCache) || !debugMode)
 					UpdateCache(EngineAppState.CacheFilePath);
 			}
 			else if (EngineAppState.ViewEngine.CacheUpdated ||
@@ -493,7 +921,7 @@ namespace Aurora
 			#region PROCESS REQUEST / RENDER RESPONSE
 
 			ViewResponse viewResponse = null;
-			Exception exception = _serverError;
+			Exception exception = serverError;
 			int httpStatus = 200;
 
 			if (exception == null)
@@ -518,7 +946,7 @@ namespace Aurora
 			else if (exception != null)
 			{
 				httpStatus = 503;
-				if (_debugMode)
+				if (debugMode)
 				{
 					viewResponse = GetErrorViewResponse(
 						(exception.InnerException != null) ? exception.InnerException.Message : exception.Message,
@@ -575,12 +1003,12 @@ namespace Aurora
 				if (Path == "/" || Path == "~/" || Path.ToLower() == "/default.aspx" || Path == "/Index")
 				{
 					Path = "/Index";
-					_pathSegments[0] = "Index";
+					pathSegments[0] = "Index";
 				}
 
 				RaiseEventOnFrontController(RouteHandlerEventType.PreRoute, Path, null, null);
 
-				routeInfo = FindRoute(string.Concat("/", _pathSegments[0]), _pathSegments);
+				routeInfo = FindRoute(string.Concat("/", pathSegments[0]), pathSegments);
 
 				RaiseEventOnFrontController(RouteHandlerEventType.PostRoute, Path, routeInfo, null);
 
@@ -597,19 +1025,19 @@ namespace Aurora
 					if (routeInfo.RequestTypeAttribute.RequireAntiForgeryToken &&
 							RequestType == "post" || RequestType == "put" || RequestType == "delete")
 					{
-						if (!(_form.ContainsKey(EngineAppState.AntiForgeryTokenName) ||
-									_payload.ContainsKey(EngineAppState.AntiForgeryTokenName)))
+						if (!(form.ContainsKey(EngineAppState.AntiForgeryTokenName) ||
+									payload.ContainsKey(EngineAppState.AntiForgeryTokenName)))
 						{
 							// i
 							return GetErrorViewResponse("AntiForgeryToken Required", "All forms require an AntiForgeryToken by default.");
 						}
 						else
 						{
-							if (EngineAppState.AntiForgeryTokens.Contains(_form[EngineAppState.AntiForgeryTokenName]) ||
-								EngineAppState.AntiForgeryTokens.Contains(_payload[EngineAppState.AntiForgeryTokenName]))
+							if (EngineAppState.AntiForgeryTokens.Contains(form[EngineAppState.AntiForgeryTokenName]) ||
+								EngineAppState.AntiForgeryTokens.Contains(payload[EngineAppState.AntiForgeryTokenName]))
 							{
-								EngineAppState.AntiForgeryTokens.Remove(_form[EngineAppState.AntiForgeryTokenName]);
-								EngineAppState.AntiForgeryTokens.Remove(_payload[EngineAppState.AntiForgeryTokenName]);
+								EngineAppState.AntiForgeryTokens.Remove(form[EngineAppState.AntiForgeryTokenName]);
+								EngineAppState.AntiForgeryTokens.Remove(payload[EngineAppState.AntiForgeryTokenName]);
 							}
 							else
 							{
@@ -798,7 +1226,7 @@ namespace Aurora
 		{
 			if (string.IsNullOrEmpty(viewResponse.RedirectTo))
 			{
-				_response(new Dictionary<string, object>
+				response(new Dictionary<string, object>
 				{
 					{HttpAdapterConstants.ResponseBody, viewResponse.Content},
 					{HttpAdapterConstants.ResponseContentType, viewResponse.ContentType},
@@ -890,11 +1318,11 @@ namespace Aurora
 					}
 					else if (p.PropertyType == typeof(PostedFile))
 					{
-						if (_files.Any())
-							p.SetValue(result, _files[0], null);
+						if (files.Any())
+							p.SetValue(result, files[0], null);
 					}
 					else if (p.PropertyType == typeof(List<PostedFile>))
-						p.SetValue(result, _files, null);
+						p.SetValue(result, files, null);
 				}
 
 				var model1 = result as Model;
@@ -920,12 +1348,15 @@ namespace Aurora
 
 			var result = new List<string>();
 
-			var controller = GetTypeList(typeof(Controller)).FirstOrDefault(x => x.Name == controllerName);
+			var controller = GetTypeList(typeof(Controller)).FirstOrDefault(x =>
+				x.Name == controllerName);
 
 			if (controller != null)
 			{
 				result = controller.GetMethods()
-													 .Where(x => x.GetCustomAttributes(typeof(HttpAttribute), false).Any())
+													 .Where(x =>
+														 x.GetCustomAttributes(typeof(HttpAttribute), false)
+														 .Any() && x.IsPublic)
 													 .Select(x => x.Name)
 													 .ToList();
 			}
@@ -1135,7 +1566,7 @@ namespace Aurora
 				}
 			}
 
-			if (!_debugMode)
+			if (!debugMode)
 			{
 				switch (extension)
 				{
@@ -1160,7 +1591,7 @@ namespace Aurora
 		{
 			EngineSessionState.HelperBundles[name] = new StringBuilder(code);
 
-			if (!_debugMode)
+			if (!debugMode)
 			{
 				var match = EngineAppState.CssorJsExtPattern.Match(name);
 
@@ -1255,7 +1686,7 @@ namespace Aurora
 
 			if (bindings != null)
 			{
-				var routeInfo = FindRoute(string.Format("/{0}", actionName), _pathSegments);
+				var routeInfo = FindRoute(string.Format("/{0}", actionName), pathSegments);
 
 				if (routeInfo != null && routeInfo.BoundToActionParams != null)
 				{
@@ -1272,7 +1703,7 @@ namespace Aurora
 
 		internal RouteInfo FindRoute(string path)
 		{
-			return FindRoute(path, _pathSegments);
+			return FindRoute(path, pathSegments);
 		}
 
 		internal RouteInfo FindRoute(string path, string[] urlParameters)
@@ -1304,11 +1735,11 @@ namespace Aurora
 				switch (RequestType)
 				{
 					case "post":
-						allParams.AddRange(getModelOrParams(_form));
+						allParams.AddRange(getModelOrParams(form));
 						break;
 					case "delete":
 					case "put":
-						allParams.AddRange(getModelOrParams(_payload));
+						allParams.AddRange(getModelOrParams(payload));
 						break;
 				}
 
@@ -1513,52 +1944,52 @@ namespace Aurora
 
 		public object GetApplication(string key)
 		{
-			if (_app.ContainsKey(HttpAdapterConstants.ApplicationSessionStoreGetCallback) &&
-					_app[HttpAdapterConstants.ApplicationSessionStoreGetCallback] is Func<string, object>)
-				return (_app[HttpAdapterConstants.ApplicationSessionStoreGetCallback] as Func<string, object>)(key);
+			if (app.ContainsKey(HttpAdapterConstants.ApplicationSessionStoreGetCallback) &&
+					app[HttpAdapterConstants.ApplicationSessionStoreGetCallback] is Func<string, object>)
+				return (app[HttpAdapterConstants.ApplicationSessionStoreGetCallback] as Func<string, object>)(key);
 
 			return null;
 		}
 
 		public void AddApplication(string key, object value)
 		{
-			if (_app.ContainsKey(HttpAdapterConstants.ApplicationSessionStoreAddCallback) &&
-					_app[HttpAdapterConstants.ApplicationSessionStoreAddCallback] is Action<string, object>)
-				(_app[HttpAdapterConstants.ApplicationSessionStoreAddCallback] as Action<string, object>)(key, value);
+			if (app.ContainsKey(HttpAdapterConstants.ApplicationSessionStoreAddCallback) &&
+					app[HttpAdapterConstants.ApplicationSessionStoreAddCallback] is Action<string, object>)
+				(app[HttpAdapterConstants.ApplicationSessionStoreAddCallback] as Action<string, object>)(key, value);
 		}
 
 		public object GetSession(string key)
 		{
-			if (_app.ContainsKey(HttpAdapterConstants.UserSessionStoreGetCallback) &&
-					_app[HttpAdapterConstants.UserSessionStoreGetCallback] is Func<string, object>)
-				return (_app[HttpAdapterConstants.UserSessionStoreGetCallback] as Func<string, object>)(key);
+			if (app.ContainsKey(HttpAdapterConstants.UserSessionStoreGetCallback) &&
+					app[HttpAdapterConstants.UserSessionStoreGetCallback] is Func<string, object>)
+				return (app[HttpAdapterConstants.UserSessionStoreGetCallback] as Func<string, object>)(key);
 
 			return null;
 		}
 
 		public void AddSession(string key, object value)
 		{
-			if (_app.ContainsKey(HttpAdapterConstants.UserSessionStoreAddCallback) &&
-					_app[HttpAdapterConstants.UserSessionStoreAddCallback] is Action<string, object>)
-				(_app[HttpAdapterConstants.UserSessionStoreAddCallback] as Action<string, object>)(key, value);
+			if (app.ContainsKey(HttpAdapterConstants.UserSessionStoreAddCallback) &&
+					app[HttpAdapterConstants.UserSessionStoreAddCallback] is Action<string, object>)
+				(app[HttpAdapterConstants.UserSessionStoreAddCallback] as Action<string, object>)(key, value);
 		}
 
 		public void RemoveSession(string key)
 		{
-			if (_app.ContainsKey(HttpAdapterConstants.UserSessionStoreRemoveCallback) &&
-					_app[HttpAdapterConstants.UserSessionStoreRemoveCallback] is Action<string>)
-				(_app[HttpAdapterConstants.UserSessionStoreRemoveCallback] as Action<string>)(key);
+			if (app.ContainsKey(HttpAdapterConstants.UserSessionStoreRemoveCallback) &&
+					app[HttpAdapterConstants.UserSessionStoreRemoveCallback] is Action<string>)
+				(app[HttpAdapterConstants.UserSessionStoreRemoveCallback] as Action<string>)(key);
 		}
 
 		public void ResponseRedirect(string path, bool fromRedirectOnly)
 		{
-			if (_app.ContainsKey(HttpAdapterConstants.ResponseRedirectCallback) &&
-					_app[HttpAdapterConstants.ResponseRedirectCallback] is Action<string, Dictionary<string, string>>)
+			if (app.ContainsKey(HttpAdapterConstants.ResponseRedirectCallback) &&
+					app[HttpAdapterConstants.ResponseRedirectCallback] is Action<string, Dictionary<string, string>>)
 			{
 				if (fromRedirectOnly)
 					AddSession(EngineAppState.FromRedirectOnlySessionName, true);
 
-				(_app[HttpAdapterConstants.ResponseRedirectCallback] as Action<string, Dictionary<string, string>>)(path, null);
+				(app[HttpAdapterConstants.ResponseRedirectCallback] as Action<string, Dictionary<string, string>>)(path, null);
 			}
 		}
 
@@ -1593,48 +2024,48 @@ namespace Aurora
 
 		public void AddCache(string key, object value, DateTime expiresOn)
 		{
-			if (_app.ContainsKey(HttpAdapterConstants.CacheAddCallback) &&
-					_app[HttpAdapterConstants.CacheAddCallback] is Action<string, object, DateTime>)
-				(_app[HttpAdapterConstants.CacheAddCallback] as Action<string, object, DateTime>)(key, value, expiresOn);
+			if (app.ContainsKey(HttpAdapterConstants.CacheAddCallback) &&
+					app[HttpAdapterConstants.CacheAddCallback] is Action<string, object, DateTime>)
+				(app[HttpAdapterConstants.CacheAddCallback] as Action<string, object, DateTime>)(key, value, expiresOn);
 		}
 
 		public object GetCache(string key)
 		{
-			if (_app.ContainsKey(HttpAdapterConstants.CacheGetCallback) &&
-				_app[HttpAdapterConstants.CacheGetCallback] is Func<string, object>)
-				return (_app[HttpAdapterConstants.CacheGetCallback] as Func<string, object>)(key);
+			if (app.ContainsKey(HttpAdapterConstants.CacheGetCallback) &&
+				app[HttpAdapterConstants.CacheGetCallback] is Func<string, object>)
+				return (app[HttpAdapterConstants.CacheGetCallback] as Func<string, object>)(key);
 
 			return null;
 		}
 
 		public void RemoveCache(string key)
 		{
-			if (_app.ContainsKey(HttpAdapterConstants.CacheRemoveCallback) &&
-			_app[HttpAdapterConstants.CacheRemoveCallback] is Action<string>)
-				(_app[HttpAdapterConstants.CacheRemoveCallback] as Action<string>)(key);
+			if (app.ContainsKey(HttpAdapterConstants.CacheRemoveCallback) &&
+			app[HttpAdapterConstants.CacheRemoveCallback] is Action<string>)
+				(app[HttpAdapterConstants.CacheRemoveCallback] as Action<string>)(key);
 		}
 
 		public void AddCookie(HttpCookie cookie)
 		{
-			if (_app.ContainsKey(HttpAdapterConstants.CookieAddCallback) &&
-				_app[HttpAdapterConstants.CookieAddCallback] is Action<HttpCookie>)
-				(_app[HttpAdapterConstants.CookieAddCallback] as Action<HttpCookie>)(cookie);
+			if (app.ContainsKey(HttpAdapterConstants.CookieAddCallback) &&
+				app[HttpAdapterConstants.CookieAddCallback] is Action<HttpCookie>)
+				(app[HttpAdapterConstants.CookieAddCallback] as Action<HttpCookie>)(cookie);
 		}
 
 		public HttpCookie GetCookie(string name)
 		{
-			if (_app.ContainsKey(HttpAdapterConstants.CookieGetCallback) &&
-				_app[HttpAdapterConstants.CookieGetCallback] is Func<string, HttpCookie>)
-				return (_app[HttpAdapterConstants.CookieGetCallback] as Func<string, HttpCookie>)(name);
+			if (app.ContainsKey(HttpAdapterConstants.CookieGetCallback) &&
+				app[HttpAdapterConstants.CookieGetCallback] is Func<string, HttpCookie>)
+				return (app[HttpAdapterConstants.CookieGetCallback] as Func<string, HttpCookie>)(name);
 
 			return null;
 		}
 
 		public void RemoveCookie(string name)
 		{
-			if (_app.ContainsKey(HttpAdapterConstants.CookieRemoveCallback) &&
-				_app[HttpAdapterConstants.CookieRemoveCallback] is Action<string>)
-				(_app[HttpAdapterConstants.CookieRemoveCallback] as Action<string>)(name);
+			if (app.ContainsKey(HttpAdapterConstants.CookieRemoveCallback) &&
+				app[HttpAdapterConstants.CookieRemoveCallback] is Action<string>)
+				(app[HttpAdapterConstants.CookieRemoveCallback] as Action<string>)(name);
 		}
 		#endregion
 	}
@@ -2505,32 +2936,6 @@ namespace Aurora
 			return result;
 		}
 		#endregion
-	}
-	#endregion
-
-	#region SECURITY
-	public class AuthCookie
-	{
-		public string Id { get; set; }
-		public string AuthToken { get; set; }
-		public DateTime Expiration { get; set; }
-	}
-
-	public class User
-	{
-		public string Name { get; internal set; }
-		public AuthCookie AuthenticationCookie { get; internal set; }
-		public string SessionId { get; internal set; }
-		public string IpAddress { get; internal set; }
-		public DateTime LogOnDate { get; internal set; }
-		public List<string> Roles { get; internal set; }
-		public X509Certificate2 ClientCertificate { get; internal set; }
-		public object ArcheType { get; internal set; }
-
-		public bool IsInRole(string role)
-		{
-			return Roles != null && Roles.Contains(role);
-		}
 	}
 	#endregion
 

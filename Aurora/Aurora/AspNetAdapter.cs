@@ -1,12 +1,18 @@
 ﻿//
-// AspNetAdapter - A thin wrapper around the ASP.NET request and response objects.
+// AspNetAdapter - A thin wrapper around the ASP.NET request and response 
+//								 objects.
 //
-// Updated On: 23 November 2014
+// Updated On: 26 November 2014
 //
 // Description: 
 //
 //	A thin wrapper around the ASP.NET Request/Reponse objects to make it easier
 //	to disconnect applications from the intrinsics of the HttpContext.
+//
+//  NOTE: Apps aren't totally disconnected because I've elected to expose the 
+//				ASP.NET Session, Application and Cache stores through callbacks. I 
+//				think this is a fair trade off for now. Aurora relies heavily on 
+//				these to store state between requests.
 //
 // Requirements: .NET 4.5
 //
@@ -14,55 +20,13 @@
 //
 //  Frank Hale - <frankhale@gmail.com> 
 //
-// An attempt to abstract away some of the common bits of the ASP.NET HttpContext.
+// An attempt to abstract away some of the common bits of the ASP.NET 
+// HttpContext.
 //
 // I initially looked at OWIN to provide the abstraction that I wanted but I 
 // found it to be a bit more complex than I was hoping for. What I was looking
 // for was something a bit easier to strap in, something that exposed some 
 // simple types and was as braindead easy as I could come up with.
-//
-// Usage:
-// 
-//  Write a class that implements IAspNetAdapterApplication and add in the bits
-//  to set the ASP.NET Adapter handler and module in your web.config.
-//
-//	<system.web>
-//		<httpHandlers>
-//			<add verb="*" path="*" validate="false" type="AspNetAdapter.AspNetAdapterHandler"/>
-//		</httpHandlers>
-//		<httpModules>
-//			<add type="AspNetAdapter.AspNetAdapterModule" name="AspNetAdapterModule" />
-//		</httpModules>
-//	</system.web>
-//
-// The IAspNetAdapterApplication provides the following method:
-//
-//  void Init(Dictionary<string, object> app, 
-//            Dictionary<string, object> request, 
-//            Action<Dictionary<string, object>> response);
-//
-// The Init() method gets an app and request dictionary. The app dictionary 
-// contains callbacks for things like adding to the Session or getting something
-// from the Session. The request dictionary contains the information you'd 
-// expect from an http request and finally the response callback takes a 
-// dictionary with response values. All of the dictionary keys can be found in
-// the HttpAdapterConstants class.
-//
-// Middleware:
-//
-//	<configSections>
-//		<section name="aspNetAdapter" type="AspNetAdapter.AspNetAdapterWebConfig"/>
-//	</configSections>
-//	<aspNetAdapter>
-//		<middleware>
-//			<add name="Foo" type="MyApp.Foo" />
-//		</middleware>
-//	</aspNetAdapter>
-//
-// Additionally to the middleware you can specify the application that implements
-// the IAspNetAdapterApplication interface:
-//
-//	<application name="Engine" type="Aurora.Engine" /> 
 //
 // GNU GPLv3 license <http://www.gnu.org/licenses/gpl-3.0.html>
 //
@@ -96,6 +60,7 @@ using System.Threading.Tasks;
 using System.Web;
 using System.Web.Caching;
 using System.Web.SessionState;
+using Newtonsoft.Json;
 
 namespace AspNetAdapter
 {
@@ -177,6 +142,64 @@ namespace AspNetAdapter
 			};
 
 			httpContextAdapter.Init(HttpContext.Current);
+		}
+	}
+	#endregion
+
+	#region WEB.JSON
+	public class TypeInfo
+	{
+		public string Name { get; set; }
+		public string Type { get; set; }
+	}
+
+	public class WebJsonInfo
+	{
+		public TypeInfo ApplicationTypeInfo { get; set; }
+		public List<TypeInfo> MiddlewareTypeInfo { get; set; }
+		public Dictionary<string,string> MimeTypes { get; set; }
+		public Dictionary<string, string> AppSettings { get; set; }
+		public List<string> ViewRoots { get; set; }
+		public string AllowedFilePattern { get; set; }
+	}
+
+	public class WebJson
+	{
+		private static string error = "There is a problem with the web.json path or file and it cannot be deserialized.";
+		private static string webJsonFileName = "web.json";
+		private readonly string webJsonFilePath;
+
+		public WebJson(string appRootPath)
+		{
+			appRootPath.ThrowIfArgumentNull(error);
+
+			if (Directory.Exists(appRootPath))
+			{
+				webJsonFilePath = string.Format("{0}{1}{2}", 
+					appRootPath, 
+					Path.DirectorySeparatorChar,
+					webJsonFileName);
+
+				if (!File.Exists(webJsonFilePath))
+					throw new Exception(error);
+			}
+			else
+				throw new Exception(error);
+		}
+
+		public WebJsonInfo Load()
+		{
+			try
+			{
+				return JsonConvert.DeserializeObject<WebJsonInfo>(File.ReadAllText(webJsonFilePath));
+			}
+			catch
+			{
+				// Yeah we are going to lose the original exception but that's okay. If 
+				// the JSON is borked then it's probably pretty apparent from looking at
+				// it what needs to be fixed.
+				throw new Exception(error);
+			}
 		}
 	}
 	#endregion
@@ -294,7 +317,8 @@ namespace AspNetAdapter
 	#endregion
 
 	#region ASP.NET ADAPTER
-	// An application that wants to hook into ASP.NET and be sent the goodies that the HttpContextAdapter has to offer
+	// An application that wants to hook into ASP.NET and be sent the goodies that 
+	// the HttpContextAdapter has to offer
 	public interface IAspNetAdapterApplication
 	{
 		void Init(Dictionary<string, object> app,
@@ -416,10 +440,12 @@ namespace AspNetAdapter
 	public sealed class HttpContextAdapter
 	{
 		private static readonly object SyncInitLock = new object();
-		private static readonly AspNetAdapterWebConfig _webConfig = ConfigurationManager.GetSection("aspNetAdapter") as AspNetAdapterWebConfig;
-		private Stopwatch _timer;
-		private HttpContext _context;
-		private bool _firstRun, _debugModeAssembly;
+		private static readonly AspNetAdapterWebConfig webConfig = ConfigurationManager.GetSection("aspNetAdapter") as AspNetAdapterWebConfig;
+		private static WebJson webJson;
+		private WebJsonInfo webJsonInfo;
+		private Stopwatch timer;
+		private HttpContext context;
+		private bool firstRun, debugModeAssembly;
 		private const string AspNetApplicationTypeSessionName = "__AspNetApplicationType";
 		private const string AspNetMiddlewareSessionName = "__AspNetMiddleware";
 
@@ -427,20 +453,22 @@ namespace AspNetAdapter
 
 		public void Init(HttpContext ctx)
 		{
-			_context = ctx;
-			_timer = new Stopwatch();
-			_timer.Start();
-			_firstRun = Convert.ToBoolean(_context.Application["__SyncInitLock"]);
+			context = ctx;
+			webJson = new WebJson(ctx.Request.PhysicalApplicationPath.TrimEnd('\\'));
+			webJsonInfo = webJson.Load();
+			timer = new Stopwatch();
+			timer.Start();
+			firstRun = Convert.ToBoolean(context.Application["__SyncInitLock"]);
 
 			Type adapterApp = null;
 
-			if (_context.Application[AspNetApplicationTypeSessionName] == null)
+			if (context.Application[AspNetApplicationTypeSessionName] == null)
 			{
-				_context.Application["__SyncInitLock"] = true;
+				context.Application["__SyncInitLock"] = true;
 
 				List<Type> apps = null;
 
-				if (_webConfig.AspNetAdapterApplication == null)
+				if (webConfig.AspNetAdapterApplication == null)
 				{
 					apps = Utility.GetAssemblies()
 												.SelectMany(x => x.GetLoadableTypes()
@@ -451,22 +479,22 @@ namespace AspNetAdapter
 				{
 					apps = Utility.GetAssemblies()
 												.SelectMany(x => x.GetLoadableTypes())
-												.Where(y => y.Name == _webConfig.AspNetAdapterApplication.Name &&
-																		y.FullName == _webConfig.AspNetAdapterApplication.Type &&
+												.Where(y => y.Name == webConfig.AspNetAdapterApplication.Name &&
+																		y.FullName == webConfig.AspNetAdapterApplication.Type &&
 																		y.GetInterfaces().FirstOrDefault(i => i.IsInterface && i.UnderlyingSystemType == typeof(IAspNetAdapterApplication)) != null)
 												.ToList();
 				}
-				
+
 				if (apps == null)
 					throw new Exception("Failed to find an assembly the IAspNetAdapterApplication interface.");
-				else if(apps.Count() > 1)
+				else if (apps.Count() > 1)
 					throw new Exception("You can only have one IAspNetAdapterApplication interface.");
 
 				adapterApp = apps.FirstOrDefault();
 
-				_context.Application.Lock();
-				_context.Application[AspNetApplicationTypeSessionName] = adapterApp;
-				_context.Application.UnLock();
+				context.Application.Lock();
+				context.Application[AspNetApplicationTypeSessionName] = adapterApp;
+				context.Application.UnLock();
 
 			}
 			else
@@ -474,7 +502,7 @@ namespace AspNetAdapter
 
 			if (adapterApp == null) return;
 
-			_debugModeAssembly = IsAssemblyDebugBuild(adapterApp.Assembly);
+			debugModeAssembly = IsAssemblyDebugBuild(adapterApp.Assembly);
 
 			var appDictionary = InitializeApplicationDictionary();
 			var requestDictionary = InitializeRequestDictionary();
@@ -488,18 +516,18 @@ namespace AspNetAdapter
 		{
 			// Middleware in the context of AspNetAdapter is simply a class implementing the IAspNetMiddleware interface that
 			// has the ability to modify the 'app' and/or 'request' dictionaries. 
-			if (_webConfig == null) return;
+			if (webConfig == null) return;
 
 			var middlewareDict = new Dictionary<string, Type>();
 
-			if (_context.Application[AspNetMiddlewareSessionName] == null)
+			if (context.Application[AspNetMiddlewareSessionName] == null)
 			{
 				var middleware = Utility.GetAssemblies()
 					.SelectMany(x => x.GetLoadableTypes().Where(y => y.GetInterfaces()
 						.FirstOrDefault(i => i.IsInterface &&
 																 i.UnderlyingSystemType == typeof(IAspNetAdapterMiddleware)) != null));
 
-				foreach (AspNetAdapterMiddlewareConfigurationElement mw in _webConfig.AspNetAdapterMiddlewareCollection)
+				foreach (AspNetAdapterMiddlewareConfigurationElement mw in webConfig.AspNetAdapterMiddlewareCollection)
 				{
 					var m = middleware.FirstOrDefault(x => x.FullName == mw.Type);
 
@@ -507,16 +535,16 @@ namespace AspNetAdapter
 						middlewareDict[m.FullName] = m;
 				}
 
-				_context.Application.Lock();
-				_context.Application[AspNetMiddlewareSessionName] = middlewareDict;
-				_context.Application.UnLock();
+				context.Application.Lock();
+				context.Application[AspNetMiddlewareSessionName] = middlewareDict;
+				context.Application.UnLock();
 			}
 			else
-				middlewareDict = _context.Application[AspNetMiddlewareSessionName] as Dictionary<string, Type>;
+				middlewareDict = context.Application[AspNetMiddlewareSessionName] as Dictionary<string, Type>;
 
 			if (middlewareDict == null) return;
 
-			foreach (AspNetAdapterMiddlewareConfigurationElement mw in _webConfig.AspNetAdapterMiddlewareCollection)
+			foreach (AspNetAdapterMiddlewareConfigurationElement mw in webConfig.AspNetAdapterMiddlewareCollection)
 			{
 				var m = middlewareDict[mw.Type];
 				if (m == null) continue;
@@ -534,7 +562,7 @@ namespace AspNetAdapter
 
 		private void InitializeApplication(IAspNetAdapterApplication appInstance, Dictionary<string, object> appDictionary, Dictionary<string, object> requestDictionary)
 		{
-			if (_firstRun)
+			if (firstRun)
 				lock (SyncInitLock) appInstance.Init(appDictionary, requestDictionary, ResponseCallback);
 			else
 				appInstance.Init(appDictionary, requestDictionary, ResponseCallback);
@@ -545,39 +573,39 @@ namespace AspNetAdapter
 		{
 			var request = new Dictionary<string, object>();
 
-			request[HttpAdapterConstants.SessionId] = (_context.Session != null) ? _context.Session.SessionID : null;
-			request[HttpAdapterConstants.ServerVariables] = NameValueCollectionToDictionary(_context.Request.ServerVariables);
-			request[HttpAdapterConstants.RequestScheme] = _context.Request.Url.Scheme;
-			request[HttpAdapterConstants.RequestIsSecure] = _context.Request.IsSecureConnection;
-			request[HttpAdapterConstants.RequestHeaders] = StringToDictionary(_context.Request.ServerVariables["ALL_HTTP"], '\n', ':');
-			request[HttpAdapterConstants.RequestMethod] = _context.Request.HttpMethod;
+			request[HttpAdapterConstants.SessionId] = (context.Session != null) ? context.Session.SessionID : null;
+			request[HttpAdapterConstants.ServerVariables] = NameValueCollectionToDictionary(context.Request.ServerVariables);
+			request[HttpAdapterConstants.RequestScheme] = context.Request.Url.Scheme;
+			request[HttpAdapterConstants.RequestIsSecure] = context.Request.IsSecureConnection;
+			request[HttpAdapterConstants.RequestHeaders] = StringToDictionary(context.Request.ServerVariables["ALL_HTTP"], '\n', ':');
+			request[HttpAdapterConstants.RequestMethod] = context.Request.HttpMethod;
 
-			if (_context.Request.PhysicalApplicationPath != null)
-				request[HttpAdapterConstants.RequestPathBase] = _context.Request.PhysicalApplicationPath.TrimEnd('\\');
+			if (context.Request.PhysicalApplicationPath != null)
+				request[HttpAdapterConstants.RequestPathBase] = context.Request.PhysicalApplicationPath.TrimEnd('\\');
 
-			request[HttpAdapterConstants.RequestPath] = (string.IsNullOrEmpty(_context.Request.Path)) ? "/" : (_context.Request.Path.Length > 1) ? _context.Request.Path.TrimEnd('/') : _context.Request.Path;
-			request[HttpAdapterConstants.RequestPathSegments] = SplitPathSegments(_context.Request.Path);
-			request[HttpAdapterConstants.RequestQueryString] = NameValueCollectionToDictionary(_context.Request.Unvalidated.QueryString);
+			request[HttpAdapterConstants.RequestPath] = (string.IsNullOrEmpty(context.Request.Path)) ? "/" : (context.Request.Path.Length > 1) ? context.Request.Path.TrimEnd('/') : context.Request.Path;
+			request[HttpAdapterConstants.RequestPathSegments] = SplitPathSegments(context.Request.Path);
+			request[HttpAdapterConstants.RequestQueryString] = NameValueCollectionToDictionary(context.Request.Unvalidated.QueryString);
 			request[HttpAdapterConstants.RequestQueryStringCallback] = new Func<string, bool, string>(RequestQueryStringGetCallback);
-			request[HttpAdapterConstants.RequestCookie] = StringToDictionary(_context.Request.ServerVariables["HTTP_COOKIE"], ';', '=');
+			request[HttpAdapterConstants.RequestCookie] = StringToDictionary(context.Request.ServerVariables["HTTP_COOKIE"], ';', '=');
 
 			try
 			{
-				request[HttpAdapterConstants.RequestBody] = StringToDictionary(new StreamReader(_context.Request.InputStream).ReadToEnd(), '&', '=');				
+				request[HttpAdapterConstants.RequestBody] = StringToDictionary(new StreamReader(context.Request.InputStream).ReadToEnd(), '&', '=');
 			}
 			catch
 			{
 				request[HttpAdapterConstants.RequestBody] = null;
 			}
 
-			request[HttpAdapterConstants.RequestForm] = NameValueCollectionToDictionary(_context.Request.Unvalidated.Form);
+			request[HttpAdapterConstants.RequestForm] = NameValueCollectionToDictionary(context.Request.Unvalidated.Form);
 			request[HttpAdapterConstants.RequestFormCallback] = new Func<string, bool, string>(RequestFormGetCallback);
 			request[HttpAdapterConstants.RequestIpAddress] = GetIpAddress();
-			request[HttpAdapterConstants.RequestClientCertificate] = new X509Certificate2(_context.Request.ClientCertificate.Certificate);
+			request[HttpAdapterConstants.RequestClientCertificate] = new X509Certificate2(context.Request.ClientCertificate.Certificate);
 			request[HttpAdapterConstants.RequestFiles] = GetRequestFiles();
-			request[HttpAdapterConstants.RequestUrl] = _context.Request.Url;
-			request[HttpAdapterConstants.RequestUrlAuthority] = _context.Request.Url.Authority;
-			request[HttpAdapterConstants.RequestIdentity] = (_context.User != null) ? _context.User.Identity.Name : null;
+			request[HttpAdapterConstants.RequestUrl] = context.Request.Url;
+			request[HttpAdapterConstants.RequestUrlAuthority] = context.Request.Url.Authority;
+			request[HttpAdapterConstants.RequestIdentity] = (context.User != null) ? context.User.Identity.Name : null;
 
 			return request;
 		}
@@ -585,17 +613,17 @@ namespace AspNetAdapter
 		private Dictionary<string, object> InitializeApplicationDictionary()
 		{
 			var application = new Dictionary<string, object>();
-			var serverError = _context.Server.GetLastError();
+			var serverError = context.Server.GetLastError();
 
 			if (serverError != null)
-				_context.Server.ClearError();
+				context.Server.ClearError();
 
 			// This debug mode tells us if the assembly is in debug mode, not if the web.config is.
 			// TODO: We may want to be able to tell if the web.config is in debug mode as well if
 			//       the assembly is.
-			application[HttpAdapterConstants.DebugModeAssembly] = _debugModeAssembly;
-			application[HttpAdapterConstants.DebugModeASPNET] = _context.IsDebuggingEnabled;
-			application[HttpAdapterConstants.User] = _context.User;
+			application[HttpAdapterConstants.DebugModeAssembly] = debugModeAssembly;
+			application[HttpAdapterConstants.DebugModeASPNET] = context.IsDebuggingEnabled;
+			application[HttpAdapterConstants.User] = context.User;
 			application[HttpAdapterConstants.ApplicationSessionStoreAddCallback] = new Action<string, object>(ApplicationSessionStoreAddCallback);
 			application[HttpAdapterConstants.ApplicationSessionStoreRemoveCallback] = new Action<string>(ApplicationSessionStoreRemoveCallback);
 			application[HttpAdapterConstants.ApplicationSessionStoreGetCallback] = new Func<string, object>(ApplicationSessionStoreGetCallback);
@@ -677,14 +705,14 @@ namespace AspNetAdapter
 		{
 			// This method is based on the following example at StackOverflow:
 			// http://stackoverflow.com/questions/735350/how-to-get-a-users-client-ip-address-in-asp-net
-			var ip = _context.Request.ServerVariables["HTTP_X_FORWARDED_FOR"];
+			var ip = context.Request.ServerVariables["HTTP_X_FORWARDED_FOR"];
 
-			return (string.IsNullOrEmpty(ip)) ? _context.Request.ServerVariables["REMOTE_ADDR"] : ip.Split(',')[0];
+			return (string.IsNullOrEmpty(ip)) ? context.Request.ServerVariables["REMOTE_ADDR"] : ip.Split(',')[0];
 		}
 
 		private List<PostedFile> GetRequestFiles()
 		{
-			var postedFiles = _context.Request.Files.Cast<HttpPostedFileBase>()
+			var postedFiles = context.Request.Files.Cast<HttpPostedFileBase>()
 																.Select(x => new PostedFile
 																{
 																	ContentType = x.ContentType,
@@ -715,7 +743,7 @@ namespace AspNetAdapter
 		{
 			response.ThrowIfArgumentNull();
 
-			_timer.Stop();
+			timer.Stop();
 
 			if (!response.ContainsKey(HttpAdapterConstants.ResponseStatus))
 				response[HttpAdapterConstants.ResponseStatus] = 200;
@@ -723,9 +751,9 @@ namespace AspNetAdapter
 			if (!response.ContainsKey(HttpAdapterConstants.ResponseContentType))
 				response[HttpAdapterConstants.ResponseContentType] = "text/html";
 
-			_context.Response.AddHeader("X_FRAME_OPTIONS", "SAMEORIGIN");
-			_context.Response.StatusCode = (int)response[HttpAdapterConstants.ResponseStatus];
-			_context.Response.ContentType = response[HttpAdapterConstants.ResponseContentType].ToString();
+			context.Response.AddHeader("X_FRAME_OPTIONS", "SAMEORIGIN");
+			context.Response.StatusCode = (int)response[HttpAdapterConstants.ResponseStatus];
+			context.Response.ContentType = response[HttpAdapterConstants.ResponseContentType].ToString();
 
 			if (response.ContainsKey(HttpAdapterConstants.ResponseHeaders) &&
 					response[HttpAdapterConstants.ResponseHeaders] != null)
@@ -735,7 +763,7 @@ namespace AspNetAdapter
 				if (dictionary != null)
 				{
 					foreach (var kvp in dictionary)
-						_context.Response.AddHeader(kvp.Key, kvp.Value);
+						context.Response.AddHeader(kvp.Key, kvp.Value);
 				}
 			}
 
@@ -748,7 +776,7 @@ namespace AspNetAdapter
 
 					if (response[HttpAdapterConstants.ResponseContentType].ToString() == "text/html")
 					{
-						var seconds = (double)_timer.ElapsedTicks / Stopwatch.Frequency;
+						var seconds = (double)timer.ElapsedTicks / Stopwatch.Frequency;
 						var doc = new HtmlDocument();
 						doc.LoadHtml(result);
 						var titleNode = doc.DocumentNode.SelectSingleNode("//title//text()") as HtmlTextNode;
@@ -760,13 +788,13 @@ namespace AspNetAdapter
 						}
 					}
 
-					_context.Response.Write(result);
+					context.Response.Write(result);
 				}
 				else
 				{
 					var bytes = response[HttpAdapterConstants.ResponseBody] as byte[];
 					if (bytes != null)
-						_context.Response.BinaryWrite(bytes);
+						context.Response.BinaryWrite(bytes);
 				}
 			}
 			catch (Exception e)
@@ -783,7 +811,7 @@ namespace AspNetAdapter
 				}
 			}
 
-			_context.Response.End();
+			context.Response.End();
 		}
 
 		public void SendRedirectResponse(string path, Dictionary<string, string> headers)
@@ -791,10 +819,10 @@ namespace AspNetAdapter
 			if (headers != null)
 			{
 				foreach (var kvp in headers)
-					_context.Response.AddHeader(kvp.Key, kvp.Value);
+					context.Response.AddHeader(kvp.Key, kvp.Value);
 			}
 
-			_context.Response.Redirect(path, true);
+			context.Response.Redirect(path, true);
 		}
 
 		#region CALLBACKS
@@ -819,24 +847,24 @@ namespace AspNetAdapter
 		{
 			if (string.IsNullOrEmpty(key)) return;
 
-			_context.Application.Lock();
-			_context.Application[key] = value;
-			_context.Application.UnLock();
+			context.Application.Lock();
+			context.Application[key] = value;
+			context.Application.UnLock();
 		}
 
 		private void ApplicationSessionStoreRemoveCallback(string key)
 		{
-			if (string.IsNullOrEmpty(key) || !_context.Application.AllKeys.Contains(key)) return;
+			if (string.IsNullOrEmpty(key) || !context.Application.AllKeys.Contains(key)) return;
 
-			_context.Application.Lock();
-			_context.Application.Remove(key);
-			_context.Application.UnLock();
+			context.Application.Lock();
+			context.Application.Remove(key);
+			context.Application.UnLock();
 		}
 
 		private object ApplicationSessionStoreGetCallback(string key)
 		{
-			if (!string.IsNullOrEmpty(key) && _context.Application.AllKeys.Contains(key))
-				return _context.Application[key];
+			if (!string.IsNullOrEmpty(key) && context.Application.AllKeys.Contains(key))
+				return context.Application[key];
 
 			return null;
 		}
@@ -845,33 +873,33 @@ namespace AspNetAdapter
 		#region SESSION STATE
 		private void UserSessionStoreAddCallback(string key, object value)
 		{
-			if (_context.Session == null && string.IsNullOrEmpty(key)) return;
+			if (context.Session == null && string.IsNullOrEmpty(key)) return;
 
 			// ReSharper disable once PossibleNullReferenceException
-			_context.Session[key] = value;
+			context.Session[key] = value;
 		}
 
 		private void UserSessionStoreRemoveCallback(string key)
 		{
-			if (_context.Session == null && string.IsNullOrEmpty(key)) return;
+			if (context.Session == null && string.IsNullOrEmpty(key)) return;
 
 			// ReSharper disable once PossibleNullReferenceException
-			_context.Session.Remove(key);
+			context.Session.Remove(key);
 		}
 
 		private object UserSessionStoreGetCallback(string key)
 		{
-			if (_context.Session == null && string.IsNullOrEmpty(key)) return null;
+			if (context.Session == null && string.IsNullOrEmpty(key)) return null;
 
 			// ReSharper disable once PossibleNullReferenceException
-			return _context.Session[key];
+			return context.Session[key];
 		}
 
 		private void UserSessionStoreAbandonCallback()
 		{
-			if (_context.Session == null) return;
+			if (context.Session == null) return;
 
-			_context.Session.Abandon();
+			context.Session.Abandon();
 		}
 		#endregion
 
@@ -879,19 +907,19 @@ namespace AspNetAdapter
 		private void CacheAddCallback(string key, object value, DateTime expiresOn)
 		{
 			if (!string.IsNullOrEmpty(key))
-				_context.Cache.Insert(key, value, null, expiresOn, Cache.NoSlidingExpiration);
+				context.Cache.Insert(key, value, null, expiresOn, Cache.NoSlidingExpiration);
 		}
 
 		private object CacheGetCallback(string key)
 		{
-			return !string.IsNullOrEmpty(key) ? _context.Cache.Get(key) : null;
+			return !string.IsNullOrEmpty(key) ? context.Cache.Get(key) : null;
 		}
 
 		private void CacheRemoveCallback(string key)
 		{
 			if (string.IsNullOrEmpty(key)) return;
 
-			_context.Cache.Remove(key);
+			context.Cache.Remove(key);
 		}
 		#endregion
 
@@ -904,16 +932,16 @@ namespace AspNetAdapter
 			{
 				try
 				{
-					result = _context.Request.Form[key];
+					result = context.Request.Form[key];
 				}
 				catch
 				{
 					// <httpRuntime encoderType="Microsoft.Security.Application.AntiXssEncoder, AntiXssLibrary"/>
-					result = HttpUtility.HtmlEncode(_context.Request.Unvalidated.Form[key]);
+					result = HttpUtility.HtmlEncode(context.Request.Unvalidated.Form[key]);
 				}
 			}
 			else
-				result = _context.Request.Unvalidated.Form[key];
+				result = context.Request.Unvalidated.Form[key];
 
 			return result;
 		}
@@ -926,16 +954,16 @@ namespace AspNetAdapter
 			{
 				try
 				{
-					result = _context.Request.QueryString[key];
+					result = context.Request.QueryString[key];
 				}
 				catch
 				{
 					// <httpRuntime encoderType="Microsoft.Security.Application.AntiXssEncoder, AntiXssLibrary"/>
-					result = HttpUtility.HtmlEncode(_context.Request.Unvalidated.QueryString[key]);
+					result = HttpUtility.HtmlEncode(context.Request.Unvalidated.QueryString[key]);
 				}
 			}
 			else
-				result = _context.Request.Unvalidated.QueryString[key];
+				result = context.Request.Unvalidated.QueryString[key];
 
 			return result;
 		}
@@ -945,19 +973,19 @@ namespace AspNetAdapter
 		private void CookieAddCallback(HttpCookie cookie)
 		{
 			if (cookie != null)
-				_context.Response.Cookies.Add(cookie);
+				context.Response.Cookies.Add(cookie);
 		}
 
 		private HttpCookie CookieGetCallback(string name)
 		{
-			return _context.Request.Cookies.AllKeys.Contains(name) ? _context.Request.Cookies[name] : null;
+			return context.Request.Cookies.AllKeys.Contains(name) ? context.Request.Cookies[name] : null;
 		}
 
 		private void CookieRemoveCallback(string name)
 		{
 			if (string.IsNullOrEmpty(name)) return;
 
-			_context.Response.Cookies.Remove(name);
+			context.Response.Cookies.Remove(name);
 		}
 		#endregion
 		#endregion

@@ -2,7 +2,7 @@
 // Miranda is a tiny wiki
 //
 // Frank Hale <frankhale@gmail.com>
-// 22 November 2014
+// 26 November 2014
 //
 // LICENSE:
 //
@@ -23,6 +23,7 @@
 //
 
 using Aurora;
+using Aurora.Common;
 using Aurora.Extra;
 using Aurora.Models;
 using Aurora.Models.Massive;

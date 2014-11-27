@@ -2,12 +2,7 @@
 // Miranda is a tiny wiki
 //
 // Frank Hale <frankhale@gmail.com>
-// 17 February 2013
-//
-
-#region LICENSE - GPL version 3 <http://www.gnu.org/licenses/gpl-3.0.html>
-//
-// GNU GPLv3 quick guide: http://www.gnu.org/licenses/quick-guide-gplv3.html
+// 26 November 2014
 //
 // GNU GPLv3 license <http://www.gnu.org/licenses/gpl-3.0.html>
 //
@@ -24,7 +19,6 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
-#endregion
 
 using Aurora;
 using Aurora.Extra;
