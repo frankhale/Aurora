@@ -6,30 +6,32 @@ This is the big rethink of everything! This is probably going to take a while to
 
 ###Features
 
+- Abstracted away from the ASP.NET request and response cycle using a simple
+adapter class that also provides a middleware layer.
 - Model View Controller based
 - Apps can have a Front controller to intercept various events and perform 
-	arbitrary logic before actions are invoked.
+arbitrary logic before actions are invoked.
 - Simple tag based view engine with master pages and partial views as well as 
-	fragments.
+fragments.
 - URL parameters bind to action method parameters automatically, no fiddling 
-	with routes declarations.
+with routes declarations.
 - Posted forms binds to post models or action parameters automatically.
 - Actions can have bound parameters that are bound to actions 
-	(dependency injection)
+(dependency injection)
 - Actions can be segregated based on Get, Post, GetOrPost, Put and Delete action 
-	type and you can secure them with the ActionSecurity named parameter.
+type and you can secure them with the ActionSecurity named parameter.
 - Actions can have filters with optional filter results that bind to action 
-	parameters.  
+parameters.  
 - Actions can have aliases. Aliases can also be added dynamically at runtime 
-	along with default parameters.
+along with default parameters.
 - Bundling/Minifying of Javascript and CSS.
 - Html Helpers
 - Plugin support (can be used by apps but is not integrated at all into the 
-	framework pipeline.)
+framework pipeline.)
 - OpenID authentication which is as easy as calling two methods. One to initiate 
-	the login with the provider and then one to finalize authentication.
+the login with the provider and then one to finalize authentication.
 - Active Directory querying so you can authenticate your user against an Active 
-	Directory user. Typically for use in client certificate authentication.
+Directory user. Typically for use in client certificate authentication.
 
 ###Example Showing How To Use Aurora to Build an Application
 
@@ -38,20 +40,116 @@ source code to Miranda my wiki application.
 
 https://github.com/frankhale/Miranda
 
-###Web.config configuration
+###Usage
 
-Aurora uses a custom IHttpHandler and IHttpModule so your web.config will need 
-to contain the following:
+Aurora uses a small library which abstracts away the complexity of the ASP.NET 
+HttpRequest and HttpResponse objects. This library is called AspNetAdapter and
+is the entry point for Aurora on ASP.NET. In order to configure an ASP.NET 
+application to use AspNetAdapter you need to set the httpHandlers and 
+httpModules sections in the web.config:
 
 ```xml
-<system.webServer>
-  <handlers>
-    <add verb="*" path="*" name="AspNetAdapterHandler" type="AspNetAdapter.AspNetAdapterHandler" />
-  </handlers>
-  <modules>
-    <add type="AspNetAdapter.AspNetAdapterModule" name="AspNetAdapterModule" />
-  </modules>
-</system.webServer>
+<system.web>
+	<httpHandlers>
+		<add verb="*" path="*" validate="false" type="AspNetAdapter.AspNetAdapterHandler"/>
+	</httpHandlers>
+	<httpModules>
+		<add type="AspNetAdapter.AspNetAdapterModule" name="AspNetAdapterModule" />
+	</httpModules>
+</system.web>
+```
+
+AspNetAdapter background:  
+
+**NOTE: This information is for clarity and Aurora uses it under the hood. It's 
+not required that you know this when using Aurora.**  
+
+AspNetAdapter looks for an implementation of the IAspNetAdapterApplication 
+interface within the executing assembly. This interface is simple and you only
+need to implement the init function to hook your app into AspNetAdapter.
+
+The IAspNetAdapterApplication provides the following method:
+
+```csharp
+ void Init(Dictionary<string, object> app, 
+					 Dictionary<string, object> request, 
+					 Action<Dictionary<string, object>> response);
+```
+
+The Init() method gets an app and request dictionary. The app dictionary 
+contains callbacks for things like adding to the ASP.NET Session or getting 
+something from the Session. The request dictionary contains the information 
+you'd expect from an http request and finally the response callback takes a 
+dictionary with response values. All of the dictionary keys can be found in
+the HttpAdapterConstants class contained in the AspNetAdapter.cs file.
+
+Here is a list of all HttpAdapterConstants and what dictionary they are 
+contained in.
+
+####App dictionary
+
+DebugModeAssembly  
+DebugModeASPNET  
+User  
+ApplicationSessionStoreAddCallback   
+ApplicationSessionStoreRemoveCallback  
+ApplicationSessionStoreGetCallback  
+UserSessionStoreAddCallback  
+UserSessionStoreRemoveCallback  
+UserSessionStoreGetCallback  
+UserSessionStoreAbandonCallback  
+CacheAddCallback  
+CacheGetCallback  
+CacheRemoveCallback  
+CookieAddCallback  
+CookieGetCallback  
+CookieRemoveCallback  
+ResponseRedirectCallback  
+ServerError  
+ServerErrorStackTrace  
+
+####Request dictionary
+
+SessionId  
+ServerVariables  
+RequestScheme  
+RequestIsSecure  
+RequestHeaders  
+RequestMethod  
+RequestPathBase  
+RequestPath  
+RequestPathSegments  
+RequestQueryString  
+RequestQueryStringCallback  
+RequestCookie  
+RequestBody  	
+RequestForm  
+RequestFormCallback  
+RequestIpAddress  
+RequestClientCertificate  
+RequestFiles  
+RequestUrl  
+RequestUrlAuthority  
+RequestIdentity  
+
+Middleware:
+
+```xml
+<configSections>
+	<section name="aspNetAdapter" type="AspNetAdapter.AspNetAdapterWebConfig"/>
+</configSections>
+<aspNetAdapter>
+	<middleware>
+		<add name="Foo" type="MyApp.Foo" />
+	</middleware>
+</aspNetAdapter>
+```
+
+Additionally to the middleware you can specify the application that implements
+the IAspNetAdapterApplication interface:
+
+```xml
+<application name="Engine" type="Aurora.Engine" /> 
 ```
 
 ###Note
@@ -70,11 +168,11 @@ Here is a list of code considerations that I want to focus on:
 - The framework initialization is a bit ridiculous and needs to be looked at.
 - The middleware layer that was added hasn't been used and probably needs to be.
 - The route handling code is still a bit brittle. I'd like to make this rock 
-	solid and that is going to take some reengineering that will likely cause other
-	code to have to be changed.
+solid and that is going to take some reengineering that will likely cause other
+code to have to be changed.
 - The various framework assumptions and the way routes are processed I think 
-	needs some work to make the code more sane and to eliminate huge code blocks
-	in some of the functions.
+needs some work to make the code more sane and to eliminate huge code blocks
+in some of the functions.
 - The model layer needs some love because it is not as robust as it needs to be.
 - The view engine could stand a good looking over.
 
@@ -97,4 +195,4 @@ GNU GPL version 3 <http://www.gnu.org/licenses/gpl-3.0.html>
 ```
 
 Frank Hale &lt;frankhale@gmail.com&gt;  
-Date: 21 November 2014
+Date: 26 November 2014
