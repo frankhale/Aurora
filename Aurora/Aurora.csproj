@@ -72,8 +72,10 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Aurora\AspNetAdapter.cs" />
+    <Compile Include="Aurora\Aurora.Common.cs" />
     <Compile Include="Aurora\Aurora.cs" />
     <Compile Include="Aurora\Aurora.Extra.cs" />
+    <Compile Include="Aurora\Aurora.Rewrite.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

@@ -2,7 +2,7 @@
 // AspNetAdapter - A thin wrapper around the ASP.NET request and response 
 //								 objects.
 //
-// Updated On: 26 November 2014
+// Updated On: 27 November 2014
 //
 // Description: 
 //
@@ -193,7 +193,7 @@ namespace AspNetAdapter
 			{
 				return JsonConvert.DeserializeObject<WebJsonInfo>(File.ReadAllText(webJsonFilePath));
 			}
-			catch
+			catch (Exception ex)
 			{
 				// Yeah we are going to lose the original exception but that's okay. If 
 				// the JSON is borked then it's probably pretty apparent from looking at

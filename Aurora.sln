@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aurora", "Aurora\Aurora.csp
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Miranda", "Miranda\Miranda.csproj", "{6DC85836-D402-459F-B0B1-5C38DFB9635D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RewriteTest", "RewriteTest\RewriteTest.csproj", "{932E5F59-11D8-4E48-B6AA-10452AEA2411}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{6DC85836-D402-459F-B0B1-5C38DFB9635D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6DC85836-D402-459F-B0B1-5C38DFB9635D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{6DC85836-D402-459F-B0B1-5C38DFB9635D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{932E5F59-11D8-4E48-B6AA-10452AEA2411}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{932E5F59-11D8-4E48-B6AA-10452AEA2411}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{932E5F59-11D8-4E48-B6AA-10452AEA2411}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{932E5F59-11D8-4E48-B6AA-10452AEA2411}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

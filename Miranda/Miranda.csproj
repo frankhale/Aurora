@@ -197,6 +197,7 @@
     <None Include="Resources\Scripts\syntaxhighlighter_3.0.83\tests\.rvmrc" />
     <None Include="Resources\Scripts\syntaxhighlighter_3.0.83\tests\webrick.rb" />
     <None Include="Resources\Scripts\syntaxhighlighter_3.0.83\tests\webrick.sh" />
+    <Content Include="web.json" />
   </ItemGroup>
   <ItemGroup>
     <Service Include="{3259AA49-8AA1-44D3-9025-A0B520596A8C}" />
