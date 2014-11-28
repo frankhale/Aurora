@@ -21,6 +21,7 @@
 //
 
 using Aurora;
+using Aurora.Common;
 using Aurora.Extra;
 using Aurora.Models;
 using Aurora.Models.Massive;

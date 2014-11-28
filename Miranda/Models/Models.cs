@@ -26,6 +26,7 @@
 //
 #endregion
 
+using Aurora.Common;
 using System;
 using System.Collections.Generic;
 

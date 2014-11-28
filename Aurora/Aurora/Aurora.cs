@@ -1120,7 +1120,8 @@ namespace Aurora
 
 			RouteInfo result = null;
 
-			var routeSlice = GetRouteInfos(path).SelectMany(routeInfo => routeInfo.Aliases, (routeInfo, alias) => new { routeInfo, alias }).Where(x => path == x.alias)
+			var routeSlice = GetRouteInfos(path).SelectMany(routeInfo => routeInfo.Aliases, (routeInfo, alias) => 
+																	new { routeInfo, alias }).Where(x => path == x.alias)
 																 .OrderBy(x => x.routeInfo.Action.GetParameters().Length)
 																 .ToList();
 
