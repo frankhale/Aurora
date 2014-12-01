@@ -2,7 +2,7 @@
 // AspNetAdapter - A thin wrapper around the ASP.NET request and response 
 //								 objects.
 //
-// Updated On: 27 November 2014
+// Updated On: 30 November 2014
 //
 // Description: 
 //
@@ -157,7 +157,7 @@ namespace AspNetAdapter
 	{
 		public TypeInfo ApplicationTypeInfo { get; set; }
 		public List<TypeInfo> MiddlewareTypeInfo { get; set; }
-		public Dictionary<string,string> MimeTypes { get; set; }
+		public Dictionary<string, string> MimeTypes { get; set; }
 		public Dictionary<string, string> AppSettings { get; set; }
 		public List<string> ViewRoots { get; set; }
 		public string AllowedFilePattern { get; set; }
@@ -175,8 +175,8 @@ namespace AspNetAdapter
 
 			if (Directory.Exists(appRootPath))
 			{
-				webJsonFilePath = string.Format("{0}{1}{2}", 
-					appRootPath, 
+				webJsonFilePath = string.Format("{0}{1}{2}",
+					appRootPath,
 					Path.DirectorySeparatorChar,
 					webJsonFileName);
 
@@ -191,13 +191,14 @@ namespace AspNetAdapter
 		{
 			try
 			{
-				return JsonConvert.DeserializeObject<WebJsonInfo>(File.ReadAllText(webJsonFilePath));
+				return JsonConvert.DeserializeObject<WebJsonInfo>
+					(File.ReadAllText(webJsonFilePath));
 			}
-			catch (Exception ex)
+			catch
 			{
 				// Yeah we are going to lose the original exception but that's okay. If 
-				// the JSON is borked then it's probably pretty apparent from looking at
-				// it what needs to be fixed.
+				// the JSON is borked then it's probably pretty apparent from looking 
+				// at it what needs to be fixed.
 				throw new Exception(error);
 			}
 		}
@@ -317,8 +318,8 @@ namespace AspNetAdapter
 	#endregion
 
 	#region ASP.NET ADAPTER
-	// An application that wants to hook into ASP.NET and be sent the goodies that 
-	// the HttpContextAdapter has to offer
+	// An application that wants to hook into ASP.NET and be sent the goodies 
+	// that the HttpContextAdapter has to offer
 	public interface IAspNetAdapterApplication
 	{
 		void Init(Dictionary<string, object> app,
@@ -512,51 +513,75 @@ namespace AspNetAdapter
 			InitializeApplication(appInstance, appDictionary, requestDictionary);
 		}
 
-		private void ProcessMiddleware(Dictionary<string, object> appDictionary, Dictionary<string, object> requestDictionary)
+		private Dictionary<string, Type> GetMiddlewareTypes()
 		{
-			// Middleware in the context of AspNetAdapter is simply a class implementing the IAspNetMiddleware interface that
-			// has the ability to modify the 'app' and/or 'request' dictionaries. 
-			if (webConfig == null) return;
+			if (context.Application[AspNetMiddlewareSessionName] != null)
+				return context.Application[AspNetMiddlewareSessionName] as Dictionary<string, Type>;
 
-			var middlewareDict = new Dictionary<string, Type>();
+			var typeInfo = new List<TypeInfo>();
+			var middlewareResults = new Dictionary<string, Type>();
 
-			if (context.Application[AspNetMiddlewareSessionName] == null)
+			if (webConfig.AspNetAdapterMiddlewareCollection.Count > 0)
 			{
-				var middleware = Utility.GetAssemblies()
+				foreach (AspNetAdapterMiddlewareConfigurationElement mw in webConfig.AspNetAdapterMiddlewareCollection)
+				{
+					typeInfo.Add(new TypeInfo()
+					{
+						Name = mw.Name,
+						Type = mw.Type
+					});
+				}
+			}
+			else if (webJsonInfo != null)
+			{
+				typeInfo = webJsonInfo.MiddlewareTypeInfo.ToList();
+			}
+
+			var middleware = Utility.GetAssemblies()
 					.SelectMany(x => x.GetLoadableTypes().Where(y => y.GetInterfaces()
 						.FirstOrDefault(i => i.IsInterface &&
 																 i.UnderlyingSystemType == typeof(IAspNetAdapterMiddleware)) != null));
 
-				foreach (AspNetAdapterMiddlewareConfigurationElement mw in webConfig.AspNetAdapterMiddlewareCollection)
-				{
-					var m = middleware.FirstOrDefault(x => x.FullName == mw.Type);
+			foreach (var ti in typeInfo)
+			{
+				var m = middleware.FirstOrDefault(x => x.FullName == ti.Type);
 
-					if (m != null)
-						middlewareDict[m.FullName] = m;
-				}
+				if (m != null)
+					middlewareResults[m.FullName] = m;
+			}
 
+			if (middlewareResults.Count() > 0)
+			{
 				context.Application.Lock();
-				context.Application[AspNetMiddlewareSessionName] = middlewareDict;
+				context.Application[AspNetMiddlewareSessionName] = middlewareResults;
 				context.Application.UnLock();
 			}
-			else
-				middlewareDict = context.Application[AspNetMiddlewareSessionName] as Dictionary<string, Type>;
 
-			if (middlewareDict == null) return;
+			return middlewareResults;
+		}
 
-			foreach (AspNetAdapterMiddlewareConfigurationElement mw in webConfig.AspNetAdapterMiddlewareCollection)
+		private void ProcessMiddleware(Dictionary<string, object> appDictionary, 
+			Dictionary<string, object> requestDictionary)
+		{
+			// Middleware in the context of AspNetAdapter is simply a class 
+			// implementing the IAspNetMiddleware interface that has the ability to 
+			// modify the 'app' and/or 'request' dictionaries. 
+						
+			var middlewareTypes = GetMiddlewareTypes();
+
+			if (middlewareTypes.Count() == 0) return;
+
+			foreach (var mw in middlewareTypes)
 			{
-				var m = middlewareDict[mw.Type];
-				if (m == null) continue;
+				var mwin = 
+					(IAspNetAdapterMiddleware)Activator.CreateInstance(mw.Value);
+				var result = mwin.Transform(appDictionary, requestDictionary);
 
-				// The big question is, should this instance be cached?
-				var min = (IAspNetAdapterMiddleware)Activator.CreateInstance(m);
-				var result = min.Transform(appDictionary, requestDictionary);
-
-				if (result == null) continue;
-
-				appDictionary = result.App;
-				requestDictionary = result.Request;
+				if (result != null)
+				{
+					appDictionary = result.App;
+					requestDictionary = result.Request;
+				}
 			}
 		}
 

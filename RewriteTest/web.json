@@ -1,6 +1,9 @@
 {
-	"AllowedFilePattern": "^.*\\.(js|css|png|jpg|gif|ico|pptx|xlsx|csv|txt)$",
-	"ApplicationTypeInfo": { "Name": "Engine", "Type": "Aurora.Engine" },
+    "AllowedFilePattern": "^.*\\.(js|css|png|jpg|gif|ico|pptx|xlsx|csv|txt)$",
+    "ApplicationTypeInfo": { "Name": "Engine", "Type": "Aurora.Engine" },
+    "MiddlewareTypeInfo": [ 
+        { "Name":  "RouteDiscovery", "Type":  "Aurora.Middleware.RouteDiscovery" }
+    ],
 	"MimeTypes": {
 		".js": "application/x-javascript",
 		".css": "text/css",

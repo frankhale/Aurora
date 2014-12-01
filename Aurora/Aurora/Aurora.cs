@@ -1,7 +1,7 @@
 ﻿//
 // Aurora - An MVC web framework for .NET
 //
-// Updated On: 27 November 2014
+// Updated On: 30 November 2014
 //
 // Source Code Location:
 //
@@ -1612,16 +1612,6 @@ namespace Aurora
 	}
 	#endregion
 	
-	#region ACTION BINDINGS
-	// objects can be bound to the parameter list of an action. These objects can optionally
-	// implement this interface and the Initialize(RouteInfo) method will be called each time
-	// an action using the bound object. 
-	public interface IBoundToAction
-	{
-		void Initialize(RouteInfo routeInfo);
-	}
-	#endregion
-
 	#region MODEL
 	// Models in the sense of Aurora are more of an intermediate mechanism in order to transition
 	// from one state to another. For instance from a form post to an action so that all parameters
