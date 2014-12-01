@@ -124,42 +124,42 @@ namespace Wiki.Infrastructure.Core
 
 		public void Abandon(RouteInfo routeInfo)
 		{
-			routeInfo.Controller.AddSession("UPAuth", null);
+			//routeInfo.Controller.AddSession("UPAuth", null);
 		}
 
 		public void Initialize(RouteInfo routeInfo)
 		{
-			var alreadyLoggedIn = routeInfo.Controller.GetSession("UPAuth") as UserNameAndPasswordAuthentication;
+		//	var alreadyLoggedIn = routeInfo.Controller.GetSession("UPAuth") as UserNameAndPasswordAuthentication;
 
-			if (alreadyLoggedIn != null)
-			{
-				Authenticated = alreadyLoggedIn.Authenticated;
-				Identifier = alreadyLoggedIn.Identifier;
-				Name = alreadyLoggedIn.Name;
-			}
+		//	if (alreadyLoggedIn != null)
+		//	{
+		//		Authenticated = alreadyLoggedIn.Authenticated;
+		//		Identifier = alreadyLoggedIn.Identifier;
+		//		Name = alreadyLoggedIn.Name;
+		//	}
 
-			if (routeInfo.ActionUrlParams.Length > 0)
-			{
-				var dc = routeInfo.ActionUrlParams.FirstOrDefault(x => x.GetType().GetInterface("IData", true) != null) as IData;
-				var upw = routeInfo.ActionUrlParams.FirstOrDefault(x => x != null && x.GetType() == typeof(UnameAndPassword)) as UnameAndPassword;
+		//	if (routeInfo.ActionUrlParams.Length > 0)
+		//	{
+		//		var dc = routeInfo.ActionUrlParams.FirstOrDefault(x => x.GetType().GetInterface("IData", true) != null) as IData;
+		//		var upw = routeInfo.ActionUrlParams.FirstOrDefault(x => x != null && x.GetType() == typeof(UnameAndPassword)) as UnameAndPassword;
 
-				if (upw != null && dc != null)
-				{
-					WikiUser u = dc.GetUserByUserName(upw.UserName);
+		//		if (upw != null && dc != null)
+		//		{
+		//			WikiUser u = dc.GetUserByUserName(upw.UserName);
 
-					// The password checking is better than it was. We'll use SHA1 hashes of the 
-					// password for now.
-					if (u != null && u.Identifier == upw.Password.CalculateSHA1Sum() &&
-							u.UserName == upw.UserName)
-					{
-						Authenticated = true;
-						Name = u.UserName;
-						Identifier = "hidden";
+		//			// The password checking is better than it was. We'll use SHA1 hashes of the 
+		//			// password for now.
+		//			if (u != null && u.Identifier == upw.Password.CalculateSHA1Sum() &&
+		//					u.UserName == upw.UserName)
+		//			{
+		//				Authenticated = true;
+		//				Name = u.UserName;
+		//				Identifier = "hidden";
 
-						routeInfo.Controller.AddSession("UPAuth", this);
-					}
-				}
-			}
+		//				routeInfo.Controller.AddSession("UPAuth", this);
+		//			}
+		//		}
+		//	}
 		}
 	}
 #elif OPENAUTH

@@ -55,14 +55,14 @@ namespace Wiki.Controllers
 
 		void Wiki_PreActionEvent(object sender, RouteHandlerEventArgs e)
 		{
-			ViewBag.appTitle = ConfigurationManager.AppSettings["title"];
+			//ViewBag.appTitle = ConfigurationManager.AppSettings["title"];
 
-			if (CurrentUser == null) return;
+			//if (CurrentUser == null) return;
 
-			ViewBag.currentUser = CurrentUser.Name;
-			ViewBag.logOff = new HtmlAnchor("/Logoff", "[Logoff]").ToString();
+			//ViewBag.currentUser = CurrentUser.Name;
+			//ViewBag.logOff = new HtmlAnchor("/Logoff", "[Logoff]").ToString();
 		}
-		
+
 		#region LOGON / LOGOFF
 #if USERPASS
 		[Http(ActionType.GetOrPost, "/Logon")]
@@ -71,7 +71,7 @@ namespace Wiki.Controllers
 			if (auth.Authenticated)
 			{
 				var user = dc.GetUserByUserName(auth.Name);
-				
+
 				if (user != null)
 				{
 					LogOn(user.UserName, new string[] { "Admin" }, user);
@@ -84,11 +84,11 @@ namespace Wiki.Controllers
 			}
 			else
 			{
-				if (RequestType == "post")
-					ViewBag.message = "Username and Password are required fields.";
+				//if (RequestType == "post")
+				//	ViewBag.message = "Username and Password are required fields.";
 
-				//ViewBag.logonForm = new HtmlUserNameAndPasswordForm(this, "/Logon", ConfigurationManager.AppSettings["appName"], CreateAntiForgeryToken()).ToString(); 
-				ViewBag.logonForm = RenderFragment("UserNameAndPasswordForm");
+				////ViewBag.logonForm = new HtmlUserNameAndPasswordForm(this, "/Logon", ConfigurationManager.AppSettings["appName"], CreateAntiForgeryToken()).ToString(); 
+				//ViewBag.logonForm = RenderFragment("UserNameAndPasswordForm");
 			}
 
 			return View();
@@ -175,10 +175,12 @@ namespace Wiki.Controllers
 		[Http(ActionType.Get, "/Index", ActionSecurity.Secure, RedirectWithoutAuthorizationTo = "/Logon", Roles = "User|Admin")]
 		public ViewResult Index(Authentication auth, IData dc)
 		{
-			ViewBag.currentUser = CurrentUser.Name;
-			ViewBag.content = /*WikiList(dc);*/ WikiGroupList(dc);
+			//ViewBag.currentUser = CurrentUser.Name;
+			//ViewBag.content = /*WikiList(dc);*/ WikiGroupList(dc);
 
-			return View();
+			//return View();
+
+			throw new NotImplementedException();
 		}
 
 		[Http(ActionType.Get, "/Add", ActionSecurity.Secure, RedirectWithoutAuthorizationTo = "/Logon", Roles = "Admin")]
@@ -310,87 +312,87 @@ namespace Wiki.Controllers
 		[Http(ActionType.Post, "/Save", ActionSecurity.Secure, RedirectWithoutAuthorizationTo = "/Logon", Roles = "Admin")]
 		public void Save(Authentication auth, IData dc, PageData data)
 		{
-			if (data.IsValid)
-			{
-				var u = CurrentUser.ArcheType as WikiUser;
-				var edit = false;
+			//if (data.IsValid)
+			//{
+			//	var u = CurrentUser.ArcheType as WikiUser;
+			//	var edit = false;
 
-				WikiPage p;
+			//	WikiPage p;
 
-				if (data.ID != null)
-				{
-					p = dc.GetPage(data.ID.Value);
+			//	if (data.ID != null)
+			//	{
+			//		p = dc.GetPage(data.ID.Value);
 
-					if (p == null)
-						p = new WikiPage();
-					else
-						edit = true;
-				}
-				else
-					p = new WikiPage();
+			//		if (p == null)
+			//			p = new WikiPage();
+			//		else
+			//			edit = true;
+			//	}
+			//	else
+			//		p = new WikiPage();
 
-				if (u != null) p.AuthorID = u.ID;
-				p.Body = data.Data;
-				p.ModifiedOn = DateTime.Now;
-				p.Title = data.Title;
+			//	if (u != null) p.AuthorID = u.ID;
+			//	p.Body = data.Data;
+			//	p.ModifiedOn = DateTime.Now;
+			//	p.Title = data.Title;
 
-				if (!edit)
-				{
-					p.CreatedOn = DateTime.Now;
+			//	if (!edit)
+			//	{
+			//		p.CreatedOn = DateTime.Now;
 
-					Func<string, string> aliasify = delegate(string s)
-					{
-						s = MatchSpecialCharacters.Replace(s, string.Empty).Trim();
-						s = MatchWhitespaces.Replace(s, "-");
+			//		Func<string, string> aliasify = delegate(string s)
+			//		{
+			//			s = MatchSpecialCharacters.Replace(s, string.Empty).Trim();
+			//			s = MatchWhitespaces.Replace(s, "-");
 
-						return s;
-					};
+			//			return s;
+			//		};
 
-					p.Alias = aliasify(data.Title);
+			//		p.Alias = aliasify(data.Title);
 
-					dc.AddPage(p);
-				}
-				else
-					dc.UpdatePage(p);
+			//		dc.AddPage(p);
+			//	}
+			//	else
+			//		dc.UpdatePage(p);
 
-				// DO TAG related things here
-				dc.DeletePageTags(p);
+			//	// DO TAG related things here
+			//	dc.DeletePageTags(p);
 
-				if (!string.IsNullOrEmpty(data.Tags))
-				{
-					var allTags = dc.GetAllTags().Select(x => x.Name).ToList();
-					var incomingTags = data.Tags.Split(',').ToList();
+			//	if (!string.IsNullOrEmpty(data.Tags))
+			//	{
+			//		var allTags = dc.GetAllTags().Select(x => x.Name).ToList();
+			//		var incomingTags = data.Tags.Split(',').ToList();
 
-					if (incomingTags.Any())
-					{
-						var tagDiffs = (allTags.Any()) ? incomingTags.Except(allTags) : incomingTags;
+			//		if (incomingTags.Any())
+			//		{
+			//			var tagDiffs = (allTags.Any()) ? incomingTags.Except(allTags) : incomingTags;
 
-						if (tagDiffs.Any())
-						{
-							foreach (var t in tagDiffs)
-								dc.AddTag(t);
-						}
+			//			if (tagDiffs.Any())
+			//			{
+			//				foreach (var t in tagDiffs)
+			//					dc.AddTag(t);
+			//			}
 
-						foreach (var it in incomingTags)
-						{
-							dc.AddPageTag(p, it);
-						}
-					}
-				}
+			//			foreach (var it in incomingTags)
+			//			{
+			//				dc.AddPageTag(p, it);
+			//			}
+			//		}
+			//}
 
-				var alias = "/" + p.Alias;
+			//var alias = "/" + p.Alias;
 
-				if (!GetAllRouteAliases().Contains(alias))
-					AddRoute(alias, "Wiki", "Show", p.ID.ToString());
+			//if (!GetAllRouteAliases().Contains(alias))
+			//	AddRoute(alias, "Wiki", "Show", p.ID.ToString());
 
-				Redirect(alias);
-				return;
-			}
+			//Redirect(alias);
+			//return;
+			//}
 
-			if (!string.IsNullOrEmpty(data.Error))
-				ViewBag.error = data.Error.NewLinesToBR() + "<hr />";
+			//if (!string.IsNullOrEmpty(data.Error))
+			//	ViewBag.error = data.Error.NewLinesToBR() + "<hr />";
 
-			Redirect("/Index");
+			//Redirect("/Index");
 		}
 
 		[Http(ActionType.Get, "/About", ActionSecurity.Secure, RedirectWithoutAuthorizationTo = "/Logon", Roles = "User|Admin")]
@@ -424,7 +426,8 @@ namespace Wiki.Controllers
 			}
 			else
 			{
-				return String.Join(" | ", (from p in titles let alias = "/" + p.Alias 
+				return String.Join(" | ", (from p in titles
+																	 let alias = "/" + p.Alias
 																	 select string.Format("<a href=\"/{0}\">{1}</a>", p.Alias.ToURLEncodedString(), p.Title)).ToArray());
 			}
 		}
@@ -443,8 +446,8 @@ namespace Wiki.Controllers
 			{
 				foreach (var r in p)
 				{
-					var pageLinks = r.Item2.Split(',').Select(id => 
-						dc.GetPage(Convert.ToInt32(id))).Select(page => 
+					var pageLinks = r.Item2.Split(',').Select(id =>
+						dc.GetPage(Convert.ToInt32(id))).Select(page =>
 							string.Format("<a href=\"/Show/{0}\">{1}</a>", page.ID, page.Title)).ToList();
 
 					FragBag.TagGroup.tag = r.Item1 ?? "Untagged";

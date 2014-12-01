@@ -1,6 +1,6 @@
 ﻿// 
 // Frank Hale <frankhale@gmail.com>
-// 30 November 2014
+// 1 December 2014
 //
 
 using AspNetAdapter;
@@ -16,12 +16,12 @@ namespace Aurora.Middleware
 	public class RouteDiscovery : IAspNetAdapterMiddleware
 	{
 		public static string ApplicationRoutes = "ApplicationRoutes";
-		public static string ApplicationRoutesSessionName = "__APPLICATION_ROUTES__";
+		public static string ApplicationRoutesSessionName = "__APPLICATION_ROUTES__";		
 
 		public MiddlewareResult Transform(Dictionary<string, object> app, Dictionary<string, object> request)
 		{
 			var callbacks = new AspNetAdapterCallbacks(app, request);
-			var applicationRoutes = callbacks.GetApplication(ApplicationRoutesSessionName) as List<RouteInfo2>;
+			var applicationRoutes = callbacks.GetApplication(ApplicationRoutesSessionName) as List<RouteInfo>;
 
 			if (applicationRoutes == null)
 			{

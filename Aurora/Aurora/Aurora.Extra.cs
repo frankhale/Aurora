@@ -1,7 +1,7 @@
 ﻿//
 // Aurora.Extra - Additional bits that may be useful in your applications      
 //
-// Updated On: 30 March 2014
+// Updated On: 1 December 2014
 //
 // Contact Info:
 //
@@ -37,6 +37,7 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
+using Aurora.Common;
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
@@ -875,50 +876,55 @@ namespace Aurora.Extra
 	#region SPECIALIZED HELPERS
 	public class HtmlHelperTest : HtmlBase
 	{
-		public HtmlHelperTest(Controller c)
+		//FIXME: AddHelperBundle is undefined
+		public HtmlHelperTest(IController c)
 		{
-			const string css = @"
-.foobar 
-{ 
-	margin-top: 10px;
-	border: 2px solid red; 
-}";
+//			const string css = @"
+//.foobar 
+//{ 
+//	margin-top: 10px;
+//	border: 2px solid red; 
+//}";
 
-			c.AddHelperBundle("HtmlHelperTest.css", css);
+//			c.AddHelperBundle("HtmlHelperTest.css", css);
 		}
 
+		//FIXME: ToString is commented out
 		public override string ToString()
 		{
-			return "<span class=\"foobar\">Hello, World!</span>";
+			throw new NotImplementedException();
+
+			//return "<span class=\"foobar\">Hello, World!</span>";
 		}
 	}
 
 	public class HtmlUserNameAndPasswordForm : HtmlBase
 	{
-		private Controller _controller;
+		private IController _controller;
 		private readonly string _loginAlias;
 		private readonly string _applicationTitle;
 		private readonly string _antiForgeryToken;
 
-
-		public HtmlUserNameAndPasswordForm(Controller c, string loginAlias, string applicationTitle, string antiForgeryToken)
+		//FIXME: AddHelperBundle is undefined
+		public HtmlUserNameAndPasswordForm(IController c, string loginAlias, string applicationTitle, string antiForgeryToken)
 		{
 			_controller = c;
 			_loginAlias = loginAlias;
 			_applicationTitle = applicationTitle;
 			_antiForgeryToken = antiForgeryToken;
 
-			const string css = @"
-.userNameAndPassword {
-	margin: 0 auto; 
-	width: 155px;  
-	text-align: center;  
-}
-";
+//			const string css = @"
+//.userNameAndPassword {
+//	margin: 0 auto; 
+//	width: 155px;  
+//	text-align: center;  
+//}
+//";
 		
-			_controller.AddHelperBundle("HtmlUserNameAndPasswordForm.css", css);
+//			_controller.AddHelperBundle("HtmlUserNameAndPasswordForm.css", css);
 		}
 
+		//FIXME: ToString is commented out
 		public override string ToString()
 		{
 			//TODO: The AntiForgeryToken is never going to be rendered because this helper does not
@@ -930,20 +936,22 @@ namespace Aurora.Extra
 			//			ARGH! If the view engine ever supports arbitrary strings passing through then
 			//			it'll likely take a rewrite of the view engine to make that a reality! DAMNIT!
 
-			return
-string.Format(@"
-<div class=""userNameAndPassword"">
-	<h1>{0}</h1>
-	<form action=""{1}"" method=""post"">
-		<input type=""hidden"" name=""AntiForgeryToken"" value=""{2}"" />
-		<table>
-		<tr><td>UserName:<br /><input type=""text"" name=""UserName"" id=""UserName"" /></td></tr>
-		<tr><td>Password:<br /><input type=""password"" name=""Password"" id=""Password"" /></td></tr>
-		<tr><td><input type=""submit"" value=""Login"" /></td></tr>
-		</table>
-	</form>
-</div>
-", _applicationTitle, _loginAlias, _antiForgeryToken);
+//			return
+//string.Format(@"
+//<div class=""userNameAndPassword"">
+//	<h1>{0}</h1>
+//	<form action=""{1}"" method=""post"">
+//		<input type=""hidden"" name=""AntiForgeryToken"" value=""{2}"" />
+//		<table>
+//		<tr><td>UserName:<br /><input type=""text"" name=""UserName"" id=""UserName"" /></td></tr>
+//		<tr><td>Password:<br /><input type=""password"" name=""Password"" id=""Password"" /></td></tr>
+//		<tr><td><input type=""submit"" value=""Login"" /></td></tr>
+//		</table>
+//	</form>
+//</div>
+//", _applicationTitle, _loginAlias, _antiForgeryToken);
+
+			throw new NotImplementedException();
 		}
 	}
 	#endregion

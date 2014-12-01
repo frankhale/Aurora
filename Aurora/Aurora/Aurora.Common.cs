@@ -1,6 +1,8 @@
-﻿// 
+﻿//
+// Common classes used to implement the next generation of Aurora 
+// 
 // Frank Hale <frankhale@gmail.com>
-// 30 November 2014
+// 1 December 2014
 //
 
 using AspNetAdapter;
@@ -18,6 +20,8 @@ using System.Web;
 
 namespace Aurora.Common
 {
+	public interface IController { }
+
 	#region ATTRIBUTES
 	// FromRedirectOnly is a special action type that denotes that the action 
 	// cannot normally be navigated to. Instead, another action has to redirect to 
@@ -249,13 +253,6 @@ namespace Aurora.Common
 	{
 		void Initialize(RouteInfo routeInfo);
 	}
-
-	// This notion of adding a 2 onto this interface and RouteInfo will go away
-	// in time. 
-	public interface IBoundToAction2
-	{
-		void Initialize(RouteInfo2 routeInfo);
-	}
 	#endregion
 
 	#region HELPERS
@@ -275,22 +272,11 @@ namespace Aurora.Common
 
 			return Utility.GetAssemblies()
 							.SelectMany(x => x.GetLoadableTypes()
-							.AsParallel()
-							.Where(y => y.IsClass && y.BaseType == t)).ToList();
-		}
-
-		public static Type GetTypeByTypeAndName(Type t, string name)
-		{
-			t.ThrowIfArgumentNull();
-			name.ThrowIfArgumentNull();
-
-			return Utility.GetAssemblies()
-							.SelectMany(x => x.GetLoadableTypes()
-							.AsParallel()
-							.Where(y => y.IsClass &&
-													y.BaseType == t &&
-													y.Name == name))
-							.FirstOrDefault();
+																.AsParallel()
+																.Where(y => y.IsClass && 
+																					 !y.IsAbstract && 
+																					 (y.BaseType == t || t.IsAssignableFrom(y))))
+							.ToList();
 		}
 
 		public static List<string> GetControllerActionNames(string controllerName)
@@ -298,7 +284,7 @@ namespace Aurora.Common
 			controllerName.ThrowIfArgumentNull();
 
 			var result = new List<string>();
-			var controller = GetTypeList(typeof(Controller)).FirstOrDefault(x =>
+			var controller = GetTypeList(typeof(IController)).FirstOrDefault(x =>
 				x.Name == controllerName);
 
 			if (controller != null)
@@ -312,19 +298,6 @@ namespace Aurora.Common
 			}
 
 			return result;
-		}
-
-		public static FrontController GetFrontControllerInstance()
-		{
-			/*FrontController result = null;
-			var fcType = GetTypeList(typeof(FrontController)).FirstOrDefault();
-
-			if (fcType != null)
-				result = FrontController.CreateInstance(fcType, this);
-
-			return result;*/
-
-			throw new NotImplementedException();
 		}
 	}
 	#endregion
@@ -471,12 +444,222 @@ namespace Aurora.Common
 	}
 	#endregion
 
+	#region MODEL
+	// Models in the sense of Aurora are more of an intermediate mechanism in order to transition
+	// from one state to another. For instance from a form post to an action so that all parameters
+	// are grouped into a model instance or from a collection to a view for instance when using
+	// the HTMLTable helper. 
+	//
+	// Models have the obligatory set of property validators, Required, Required Length, Regular Expression
+	// and Range attributes.
+	public abstract class Model
+	{
+		[Hidden]
+		public bool IsValid { get; private set; }
+		[Hidden]
+		public string Error { get; private set; }
+
+		private static bool ValidateRequiredLengthAttribute(RequiredLengthAttribute requiredLengthAttribute, PropertyInfo property, object value, out string error)
+		{
+			var result = false;
+			error = string.Empty;
+
+			if (requiredLengthAttribute != null)
+			{
+				var sValue = value as string;
+
+				if (!string.IsNullOrEmpty(sValue))
+					result = (sValue.Length >= requiredLengthAttribute.Length) ? true : false;
+			}
+
+			if (!result)
+				error = string.Format("{0} has a required length that was not met", property.Name);
+
+			return result;
+		}
+
+		private static bool ValidateRequiredAttribute(RequiredAttribute requiredAttribute, PropertyInfo property, object value, out string error)
+		{
+			var result = false;
+			error = string.Empty;
+
+			if (requiredAttribute != null)
+			{
+				if (value is string)
+					result = (!string.IsNullOrEmpty(value as string)) ? true : false;
+				else if (value != null)
+					result = true;
+				else
+					result = false;
+			}
+
+			if (!result)
+				error = string.Format("{0} is a required field", property.Name);
+
+			return result;
+		}
+
+		private static bool ValidateRegularExpressionAttribute(RegularExpressionAttribute regularExpressionAttribute, PropertyInfo property, object value, out string error)
+		{
+			var result = false;
+			error = string.Empty;
+
+			if (regularExpressionAttribute != null)
+			{
+				var sValue = value as string;
+
+				if (!string.IsNullOrEmpty(sValue))
+					result = (regularExpressionAttribute.Pattern.IsMatch(sValue)) ? true : false;
+				else
+					result = false;
+			}
+
+			if (!result)
+				error = string.Format("{0} did not pass regular expression validation", property.Name);
+
+			return result;
+		}
+
+		private static bool ValidateRangeAttribute(RangeAttribute rangeAttribute, PropertyInfo property, object value, out string error)
+		{
+			var result = false;
+			error = string.Empty;
+
+			if (rangeAttribute != null)
+			{
+				if (value.GetType().IsAssignableFrom(typeof(Int64)))
+					result = (((Int64)value).InRange(rangeAttribute.Min, rangeAttribute.Max)) ? true : false;
+				else
+					result = false;
+			}
+
+			if (!result)
+				error = string.Format("{0} was not within the range specified", property.Name);
+
+			return result;
+		}
+
+		internal void Validate(Dictionary<string, string> form)
+		{
+			var results = new List<bool>();
+			var errors = new StringBuilder();
+
+			foreach (var pi in GetPropertiesWithExclusions(GetType(), false))
+			{
+				var requiredAttribute = (RequiredAttribute)pi.GetCustomAttributes(false).FirstOrDefault(x => x is RequiredAttribute);
+				var requiredLengthAttribute = (RequiredLengthAttribute)pi.GetCustomAttributes(false).FirstOrDefault(x => x is RequiredLengthAttribute);
+				var regularExpressionAttribute = (RegularExpressionAttribute)pi.GetCustomAttributes(false).FirstOrDefault(x => x is RegularExpressionAttribute);
+				var rangeAttribute = (RangeAttribute)pi.GetCustomAttributes(false).FirstOrDefault(x => x is RangeAttribute);
+
+				var value = pi.GetValue(this, null);
+
+				#region REQUIRED
+				if (requiredAttribute != null)
+				{
+					if (form.Keys.FirstOrDefault(x => x == pi.Name) != null)
+					{
+						string error;
+
+						var requiredResult = ValidateRequiredAttribute(requiredAttribute, pi, value, out error);
+
+						results.Add(requiredResult);
+
+						if (!string.IsNullOrEmpty(error))
+							errors.AppendLine(error);
+					}
+				}
+				#endregion
+
+				#region REQUIRED LENGTH
+				if (requiredLengthAttribute != null)
+				{
+					string error;
+
+					var requiredLengthResult = ValidateRequiredLengthAttribute(requiredLengthAttribute, pi, value, out error);
+
+					results.Add(requiredLengthResult);
+
+					if (!string.IsNullOrEmpty(error))
+						errors.AppendLine(error);
+				}
+				#endregion
+
+				#region REGULAR EXPRESSION
+				if (regularExpressionAttribute != null)
+				{
+					string error;
+
+					var regularExpressionResult = ValidateRegularExpressionAttribute(regularExpressionAttribute, pi, value, out error);
+
+					results.Add(regularExpressionResult);
+
+					if (!string.IsNullOrEmpty(error))
+						errors.AppendLine(error);
+				}
+				#endregion
+
+				#region RANGE
+				if (rangeAttribute != null)
+				{
+					string error;
+
+					var rangeResult = ValidateRangeAttribute(rangeAttribute, pi, value, out error);
+
+					results.Add(rangeResult);
+
+					if (!string.IsNullOrEmpty(error))
+						errors.AppendLine(error);
+				}
+				#endregion
+			}
+
+			if (errors.Length > 0)
+				Error = errors.ToString();
+
+			var finalResult = results.Where(x => x == false);
+
+			IsValid = (!finalResult.Any());
+		}
+
+		internal static List<PropertyInfo> GetPropertiesNotRequiredToPost(Type t)
+		{
+			if (t.BaseType != typeof(Model)) return null;
+
+			var props = GetPropertiesWithExclusions(t, true).Where(x => x.GetCustomAttributes(false).FirstOrDefault(y => y is NotRequiredAttribute) == null);
+
+			return props.ToList();
+		}
+
+		internal static List<PropertyInfo> GetPropertiesWithExclusions(Type t, bool postedFormBinding)
+		{
+			if (t.BaseType != typeof(Model)) return null;
+
+			var props = t.GetProperties().Where(x => x.GetCustomAttributes(false).FirstOrDefault(y => y is HiddenAttribute) == null);
+
+			if (postedFormBinding)
+				props = props.Where(x => x.GetCustomAttributes(false).FirstOrDefault(y => y is ExcludeFromBindingAttribute) == null);
+
+			return props.ToList();
+		}
+	}
+	#endregion
+
 	#region ROUTING
 	
 	// This contains all the information necessary to associate a route with a 
 	// controller method this also contains extra information pertaining to 
 	// parameters we may want to pass the method at the time of invocation.
-	public class RouteInfo2
+	//
+	// The route discovery methods only find populate the RouteInfo2 classes
+	// with the basic information it can gleam from the controller classes. 
+	// The list of RouteInfos will need to pass through another function to 
+	// populate things like bound params and such. Additionally dynamic routes
+	// will need to be added later. 
+	//
+	// This class serves to pull out the common aspects of route discovery.
+	// The find methods will take into account all of the various bits of data
+	// present in the RouteInfos.
+	public class RouteInfo
 	{
 		// A list of string aliases eg. /Index, /Foo, /Bar that we want to use in 
 		// order to navigate from a URL to the controller action that it represents.
@@ -487,18 +670,21 @@ namespace Aurora.Common
 		// The parameters passed in the URL eg. anything that is not the alias or 
 		// querystring action parameters are delimited like:
 		// /alias/param1/param2/param3
-		public object[] UrlParams { get; internal set; }
+		public object[] ActionUrlParams { get; internal set; }
 		// The parameters that are bound to this action that are declared in an 
 		// OnInit handler.
 		public object[] BoundParams { get; internal set; }
 		// Default parameters are used if you want to mask a more complex URL with 
 		// just an alias.
 		public object[] DefaultParams { get; internal set; }
+		// Parameters that are bound to this action. These are basically like a 
+		// poor mans dependency injection.
 		public IBoundToAction[] BoundToActionParams { get; internal set; }
-		//public List<Tuple<ActionParameterTransformAttribute, int>> 
-		//	ActionParamTransforms { get; internal set; }
-		//public Dictionary<string, object> CachedActionParamTransformInstances 
-		//	{ get; internal set; }
+		// Parameters may come in as a string or an int that need to be transformed
+		// into a more complex type. These denote that a parameter needs to be 
+		// transformed before the action is invoked.
+		public List<Tuple<ActionParameterTransformAttribute, int>> ActionParamTransforms { get; internal set; }
+		public Dictionary<string, object> CachedActionParamTransformInstances { get; internal set; }
 		// Routes that are created by the framework are not dynamic. Dynamic routes 
 		// are created in the controller by the end user.
 		public bool Dynamic { get; internal set; }
@@ -510,27 +696,18 @@ namespace Aurora.Common
 	// It's the responsbility of the consumer to manage any residual state.
 	internal static class Routing
 	{
-		public static RouteInfo2 FindRoute(List<RouteInfo2> routeInfos, string path)
+		public static RouteInfo FindRoute(List<RouteInfo> routeInfos, string path)
 		{
 			throw new NotImplementedException();
 		}
 
-		public static RouteInfo2 FindRoute(List<RouteInfo2> routeInfos, string path, string[] urlParameters)
+		public static List<RouteInfo> GetRoutesForController(Type controller)
 		{
-			throw new NotImplementedException();
-		}
-
-		public static List<RouteInfo2> GetRoutesForController(string controllerName)
-		{
-			var controller =
-				ReflectionHelpers.GetTypeByTypeAndName(typeof(Aurora.Rewrite.Controller),
-				controllerName);
-
 			var actions = controller.GetMethods()
 				.Where(x => x.GetCustomAttributes(typeof(HttpAttribute), false).Any())
 				.ToList();
 
-			var results = new List<RouteInfo2>();
+			var results = new List<RouteInfo>();
 
 			if (actions != null)
 			{
@@ -558,14 +735,14 @@ namespace Aurora.Common
 			return results;
 		}
 
-		public static List<RouteInfo2> GetAllRoutesForAllControllers()
+		public static List<RouteInfo> GetAllRoutesForAllControllers()
 		{
-			var results = new List<RouteInfo2>();
-			var controllers = ReflectionHelpers.GetTypeList(typeof(Aurora.Rewrite.Controller));
+			var results = new List<RouteInfo>();
+			var controllers = ReflectionHelpers.GetTypeList(typeof(IController));
 
 			foreach (var c in controllers)
 			{
-				var routes = GetRoutesForController(c.Name);
+				var routes = GetRoutesForController(c);
 
 				if (routes.Count() > 0)
 					results.AddRange(routes);
@@ -574,12 +751,12 @@ namespace Aurora.Common
 			return results;
 		}
 
-		private static RouteInfo2 CreateRoute(Type controller, MethodInfo action, List<string> aliases, string defaultParams, bool dynamic)
+		private static RouteInfo CreateRoute(Type controller, MethodInfo action, List<string> aliases, string defaultParams, bool dynamic)
 		{
 			controller.ThrowIfArgumentNull();
 			action.ThrowIfArgumentNull();
 
-			var result = new RouteInfo2()
+			var result = new RouteInfo()
 			{
 				Aliases = aliases,
 				Action = action,
@@ -592,17 +769,17 @@ namespace Aurora.Common
 			return result;
 		}
 
-		public static RouteInfo2 CreateRoute(string alias, string controllerName, string actionName, string defaultParams, bool dynamic)
+		public static RouteInfo CreateRoute(string alias, string controllerName, string actionName, string defaultParams, bool dynamic)
 		{
 			throw new NotImplementedException();
 		}
 
-		public static void RemoveRoute(List<RouteInfo2> routeInfos, string alias)
+		public static void RemoveRoute(List<RouteInfo> routeInfos, string alias)
 		{
 			throw new NotImplementedException();
 		}
 
-		public static void RemoveRoute(List<RouteInfo2> routeInfos, string alias, string controllerName, string actionName)
+		public static void RemoveRoute(List<RouteInfo> routeInfos, string alias, string controllerName, string actionName)
 		{
 			throw new NotImplementedException();
 		}
