@@ -79,21 +79,35 @@ namespace Aurora
 		public static readonly string CompiledViewsCacheFileName = "viewsCache.json";
 		public static readonly string AntiForgeryTokenName = "AntiForgeryToken";
 
-		//public ViewEngine ViewEngine { get; set; }
-		//public List<User> Users { get; set; }
-		//public List<string> AntiForgeryTokens { get; set; }
-		//public Dictionary<string, string> ProtectedFiles { get; set; }
-		//public List<Type> Models { get; set; }
-		//public string CacheFilePath { get; set; }
+		public ViewEngine ViewEngine { get; set; }
+		public List<User> Users { get; set; }
+		public List<string> AntiForgeryTokens { get; set; }
+		public Dictionary<string, string> ProtectedFiles { get; set; }
+		public List<Type> Models { get; set; }
+		public string CacheFilePath { get; set; }
+		// The Route Discovery middleware will be handling this
 		//public List<RouteInfo> RouteInfos { get; set; }
-		//public string[] ViewRoots { get; set; }
-		//public List<IViewCompilerDirectiveHandler> ViewEngineDirectiveHandlers { get; set; }
-		//public List<IViewCompilerSubstitutionHandler> ViewEngineSubstitutionHandlers { get; set; }
-		//public Dictionary<string, Tuple<List<string>, string>> Bundles { get; set; }
+		public string[] ViewRoots { get; set; }
+		public List<IViewCompilerDirectiveHandler> ViewEngineDirectiveHandlers { get; set; }
+		public List<IViewCompilerSubstitutionHandler> ViewEngineSubstitutionHandlers { get; set; }
+		public Dictionary<string, Tuple<List<string>, string>> Bundles { get; set; }
+
+		// TODO: Investigate and figure out how to resolve this:
+		// It's now in app state and it's not going back to session state because 
+		// that doesn't make sense.
+		//
+		// I've wanted to put this in app state but it's problematic because the 
+		// OnInit method for a controller is ran for each new session and that is 
+		// kind of where I want to add new bindings which means they will run each 
+		// time an instance of a controller is created. I haven't figured out a 
+		// good method to ignore this. So since adding bindings is something that 
+		// happens per controller instance it is stuck here for now even though 
+		// bindings won't change between instances. 
+		public Dictionary<string, Dictionary<string, List<object>>> ActionBindings { get; set; }
 
 		public EngineAppState(Dictionary<string, object> app, Dictionary<string, object> request)
 		{
-
+			// do the initialization or get the state from the Application store
 		}
 	}
 
@@ -102,13 +116,6 @@ namespace Aurora
 		public FrontController FrontController { get; set; }
 		public List<Controller> Controllers { get; set; }
 		public Dictionary<string, object> ControllersSession { get; set; }
-		// I've wanted to put this in app state but it's problematic because the OnInit method
-		// for a controller is ran for each new session and that is kind of where I want to add
-		// new bindings which means they will run each time an instance of a controller is created.
-		// I haven't figured out a good method to ignore this. So since adding bindings is something
-		// that happens per controller instance it is stuck here for now even though bindings won't
-		// change between instances. 
-		public Dictionary<string, Dictionary<string, List<object>>> ActionBindings { get; set; }
 		// Helper bundles are impromptu bundles that are added by HTML Helpers
 		public Dictionary<string, StringBuilder> HelperBundles { get; set; }
 		public List<MethodInfo> ControllerActions { get; set; }
@@ -117,7 +124,7 @@ namespace Aurora
 
 		public EngineSessionState(Dictionary<string, object> app, Dictionary<string, object> request)
 		{
-
+			// do the initialization or get the state from the Session store
 		}
 	}
 
