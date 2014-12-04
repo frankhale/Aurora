@@ -69,28 +69,94 @@ namespace Aurora
 	#region FRAMEWORK ENGINE
 	internal class EngineAppState
 	{
+		private static readonly string EngineAppStateSessionName = "__ENGINE_APP_STATE__";
+		private static readonly string FromRedirectOnlySessionName = "__FROM_REDIRECT_ONLY__";
+
 		public static readonly Regex AllowedFilePattern = new Regex(@"^.*\.(js|css|png|jpg|gif|ico|pptx|xlsx|csv|txt)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-		public static readonly Regex CssorJsExtPattern = new Regex(@"^.*\.(js|css)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-		public static readonly string EngineAppStateSessionName = "__ENGINE_APP_STATE__";
-		public static readonly string EngineSessionStateSessionName = "__ENGINE_SESSION_STATE__";
-		public static readonly string FromRedirectOnlySessionName = "__FromRedirectOnly";
+		
+		// This is used in the bundle code to figure out what files to operate on.
+		// This should probably live there and not here since it's not going to 
+		// change.
+		public static readonly Regex CssOrJsExtPattern = new Regex(@"^.*\.(js|css)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+		
 		public static readonly string SharedResourceFolderPath = "/Resources";
 		public static readonly string CompiledViewsCacheFolderPath = "/Views/Cache";
 		public static readonly string CompiledViewsCacheFileName = "viewsCache.json";
-		public static readonly string AntiForgeryTokenName = "AntiForgeryToken";
 
-		public ViewEngine ViewEngine { get; set; }
-		public List<User> Users { get; set; }
-		public List<string> AntiForgeryTokens { get; set; }
-		public Dictionary<string, string> ProtectedFiles { get; set; }
-		public List<Type> Models { get; set; }
-		public string CacheFilePath { get; set; }
-		// The Route Discovery middleware will be handling this
-		//public List<RouteInfo> RouteInfos { get; set; }
-		public string[] ViewRoots { get; set; }
-		public List<IViewCompilerDirectiveHandler> ViewEngineDirectiveHandlers { get; set; }
-		public List<IViewCompilerSubstitutionHandler> ViewEngineSubstitutionHandlers { get; set; }
-		public Dictionary<string, Tuple<List<string>, string>> Bundles { get; set; }
+		// This really doesn't need to be here. I think this should probably live
+		// inside the view engine.
+		public static readonly string AntiForgeryTokenName = "AntiForgeryToken";
+		
+		private class AppState
+		{
+			public ViewEngine ViewEngine { get; set; }
+			public List<User> Users { get; set; }
+			public List<string> AntiForgeryTokens { get; set; }
+			public Dictionary<string, string> ProtectedFiles { get; set; }
+			public List<Type> Models { get; set; }
+			public string CacheFilePath { get; set; }
+			public string[] ViewRoots { get; set; }
+			public List<IViewCompilerDirectiveHandler> ViewEngineDirectiveHandlers { get; set; }
+			public List<IViewCompilerSubstitutionHandler> ViewEngineSubstitutionHandlers { get; set; }
+			public Dictionary<string, Tuple<List<string>, string>> Bundles { get; set; }
+		}
+
+		private AppState appState { get; set; }
+
+		// Yeah I'm doing it. This is crazy but it helps keep things simple when I
+		// stuff the data into a session variable. This is a trade off. I want to
+		// get one value out of the session and put one value in.
+
+		public ViewEngine ViewEngine 
+		{
+			get { return appState.ViewEngine; }
+			set { appState.ViewEngine = value; }
+		}
+		public List<User> Users 
+		{ 
+			get { return appState.Users; }
+			set { appState.Users = value; }
+		}
+		public List<string> AntiForgeryTokens 
+		{
+			get { return appState.AntiForgeryTokens; }
+			set { appState.AntiForgeryTokens = value; }
+		}
+		public Dictionary<string, string> ProtectedFiles 
+		{
+			get { return appState.ProtectedFiles; }
+			set { appState.ProtectedFiles = value; }
+		}
+		public List<Type> Models 
+		{
+			get { return appState.Models; }
+			set { appState.Models = value; }
+		}
+		public string CacheFilePath 
+		{
+			get { return appState.CacheFilePath; }
+			set { appState.CacheFilePath = value; }
+		}
+		public string[] ViewRoots 
+		{
+			get { return appState.ViewRoots; }
+			set { appState.ViewRoots = value; } 
+		}
+		public List<IViewCompilerDirectiveHandler> ViewEngineDirectiveHandlers 
+		{
+			get { return appState.ViewEngineDirectiveHandlers; }
+			set { appState.ViewEngineDirectiveHandlers = value; }
+		}
+		public List<IViewCompilerSubstitutionHandler> ViewEngineSubstitutionHandlers 
+		{
+			get { return appState.ViewEngineSubstitutionHandlers; }
+			set { appState.ViewEngineSubstitutionHandlers = value; } 
+		}
+		public Dictionary<string, Tuple<List<string>, string>> Bundles 
+		{
+			get { return appState.Bundles; }
+			set { appState.Bundles = value; }
+		}
 
 		// TODO: Investigate and figure out how to resolve this:
 		// It's now in app state and it's not going back to session state because 
@@ -105,26 +171,76 @@ namespace Aurora
 		// bindings won't change between instances. 
 		public Dictionary<string, Dictionary<string, List<object>>> ActionBindings { get; set; }
 
-		public EngineAppState(Dictionary<string, object> app, Dictionary<string, object> request)
+		public EngineAppState(Dictionary<string, object> app, Dictionary<string, object> request, AspNetAdapterCallbacks callbacks)
 		{
 			// do the initialization or get the state from the Application store
+			appState = callbacks.GetApplication(EngineAppStateSessionName) as AppState ?? new AppState();
 		}
 	}
 
 	internal class EngineSessionState
 	{
-		public FrontController FrontController { get; set; }
-		public List<Controller> Controllers { get; set; }
-		public Dictionary<string, object> ControllersSession { get; set; }
-		// Helper bundles are impromptu bundles that are added by HTML Helpers
-		public Dictionary<string, StringBuilder> HelperBundles { get; set; }
-		public List<MethodInfo> ControllerActions { get; set; }
-		public bool FromRedirectOnly { get; set; }
-		public User CurrentUser { get; set; }
+		private static readonly string EngineSessionStateSessionName = "__ENGINE_SESSION_STATE__";
 
-		public EngineSessionState(Dictionary<string, object> app, Dictionary<string, object> request)
+		private class SessionState
+		{
+			public FrontController FrontController { get; set; }
+			public List<Controller> Controllers { get; set; }
+			public Dictionary<string, object> ControllersSession { get; set; }
+			// Helper bundles are impromptu bundles that are added by HTML Helpers
+			public Dictionary<string, StringBuilder> HelperBundles { get; set; }
+			public List<MethodInfo> ControllerActions { get; set; }
+			public bool FromRedirectOnly { get; set; }
+			public User CurrentUser { get; set; }
+		}
+
+		private SessionState sessionState;
+
+		// Yeah I'm doing it. This is crazy but it helps keep things simple when I
+		// stuff the data into a session variable. This is a trade off. I want to
+		// get one value out of the session and put one value in.
+
+		public FrontController FrontController 
+		{
+			get { return sessionState.FrontController; }
+			set { sessionState.FrontController = value; }
+		}
+		public List<Controller> Controllers 
+		{
+			get { return sessionState.Controllers; }
+			set { sessionState.Controllers = value; }
+		}
+		public Dictionary<string, object> ControllersSession 
+		{
+			get { return sessionState.ControllersSession; }
+			set { sessionState.ControllersSession = value;  }
+		}
+		// Helper bundles are impromptu bundles that are added by HTML Helpers
+		public Dictionary<string, StringBuilder> HelperBundles 
+		{
+			get { return sessionState.HelperBundles; }
+			set { sessionState.HelperBundles = value; }
+		}
+		public List<MethodInfo> ControllerActions 
+		{
+			get { return sessionState.ControllerActions; }
+			set { sessionState.ControllerActions = value; }
+		}
+		public bool FromRedirectOnly 
+		{
+			get { return sessionState.FromRedirectOnly; }
+			set { sessionState.FromRedirectOnly = value; } 
+		}
+		public User CurrentUser 
+		{
+			get { return sessionState.CurrentUser; }
+			set { sessionState.CurrentUser = value; }
+		}
+
+		public EngineSessionState(Dictionary<string, object> app, Dictionary<string, object> request, AspNetAdapterCallbacks callbacks)
 		{
 			// do the initialization or get the state from the Session store
+			sessionState = callbacks.GetSession(EngineSessionStateSessionName) as SessionState ?? new SessionState();
 		}
 	}
 
@@ -138,9 +254,10 @@ namespace Aurora
 										 Dictionary<string, object> request,
 										 Action<Dictionary<string, object>> response)
 		{
-			engineAppState = new EngineAppState(app, request);
-			engineSessionState = new EngineSessionState(app, request);
 			aspNetAdapterCallbacks = new AspNetAdapterCallbacks(app, request);
+			engineAppState = new EngineAppState(app, request, aspNetAdapterCallbacks);
+			engineSessionState = new EngineSessionState(app, request, aspNetAdapterCallbacks);
+			
 		}
 
 		public static FrontController GetFrontControllerInstance()
@@ -828,6 +945,8 @@ namespace Aurora
 		#endregion
 	}
 	#endregion
+
+	#region VIEW ENGINE -> TO BE REWRITTEN
 
 	#region VIEW RESULTS
 	public class ViewResponse
@@ -1819,5 +1938,7 @@ namespace Aurora
 		}
 	}
 	#endregion
+	#endregion
+
 	#endregion
 }
