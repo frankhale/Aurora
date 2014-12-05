@@ -1,8 +1,8 @@
 ﻿//
-// Common classes used to implement the next generation of Aurora 
-// 
+// Common classes used to implement the next generation of Aurora
+//
 // Frank Hale <frankhale@gmail.com>
-// 1 December 2014
+// 5 December 2014
 //
 
 using AspNetAdapter;
@@ -15,7 +15,6 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using System.Web;
 
 namespace Aurora.Common
@@ -23,12 +22,13 @@ namespace Aurora.Common
 	public interface IController { }
 
 	#region ATTRIBUTES
-	// FromRedirectOnly is a special action type that denotes that the action 
-	// cannot normally be navigated to. Instead, another action has to redirect to 
-	// it.	
+
+	// FromRedirectOnly is a special action type that denotes that the action
+	// cannot normally be navigated to. Instead, another action has to redirect to
+	// it.
 	public enum ActionType { Get, Post, Put, Delete, FromRedirectOnly, GetOrPost }
 
-	// None isn't really used other than to provide a default when used within the 
+	// None isn't really used other than to provide a default when used within the
 	// HttpAttribute
 	public enum ActionSecurity { Secure, None }
 
@@ -44,8 +44,8 @@ namespace Aurora.Common
 		}
 	}
 
-	// Partitions allow you declare that a controller's views will be segrated 
-	// outside of the global views directory into it's own directory. The Name 
+	// Partitions allow you declare that a controller's views will be segrated
+	// outside of the global views directory into it's own directory. The Name
 	// attribute denotes the folder name where the Controller views will live.
 	[AttributeUsage(AttributeTargets.Class)]
 	public sealed class PartitionAttribute : Attribute
@@ -58,19 +58,26 @@ namespace Aurora.Common
 		}
 	}
 
-	// This is the obligatory attribute that is used to provide meta information 
-	// for controller actions. 	
+	// This is the obligatory attribute that is used to provide meta information
+	// for controller actions.
 	public class HttpAttribute : Attribute
 	{
-		// RequireAntiForgeryToken is only checked for HTTP Post and Put and Delete 
+		// RequireAntiForgeryToken is only checked for HTTP Post and Put and Delete
 		// and doesn't make any sense to a Get.
 		public bool RequireAntiForgeryToken { get; set; }
+
 		public bool HttpsOnly { get; set; }
+
 		public string RedirectWithoutAuthorizationTo { get; set; }
+
 		public string RouteAlias { get; set; }
+
 		public string Roles { get; set; }
+
 		public string View { get; set; }
+
 		public ActionSecurity SecurityType { get; set; }
+
 		public ActionType ActionType { get; private set; }
 
 		public HttpAttribute(ActionType actionType)
@@ -96,8 +103,9 @@ namespace Aurora.Common
 	}
 
 	#region MISCELLANEOUS
-	// Used inside a model to denote that will not be shown if an HTML helper such as the 
-	// HTMLTable helper is used to construct a UI representation from a collection of a 
+
+	// Used inside a model to denote that will not be shown if an HTML helper such as the
+	// HTMLTable helper is used to construct a UI representation from a collection of a
 	// particular model.
 	[AttributeUsage(AttributeTargets.Property)]
 	public sealed class HiddenAttribute : Attribute { }
@@ -133,9 +141,11 @@ namespace Aurora.Common
 			TransformName = transformName;
 		}
 	}
-	#endregion
+
+	#endregion MISCELLANEOUS
 
 	#region MODEL VALIDATION
+
 	[AttributeUsage(AttributeTargets.Property | AttributeTargets.Field)]
 	public abstract class ModelValidationBaseAttribute : Attribute
 	{
@@ -151,10 +161,13 @@ namespace Aurora.Common
 	// the model as a container for the post parameters.
 	public sealed class RequiredAttribute : ModelValidationBaseAttribute
 	{
-		public RequiredAttribute(string errorMessage) : base(errorMessage) { }
+		public RequiredAttribute(string errorMessage)
+			: base(errorMessage)
+		{
+		}
 	}
 
-	// This is used to denote that a model property has a required length during a post if you 
+	// This is used to denote that a model property has a required length during a post if you
 	// are using the model as a container for the post parameters.
 	public sealed class RequiredLengthAttribute : ModelValidationBaseAttribute
 	{
@@ -167,7 +180,7 @@ namespace Aurora.Common
 		}
 	}
 
-	// This is used to denote that a model property must conform to a regular expression during 
+	// This is used to denote that a model property must conform to a regular expression during
 	// a post if you are using the model as a container for the post parameters.
 	public sealed class RegularExpressionAttribute : ModelValidationBaseAttribute
 	{
@@ -180,11 +193,12 @@ namespace Aurora.Common
 		}
 	}
 
-	// This is used to denote that a model property must conform to the specified range during 
+	// This is used to denote that a model property must conform to the specified range during
 	// a post if you are using the model as a container for the post parameters.
 	public sealed class RangeAttribute : ModelValidationBaseAttribute
 	{
 		public int Min { get; private set; }
+
 		public int Max { get; private set; }
 
 		public RangeAttribute(int min, int max, string errorMessage)
@@ -193,29 +207,39 @@ namespace Aurora.Common
 			Min = min;
 			Max = max;
 		}
-	}	
+	}
 
-	#endregion
+	#endregion MODEL VALIDATION
 
-	#endregion
+	#endregion ATTRIBUTES
 
 	#region SECURITY
+
 	public class AuthCookie
 	{
 		public string Id { get; set; }
+
 		public string AuthToken { get; set; }
+
 		public DateTime Expiration { get; set; }
 	}
 
 	public class User
 	{
 		public string Name { get; internal set; }
+
 		public AuthCookie AuthenticationCookie { get; internal set; }
+
 		public string SessionId { get; internal set; }
+
 		public string IpAddress { get; internal set; }
+
 		public DateTime LogOnDate { get; internal set; }
+
 		public List<string> Roles { get; internal set; }
+
 		public X509Certificate2 ClientCertificate { get; internal set; }
+
 		public object ArcheType { get; internal set; }
 
 		public bool IsInRole(string role)
@@ -223,9 +247,11 @@ namespace Aurora.Common
 			return Roles != null && Roles.Contains(role);
 		}
 	}
-	#endregion
+
+	#endregion SECURITY
 
 	#region ACTION PARAMETER TRANSFORM
+
 	// Parameters can be transformed from an incoming representation to another representation
 	// by implementing this interface and denoting the parameter in the action with the ActionParameterTransform
 	// Attribute. The ActionParameterTransform takes a parameter that is the string name of the class
@@ -236,26 +262,31 @@ namespace Aurora.Common
 		T Transform(V value);
 	}
 
-	// Used internally to store information pertaining to action parameters transforms. This is 
+	// Used internally to store information pertaining to action parameters transforms. This is
 	// used in the logic that processes the parameter transforms.
 	internal class ActionParameterInfo
 	{
 		public Dictionary<string, object> ActionParamTransformInstances { get; set; }
+
 		public List<Tuple<ActionParameterTransformAttribute, int>> ActionParamTransforms { get; set; }
 	}
-	#endregion
+
+	#endregion ACTION PARAMETER TRANSFORM
 
 	#region ACTION BINDINGS
-	// objects can be bound to the parameter list of an action. These objects can 
-	// optionally implement this interface and the Initialize(RouteInfo) method 
-	// will be called each time an action using the bound object. 
+
+	// objects can be bound to the parameter list of an action. These objects can
+	// optionally implement this interface and the Initialize(RouteInfo) method
+	// will be called each time an action using the bound object.
 	public interface IBoundToAction
 	{
 		void Initialize(RouteInfo routeInfo);
 	}
-	#endregion
+
+	#endregion ACTION BINDINGS
 
 	#region HELPERS
+
 	public static class MiscellaneousHelpers
 	{
 		public static string CreateToken()
@@ -273,8 +304,8 @@ namespace Aurora.Common
 			return Utility.GetAssemblies()
 							.SelectMany(x => x.GetLoadableTypes()
 																.AsParallel()
-																.Where(y => y.IsClass && 
-																					 !y.IsAbstract && 
+																.Where(y => y.IsClass &&
+																					 !y.IsAbstract &&
 																					 (y.BaseType == t || t.IsAssignableFrom(y))))
 							.ToList();
 		}
@@ -300,9 +331,11 @@ namespace Aurora.Common
 			return result;
 		}
 	}
-	#endregion
+
+	#endregion HELPERS
 
 	#region ASPNETADAPTER CALLBACK HELPERS
+
 	internal class AspNetAdapterCallbacks
 	{
 		private Dictionary<string, object> app;
@@ -441,14 +474,34 @@ namespace Aurora.Common
 				app[HttpAdapterConstants.CookieRemoveCallback] is Action<string>)
 				(app[HttpAdapterConstants.CookieRemoveCallback] as Action<string>)(name);
 		}
+
+		public string QueryString(string key, bool validated)
+		{
+			if (request.ContainsKey(HttpAdapterConstants.RequestQueryStringCallback) &&
+					request[HttpAdapterConstants.RequestQueryStringCallback] is Func<string, bool, string>)
+				return (request[HttpAdapterConstants.RequestQueryStringCallback] as Func<string, bool, string>)(key, validated);
+
+			return null;
+		}
+
+		public string Form(string key, bool validated)
+		{
+			if (request.ContainsKey(HttpAdapterConstants.RequestFormCallback) &&
+					request[HttpAdapterConstants.RequestFormCallback] is Func<string, bool, string>)
+				return (request[HttpAdapterConstants.RequestFormCallback] as Func<string, bool, string>)(key, validated);
+
+			return null;
+		}
 	}
-	#endregion
+
+	#endregion ASPNETADAPTER CALLBACK HELPERS
 
 	#region MODEL
+
 	// Models in the sense of Aurora are more of an intermediate mechanism in order to transition
 	// from one state to another. For instance from a form post to an action so that all parameters
 	// are grouped into a model instance or from a collection to a view for instance when using
-	// the HTMLTable helper. 
+	// the HTMLTable helper.
 	//
 	// Models have the obligatory set of property validators, Required, Required Length, Regular Expression
 	// and Range attributes.
@@ -456,6 +509,7 @@ namespace Aurora.Common
 	{
 		[Hidden]
 		public bool IsValid { get; private set; }
+
 		[Hidden]
 		public string Error { get; private set; }
 
@@ -554,6 +608,7 @@ namespace Aurora.Common
 				var value = pi.GetValue(this, null);
 
 				#region REQUIRED
+
 				if (requiredAttribute != null)
 				{
 					if (form.Keys.FirstOrDefault(x => x == pi.Name) != null)
@@ -568,9 +623,11 @@ namespace Aurora.Common
 							errors.AppendLine(error);
 					}
 				}
-				#endregion
+
+				#endregion REQUIRED
 
 				#region REQUIRED LENGTH
+
 				if (requiredLengthAttribute != null)
 				{
 					string error;
@@ -582,9 +639,11 @@ namespace Aurora.Common
 					if (!string.IsNullOrEmpty(error))
 						errors.AppendLine(error);
 				}
-				#endregion
+
+				#endregion REQUIRED LENGTH
 
 				#region REGULAR EXPRESSION
+
 				if (regularExpressionAttribute != null)
 				{
 					string error;
@@ -596,9 +655,11 @@ namespace Aurora.Common
 					if (!string.IsNullOrEmpty(error))
 						errors.AppendLine(error);
 				}
-				#endregion
+
+				#endregion REGULAR EXPRESSION
 
 				#region RANGE
+
 				if (rangeAttribute != null)
 				{
 					string error;
@@ -610,7 +671,8 @@ namespace Aurora.Common
 					if (!string.IsNullOrEmpty(error))
 						errors.AppendLine(error);
 				}
-				#endregion
+
+				#endregion RANGE
 			}
 
 			if (errors.Length > 0)
@@ -642,53 +704,64 @@ namespace Aurora.Common
 			return props.ToList();
 		}
 	}
-	#endregion
+
+	#endregion MODEL
 
 	#region ROUTING
-	
-	// This contains all the information necessary to associate a route with a 
-	// controller method this also contains extra information pertaining to 
+
+	// This contains all the information necessary to associate a route with a
+	// controller method this also contains extra information pertaining to
 	// parameters we may want to pass the method at the time of invocation.
 	//
 	// The route discovery methods only find populate the RouteInfo2 classes
-	// with the basic information it can gleam from the controller classes. 
-	// The list of RouteInfos will need to pass through another function to 
+	// with the basic information it can gleam from the controller classes.
+	// The list of RouteInfos will need to pass through another function to
 	// populate things like bound params and such. Additionally dynamic routes
-	// will need to be added later. 
+	// will need to be added later.
 	//
 	// This class serves to pull out the common aspects of route discovery.
 	// The find methods will take into account all of the various bits of data
 	// present in the RouteInfos.
 	public class RouteInfo
 	{
-		// A list of string aliases eg. /Index, /Foo, /Bar that we want to use in 
+		// A list of string aliases eg. /Index, /Foo, /Bar that we want to use in
 		// order to navigate from a URL to the controller action that it represents.
 		public List<string> Aliases { get; internal set; }
+
 		public MethodInfo Action { get; internal set; }
+
 		public Type Controller { get; internal set; }
+
 		public HttpAttribute RequestTypeAttribute { get; internal set; }
-		// The parameters passed in the URL eg. anything that is not the alias or 
+
+		// The parameters passed in the URL eg. anything that is not the alias or
 		// querystring action parameters are delimited like:
 		// /alias/param1/param2/param3
 		public object[] ActionUrlParams { get; internal set; }
-		// The parameters that are bound to this action that are declared in an 
+
+		// The parameters that are bound to this action that are declared in an
 		// OnInit handler.
 		public object[] BoundParams { get; internal set; }
-		// Default parameters are used if you want to mask a more complex URL with 
+
+		// Default parameters are used if you want to mask a more complex URL with
 		// just an alias.
 		public object[] DefaultParams { get; internal set; }
-		// Parameters that are bound to this action. These are basically like a 
+
+		// Parameters that are bound to this action. These are basically like a
 		// poor mans dependency injection.
 		public IBoundToAction[] BoundToActionParams { get; internal set; }
+
 		// Parameters may come in as a string or an int that need to be transformed
-		// into a more complex type. These denote that a parameter needs to be 
+		// into a more complex type. These denote that a parameter needs to be
 		// transformed before the action is invoked.
 		public List<Tuple<ActionParameterTransformAttribute, int>> ActionParamTransforms { get; internal set; }
+
 		public Dictionary<string, object> CachedActionParamTransformInstances { get; internal set; }
-		// Routes that are created by the framework are not dynamic. Dynamic routes 
+
+		// Routes that are created by the framework are not dynamic. Dynamic routes
 		// are created in the controller by the end user.
 		public bool Dynamic { get; internal set; }
-	}	
+	}
 
 	// The router will be responsible for determining all routes, finding routes
 	// and adding and removing of dynamic routes. The router will not maintain
@@ -784,21 +857,13 @@ namespace Aurora.Common
 			throw new NotImplementedException();
 		}
 	}
-	#endregion
+
+	#endregion ROUTING
 
 	#region EXTENSION METHODS / DYNAMIC DICTIONARY
+
 	public static class ExtensionMethods
 	{
-		public static void ThrowIfArgumentNull<T>(this T t, string message = null)
-		{
-			string argName = t.GetType().Name;
-
-			if (t == null)
-				throw new ArgumentNullException(argName, message);
-			else if ((t is string) && (t as string) == string.Empty)
-				throw new ArgumentException(argName, message);
-		}
-
 		public static string CalculateMd5Sum(this string input)
 		{
 			var md5 = MD5.Create();
@@ -957,5 +1022,6 @@ namespace Aurora.Common
 			return true;
 		}
 	}
-	#endregion
+
+	#endregion EXTENSION METHODS / DYNAMIC DICTIONARY
 }

@@ -1,28 +1,28 @@
-﻿// 
+﻿//
 // Aurora engine rewrite (WIP)
-// 
+//
 // Frank Hale <frankhale@gmail.com>
-// 4 December 2014
+// 5 December 2014
 //
 // --------------------
 // --- Feature List ---
 // --------------------
 //
-// - Model View Controller based 
+// - Model View Controller based
 // - Apps can have a Front controller to intercept various events and perform
 //   arbitrary logic before actions are invoked.
 // - Simple tag based view engine with master pages and partial views as well as
-//   fragments. 
-// - URL parameters bind to action method parameters automatically, no fiddling 
-//	 with routes declarations. 
-// - Posted forms binds to post models or action parameters automatically. 
-// - Actions can have bound parameters that are bound to actions (dependency 
+//   fragments.
+// - URL parameters bind to action method parameters automatically, no fiddling
+//	 with routes declarations.
+// - Posted forms binds to post models or action parameters automatically.
+// - Actions can have bound parameters that are bound to actions (dependency
 //	 injection)
-// - Actions can be segregated based on Get, Post, GetOrPost, Put and Delete 
-//   action type and you can secure them with the ActionSecurity named 
+// - Actions can be segregated based on Get, Post, GetOrPost, Put and Delete
+//   action type and you can secure them with the ActionSecurity named
 //	 parameter.
 // - Actions can have filters with optional filter results that bind to action
-//   parameters.  
+//   parameters.
 // - Actions can have aliases. Aliases can also be added dynamically at runtime
 //   along with default parameters.
 // - Bundling/Minifying of Javascript and CSS.
@@ -47,6 +47,7 @@
 //
 
 using AspNetAdapter;
+using Aurora.Common;
 using MarkdownSharp;
 using Newtonsoft.Json;
 using System;
@@ -55,7 +56,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -64,9 +64,8 @@ using System.Xml.Linq;
 
 namespace Aurora
 {
-	using Aurora.Common;
-
 	#region FRAMEWORK ENGINE
+
 	internal class EngineAppState
 	{
 		private static readonly string EngineAppStateSessionName = "__ENGINE_APP_STATE__";
@@ -74,33 +73,41 @@ namespace Aurora
 		private Dictionary<string, object> app;
 		private Dictionary<string, object> request;
 
-		public static readonly Regex AllowedFilePattern = new Regex(@"^.*\.(js|css|png|jpg|gif|ico|pptx|xlsx|csv|txt)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+		private static readonly Regex AllowedFilePattern = new Regex(@"^.*\.(js|css|png|jpg|gif|ico|pptx|xlsx|csv|txt)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+		private static readonly Regex CssOrJsExtPattern = new Regex(@"^.*\.(js|css)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
-		// This is used in the bundle code to figure out what files to operate on.
-		// This should probably live there and not here since it's not going to 
-		// change.
-		public static readonly Regex CssOrJsExtPattern = new Regex(@"^.*\.(js|css)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-
+		public static readonly string FromRedirectOnlySessionName = "__FROM_REDIRECT_ONLY__";
 		public static readonly string SharedResourceFolderPath = "/Resources";
 		public static readonly string CompiledViewsCacheFolderPath = "/Views/Cache";
 		public static readonly string CompiledViewsCacheFileName = "viewsCache.json";
-
-		// This really doesn't need to be here. I think this should probably live
-		// inside the view engine.
 		public static readonly string AntiForgeryTokenName = "AntiForgeryToken";
 
 		private class AppState
 		{
 			public ViewEngine ViewEngine { get; set; }
+
 			public List<User> Users { get; set; }
+
 			public List<string> AntiForgeryTokens { get; set; }
+
 			public Dictionary<string, string> ProtectedFiles { get; set; }
+
 			public List<Type> Models { get; set; }
+
 			public string CacheFilePath { get; set; }
+
 			public string[] ViewRoots { get; set; }
+
 			public List<IViewCompilerDirectiveHandler> ViewEngineDirectiveHandlers { get; set; }
+
 			public List<IViewCompilerSubstitutionHandler> ViewEngineSubstitutionHandlers { get; set; }
+
 			public Dictionary<string, Tuple<List<string>, string>> Bundles { get; set; }
+
+			public Dictionary<string, Dictionary<string, List<object>>> ActionBindings { get; set; }
+
+			// Helper bundles are impromptu bundles that are added by HTML Helpers
+			public Dictionary<string, StringBuilder> HelperBundles { get; set; }
 		}
 
 		private AppState appState { get; set; }
@@ -114,51 +121,68 @@ namespace Aurora
 			get { return appState.ViewEngine; }
 			set { appState.ViewEngine = value; }
 		}
+
 		public List<User> Users
 		{
 			get { return appState.Users; }
 			set { appState.Users = value; }
 		}
+
 		public List<string> AntiForgeryTokens
 		{
 			get { return appState.AntiForgeryTokens; }
 			set { appState.AntiForgeryTokens = value; }
 		}
+
 		public Dictionary<string, string> ProtectedFiles
 		{
 			get { return appState.ProtectedFiles; }
 			set { appState.ProtectedFiles = value; }
 		}
+
 		public List<Type> Models
 		{
 			get { return appState.Models; }
 			set { appState.Models = value; }
 		}
+
 		public string CacheFilePath
 		{
 			get { return appState.CacheFilePath; }
 			set { appState.CacheFilePath = value; }
 		}
+
 		public string[] ViewRoots
 		{
 			get { return appState.ViewRoots; }
 			set { appState.ViewRoots = value; }
 		}
+
 		public List<IViewCompilerDirectiveHandler> ViewEngineDirectiveHandlers
 		{
 			get { return appState.ViewEngineDirectiveHandlers; }
 			set { appState.ViewEngineDirectiveHandlers = value; }
 		}
+
 		public List<IViewCompilerSubstitutionHandler> ViewEngineSubstitutionHandlers
 		{
 			get { return appState.ViewEngineSubstitutionHandlers; }
 			set { appState.ViewEngineSubstitutionHandlers = value; }
 		}
+
 		public Dictionary<string, Tuple<List<string>, string>> Bundles
 		{
 			get { return appState.Bundles; }
 			set { appState.Bundles = value; }
 		}
+
+		// Helper bundles are impromptu bundles that are added by HTML Helpers
+		public Dictionary<string, StringBuilder> HelperBundles
+		{
+			get { return appState.HelperBundles; }
+			set { appState.HelperBundles = value; }
+		}
+
 		public string SessionId
 		{
 			get
@@ -167,23 +191,28 @@ namespace Aurora
 					request[HttpAdapterConstants.SessionId].ToString() : null;
 			}
 		}
+
 		public User CurrentUser
 		{
 			get { return appState.Users.FirstOrDefault(x => x.SessionId == SessionId); }
 		}
 
 		// TODO: Investigate and figure out how to resolve this:
-		// It's now in app state and it's not going back to session state because 
+		// It's now in app state and it's not going back to session state because
 		// that doesn't make sense.
 		//
-		// I've wanted to put this in app state but it's problematic because the 
-		// OnInit method for a controller is ran for each new session and that is 
-		// kind of where I want to add new bindings which means they will run each 
-		// time an instance of a controller is created. I haven't figured out a 
-		// good method to ignore this. So since adding bindings is something that 
-		// happens per controller instance it is stuck here for now even though 
-		// bindings won't change between instances. 
-		public Dictionary<string, Dictionary<string, List<object>>> ActionBindings { get; set; }
+		// I've wanted to put this in app state but it's problematic because the
+		// OnInit method for a controller is ran for each new session and that is
+		// kind of where I want to add new bindings which means they will run each
+		// time an instance of a controller is created. I haven't figured out a
+		// good method to ignore this. So since adding bindings is something that
+		// happens per controller instance it is stuck here for now even though
+		// bindings won't change between instances.
+		public Dictionary<string, Dictionary<string, List<object>>> ActionBindings 
+		{ 
+			get { return appState.ActionBindings; }
+			set { appState.ActionBindings = value; }
+		}
 
 		public EngineAppState(Dictionary<string, object> app, Dictionary<string, object> request, AspNetAdapterCallbacks callbacks)
 		{
@@ -210,11 +239,39 @@ namespace Aurora
 			if (appState.Models == null)
 				appState.Models = ReflectionHelpers.GetTypeList(typeof(Model));
 
-			//if (appState.ActionBindings == null)
-			//	appState.ActionBindings = new Dictionary<string, Dictionary<string, List<object>>>();
+			if (appState.ActionBindings == null)
+				appState.ActionBindings = new Dictionary<string, Dictionary<string, List<object>>>();
 
 			if (appState.Bundles == null)
 				appState.Bundles = new Dictionary<string, Tuple<List<string>, string>>();
+
+			if (appState.HelperBundles == null)
+				appState.HelperBundles = new Dictionary<string, StringBuilder>();
+
+			if (appState.ViewEngineDirectiveHandlers == null && appState.ViewEngineSubstitutionHandlers == null)
+				{
+					appState.ViewEngineDirectiveHandlers = new List<IViewCompilerDirectiveHandler>();
+					appState.ViewEngineSubstitutionHandlers = new List<IViewCompilerSubstitutionHandler>();
+
+					appState.ViewEngineDirectiveHandlers.Add(new MasterPageDirective());
+					appState.ViewEngineDirectiveHandlers.Add(new PlaceHolderDirective());
+					appState.ViewEngineDirectiveHandlers.Add(new PartialPageDirective());
+					appState.ViewEngineDirectiveHandlers.Add(new BundleDirective(
+						Convert.ToBoolean(request[HttpAdapterConstants.DebugModeASPNET]),
+						EngineAppState.SharedResourceFolderPath, 
+						new Func<string, string[]>((name) => { return appState.Bundles[name].Item1.ToArray(); })));
+					appState.ViewEngineSubstitutionHandlers.Add(new HelperBundleDirective(
+						EngineAppState.SharedResourceFolderPath, 
+						new Func<Dictionary<string, StringBuilder>>(() => { return appState.HelperBundles; })));
+					appState.ViewEngineSubstitutionHandlers.Add(new CommentSubstitution());
+					appState.ViewEngineSubstitutionHandlers.Add(new AntiForgeryTokenSubstitution(
+						new Func<string>(() => { 
+							var token = Guid.NewGuid().ToString().Replace("-", string.Empty);
+							appState.AntiForgeryTokens.Add(token);
+							return token;
+						})));
+					appState.ViewEngineSubstitutionHandlers.Add(new HeadSubstitution());
+				}
 
 			callbacks.AddApplication(EngineAppStateSessionName, appState);
 		}
@@ -227,12 +284,15 @@ namespace Aurora
 		private class SessionState
 		{
 			public FrontController FrontController { get; set; }
+
 			public List<Controller> Controllers { get; set; }
+
 			public Dictionary<string, object> ControllersSession { get; set; }
-			// Helper bundles are impromptu bundles that are added by HTML Helpers
-			public Dictionary<string, StringBuilder> HelperBundles { get; set; }
+
 			public List<MethodInfo> ControllerActions { get; set; }
+
 			public bool FromRedirectOnly { get; set; }
+
 			public User CurrentUser { get; set; }
 		}
 
@@ -247,32 +307,31 @@ namespace Aurora
 			get { return sessionState.FrontController; }
 			set { sessionState.FrontController = value; }
 		}
+
 		public List<Controller> Controllers
 		{
 			get { return sessionState.Controllers; }
 			set { sessionState.Controllers = value; }
 		}
+
 		public Dictionary<string, object> ControllersSession
 		{
 			get { return sessionState.ControllersSession; }
 			set { sessionState.ControllersSession = value; }
 		}
-		// Helper bundles are impromptu bundles that are added by HTML Helpers
-		public Dictionary<string, StringBuilder> HelperBundles
-		{
-			get { return sessionState.HelperBundles; }
-			set { sessionState.HelperBundles = value; }
-		}
+
 		public List<MethodInfo> ControllerActions
 		{
 			get { return sessionState.ControllerActions; }
 			set { sessionState.ControllerActions = value; }
 		}
+
 		public bool FromRedirectOnly
 		{
 			get { return sessionState.FromRedirectOnly; }
 			set { sessionState.FromRedirectOnly = value; }
 		}
+
 		public User CurrentUser
 		{
 			get { return sessionState.CurrentUser; }
@@ -286,9 +345,6 @@ namespace Aurora
 
 			if (sessionState.ControllersSession == null)
 				sessionState.ControllersSession = new Dictionary<string, object>();
-
-			if (sessionState.HelperBundles == null)
-				sessionState.HelperBundles = new Dictionary<string, StringBuilder>();
 
 			//if (sessionState.FrontController == null)
 			//	sessionState.FrontController = GetFrontControllerInstance();
@@ -311,8 +367,6 @@ namespace Aurora
 		private EngineSessionState engineSessionState;
 		private AspNetAdapterCallbacks aspNetAdapterCallbacks;
 
-		//private static readonly string FromRedirectOnlySessionName = "__FROM_REDIRECT_ONLY__";
-
 		private Dictionary<string, object> app;
 		private Dictionary<string, object> request;
 		private Action<Dictionary<string, object>> response;
@@ -321,8 +375,6 @@ namespace Aurora
 
 		//private RouteInfo currentRoute;
 		//private User CurrentUser;
-
-		//internal string IpAddress, Path, RequestType, AppRoot, ViewRoot, SessionId, Identity;
 
 		public void Init(Dictionary<string, object> app,
 										 Dictionary<string, object> request,
@@ -341,23 +393,6 @@ namespace Aurora
 			//if (!EngineAppState.AllowedFilePattern.IsMatch(Path) && (EngineAppState.ViewEngine == null || debugMode))
 			//{
 			//	string viewCache = null;
-
-			//	if (EngineAppState.ViewEngineDirectiveHandlers == null && EngineAppState.ViewEngineSubstitutionHandlers == null)
-			//	{
-			//		EngineAppState.ViewEngineDirectiveHandlers = new List<IViewCompilerDirectiveHandler>();
-			//		EngineAppState.ViewEngineSubstitutionHandlers = new List<IViewCompilerSubstitutionHandler>();
-
-			//		EngineAppState.ViewEngineDirectiveHandlers.Add(new MasterPageDirective());
-			//		EngineAppState.ViewEngineDirectiveHandlers.Add(new PlaceHolderDirective());
-			//		EngineAppState.ViewEngineDirectiveHandlers.Add(new PartialPageDirective());
-			//		EngineAppState.ViewEngineDirectiveHandlers.Add(new BundleDirective(debugMode,
-			//			EngineAppState.SharedResourceFolderPath, GetBundleFiles));
-			//		EngineAppState.ViewEngineSubstitutionHandlers.Add(new HelperBundleDirective(
-			//			EngineAppState.SharedResourceFolderPath, GetHelperBundle));
-			//		EngineAppState.ViewEngineSubstitutionHandlers.Add(new CommentSubstitution());
-			//		EngineAppState.ViewEngineSubstitutionHandlers.Add(new AntiForgeryTokenSubstitution(CreateAntiForgeryToken));
-			//		EngineAppState.ViewEngineSubstitutionHandlers.Add(new HeadSubstitution());
-			//	}
 
 			//	if (string.IsNullOrEmpty(EngineAppState.CacheFilePath))
 			//		EngineAppState.CacheFilePath = System.IO.Path.Combine(MapPath(EngineAppState.CompiledViewsCacheFolderPath),
@@ -380,7 +415,7 @@ namespace Aurora
 			//				 !File.Exists(EngineAppState.CacheFilePath))
 			//	UpdateCache(EngineAppState.CacheFilePath);
 
-			#endregion
+			#endregion INITIALIZE VIEW ENGINE
 
 			#region PROCESS REQUEST / RENDER RESPONSE
 
@@ -425,10 +460,11 @@ namespace Aurora
 
 			//RenderResponse(viewResponse);
 
-			#endregion
+			#endregion PROCESS REQUEST / RENDER RESPONSE
 		}
 
 		#region PRIVATE METHODS
+
 		private ViewResponse ProcessRequest()
 		{
 			//ViewResponse viewResponse = null;
@@ -567,7 +603,7 @@ namespace Aurora
 			//							}
 			//							catch
 			//							{
-			//								// Oops! We probably tried to convert a type to another type and it failed! 
+			//								// Oops! We probably tried to convert a type to another type and it failed!
 			//								// In which case we'll pretend like nothing happened.
 			//							}
 			//						}
@@ -579,7 +615,7 @@ namespace Aurora
 			//						}
 			//						catch
 			//						{
-			//							// Oops! We probably tried to invoke an action with incorrect types! 
+			//							// Oops! We probably tried to invoke an action with incorrect types!
 			//							// In which case we'll pretend like nothing happened.
 			//						}
 			//					}
@@ -608,9 +644,9 @@ namespace Aurora
 			//				// I'm not completely sure how I want to ultimately handle this condtion yet,
 			//				// for now let's fire off the front controllers error event in case anyone is
 			//				// looking for it. The usefulness of this is questionable, what are they going to
-			//				// do with the information? Should we allow another action to be potentially 
+			//				// do with the information? Should we allow another action to be potentially
 			//				// invoked so that we can get a good viewResult? Thereby dropping the throw below
-			//				// this call?!? 
+			//				// this call?!?
 			//				RaiseEventOnFrontController(RouteHandlerEventType.Error, Path, routeInfo, ex);
 
 			//				throw;
@@ -941,9 +977,11 @@ namespace Aurora
 			//return Guid.NewGuid().ToString().Replace("-", string.Empty);
 			throw new NotImplementedException();
 		}
-		#endregion
+
+		#endregion PRIVATE METHODS
 
 		#region INTERNAL METHODS
+
 		// Allows a file to be protected from download by users that are not logged in
 		internal void ProtectFile(string path, string roles)
 		{
@@ -1079,11 +1117,12 @@ namespace Aurora
 		}
 
 		#region BINDINGS
+
 		// Bindings can be a source of confusion. These methods tell the famework that you want
 		// to pass certain objects in the parameter list of the action. If you forget to add these
 		// bound parameters to your actions parameter list then upon navigating you'll receive an
 		// HTTP 404.
-		// 
+		//
 		// The framework is not forgiving, the framework should probably spit out a message if
 		// in debug mode that says "Hey, you reqested this action but we didn't find that and instead we found
 		// this action that is similiar but your parameters are not correct."
@@ -1138,7 +1177,8 @@ namespace Aurora
 			//return bindings;
 			throw new NotImplementedException();
 		}
-		#endregion
+
+		#endregion BINDINGS
 
 		internal RouteInfo FindRoute(string path)
 		{
@@ -1387,14 +1427,17 @@ namespace Aurora
 			//return AppRoot + path.Replace('/', '\\');
 			throw new NotImplementedException();
 		}
-		#endregion
+
+		#endregion INTERNAL METHODS
 	}
-	#endregion
+
+	#endregion FRAMEWORK ENGINE
 
 	#region ACTION FILTER
+
 	public interface IActionFilterResult { }
 
-	// Action filters are special classes that subclass this attribute and are used by denoting 
+	// Action filters are special classes that subclass this attribute and are used by denoting
 	// a controller action with your subclassed attribute. Action filters can optionally pass
 	// parameters to the action or redirect to other actions or even perform logon or logoff
 	// capabilities.
@@ -1402,9 +1445,13 @@ namespace Aurora
 	public abstract class ActionFilterAttribute : Attribute
 	{
 		private Engine _engine;
+
 		public RouteInfo DivertRoute { get; set; }
+
 		internal Controller Controller { get; set; }
+
 		public IActionFilterResult FilterResult { get; set; }
+
 		//public User CurrentUser { get { return _engine.CurrentUser; } }
 		public abstract void OnFilter(RouteInfo routeInfo);
 
@@ -1414,107 +1461,130 @@ namespace Aurora
 		}
 
 		#region WRAPPERS FOR ENGINE METHODS
+
 		protected RouteInfo FindRoute(string path)
 		{
 			//return _engine.FindRoute(path);
 			throw new NotImplementedException();
 		}
+
 		protected RouteInfo FindRoute(string path, string[] urlParameters)
 		{
 			//return _engine.FindRoute(path, urlParameters);
 			throw new NotImplementedException();
 		}
+
 		protected void Redirect(string alias)
 		{
 			//_engine.ResponseRedirect(alias, false);
 			throw new NotImplementedException();
 		}
+
 		protected void RedirectOnly(string alias)
 		{
 			//_engine.ResponseRedirect(alias, true);
 			throw new NotImplementedException();
 		}
+
 		protected void LogOn(string id, string[] roles, object archeType = null)
 		{
 			//_engine.LogOn(id, roles, archeType);
 			throw new NotImplementedException();
 		}
+
 		protected void LogOff()
 		{
 			//_engine.LogOff();
 			throw new NotImplementedException();
 		}
+
 		protected void AddApplication(string key, object value)
 		{
 			//_engine.AddApplication(key, value);
 			throw new NotImplementedException();
 		}
+
 		protected object GetApplication(string key)
 		{
 			//return _engine.GetApplication(key);
 			throw new NotImplementedException();
 		}
+
 		protected void AddSession(string key, object value)
 		{
 			//_engine.AddControllerSession(key, value);
 			throw new NotImplementedException();
 		}
+
 		protected object GetSession(string key)
 		{
 			//return _engine.GetControllerSession(key);
 			throw new NotImplementedException();
 		}
+
 		protected void AddCache(string key, object value, DateTime expiresOn)
 		{
 			//_engine.AddCache(key, value, expiresOn);
 			throw new NotImplementedException();
 		}
+
 		protected object GetCache(string key)
 		{
 			//return _engine.GetCache(key);
 			throw new NotImplementedException();
 		}
+
 		protected void RemoveCache(string key)
 		{
 			//_engine.RemoveCache(key);
 			throw new NotImplementedException();
 		}
+
 		protected void AbandonSession()
 		{
 			//_engine.AbandonControllerSession();
 			throw new NotImplementedException();
 		}
+
 		protected string GetQueryString(string key, bool validate)
 		{
 			//return _engine.GetQueryString(key, validate);
 			throw new NotImplementedException();
 		}
+
 		protected string MapPath(string path)
 		{
 			//return _engine.MapPath(path);
 			throw new NotImplementedException();
 		}
+
 		protected void AddCookie(HttpCookie cookie)
 		{
 			//_engine.AddCookie(cookie);
 			throw new NotImplementedException();
 		}
+
 		protected HttpCookie GetCookie(string name)
 		{
 			//return _engine.GetCookie(name);
 			throw new NotImplementedException();
 		}
+
 		protected void RemoveCookie(string name)
 		{
 			//_engine.RemoveCookie(name);
 			throw new NotImplementedException();
 		}
-		#endregion
+
+		#endregion WRAPPERS FOR ENGINE METHODS
 	}
-	#endregion
+
+	#endregion ACTION FILTER
 
 	#region CONTROLLERS
+
 	#region EVENT ASSETS
+
 	internal enum EventType
 	{
 		OnInit,
@@ -1541,22 +1611,27 @@ namespace Aurora
 	public class CheckRolesHandlerEventArgs : EventArgs
 	{
 		public bool Result { get; set; }
+
 		public RouteInfo RouteInfo { get; set; }
 	}
 
 	public class RouteHandlerEventArgs : EventArgs
 	{
 		public string Path { get; set; }
+
 		public RouteInfo RouteInfo { get; set; }
+
 		public object Data { get; set; }
 	}
-	#endregion
+
+	#endregion EVENT ASSETS
 
 	// All of the base controller infrastructure is defined here. This is the starting point
 	// for the Front Controller and the Controller classes.
 	public abstract class BaseController
 	{
 		internal Engine Engine { get; set; }
+
 		//public Dictionary<string, object> Request { get { return Engine.Request.ToDictionary(x => x.Key, x => x.Value); } }
 		//public User CurrentUser { get { return Engine.CurrentUser; } }
 		//public X509Certificate2 ClientCertificate { get { return Engine.ClientCertificate; } }
@@ -1565,6 +1640,7 @@ namespace Aurora
 		//public string Identity { get { return Engine.Identity; } }
 
 		protected event EventHandler OnInit;
+
 		protected event EventHandler<CheckRolesHandlerEventArgs> OnCheckRoles;
 
 		internal bool RaiseCheckRoles(CheckRolesHandlerEventArgs checkRolesHandlerEventArgs)
@@ -1589,186 +1665,222 @@ namespace Aurora
 		}
 
 		#region WRAPPERS AROUND ENGINE METHS/PROPS
+
 		protected RouteInfo FindRoute(string path)
 		{
 			//return Engine.FindRoute(path);
 			throw new NotImplementedException();
 		}
+
 		protected RouteInfo FindRoute(string path, string[] urlParameters)
 		{
 			//return Engine.FindRoute(path, urlParameters);
 			throw new NotImplementedException();
 		}
+
 		protected void AddRoute(string alias, string controllerName, string actionName, string defaultParams)
 		{
 			//Engine.AddRoute(Engine.EngineAppState.RouteInfos, alias, controllerName, actionName, defaultParams, true);
 			throw new NotImplementedException();
 		}
+
 		protected void RemoveRoute(string alias)
 		{
 			//Engine.RemoveRoute(alias);
 			throw new NotImplementedException();
 		}
+
 		protected void AddBinding(string actionName, object bindInstance)
 		{
 			//Engine.AddBinding(this.GetType().Name, actionName, bindInstance);
 			throw new NotImplementedException();
 		}
+
 		protected void AddBinding(string[] actionNames, object bindInstance)
 		{
 			//Engine.AddBinding(this.GetType().Name, actionNames, bindInstance);
 			throw new NotImplementedException();
 		}
+
 		protected void AddBinding(string[] actionNames, object[] bindInstances)
 		{
 			//Engine.AddBinding(this.GetType().Name, actionNames, bindInstances);
 			throw new NotImplementedException();
 		}
+
 		protected void AddBindingForAllActions(string controllerName, object bindInstance)
 		{
 			//Engine.AddBindingForAllActions(controllerName, bindInstance);
 			throw new NotImplementedException();
 		}
+
 		protected void AddBindingsForAllActions(string controllerName, object[] bindInstances)
 		{
 			//Engine.AddBindingsForAllActions(controllerName, bindInstances);
 			throw new NotImplementedException();
 		}
+
 		protected void AddBindingForAllActions(object bindInstance)
 		{
 			//Engine.AddBindingForAllActions(this.GetType().Name, bindInstance);
 			throw new NotImplementedException();
 		}
+
 		protected void AddBindingsForAllActions(object[] bindInstances)
 		{
 			//Engine.AddBindingsForAllActions(this.GetType().Name, bindInstances);
 			throw new NotImplementedException();
 		}
+
 		protected void AddBundles(Dictionary<string, string[]> bundles)
 		{
 			//Engine.AddBundles(bundles);
 			throw new NotImplementedException();
 		}
+
 		protected void AddBundle(string name, string[] paths)
 		{
 			//Engine.AddBundle(name, paths);
 			throw new NotImplementedException();
 		}
+
 		public void AddHelperBundle(string name, string data)
 		{
 			//Engine.AddHelperBundle(name, data);
 			throw new NotImplementedException();
 		}
+
 		protected void LogOn(string id, string[] roles, object archeType = null)
 		{
 			//Engine.LogOn(id, roles, archeType);
 			throw new NotImplementedException();
 		}
+
 		protected void LogOff()
 		{
 			//Engine.LogOff();
 			throw new NotImplementedException();
 		}
+
 		protected List<string> GetAllRouteAliases()
 		{
 			//return Engine.GetAllRouteAliases();
 			throw new NotImplementedException();
 		}
+
 		protected void Redirect(string path)
 		{
 			//Engine.ResponseRedirect(path, false);
 			throw new NotImplementedException();
 		}
+
 		protected void Redirect(string alias, params string[] parameters)
 		{
 			//Engine.ResponseRedirect(string.Format("{0}/{1}", alias, string.Join("/", parameters)), false);
 			throw new NotImplementedException();
 		}
+
 		protected void RedirectOnly(string path)
 		{
 			//Engine.ResponseRedirect(path, true);
 			throw new NotImplementedException();
 		}
+
 		protected void ProtectFile(string path, string roles)
 		{
 			//Engine.ProtectFile(path, roles);
 			throw new NotImplementedException();
 		}
+
 		public void AddApplication(string key, object value)
 		{
 			//Engine.AddApplication(key, value);
 			throw new NotImplementedException();
 		}
+
 		public object GetApplication(string key)
 		{
 			//return Engine.GetApplication(key);
 			throw new NotImplementedException();
 		}
+
 		public void AddSession(string key, object value)
 		{
 			//Engine.AddControllerSession(key, value);
 			throw new NotImplementedException();
 		}
+
 		public object GetSession(string key)
 		{
 			//return Engine.GetControllerSession(key);
 			throw new NotImplementedException();
 		}
+
 		public void AddCache(string key, object value, DateTime expiresOn)
 		{
 			//Engine.AddCache(key, value, expiresOn);
 			throw new NotImplementedException();
 		}
+
 		public object GetCache(string key)
 		{
 			//return Engine.GetCache(key);
 			throw new NotImplementedException();
 		}
+
 		public void RemoveCache(string key)
 		{
 			//Engine.RemoveCache(key);
 			throw new NotImplementedException();
 		}
+
 		public void AbandonSession()
 		{
 			//Engine.AbandonControllerSession();
 			throw new NotImplementedException();
 		}
+
 		protected string GetQueryString(string key, bool validate)
 		{
 			//return Engine.GetQueryString(key, validate);
 			throw new NotImplementedException();
 		}
+
 		protected string MapPath(string path)
 		{
 			//return Engine.MapPath(path);
 			throw new NotImplementedException();
 		}
+
 		protected void AddCookie(HttpCookie cookie)
 		{
 			//Engine.AddCookie(cookie);
 			throw new NotImplementedException();
 		}
+
 		protected HttpCookie GetCookie(string name)
 		{
 			//return Engine.GetCookie(name);
 			throw new NotImplementedException();
 		}
+
 		protected void RemoveCookie(string name)
 		{
 			//Engine.RemoveCookie(name);
 			throw new NotImplementedException();
 		}
+
 		protected string CreateAntiForgeryToken()
 		{
 			//return Engine.CreateAntiForgeryToken();
 			throw new NotImplementedException();
 		}
-		#endregion
+
+		#endregion WRAPPERS AROUND ENGINE METHS/PROPS
 	}
 
 	// The front controller is for all intents and purposes a master controller that can intercept
-	// requests and perform various functions before a controller action is invoked. 
+	// requests and perform various functions before a controller action is invoked.
 	public abstract class FrontController : BaseController
 	{
 		protected event EventHandler<RouteHandlerEventArgs> OnPreActionEvent,
@@ -1858,10 +1970,15 @@ namespace Aurora
 	public abstract class Controller : BaseController, IController
 	{
 		internal string PartitionName { get; set; }
+
 		internal HttpAttribute HttpAttribute { get; set; }
+
 		public Dictionary<string, string> ViewTags { get; private set; }
+
 		public Dictionary<string, Dictionary<string, string>> FragTags { get; private set; }
+
 		public dynamic ViewBag { get; private set; }
+
 		public dynamic FragBag { get; private set; }
 
 		protected event EventHandler<RouteHandlerEventArgs> OnPreAction, OnPostAction;
@@ -1936,6 +2053,7 @@ namespace Aurora
 		}
 
 		#region RENDER FRAGMENT
+
 		public string RenderFragment(string fragmentName)
 		{
 			return RenderFragment(fragmentName, null, null, null, null);
@@ -1999,9 +2117,11 @@ namespace Aurora
 			//return Engine.EngineAppState.ViewEngine.LoadView(string.Format("{0}/{1}/Shared/{3}", PartitionName, this.GetType().Name, partialName), tags ?? GetTagsDictionary(ViewTags, ViewBag, null));
 			throw new NotImplementedException();
 		}
-		#endregion
+
+		#endregion RENDER FRAGMENT
 
 		#region VIEW
+
 		public HtmlStringResult HtmlView(string html)
 		{
 			var result = new HtmlStringResult(html);
@@ -2058,19 +2178,26 @@ namespace Aurora
 
 			throw new NotImplementedException();
 		}
-		#endregion
+
+		#endregion VIEW
 	}
-	#endregion
+
+	#endregion CONTROLLERS
 
 	#region VIEW ENGINE -> TO BE REWRITTEN
 
 	#region VIEW RESULTS
+
 	public class ViewResponse
 	{
 		public int HttpStatus { get; set; }
+
 		public Dictionary<string, string> Headers { get; set; }
+
 		public string ContentType { get; set; }
+
 		public object Content { get; set; }
+
 		public string RedirectTo { get; set; }
 	}
 
@@ -2186,7 +2313,10 @@ namespace Aurora
 		private readonly string _contentType;
 		private readonly Dictionary<string, string> _headers;
 
-		public StringResult(string value) : this(value, "text/plain", null) { }
+		public StringResult(string value)
+			: this(value, "text/plain", null)
+		{
+		}
 
 		public StringResult(string value, string contentType, Dictionary<string, string> headers)
 		{
@@ -2224,39 +2354,50 @@ namespace Aurora
 				new ViewResponse() { ContentType = "text/html", Content = _result, Headers = _headers };
 		}
 	}
-	#endregion
+
+	#endregion VIEW RESULTS
 
 	#region VIEW ENGINE
+
 	#region INTERFACES AND ENUMS
-	// This determines at what point the view compiler runs the particular 
+
+	// This determines at what point the view compiler runs the particular
 	// transformation on the template.
 	internal enum DirectiveProcessType { Compile, AfterCompile, Render }
 
 	internal interface IViewCompiler
 	{
 		List<TemplateInfo> CompileAll();
+
 		TemplateInfo Compile(string fullName);
+
 		TemplateInfo Render(string fullName, Dictionary<string, string> tags);
 	}
 
 	public interface IViewEngine
 	{
 		string LoadView(string fullName, Dictionary<string, string> tags);
+
 		string GetCache();
+
 		bool CacheUpdated { get; }
 	}
-	#endregion
+
+	#endregion INTERFACES AND ENUMS
 
 	#region DIRECTIVES AND SUBSTITUTIONS
+
 	internal interface IViewCompilerDirectiveHandler
 	{
 		DirectiveProcessType Type { get; }
+
 		StringBuilder Process(ViewCompilerDirectiveInfo directiveInfo);
 	}
 
 	internal interface IViewCompilerSubstitutionHandler
 	{
 		DirectiveProcessType Type { get; }
+
 		StringBuilder Process(StringBuilder content);
 	}
 
@@ -2343,6 +2484,7 @@ namespace Aurora
 	internal class MasterPageDirective : IViewCompilerDirectiveHandler
 	{
 		private const string TokenName = "%%View%%";
+
 		public DirectiveProcessType Type { get; private set; }
 
 		public MasterPageDirective()
@@ -2398,6 +2540,7 @@ namespace Aurora
 	internal class HelperBundleDirective : IViewCompilerSubstitutionHandler
 	{
 		public DirectiveProcessType Type { get; private set; }
+
 		private const string HelperBundlesDirective = "%%HelperBundles%%";
 		private readonly Func<Dictionary<string, StringBuilder>> _getHelperBundles;
 		private readonly string _sharedResourceFolderPath;
@@ -2429,6 +2572,7 @@ namespace Aurora
 				case "css":
 					tag = string.Format(CssIncludeTag, modifiedBundlePath);
 					break;
+
 				case "js":
 					tag = string.Format(JsIncludeTag, modifiedBundlePath);
 					break;
@@ -2494,6 +2638,7 @@ namespace Aurora
 				case "css":
 					tag = string.Format(CssIncludeTag, modifiedBundlePath);
 					break;
+
 				case "js":
 					tag = string.Format(JsIncludeTag, modifiedBundlePath);
 					break;
@@ -2511,6 +2656,7 @@ namespace Aurora
 				case "Include":
 					directiveInfo.Content.Replace(directiveInfo.Match.Groups[0].Value, ProcessBundleLink(bundleName));
 					break;
+
 				case "Bundle":
 					{
 						var fileLinkBuilder = new StringBuilder();
@@ -2573,9 +2719,11 @@ namespace Aurora
 			return directiveInfo.Content;
 		}
 	}
-	#endregion
+
+	#endregion DIRECTIVES AND SUBSTITUTIONS
 
 	#region VIEW ENGINE INTERNALS
+
 	internal class ViewCache
 	{
 		public List<TemplateInfo> ViewTemplates;
@@ -2586,10 +2734,15 @@ namespace Aurora
 	internal class TemplateInfo
 	{
 		public string Name { get; set; }
+
 		public string FullName { get; set; }
+
 		public string Path { get; set; }
+
 		public string Template { get; set; }
+
 		public string TemplateMd5Sum { get; set; }
+
 		public string Result { get; set; }
 	}
 
@@ -2649,11 +2802,17 @@ namespace Aurora
 	internal class ViewCompilerDirectiveInfo
 	{
 		public Match Match { get; set; }
+
 		public string Directive { get; set; }
+
 		public string Value { get; set; }
+
 		public StringBuilder Content { get; set; }
+
 		public List<TemplateInfo> ViewTemplates { get; set; }
+
 		public Func<string, string> DetermineKeyName { get; set; }
+
 		public Action<string> AddPageDependency { get; set; }
 	}
 
@@ -2837,6 +2996,7 @@ namespace Aurora
 				_viewDependencies[fullViewName] = new List<string>();
 
 			#region CLOSURES
+
 			Action<string> addPageDependency = x =>
 			{
 				if (!_viewDependencies[fullViewName].Contains(x))
@@ -2874,7 +3034,8 @@ namespace Aurora
 				}
 				return pc;
 			};
-			#endregion
+
+			#endregion CLOSURES
 
 			pageContent = performCompilerPass(pageContent, _directiveHandlers.Where(x => x.Type == DirectiveProcessType.Compile));
 			pageContent = _substitutionHandlers.Where(x => x.Type == DirectiveProcessType.Compile).Aggregate(pageContent, (current, sub) => sub.Process(current));
@@ -3053,8 +3214,10 @@ namespace Aurora
 			return result;
 		}
 	}
-	#endregion
-	#endregion
 
-	#endregion
+	#endregion VIEW ENGINE INTERNALS
+
+	#endregion VIEW ENGINE
+
+	#endregion VIEW ENGINE -> TO BE REWRITTEN
 }

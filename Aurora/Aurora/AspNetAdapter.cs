@@ -1,31 +1,31 @@
 ﻿//
-// AspNetAdapter - A thin wrapper around the ASP.NET request and response 
+// AspNetAdapter - A thin wrapper around the ASP.NET request and response
 //								 objects.
 //
-// Updated On: 30 November 2014
+// Updated On: 5 December 2014
 //
-// Description: 
+// Description:
 //
 //	A thin wrapper around the ASP.NET Request/Reponse objects to make it easier
 //	to disconnect applications from the intrinsics of the HttpContext.
 //
-//  NOTE: Apps aren't totally disconnected because I've elected to expose the 
-//				ASP.NET Session, Application and Cache stores through callbacks. I 
-//				think this is a fair trade off for now. Aurora relies heavily on 
+//  NOTE: Apps aren't totally disconnected because I've elected to expose the
+//				ASP.NET Session, Application and Cache stores through callbacks. I
+//				think this is a fair trade off for now. Aurora relies heavily on
 //				these to store state between requests.
 //
 // Requirements: .NET 4.5
 //
 // Contact Info:
 //
-//  Frank Hale - <frankhale@gmail.com> 
+//  Frank Hale - <frankhale@gmail.com>
 //
-// An attempt to abstract away some of the common bits of the ASP.NET 
+// An attempt to abstract away some of the common bits of the ASP.NET
 // HttpContext.
 //
-// I initially looked at OWIN to provide the abstraction that I wanted but I 
+// I initially looked at OWIN to provide the abstraction that I wanted but I
 // found it to be a bit more complex than I was hoping for. What I was looking
-// for was something a bit easier to strap in, something that exposed some 
+// for was something a bit easier to strap in, something that exposed some
 // simple types and was as braindead easy as I could come up with.
 //
 // GNU GPLv3 license <http://www.gnu.org/licenses/gpl-3.0.html>
@@ -45,6 +45,7 @@
 //
 
 using HtmlAgilityPack;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
@@ -54,17 +55,18 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
+using System.Security.Principal;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
 using System.Web.Caching;
 using System.Web.SessionState;
-using Newtonsoft.Json;
 
 namespace AspNetAdapter
 {
 	#region ASP.NET HOOKS - IHTTPHANDLER / IHTTPMODULE
+
 	public sealed class AspNetAdapterHandler : IHttpAsyncHandler, IRequiresSessionState
 	{
 		public IAsyncResult BeginProcessRequest(HttpContext context, AsyncCallback cb, object extraData)
@@ -108,12 +110,16 @@ namespace AspNetAdapter
 
 		public bool IsReusable { get { return true; } }
 
-		public void ProcessRequest(HttpContext context) { }
+		public void ProcessRequest(HttpContext context)
+		{
+		}
 	}
 
 	public sealed class AspNetAdapterModule : IHttpModule
 	{
-		public void Dispose() { }
+		public void Dispose()
+		{
+		}
 
 		public void Init(HttpApplication app)
 		{
@@ -144,22 +150,30 @@ namespace AspNetAdapter
 			httpContextAdapter.Init(HttpContext.Current);
 		}
 	}
-	#endregion
+
+	#endregion ASP.NET HOOKS - IHTTPHANDLER / IHTTPMODULE
 
 	#region WEB.JSON
+
 	public class TypeInfo
 	{
 		public string Name { get; set; }
+
 		public string Type { get; set; }
 	}
 
 	public class WebJsonInfo
 	{
 		public TypeInfo ApplicationTypeInfo { get; set; }
+
 		public List<TypeInfo> MiddlewareTypeInfo { get; set; }
+
 		public Dictionary<string, string> MimeTypes { get; set; }
+
 		public Dictionary<string, string> AppSettings { get; set; }
+
 		public List<string> ViewRoots { get; set; }
+
 		public string AllowedFilePattern { get; set; }
 	}
 
@@ -196,16 +210,18 @@ namespace AspNetAdapter
 			}
 			catch
 			{
-				// Yeah we are going to lose the original exception but that's okay. If 
-				// the JSON is borked then it's probably pretty apparent from looking 
+				// Yeah we are going to lose the original exception but that's okay. If
+				// the JSON is borked then it's probably pretty apparent from looking
 				// at it what needs to be fixed.
 				throw new Exception(error);
 			}
 		}
 	}
-	#endregion
+
+	#endregion WEB.JSON
 
 	#region MIDDLEWARE
+
 	public interface IAspNetAdapterMiddleware
 	{
 		MiddlewareResult Transform(Dictionary<string, object> app,
@@ -215,10 +231,12 @@ namespace AspNetAdapter
 	public class MiddlewareResult
 	{
 		public Dictionary<string, object> App { get; set; }
+
 		public Dictionary<string, object> Request { get; set; }
 	}
 
 	#region WEB.CONFIG SECTION
+
 	// For reference: http://net.tutsplus.com/tutorials/asp-net/how-to-add-custom-configuration-settings-for-your-asp-net-application/
 	public class AspNetAdapterMiddlewareConfigurationElement : ConfigurationElement
 	{
@@ -313,12 +331,14 @@ namespace AspNetAdapter
 			}
 		}
 	}
-	#endregion
 
-	#endregion
+	#endregion WEB.CONFIG SECTION
+
+	#endregion MIDDLEWARE
 
 	#region ASP.NET ADAPTER
-	// An application that wants to hook into ASP.NET and be sent the goodies 
+
+	// An application that wants to hook into ASP.NET and be sent the goodies
 	// that the HttpContextAdapter has to offer
 	public interface IAspNetAdapterApplication
 	{
@@ -330,24 +350,29 @@ namespace AspNetAdapter
 	public sealed class PostedFile
 	{
 		public string ContentType { get; set; }
+
 		public string FileName { get; set; }
+
 		public byte[] FileBytes { get; set; }
 	}
 
 	public static class HttpAdapterConstants
 	{
 		#region MISCELLANEOUS
+
 		public static readonly string ServerError = "ServerError";
 		public static readonly string ServerErrorStackTrace = "StackTrace";
 		public static readonly string ServerVariables = "ServerVariables";
-		public static readonly string RewritePathCallback = "RewritePathCallback";
 		public static readonly string User = "User";
 		public static readonly string SessionId = "SessionID";
 		public static readonly string DebugModeAssembly = "DebugModeAssembly";
 		public static readonly string DebugModeASPNET = "DebugModeASPNET";
-		#endregion
+		public static readonly string RequestAndAppHelperClass = "RequestAndAppHelperClass";
+
+		#endregion MISCELLANEOUS
 
 		#region APPLICATION CALLBACKS
+
 		public static readonly string ApplicationSessionStoreAddCallback = "ApplicationSessionStoreAddCallback";
 		public static readonly string ApplicationSessionStoreRemoveCallback = "ApplicationSessionStoreRemoveCallback";
 		public static readonly string ApplicationSessionStoreGetCallback = "ApplicationSessionStoreGetCallback";
@@ -361,9 +386,11 @@ namespace AspNetAdapter
 		public static readonly string CookieAddCallback = "CookieAddCallback";
 		public static readonly string CookieGetCallback = "CookieGetCallback";
 		public static readonly string CookieRemoveCallback = "CookieRemoveCallback";
-		#endregion
+
+		#endregion APPLICATION CALLBACKS
 
 		#region REQUEST
+
 		public static readonly string RequestScheme = "RequestScheme";
 		public static readonly string RequestMethod = "RequestMethod";
 		public static readonly string RequestPathBase = "RequestPathBase";
@@ -383,9 +410,11 @@ namespace AspNetAdapter
 		public static readonly string RequestUrl = "RequestUrl";
 		public static readonly string RequestUrlAuthority = "RequestUrlAuthority";
 		public static readonly string RequestIdentity = "RequestIdentity";
-		#endregion
+
+		#endregion REQUEST
 
 		#region RESPONSE
+
 		public static readonly string ResponseCache = "ResponseCache";
 		public static readonly string ResponseCacheabilityOption = "ResponseCacheabilityOption";
 		public static readonly string ResponseCacheExpiry = "ResponseCacheExpiry";
@@ -397,11 +426,14 @@ namespace AspNetAdapter
 		public static readonly string ResponseBody = "ResponseBody";
 		public static readonly string ResponseRedirectCallback = "ResponseRedirectCallback";
 		public static readonly string ResponseErrorCallback = "ResponseErrorCallback";
-		#endregion
+
+		#endregion RESPONSE
+
+		#region DEFAULT MIME TYPES
 
 		public static readonly Dictionary<string, string> MimeTypes = new Dictionary<string, string>()
 		{
-			{ ".js",  "application/x-javascript" },  
+			{ ".js",  "application/x-javascript" },
 			{ ".css", "text/css" },
 			{ ".png", "image/png" },
 			{ ".jpg", "image/jpg" },
@@ -412,93 +444,167 @@ namespace AspNetAdapter
 			{ ".xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
 			{ ".pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"}
 		};
+
+		#endregion DEFAULT MIME TYPES
 	}
 
 	// This is a helper class to make it easier to get at the meat and potatoes
 	// of the Request and App dictionaries.
-	public class AppRequestHelper
+	public class RequestAndAppHelper
 	{
+		private Dictionary<string, object> request;
+		private Dictionary<string, object> app;
+
+		//FIXME: Not all of these are doing null checks before trying to obtain
+		//       and return the given items.
+
 		public string RequestType
 		{
 			get
 			{
 				return request[HttpAdapterConstants.RequestMethod] != null ?
-					request[HttpAdapterConstants.RequestMethod].ToString().ToLower() : null;
+					request[HttpAdapterConstants.RequestMethod] as string : null;
 			}
 		}
+
 		public string AppRoot
 		{
 			get
 			{
 				return request[HttpAdapterConstants.RequestPathBase] != null ?
-					request[HttpAdapterConstants.RequestPathBase].ToString() : null;
+					request[HttpAdapterConstants.RequestPathBase] as string : null;
 			}
 		}
+
 		public string IpAddress
 		{
 			get
 			{
 				return request[HttpAdapterConstants.RequestIpAddress] != null ?
-					request[HttpAdapterConstants.RequestIpAddress].ToString() : null;
+					request[HttpAdapterConstants.RequestIpAddress] as string : null;
 			}
 		}
+
 		public string Path
 		{
 			get
 			{
 				return request[HttpAdapterConstants.RequestPath] != null ?
-					request[HttpAdapterConstants.RequestPath].ToString() : null;
+					request[HttpAdapterConstants.RequestPath] as string : null;
 			}
 		}
+
 		public string[] PathSegments
 		{
 			get { return request[HttpAdapterConstants.RequestPathSegments] as string[]; }
 		}
+
 		public Dictionary<string, string> Cookies
 		{
 			get { return request[HttpAdapterConstants.RequestCookie] as Dictionary<string, string>; }
 		}
+
 		public Dictionary<string, string> Form
 		{
 			get { return request[HttpAdapterConstants.RequestForm] as Dictionary<string, string>; }
 		}
+
 		public Dictionary<string, string> RequestBody
 		{
 			get { return request[HttpAdapterConstants.RequestBody] as Dictionary<string, string>; }
 		}
+
 		public List<PostedFile> Files
 		{
 			get { return request[HttpAdapterConstants.RequestFiles] as List<PostedFile>; }
-		}		
-		public Dictionary<string,string> QueryString
+		}
+
+		public Dictionary<string, string> QueryString
 		{
 			get { return request[HttpAdapterConstants.RequestQueryString] as Dictionary<string, string>; }
 		}
+
 		public bool DebugModeASPNET
 		{
 			get { return Convert.ToBoolean(app[HttpAdapterConstants.DebugModeASPNET]); }
 		}
+
+		public bool DebugModeAssembly
+		{
+			get { return Convert.ToBoolean(app[HttpAdapterConstants.DebugModeAssembly]); }
+		}
+
 		public Exception ServerError
 		{
 			get { return app[HttpAdapterConstants.ServerError] as Exception; }
 		}
+
 		public X509Certificate2 ClientCertificate
 		{
 			get { return request[HttpAdapterConstants.RequestClientCertificate] as X509Certificate2; }
 		}
+
 		public Uri Url
 		{
 			get { return request[HttpAdapterConstants.RequestUrl] as Uri; }
 		}
+
+		public string RequestUrlAuthority
+		{
+			get { return request[HttpAdapterConstants.RequestUrlAuthority] as string; }
+		}
+
 		public string Identity
 		{
 			get { return request[HttpAdapterConstants.RequestIdentity] as string; }
 		}
 
-		private Dictionary<string, object> request;
-		private Dictionary<string, object> app;
+		public string RequestScheme
+		{
+			get { return request[HttpAdapterConstants.RequestScheme] as string; }
+		}
 
-		public AppRequestHelper(Dictionary<string, object> request, Dictionary<string, object> app)
+		public string RequestMethod
+		{
+			get { return request[HttpAdapterConstants.RequestMethod] as string; }
+		}
+
+		public Dictionary<string, string> RequestHeaders
+		{
+			get { return request[HttpAdapterConstants.RequestHeaders] as Dictionary<string, string>; }
+		}
+
+		public Dictionary<string, string> RequestCookie
+		{
+			get { return request[HttpAdapterConstants.RequestCookie] as Dictionary<string, string>; }
+		}
+
+		public bool RequestIsSecure
+		{
+			get { return Convert.ToBoolean(request[HttpAdapterConstants.RequestIsSecure]); }
+		}
+
+		public string StackTrace
+		{
+			get { return app[HttpAdapterConstants.ServerErrorStackTrace] as string; }
+		}
+
+		public Dictionary<string, string> ServerVariables
+		{
+			get { return request[HttpAdapterConstants.ServerVariables] as Dictionary<string, string>; }
+		}
+
+		public IPrincipal User
+		{
+			get { return app[HttpAdapterConstants.User] as IPrincipal; }
+		}
+
+		public string SessionId
+		{
+			get { return request[HttpAdapterConstants.SessionId] as string; }
+		}
+
+		public RequestAndAppHelper(Dictionary<string, object> request, Dictionary<string, object> app)
 		{
 			this.request = request;
 			this.app = app;
@@ -508,6 +614,7 @@ namespace AspNetAdapter
 	public class RedirectInfo
 	{
 		public string Path { get; private set; }
+
 		public Dictionary<string, string> Headers { get; private set; }
 
 		public RedirectInfo(string path, Dictionary<string, string> headers)
@@ -520,6 +627,7 @@ namespace AspNetAdapter
 	public class ResponseEventArgs : EventArgs
 	{
 		public bool Redirect { get; private set; }
+
 		public object Data { get; private set; }
 
 		public ResponseEventArgs(bool redirect, object data)
@@ -587,7 +695,6 @@ namespace AspNetAdapter
 				context.Application.Lock();
 				context.Application[AspNetApplicationTypeSessionName] = adapterApp;
 				context.Application.UnLock();
-
 			}
 			else
 				adapterApp = ctx.Application[AspNetApplicationTypeSessionName] as Type;
@@ -598,6 +705,10 @@ namespace AspNetAdapter
 
 			var appDictionary = InitializeApplicationDictionary();
 			var requestDictionary = InitializeRequestDictionary();
+			
+			// Add the request and app dictionary helper class to the app dictionary.
+			appDictionary[HttpAdapterConstants.RequestAndAppHelperClass] = new RequestAndAppHelper(requestDictionary, appDictionary);
+			
 			var appInstance = (IAspNetAdapterApplication)Activator.CreateInstance(adapterApp);
 
 			ProcessMiddleware(appDictionary, requestDictionary);
@@ -651,20 +762,20 @@ namespace AspNetAdapter
 			return middlewareResults;
 		}
 
-		private void ProcessMiddleware(Dictionary<string, object> appDictionary, 
+		private void ProcessMiddleware(Dictionary<string, object> appDictionary,
 			Dictionary<string, object> requestDictionary)
 		{
-			// Middleware in the context of AspNetAdapter is simply a class 
-			// implementing the IAspNetMiddleware interface that has the ability to 
-			// modify the 'app' and/or 'request' dictionaries. 
-						
+			// Middleware in the context of AspNetAdapter is simply a class
+			// implementing the IAspNetMiddleware interface that has the ability to
+			// modify the 'app' and/or 'request' dictionaries.
+
 			var middlewareTypes = GetMiddlewareTypes();
 
 			if (middlewareTypes.Count() == 0) return;
 
 			foreach (var mw in middlewareTypes)
 			{
-				var mwin = 
+				var mwin =
 					(IAspNetAdapterMiddleware)Activator.CreateInstance(mw.Value);
 				var result = mwin.Transform(appDictionary, requestDictionary);
 
@@ -685,6 +796,7 @@ namespace AspNetAdapter
 		}
 
 		#region REQUEST/APPLICATION DICTIONARY INITIALIZATION
+
 		private Dictionary<string, object> InitializeRequestDictionary()
 		{
 			var request = new Dictionary<string, object>();
@@ -759,9 +871,11 @@ namespace AspNetAdapter
 
 			return application;
 		}
-		#endregion
+
+		#endregion REQUEST/APPLICATION DICTIONARY INITIALIZATION
 
 		#region MISCELLANEOUS
+
 		private static string[] SplitPathSegments(string path)
 		{
 			var tpath = "/";
@@ -853,7 +967,8 @@ namespace AspNetAdapter
 
 			return buffer;
 		}
-		#endregion
+
+		#endregion MISCELLANEOUS
 
 		public void SendResponse(Dictionary<string, object> response)
 		{
@@ -942,6 +1057,7 @@ namespace AspNetAdapter
 		}
 
 		#region CALLBACKS
+
 		private void ResponseCallback(Dictionary<string, object> response)
 		{
 			if (OnComplete == null) return;
@@ -959,6 +1075,7 @@ namespace AspNetAdapter
 		}
 
 		#region APPLICATION STATE
+
 		private void ApplicationSessionStoreAddCallback(string key, object value)
 		{
 			if (string.IsNullOrEmpty(key)) return;
@@ -984,9 +1101,11 @@ namespace AspNetAdapter
 
 			return null;
 		}
-		#endregion
+
+		#endregion APPLICATION STATE
 
 		#region SESSION STATE
+
 		private void UserSessionStoreAddCallback(string key, object value)
 		{
 			if (context.Session == null && string.IsNullOrEmpty(key)) return;
@@ -1017,9 +1136,11 @@ namespace AspNetAdapter
 
 			context.Session.Abandon();
 		}
-		#endregion
+
+		#endregion SESSION STATE
 
 		#region CACHE STATE
+
 		private void CacheAddCallback(string key, object value, DateTime expiresOn)
 		{
 			if (!string.IsNullOrEmpty(key))
@@ -1037,9 +1158,11 @@ namespace AspNetAdapter
 
 			context.Cache.Remove(key);
 		}
-		#endregion
+
+		#endregion CACHE STATE
 
 		#region FORM / QUERYSTRING (FOR OBTAINING VALIDATED VALUES)
+
 		private string RequestFormGetCallback(string key, bool validated)
 		{
 			string result = null;
@@ -1083,9 +1206,11 @@ namespace AspNetAdapter
 
 			return result;
 		}
-		#endregion
+
+		#endregion FORM / QUERYSTRING (FOR OBTAINING VALIDATED VALUES)
 
 		#region COOKIES
+
 		private void CookieAddCallback(HttpCookie cookie)
 		{
 			if (cookie != null)
@@ -1103,12 +1228,16 @@ namespace AspNetAdapter
 
 			context.Response.Cookies.Remove(name);
 		}
-		#endregion
-		#endregion
+
+		#endregion COOKIES
+
+		#endregion CALLBACKS
 	}
-	#endregion
+
+	#endregion ASP.NET ADAPTER
 
 	#region EXTENSION METHODS
+
 	public static class ExtensionMethods
 	{
 		public static void ThrowIfArgumentNull<T>(this T t, string message = null)
@@ -1139,7 +1268,8 @@ namespace AspNetAdapter
 			return stacktraceBuilder.ToString();
 		}
 	}
-	#endregion
+
+	#endregion EXTENSION METHODS
 
 	public static class Utility
 	{

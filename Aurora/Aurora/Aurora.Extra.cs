@@ -1,21 +1,21 @@
 ﻿//
-// Aurora.Extra - Additional bits that may be useful in your applications      
+// Aurora.Extra - Additional bits that may be useful in your applications
 //
 // Updated On: 1 December 2014
 //
 // Contact Info:
 //
-//  Frank Hale - <frankhale@gmail.com> 
+//  Frank Hale - <frankhale@gmail.com>
 //
 // LICENSE: Unless otherwise stated all code is under the GNU GPLv3
-// 
+//
 // GPL version 3 <http://www.gnu.org/licenses/gpl-3.0.html> (see below)
 //
-// NON-GPL code = my fork of Rob Conery's Massive which is under the 
+// NON-GPL code = my fork of Rob Conery's Massive which is under the
 //                "New BSD License"
 //
-// NOTE: Aurora contains some code that is not licensed under the GPLv3. 
-//       that code has been labeled with it's respective license below. 
+// NOTE: Aurora contains some code that is not licensed under the GPLv3.
+//       that code has been labeled with it's respective license below.
 //
 // NON-GPL code = Rob Conery's Massive which is under the "New BSD License" and
 //                My Gravatar fork which the original author did not include
@@ -49,13 +49,13 @@ using System.Text;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
-using System.Web;
 
 #if MASSIVE
+
 using System.Data;
 using System.Data.Common;
 using System.Dynamic;
+
 #endif
 
 #if ACTIVEDIRECTORY
@@ -72,6 +72,7 @@ using DotNetOpenAuth.OpenId.RelyingParty;
 namespace Aurora.Extra
 {
 	#region ATTRIBUTES
+
 	[AttributeUsage(AttributeTargets.All)]
 	public sealed class MetadataAttribute : Attribute
 	{
@@ -138,9 +139,11 @@ namespace Aurora.Extra
 			Format = format;
 		}
 	}
-	#endregion
+
+	#endregion ATTRIBUTES
 
 	#region EXTENSION METHODS
+
 	public static class ExtensionMethods
 	{
 		/// <summary>
@@ -205,9 +208,11 @@ namespace Aurora.Extra
 			return null;
 		}
 	}
-	#endregion
+
+	#endregion EXTENSION METHODS
 
 	#region ENCRYPTION
+
 	public static class Encryption
 	{
 		private static byte[] GetPassphraseHash(string passphrase, int size)
@@ -259,9 +264,11 @@ namespace Aurora.Extra
 			return decrypted;
 		}
 	}
-	#endregion
+
+	#endregion ENCRYPTION
 
 	#region HTML HELPERS
+
 	public enum HtmlInputType
 	{
 		[Metadata("<input type=\"button\" {0} />")]
@@ -305,6 +312,7 @@ namespace Aurora.Extra
 	}
 
 	#region ABSTRACT BASE HELPER
+
 	public abstract class HtmlBase
 	{
 		protected Dictionary<string, string> AttribsDict;
@@ -345,9 +353,11 @@ namespace Aurora.Extra
 			return null;
 		}
 	}
-	#endregion
+
+	#endregion ABSTRACT BASE HELPER
 
 	#region HTMLTABLE HELPER
+
 	internal enum ColumnTransformType
 	{
 		New,
@@ -380,6 +390,7 @@ namespace Aurora.Extra
 	{
 		private readonly List<T> _models;
 		private readonly Func<T, string> _transformFunc;
+
 		internal ColumnTransformType TransformType { get; private set; }
 
 		public string ColumnName { get; private set; }
@@ -413,7 +424,9 @@ namespace Aurora.Extra
 		private List<string> _ignoreColumns;
 		private List<ColumnTransform<T>> _columnTransforms;
 		private List<RowTransform<T>> _rowTransforms;
+
 		public string AlternateRowColor { get; set; }
+
 		public bool AlternateRowColorEnabled { get; set; }
 
 		public HtmlTable(List<T> models, bool alternateRowColorEnabled, params Func<string, string>[] attribs)
@@ -588,9 +601,11 @@ namespace Aurora.Extra
 			return ToString(0, _models.Count(), false);
 		}
 	}
-	#endregion
+
+	#endregion HTMLTABLE HELPER
 
 	#region CHECKBOX AND RADIO BUTTON LIST (NOT FINISHED)
+
 	public class HtmlCheckBoxList : HtmlBase
 	{
 		public List<HtmlListItem> Items { get; private set; }
@@ -660,9 +675,11 @@ namespace Aurora.Extra
 			return ToString(true);
 		}
 	}
-	#endregion
+
+	#endregion CHECKBOX AND RADIO BUTTON LIST (NOT FINISHED)
 
 	#region MISC HELPERS
+
 	public class HtmlAnchor : HtmlBase
 	{
 		private readonly string _url;
@@ -827,6 +844,7 @@ namespace Aurora.Extra
 	public class HtmlListItem
 	{
 		public string Text { get; set; }
+
 		public string Value { get; set; }
 	}
 
@@ -834,7 +852,10 @@ namespace Aurora.Extra
 	{
 		public string Src { get; set; }
 
-		public HtmlImage(string src) : this(src, null) { }
+		public HtmlImage(string src)
+			: this(src, null)
+		{
+		}
 
 		public HtmlImage(string src, params Func<string, string>[] attribs)
 		{
@@ -871,22 +892,24 @@ namespace Aurora.Extra
 			return result.ToString();
 		}
 	}
-	#endregion
+
+	#endregion MISC HELPERS
 
 	#region SPECIALIZED HELPERS
+
 	public class HtmlHelperTest : HtmlBase
 	{
 		//FIXME: AddHelperBundle is undefined
 		public HtmlHelperTest(IController c)
 		{
-//			const string css = @"
-//.foobar 
-//{ 
-//	margin-top: 10px;
-//	border: 2px solid red; 
-//}";
+			//			const string css = @"
+			//.foobar
+			//{
+			//	margin-top: 10px;
+			//	border: 2px solid red;
+			//}";
 
-//			c.AddHelperBundle("HtmlHelperTest.css", css);
+			//			c.AddHelperBundle("HtmlHelperTest.css", css);
 		}
 
 		//FIXME: ToString is commented out
@@ -913,49 +936,51 @@ namespace Aurora.Extra
 			_applicationTitle = applicationTitle;
 			_antiForgeryToken = antiForgeryToken;
 
-//			const string css = @"
-//.userNameAndPassword {
-//	margin: 0 auto; 
-//	width: 155px;  
-//	text-align: center;  
-//}
-//";
-		
-//			_controller.AddHelperBundle("HtmlUserNameAndPasswordForm.css", css);
+			//			const string css = @"
+			//.userNameAndPassword {
+			//	margin: 0 auto;
+			//	width: 155px;
+			//	text-align: center;
+			//}
+			//";
+
+			//			_controller.AddHelperBundle("HtmlUserNameAndPasswordForm.css", css);
 		}
 
 		//FIXME: ToString is commented out
 		public override string ToString()
 		{
 			//TODO: The AntiForgeryToken is never going to be rendered because this helper does not
-			//			pass through the view engine. We need a way to pass helpers through the view 
+			//			pass through the view engine. We need a way to pass helpers through the view
 			//			engine to perform additional processing. I've removed the %%AntiForgeryToken%%
 			//			directive and replaced it with a token that is passed in via the constructor
 			//			for now. The view engine was never created with this type of scenario in mind.
-			//			The view engine assumed all templates would come from files on the hard drive. 
+			//			The view engine assumed all templates would come from files on the hard drive.
 			//			ARGH! If the view engine ever supports arbitrary strings passing through then
 			//			it'll likely take a rewrite of the view engine to make that a reality! DAMNIT!
 
-//			return
-//string.Format(@"
-//<div class=""userNameAndPassword"">
-//	<h1>{0}</h1>
-//	<form action=""{1}"" method=""post"">
-//		<input type=""hidden"" name=""AntiForgeryToken"" value=""{2}"" />
-//		<table>
-//		<tr><td>UserName:<br /><input type=""text"" name=""UserName"" id=""UserName"" /></td></tr>
-//		<tr><td>Password:<br /><input type=""password"" name=""Password"" id=""Password"" /></td></tr>
-//		<tr><td><input type=""submit"" value=""Login"" /></td></tr>
-//		</table>
-//	</form>
-//</div>
-//", _applicationTitle, _loginAlias, _antiForgeryToken);
+			//			return
+			//string.Format(@"
+			//<div class=""userNameAndPassword"">
+			//	<h1>{0}</h1>
+			//	<form action=""{1}"" method=""post"">
+			//		<input type=""hidden"" name=""AntiForgeryToken"" value=""{2}"" />
+			//		<table>
+			//		<tr><td>UserName:<br /><input type=""text"" name=""UserName"" id=""UserName"" /></td></tr>
+			//		<tr><td>Password:<br /><input type=""password"" name=""Password"" id=""Password"" /></td></tr>
+			//		<tr><td><input type=""submit"" value=""Login"" /></td></tr>
+			//		</table>
+			//	</form>
+			//</div>
+			//", _applicationTitle, _loginAlias, _antiForgeryToken);
 
 			throw new NotImplementedException();
 		}
 	}
-	#endregion
-	#endregion
+
+	#endregion SPECIALIZED HELPERS
+
+	#endregion HTML HELPERS
 
 	#region PLUGIN MANAGEMENT
 
@@ -971,12 +996,14 @@ namespace Aurora.Extra
 	public interface IPluginHost
 	{
 		string HostName { get; }
+
 		string HostVersion { get; }
 	}
 
 	public interface IPlugin<T>
 	{
 		void Load(T host);
+
 		void Unload();
 	}
 
@@ -985,23 +1012,34 @@ namespace Aurora.Extra
 		public T Host { get; protected set; }
 
 		public string Guid { get; protected set; }
+
 		public string Name { get; protected set; }
+
 		public string[] Authors { get; protected set; }
+
 		public string Website { get; protected set; }
+
 		public string Version { get; protected set; }
+
 		public PluginDevelopmentStatus DevelopmentStatus { get; protected set; }
+
 		public DateTime DevelopmentDate { get; protected set; }
+
 		public bool Enabled { get; protected set; }
+
 		public string ShortDescription { get; protected set; }
+
 		public string LongDescription { get; protected set; }
 
 		public abstract void Load(T host);
+
 		public abstract void Unload();
 	}
 
 	public sealed class PluginManager<T>
 	{
 		public List<IPlugin<T>> Plugins { get; private set; }
+
 		public T Host { get; private set; }
 
 		public PluginManager(T host)
@@ -1105,37 +1143,40 @@ namespace Aurora.Extra
 		{
 		}
 	}
-	#endregion
+
+	#endregion PLUGIN MANAGEMENT
 
 	#region MASSIVE ORM (FORKED : NON-GPL)
+
 #if MASSIVE
+
 	//
 	// New BSD License
 	// http://www.opensource.org/licenses/bsd-license.php
 	// Copyright (c) 2009, Rob Conery (robconery@gmail.com)
-	// All rights reserved.    
+	// All rights reserved.
 	//
-	// Redistribution and use in source and binary forms, with or without 
+	// Redistribution and use in source and binary forms, with or without
 	// modification, are permitted provided that the following conditions are met:
 	//
-	// Redistributions of source code must retain the above copyright notice, this 
-	// list of conditions and the following disclaimer. Redistributions in binary 
-	// form must reproduce the above copyright notice, this list of conditions and 
-	// the following disclaimer in the documentation and/or other materials provided 
-	// with the distribution. Neither the name of the SubSonic nor the names of its 
-	// contributors may be used to endorse or promote products derived from this 
+	// Redistributions of source code must retain the above copyright notice, this
+	// list of conditions and the following disclaimer. Redistributions in binary
+	// form must reproduce the above copyright notice, this list of conditions and
+	// the following disclaimer in the documentation and/or other materials provided
+	// with the distribution. Neither the name of the SubSonic nor the names of its
+	// contributors may be used to endorse or promote products derived from this
 	// software without specific prior written permission.
 	//
-	// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
-	// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-	// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
-	// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE 
-	// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
-	// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
-	// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
-	// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
-	// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
-	// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
+	// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+	// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+	// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+	// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+	// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+	// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+	// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+	// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+	// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+	// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 	// POSSIBILITY OF SUCH DAMAGE.
 	//
 	namespace Massive
@@ -1376,7 +1417,8 @@ namespace Aurora.Extra
 			/// <summary>
 			/// List out all the schema bits for use with ... whatever
 			/// </summary>
-			IEnumerable<dynamic> _schema;
+			private IEnumerable<dynamic> _schema;
+
 			public IEnumerable<dynamic> Schema
 			{
 				get
@@ -1427,7 +1469,7 @@ namespace Aurora.Extra
 			/// <summary>
 			/// Creates a DBCommand that you can use for loving your database.
 			/// </summary>
-			DbCommand CreateCommand(string sql, DbConnection conn, params object[] args)
+			private DbCommand CreateCommand(string sql, DbConnection conn, params object[] args)
 			{
 				var result = _factory.CreateCommand();
 				result.Connection = conn;
@@ -1509,7 +1551,7 @@ namespace Aurora.Extra
 			public virtual string PrimaryKeyField { get; set; }
 
 			/// <summary>
-			/// Conventionally introspects the object passed in for a field that 
+			/// Conventionally introspects the object passed in for a field that
 			/// looks like a PK. If you've named your PrimaryKeyField, this becomes easy
 			/// </summary>
 			public virtual bool HasPrimaryKey(object o)
@@ -1532,7 +1574,7 @@ namespace Aurora.Extra
 			public virtual string TableName { get; set; }
 
 			/// <summary>
-			/// Returns all records complying with the passed-in WHERE clause and arguments, 
+			/// Returns all records complying with the passed-in WHERE clause and arguments,
 			/// ordered as specified, limited (TOP) by limit.
 			/// </summary>
 			public virtual IEnumerable<dynamic> All(string where = "", string orderBy = "", int limit = 0, string columns = "*", params object[] args)
@@ -1851,12 +1893,31 @@ namespace Aurora.Extra
 			}
 
 			//Hooks
-			public virtual void Validate(dynamic item) { }
-			public virtual void Inserted(dynamic item) { }
-			public virtual void Updated(dynamic item) { }
-			public virtual void Deleted(dynamic item) { }
-			public virtual bool BeforeDelete(dynamic item) { return true; }
-			public virtual bool BeforeSave(dynamic item) { return true; }
+			public virtual void Validate(dynamic item)
+			{
+			}
+
+			public virtual void Inserted(dynamic item)
+			{
+			}
+
+			public virtual void Updated(dynamic item)
+			{
+			}
+
+			public virtual void Deleted(dynamic item)
+			{
+			}
+
+			public virtual bool BeforeDelete(dynamic item)
+			{
+				return true;
+			}
+
+			public virtual bool BeforeSave(dynamic item)
+			{
+				return true;
+			}
 
 			//validation methods
 			public virtual void ValidatesPresenceOf(object value, string message = "Required")
@@ -1933,9 +1994,11 @@ namespace Aurora.Extra
 							case "orderby":
 								orderBy = " ORDER BY " + args[i];
 								break;
+
 							case "columns":
 								columns = args[i].ToString();
 								break;
+
 							default:
 								constraints.Add(string.Format(" {0} = @{1}", name, counter));
 								whereArgs.Add(args[i]);
@@ -1992,12 +2055,17 @@ namespace Aurora.Extra
 			}
 		}
 	}
+
 #endif
-	#endregion
+
+	#endregion MASSIVE ORM (FORKED : NON-GPL)
 
 	#region ACTIVE DIRECTORY
+
 #if ACTIVEDIRECTORY
+
 	#region WEB.CONFIG
+
 	public class ActiveDirectoryWebConfig : ConfigurationSection
 	{
 		[ConfigurationProperty("EncryptionKey", DefaultValue = "", IsRequired = false)]
@@ -2034,7 +2102,8 @@ namespace Aurora.Extra
 			set { this["SearchRoot"] = value; }
 		}
 	}
-	#endregion
+
+	#endregion WEB.CONFIG
 
 	public class ActiveDirectoryUser
 	{
@@ -2224,9 +2293,11 @@ namespace Aurora.Extra
 		}
 	}
 #endif
-	#endregion
+
+	#endregion ACTIVE DIRECTORY
 
 	#region OPENAUTH
+
 #if OPENAUTH
 	public class OpenAuthClaimsResponse
 	{
@@ -2323,14 +2394,16 @@ namespace Aurora.Extra
 		}
 	}
 #endif
-	#endregion
+
+	#endregion OPENAUTH
 
 	#region GRAVATAR (FORKED : NON-GPL)
+
 #if GRAVATAR
 	// https://github.com/runeborg
 	//
 	// "Gravatar wrapper for ASP.NET MVC. Feel free to use it any way you want."
-	//    
+	//
 	namespace Gravatar
 	{
 		/// <summary>
@@ -2703,5 +2776,6 @@ namespace Aurora.Extra
 		}
 	}
 #endif
-	#endregion
+
+	#endregion GRAVATAR (FORKED : NON-GPL)
 }
