@@ -414,6 +414,97 @@ namespace AspNetAdapter
 		};
 	}
 
+	// This is a helper class to make it easier to get at the meat and potatoes
+	// of the Request and App dictionaries.
+	public class AppRequestHelper
+	{
+		public string RequestType
+		{
+			get
+			{
+				return request[HttpAdapterConstants.RequestMethod] != null ?
+					request[HttpAdapterConstants.RequestMethod].ToString().ToLower() : null;
+			}
+		}
+		public string AppRoot
+		{
+			get
+			{
+				return request[HttpAdapterConstants.RequestPathBase] != null ?
+					request[HttpAdapterConstants.RequestPathBase].ToString() : null;
+			}
+		}
+		public string IpAddress
+		{
+			get
+			{
+				return request[HttpAdapterConstants.RequestIpAddress] != null ?
+					request[HttpAdapterConstants.RequestIpAddress].ToString() : null;
+			}
+		}
+		public string Path
+		{
+			get
+			{
+				return request[HttpAdapterConstants.RequestPath] != null ?
+					request[HttpAdapterConstants.RequestPath].ToString() : null;
+			}
+		}
+		public string[] PathSegments
+		{
+			get { return request[HttpAdapterConstants.RequestPathSegments] as string[]; }
+		}
+		public Dictionary<string, string> Cookies
+		{
+			get { return request[HttpAdapterConstants.RequestCookie] as Dictionary<string, string>; }
+		}
+		public Dictionary<string, string> Form
+		{
+			get { return request[HttpAdapterConstants.RequestForm] as Dictionary<string, string>; }
+		}
+		public Dictionary<string, string> RequestBody
+		{
+			get { return request[HttpAdapterConstants.RequestBody] as Dictionary<string, string>; }
+		}
+		public List<PostedFile> Files
+		{
+			get { return request[HttpAdapterConstants.RequestFiles] as List<PostedFile>; }
+		}		
+		public Dictionary<string,string> QueryString
+		{
+			get { return request[HttpAdapterConstants.RequestQueryString] as Dictionary<string, string>; }
+		}
+		public bool DebugModeASPNET
+		{
+			get { return Convert.ToBoolean(app[HttpAdapterConstants.DebugModeASPNET]); }
+		}
+		public Exception ServerError
+		{
+			get { return app[HttpAdapterConstants.ServerError] as Exception; }
+		}
+		public X509Certificate2 ClientCertificate
+		{
+			get { return request[HttpAdapterConstants.RequestClientCertificate] as X509Certificate2; }
+		}
+		public Uri Url
+		{
+			get { return request[HttpAdapterConstants.RequestUrl] as Uri; }
+		}
+		public string Identity
+		{
+			get { return request[HttpAdapterConstants.RequestIdentity] as string; }
+		}
+
+		private Dictionary<string, object> request;
+		private Dictionary<string, object> app;
+
+		public AppRequestHelper(Dictionary<string, object> request, Dictionary<string, object> app)
+		{
+			this.request = request;
+			this.app = app;
+		}
+	}
+
 	public class RedirectInfo
 	{
 		public string Path { get; private set; }

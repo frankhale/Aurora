@@ -2,7 +2,7 @@
 // Aurora engine rewrite (WIP)
 // 
 // Frank Hale <frankhale@gmail.com>
-// 1 December 2014
+// 4 December 2014
 //
 // --------------------
 // --- Feature List ---
@@ -70,15 +70,17 @@ namespace Aurora
 	internal class EngineAppState
 	{
 		private static readonly string EngineAppStateSessionName = "__ENGINE_APP_STATE__";
-		private static readonly string FromRedirectOnlySessionName = "__FROM_REDIRECT_ONLY__";
+
+		private Dictionary<string, object> app;
+		private Dictionary<string, object> request;
 
 		public static readonly Regex AllowedFilePattern = new Regex(@"^.*\.(js|css|png|jpg|gif|ico|pptx|xlsx|csv|txt)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-		
+
 		// This is used in the bundle code to figure out what files to operate on.
 		// This should probably live there and not here since it's not going to 
 		// change.
 		public static readonly Regex CssOrJsExtPattern = new Regex(@"^.*\.(js|css)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-		
+
 		public static readonly string SharedResourceFolderPath = "/Resources";
 		public static readonly string CompiledViewsCacheFolderPath = "/Views/Cache";
 		public static readonly string CompiledViewsCacheFileName = "viewsCache.json";
@@ -86,7 +88,7 @@ namespace Aurora
 		// This really doesn't need to be here. I think this should probably live
 		// inside the view engine.
 		public static readonly string AntiForgeryTokenName = "AntiForgeryToken";
-		
+
 		private class AppState
 		{
 			public ViewEngine ViewEngine { get; set; }
@@ -107,55 +109,67 @@ namespace Aurora
 		// stuff the data into a session variable. This is a trade off. I want to
 		// get one value out of the session and put one value in.
 
-		public ViewEngine ViewEngine 
+		public ViewEngine ViewEngine
 		{
 			get { return appState.ViewEngine; }
 			set { appState.ViewEngine = value; }
 		}
-		public List<User> Users 
-		{ 
+		public List<User> Users
+		{
 			get { return appState.Users; }
 			set { appState.Users = value; }
 		}
-		public List<string> AntiForgeryTokens 
+		public List<string> AntiForgeryTokens
 		{
 			get { return appState.AntiForgeryTokens; }
 			set { appState.AntiForgeryTokens = value; }
 		}
-		public Dictionary<string, string> ProtectedFiles 
+		public Dictionary<string, string> ProtectedFiles
 		{
 			get { return appState.ProtectedFiles; }
 			set { appState.ProtectedFiles = value; }
 		}
-		public List<Type> Models 
+		public List<Type> Models
 		{
 			get { return appState.Models; }
 			set { appState.Models = value; }
 		}
-		public string CacheFilePath 
+		public string CacheFilePath
 		{
 			get { return appState.CacheFilePath; }
 			set { appState.CacheFilePath = value; }
 		}
-		public string[] ViewRoots 
+		public string[] ViewRoots
 		{
 			get { return appState.ViewRoots; }
-			set { appState.ViewRoots = value; } 
+			set { appState.ViewRoots = value; }
 		}
-		public List<IViewCompilerDirectiveHandler> ViewEngineDirectiveHandlers 
+		public List<IViewCompilerDirectiveHandler> ViewEngineDirectiveHandlers
 		{
 			get { return appState.ViewEngineDirectiveHandlers; }
 			set { appState.ViewEngineDirectiveHandlers = value; }
 		}
-		public List<IViewCompilerSubstitutionHandler> ViewEngineSubstitutionHandlers 
+		public List<IViewCompilerSubstitutionHandler> ViewEngineSubstitutionHandlers
 		{
 			get { return appState.ViewEngineSubstitutionHandlers; }
-			set { appState.ViewEngineSubstitutionHandlers = value; } 
+			set { appState.ViewEngineSubstitutionHandlers = value; }
 		}
-		public Dictionary<string, Tuple<List<string>, string>> Bundles 
+		public Dictionary<string, Tuple<List<string>, string>> Bundles
 		{
 			get { return appState.Bundles; }
 			set { appState.Bundles = value; }
+		}
+		public string SessionId
+		{
+			get
+			{
+				return (request[HttpAdapterConstants.SessionId] != null) ?
+					request[HttpAdapterConstants.SessionId].ToString() : null;
+			}
+		}
+		public User CurrentUser
+		{
+			get { return appState.Users.FirstOrDefault(x => x.SessionId == SessionId); }
 		}
 
 		// TODO: Investigate and figure out how to resolve this:
@@ -173,8 +187,36 @@ namespace Aurora
 
 		public EngineAppState(Dictionary<string, object> app, Dictionary<string, object> request, AspNetAdapterCallbacks callbacks)
 		{
+			this.app = app;
+			this.request = request;
+
 			// do the initialization or get the state from the Application store
 			appState = callbacks.GetApplication(EngineAppStateSessionName) as AppState ?? new AppState();
+
+			//if (appState.RouteInfos == null)
+			//	appState.RouteInfos = new List<RouteInfo>();
+			//else
+			//	appState.RouteInfos.ForEach(x => x.Controller.Engine = this);
+
+			if (appState.Users == null)
+				appState.Users = new List<User>();
+
+			if (appState.AntiForgeryTokens == null)
+				appState.AntiForgeryTokens = new List<string>();
+
+			if (appState.ProtectedFiles == null)
+				appState.ProtectedFiles = new Dictionary<string, string>();
+
+			if (appState.Models == null)
+				appState.Models = ReflectionHelpers.GetTypeList(typeof(Model));
+
+			//if (appState.ActionBindings == null)
+			//	appState.ActionBindings = new Dictionary<string, Dictionary<string, List<object>>>();
+
+			if (appState.Bundles == null)
+				appState.Bundles = new Dictionary<string, Tuple<List<string>, string>>();
+
+			callbacks.AddApplication(EngineAppStateSessionName, appState);
 		}
 	}
 
@@ -200,38 +242,38 @@ namespace Aurora
 		// stuff the data into a session variable. This is a trade off. I want to
 		// get one value out of the session and put one value in.
 
-		public FrontController FrontController 
+		public FrontController FrontController
 		{
 			get { return sessionState.FrontController; }
 			set { sessionState.FrontController = value; }
 		}
-		public List<Controller> Controllers 
+		public List<Controller> Controllers
 		{
 			get { return sessionState.Controllers; }
 			set { sessionState.Controllers = value; }
 		}
-		public Dictionary<string, object> ControllersSession 
+		public Dictionary<string, object> ControllersSession
 		{
 			get { return sessionState.ControllersSession; }
-			set { sessionState.ControllersSession = value;  }
+			set { sessionState.ControllersSession = value; }
 		}
 		// Helper bundles are impromptu bundles that are added by HTML Helpers
-		public Dictionary<string, StringBuilder> HelperBundles 
+		public Dictionary<string, StringBuilder> HelperBundles
 		{
 			get { return sessionState.HelperBundles; }
 			set { sessionState.HelperBundles = value; }
 		}
-		public List<MethodInfo> ControllerActions 
+		public List<MethodInfo> ControllerActions
 		{
 			get { return sessionState.ControllerActions; }
 			set { sessionState.ControllerActions = value; }
 		}
-		public bool FromRedirectOnly 
+		public bool FromRedirectOnly
 		{
 			get { return sessionState.FromRedirectOnly; }
-			set { sessionState.FromRedirectOnly = value; } 
+			set { sessionState.FromRedirectOnly = value; }
 		}
-		public User CurrentUser 
+		public User CurrentUser
 		{
 			get { return sessionState.CurrentUser; }
 			set { sessionState.CurrentUser = value; }
@@ -241,6 +283,25 @@ namespace Aurora
 		{
 			// do the initialization or get the state from the Session store
 			sessionState = callbacks.GetSession(EngineSessionStateSessionName) as SessionState ?? new SessionState();
+
+			if (sessionState.ControllersSession == null)
+				sessionState.ControllersSession = new Dictionary<string, object>();
+
+			if (sessionState.HelperBundles == null)
+				sessionState.HelperBundles = new Dictionary<string, StringBuilder>();
+
+			//if (sessionState.FrontController == null)
+			//	sessionState.FrontController = GetFrontControllerInstance();
+			//else
+			//	sessionState.FrontController.Engine = this;
+
+			if (sessionState.Controllers == null)
+				sessionState.Controllers = new List<Controller>();
+
+			if (sessionState.FrontController != null)
+				sessionState.FrontController.RaiseEvent(EventType.OnInit);
+
+			callbacks.AddSession(EngineSessionStateSessionName, sessionState);
 		}
 	}
 
@@ -250,6 +311,19 @@ namespace Aurora
 		private EngineSessionState engineSessionState;
 		private AspNetAdapterCallbacks aspNetAdapterCallbacks;
 
+		//private static readonly string FromRedirectOnlySessionName = "__FROM_REDIRECT_ONLY__";
+
+		private Dictionary<string, object> app;
+		private Dictionary<string, object> request;
+		private Action<Dictionary<string, object>> response;
+
+		//ViewRoot = string.Format(@"{0}\Views", AppRoot);
+
+		//private RouteInfo currentRoute;
+		//private User CurrentUser;
+
+		//internal string IpAddress, Path, RequestType, AppRoot, ViewRoot, SessionId, Identity;
+
 		public void Init(Dictionary<string, object> app,
 										 Dictionary<string, object> request,
 										 Action<Dictionary<string, object>> response)
@@ -257,21 +331,1063 @@ namespace Aurora
 			aspNetAdapterCallbacks = new AspNetAdapterCallbacks(app, request);
 			engineAppState = new EngineAppState(app, request, aspNetAdapterCallbacks);
 			engineSessionState = new EngineSessionState(app, request, aspNetAdapterCallbacks);
-			
+
+			this.app = app;
+			this.request = request;
+			this.response = response;
+
+			#region INITIALIZE VIEW ENGINE
+
+			//if (!EngineAppState.AllowedFilePattern.IsMatch(Path) && (EngineAppState.ViewEngine == null || debugMode))
+			//{
+			//	string viewCache = null;
+
+			//	if (EngineAppState.ViewEngineDirectiveHandlers == null && EngineAppState.ViewEngineSubstitutionHandlers == null)
+			//	{
+			//		EngineAppState.ViewEngineDirectiveHandlers = new List<IViewCompilerDirectiveHandler>();
+			//		EngineAppState.ViewEngineSubstitutionHandlers = new List<IViewCompilerSubstitutionHandler>();
+
+			//		EngineAppState.ViewEngineDirectiveHandlers.Add(new MasterPageDirective());
+			//		EngineAppState.ViewEngineDirectiveHandlers.Add(new PlaceHolderDirective());
+			//		EngineAppState.ViewEngineDirectiveHandlers.Add(new PartialPageDirective());
+			//		EngineAppState.ViewEngineDirectiveHandlers.Add(new BundleDirective(debugMode,
+			//			EngineAppState.SharedResourceFolderPath, GetBundleFiles));
+			//		EngineAppState.ViewEngineSubstitutionHandlers.Add(new HelperBundleDirective(
+			//			EngineAppState.SharedResourceFolderPath, GetHelperBundle));
+			//		EngineAppState.ViewEngineSubstitutionHandlers.Add(new CommentSubstitution());
+			//		EngineAppState.ViewEngineSubstitutionHandlers.Add(new AntiForgeryTokenSubstitution(CreateAntiForgeryToken));
+			//		EngineAppState.ViewEngineSubstitutionHandlers.Add(new HeadSubstitution());
+			//	}
+
+			//	if (string.IsNullOrEmpty(EngineAppState.CacheFilePath))
+			//		EngineAppState.CacheFilePath = System.IO.Path.Combine(MapPath(EngineAppState.CompiledViewsCacheFolderPath),
+			//			EngineAppState.CompiledViewsCacheFileName);
+
+			//	if (File.Exists(EngineAppState.CacheFilePath) && !debugMode)
+			//		viewCache = File.ReadAllText(EngineAppState.CacheFilePath);
+
+			//	if (EngineAppState.ViewRoots == null)
+			//		EngineAppState.ViewRoots = GetViewRoots();
+
+			//	EngineAppState.ViewEngine = new ViewEngine(AppRoot, EngineAppState.ViewRoots,
+			//		EngineAppState.ViewEngineDirectiveHandlers, EngineAppState.ViewEngineSubstitutionHandlers, viewCache);
+
+			//	if (string.IsNullOrEmpty(viewCache) || !debugMode)
+			//		UpdateCache(EngineAppState.CacheFilePath);
+			//}
+			//else if (EngineAppState.ViewEngine.CacheUpdated ||
+			//				 !Directory.Exists(System.IO.Path.GetDirectoryName(EngineAppState.CacheFilePath)) ||
+			//				 !File.Exists(EngineAppState.CacheFilePath))
+			//	UpdateCache(EngineAppState.CacheFilePath);
+
+			#endregion
+
+			#region PROCESS REQUEST / RENDER RESPONSE
+
+			//ViewResponse viewResponse = null;
+			//Exception exception = serverError;
+			//int httpStatus = 200;
+
+			//if (exception == null)
+			//{
+			//	try
+			//	{
+			//		viewResponse = ProcessRequest();
+			//	}
+			//	catch (Exception ex)
+			//	{
+			//		exception = ex;
+			//	}
+			//}
+
+			//if (viewResponse == null && _currentRoute != null && _currentRoute.Action.ReturnType != typeof(void)) return;
+
+			//if (viewResponse == null && exception == null)
+			//{
+			//	httpStatus = 404;
+			//	viewResponse = GetErrorViewResponse("Http 404 - Page Not Found", null);
+			//}
+			//else if (exception != null)
+			//{
+			//	httpStatus = 503;
+			//	if (debugMode)
+			//	{
+			//		viewResponse = GetErrorViewResponse(
+			//			(exception.InnerException != null) ? exception.InnerException.Message : exception.Message,
+			//			(exception.InnerException != null) ? exception.InnerException.StackTrace : exception.StackTrace
+			//			);
+			//	}
+			//	else
+			//		viewResponse = GetErrorViewResponse("A problem occurred trying to process this request.", null);
+			//}
+
+			//viewResponse.HttpStatus = httpStatus;
+
+			//RenderResponse(viewResponse);
+
+			#endregion
 		}
 
-		public static FrontController GetFrontControllerInstance()
+		#region PRIVATE METHODS
+		private ViewResponse ProcessRequest()
+		{
+			//ViewResponse viewResponse = null;
+
+			//if (EngineAppState.AllowedFilePattern.IsMatch(Path))
+			//{
+			//	#region FILE RESPONSE
+			//	RaiseEventOnFrontController(RouteHandlerEventType.Static, Path, null, null);
+
+			//	if (Path.StartsWith(EngineAppState.SharedResourceFolderPath) || Path.EndsWith(".ico"))
+			//	{
+			//		var filePath = MapPath(Path);
+
+			//		if (CanAccessFile(filePath))
+			//		{
+			//			if (File.Exists(filePath))
+			//				viewResponse = new FileResult(EngineAppState.AllowedFilePattern, filePath).Render();
+			//			else
+			//			{
+			//				var fileName = System.IO.Path.GetFileName(filePath);
+
+			//				if (EngineAppState.Bundles.ContainsKey(fileName))
+			//					viewResponse = new FileResult(fileName, EngineAppState.Bundles[fileName].Item2).Render();
+			//				else if (EngineSessionState.HelperBundles.ContainsKey(fileName))
+			//					viewResponse = new FileResult(fileName, EngineSessionState.HelperBundles[fileName].ToString()).Render();
+			//			}
+			//		}
+			//	}
+			//	#endregion
+			//}
+			//else
+			//{
+			//	#region ACTION RESPONSE
+			//	RouteInfo routeInfo = null;
+
+			//	if (Path == "/" || Path == "~/" || Path.ToLower() == "/default.aspx" || Path == "/Index")
+			//	{
+			//		Path = "/Index";
+			//		pathSegments[0] = "Index";
+			//	}
+
+			//	RaiseEventOnFrontController(RouteHandlerEventType.PreRoute, Path, null, null);
+
+			//	routeInfo = FindRoute(string.Concat("/", pathSegments[0]), pathSegments);
+
+			//	RaiseEventOnFrontController(RouteHandlerEventType.PostRoute, Path, routeInfo, null);
+
+			//	if (routeInfo == null)
+			//		routeInfo = RaiseEventOnFrontController(RouteHandlerEventType.MissingRoute, Path, null, null);
+
+			//	if (routeInfo != null)
+			//	{
+			//		_currentRoute = routeInfo;
+
+			//		if (routeInfo.RequestTypeAttribute.ActionType == ActionType.FromRedirectOnly && !EngineSessionState.FromRedirectOnly)
+			//			return null;
+
+			//		if (routeInfo.RequestTypeAttribute.RequireAntiForgeryToken &&
+			//				RequestType == "post" || RequestType == "put" || RequestType == "delete")
+			//		{
+			//			if (!(form.ContainsKey(EngineAppState.AntiForgeryTokenName) ||
+			//						payload.ContainsKey(EngineAppState.AntiForgeryTokenName)))
+			//			{
+			//				// i
+			//				return GetErrorViewResponse("AntiForgeryToken Required", "All forms require an AntiForgeryToken by default.");
+			//			}
+			//			else
+			//			{
+			//				if (EngineAppState.AntiForgeryTokens.Contains(form[EngineAppState.AntiForgeryTokenName]) ||
+			//					EngineAppState.AntiForgeryTokens.Contains(payload[EngineAppState.AntiForgeryTokenName]))
+			//				{
+			//					EngineAppState.AntiForgeryTokens.Remove(form[EngineAppState.AntiForgeryTokenName]);
+			//					EngineAppState.AntiForgeryTokens.Remove(payload[EngineAppState.AntiForgeryTokenName]);
+			//				}
+			//				else
+			//				{
+			//					return GetErrorViewResponse("AntiForgeryToken Required", "All forms require a valid AntiForgeryToken.");
+			//				}
+			//			}
+			//		}
+
+			//		if (routeInfo.RequestTypeAttribute.SecurityType == ActionSecurity.Secure &&
+			//				routeInfo.RequestTypeAttribute.SecurityType == ActionSecurity.Secure && CurrentUser == null ||
+			//				routeInfo.RequestTypeAttribute.SecurityType == ActionSecurity.Secure && routeInfo.RequestTypeAttribute.Roles == null ||
+			//				routeInfo.RequestTypeAttribute.SecurityType == ActionSecurity.Secure && !(CurrentUser.Roles.Intersect(routeInfo.RequestTypeAttribute.Roles.Split('|')).Any()) ||
+			//				routeInfo.RequestTypeAttribute.SecurityType == ActionSecurity.Secure && routeInfo.Controller.RaiseCheckRoles(new CheckRolesHandlerEventArgs() { RouteInfo = routeInfo }))
+			//		{
+			//			RaiseEventOnFrontController(RouteHandlerEventType.FailedSecurity, Path, routeInfo, null);
+
+			//			if (!string.IsNullOrEmpty(routeInfo.RequestTypeAttribute.RedirectWithoutAuthorizationTo))
+			//			{
+			//				viewResponse = new ViewResponse() { RedirectTo = routeInfo.RequestTypeAttribute.RedirectWithoutAuthorizationTo };
+			//			}
+			//		}
+			//		else
+			//		{
+			//			RaiseEventOnFrontController(RouteHandlerEventType.PassedSecurity, Path, routeInfo, null);
+			//			RaiseEventOnFrontController(RouteHandlerEventType.PreAction, Path, routeInfo, null);
+			//			routeInfo.Controller.RaiseEvent(RouteHandlerEventType.PreAction, Path, routeInfo);
+
+			//			if (routeInfo.RequestTypeAttribute.ActionType == ActionType.FromRedirectOnly && EngineSessionState.FromRedirectOnly)
+			//				RemoveSession(EngineAppState.FromRedirectOnlySessionName);
+
+			//			if (routeInfo.BoundToActionParams != null)
+			//			{
+			//				foreach (var bta in routeInfo.BoundToActionParams)
+			//					bta.Initialize(routeInfo);
+			//			}
+
+			//			if (routeInfo.BoundParams != null)
+			//			{
+			//				for (var i = 0; i < routeInfo.BoundParams.Count(); i++)
+			//				{
+			//					if (routeInfo.BoundParams[i].GetType().GetInterface(typeof(IBoundToAction).Name) == null)
+			//						routeInfo.BoundParams[i] = Activator.CreateInstance(routeInfo.BoundParams[i].GetType(), null);
+			//				}
+			//			}
+
+			//			if (routeInfo.ActionParamTransforms != null)
+			//			{
+			//				foreach (var apt in routeInfo.ActionParamTransforms)
+			//				{
+			//					var transformMethod = routeInfo.CachedActionParamTransformInstances[apt.Item1.TransformName] as Tuple<MethodInfo, object>;
+
+			//					if (transformMethod != null)
+			//					{
+			//						var t = transformMethod.Item1.GetParameters()[0].ParameterType;
+			//						var param = routeInfo.ActionUrlParams[apt.Item2];
+
+			//						if (routeInfo.ActionUrlParams[apt.Item2] != null &&
+			//								routeInfo.ActionUrlParams[apt.Item2].GetType() != t)
+			//						{
+			//							try
+			//							{
+			//								param = Convert.ChangeType(routeInfo.ActionUrlParams[apt.Item2], t);
+			//							}
+			//							catch
+			//							{
+			//								// Oops! We probably tried to convert a type to another type and it failed! 
+			//								// In which case we'll pretend like nothing happened.
+			//							}
+			//						}
+
+			//						try
+			//						{
+			//							routeInfo.ActionUrlParams[apt.Item2] =
+			//								transformMethod.Item1.Invoke(transformMethod.Item2, new object[] { param });
+			//						}
+			//						catch
+			//						{
+			//							// Oops! We probably tried to invoke an action with incorrect types! 
+			//							// In which case we'll pretend like nothing happened.
+			//						}
+			//					}
+			//				}
+			//			}
+
+			//			var filterResults = ProcessAnyActionFilters(routeInfo);
+
+			//			if (filterResults.Any())
+			//			{
+			//				var actionParams = routeInfo.ActionUrlParams;
+			//				Array.Resize(ref actionParams, actionParams.Count() + filterResults.Count());
+			//				filterResults.CopyTo(actionParams, EngineSessionState.ActionBindings.Count());
+			//				routeInfo.ActionUrlParams = actionParams;
+			//			}
+
+			//			routeInfo.Controller.HttpAttribute = routeInfo.RequestTypeAttribute;
+
+			//			IViewResult viewResult;
+			//			try
+			//			{
+			//				viewResult = (IViewResult)routeInfo.Action.Invoke(routeInfo.Controller, routeInfo.ActionUrlParams);
+			//			}
+			//			catch (Exception ex)
+			//			{
+			//				// I'm not completely sure how I want to ultimately handle this condtion yet,
+			//				// for now let's fire off the front controllers error event in case anyone is
+			//				// looking for it. The usefulness of this is questionable, what are they going to
+			//				// do with the information? Should we allow another action to be potentially 
+			//				// invoked so that we can get a good viewResult? Thereby dropping the throw below
+			//				// this call?!? 
+			//				RaiseEventOnFrontController(RouteHandlerEventType.Error, Path, routeInfo, ex);
+
+			//				throw;
+			//			}
+
+			//			if (routeInfo.Action.ReturnType != typeof(void))
+			//			{
+			//				if (viewResult != null)
+			//					viewResponse = viewResult.Render();
+
+			//				if (viewResponse == null)
+			//					RaiseEventOnFrontController(RouteHandlerEventType.Error, Path, routeInfo,
+			//						"A problem occurred trying to render the result causing it to be null. Please check to make sure you have a view for this action.");
+			//			}
+
+			//			RaiseEventOnFrontController(RouteHandlerEventType.PostAction, Path, routeInfo, viewResponse);
+			//			routeInfo.Controller.RaiseEvent(RouteHandlerEventType.PostAction, Path, routeInfo);
+			//		}
+			//	}
+			//	#endregion
+			//}
+
+			//return viewResponse;
+			throw new NotImplementedException();
+		}
+
+		private void UpdateCache(string cacheFilePath)
+		{
+			//try
+			//{
+			//	var path = System.IO.Path.GetDirectoryName(cacheFilePath);
+
+			//	if (!Directory.Exists(path))
+			//	{
+			//		try { Directory.CreateDirectory(path); }
+			//		catch { /* Silently ignore failure */ }
+			//	}
+
+			//	if (!Directory.Exists(path)) return;
+
+			//	using (var cacheWriter = new StreamWriter(cacheFilePath))
+			//		cacheWriter.Write(EngineAppState.ViewEngine.GetCache());
+			//}
+			//catch { /* Silently ignore any write failures */ }
+			throw new NotImplementedException();
+		}
+
+		private ViewResponse GetErrorViewResponse(string error, string stackTrace)
+		{
+			//if (!string.IsNullOrEmpty(stackTrace))
+			//	stackTrace = string.Format("<p><pre>{0}</pre></p>", stackTrace);
+
+			//Dictionary<string, string> tags;
+
+			//if (_currentRoute != null)
+			//{
+			//	Dictionary<string, object> ttags = _currentRoute.Controller.ViewBag.AsDictionary();
+
+			//	tags = ttags.ToDictionary(k => k.Key, k => k.Value.ToString());
+			//}
+			//else
+			//	tags = new Dictionary<string, string>();
+
+			//tags["error"] = error;
+			//tags["stacktrace"] = stackTrace;
+
+			//var errorView = EngineAppState.ViewEngine.LoadView("Views/Shared/Error", tags);
+
+			//var viewResponse = new ViewResponse()
+			//{
+			//	ContentType = "text/html",
+			//	Content = !string.IsNullOrEmpty(errorView) ? errorView : string.Format("<!DOCTYPE html><body>{0} : {1} {2}</body></html>", Path, error, stackTrace)
+			//};
+
+			//return viewResponse;
+			throw new NotImplementedException();
+		}
+
+		private void RenderResponse(ViewResponse viewResponse)
+		{
+			//if (string.IsNullOrEmpty(viewResponse.RedirectTo))
+			//{
+			//	response(new Dictionary<string, object>
+			//	{
+			//		{HttpAdapterConstants.ResponseBody, viewResponse.Content},
+			//		{HttpAdapterConstants.ResponseContentType, viewResponse.ContentType},
+			//		{HttpAdapterConstants.ResponseHeaders, viewResponse.Headers},
+			//		{HttpAdapterConstants.ResponseStatus, viewResponse.HttpStatus}
+			//	});
+			//}
+			//else
+			//{
+			//	var redirectRoute = FindRoute(viewResponse.RedirectTo, new string[] { });
+
+			//	if (redirectRoute != null)
+			//		ResponseRedirect(viewResponse.RedirectTo, (redirectRoute.RequestTypeAttribute.ActionType == ActionType.FromRedirectOnly) ? true : false);
+			//	else
+			//		RenderResponse(GetErrorViewResponse("Unable to determine the route to redirect to.", null));
+			//}
+			throw new NotImplementedException();
+		}
+
+		private string[] GetViewRoots()
+		{
+			//var viewRoots = new List<string>() { ViewRoot };
+			//var partitionAttributes = GetTypeList(typeof(Controller))
+			//	.SelectMany(x => x.GetCustomAttributes(typeof(PartitionAttribute), false)
+			//	.Cast<PartitionAttribute>());
+
+			//viewRoots.AddRange(partitionAttributes.Select(x => string.Format(@"{0}\{1}", AppRoot, x.Name)));
+
+			//return viewRoots.ToArray();
+			throw new NotImplementedException();
+		}
+
+		private object PayloadToModel(Dictionary<string, string> payload)
+		{
+			//object result = null;
+			//Type model = null;
+			//var payloadNames = new HashSet<string>(payload.Keys.Where(x => x != "AntiForgeryToken"));
+
+			//foreach (Type m in EngineAppState.Models)
+			//{
+			//	var props = new HashSet<string>(Model.GetPropertiesWithExclusions(m, true).Select(x => x.Name));
+
+			//	if (props.Intersect(payloadNames).Count() == props.Union(payloadNames).Count())
+			//		model = m;
+			//	else
+			//	{
+			//		props = new HashSet<string>(Model.GetPropertiesNotRequiredToPost(m).Select(x => x.Name));
+
+			//		if (props.IsSubsetOf(payloadNames))
+			//			model = m;
+			//	}
+			//}
+
+			//if (model != null)
+			//{
+			//	result = Activator.CreateInstance(model);
+
+			//	foreach (PropertyInfo p in Model.GetPropertiesWithExclusions(model, true))
+			//	{
+			//		var skipValidationAttrib = (UnsafeAttribute)p.GetCustomAttributes(typeof(UnsafeAttribute), false).FirstOrDefault();
+			//		var notRequiredAttrib = (NotRequiredAttribute)p.GetCustomAttributes(typeof(NotRequiredAttribute), false).FirstOrDefault();
+
+			//		if (notRequiredAttrib != null && !payload.ContainsKey(p.Name)) continue;
+
+			//		var propertyValue = payload[p.Name];
+
+			//		if (skipValidationAttrib == null)
+			//			propertyValue = GetValidatedFormValue(p.Name);
+
+			//		if (p.PropertyType == typeof(int) || p.PropertyType == typeof(int?))
+			//		{
+			//			if (propertyValue.IsInt32())
+			//				p.SetValue(result, Convert.ToInt32(propertyValue), null);
+			//		}
+			//		else if (p.PropertyType == typeof(string))
+			//		{
+			//			p.SetValue(result, propertyValue, null);
+			//		}
+			//		else if (p.PropertyType == typeof(bool))
+			//		{
+			//			if (propertyValue.IsBool())
+			//				p.SetValue(result, Convert.ToBoolean(propertyValue), null);
+			//		}
+			//		else if (p.PropertyType == typeof(DateTime?))
+			//		{
+			//			DateTime? dt = null;
+
+			//			propertyValue.IsDate(out dt);
+
+			//			p.SetValue(result, dt, null);
+			//		}
+			//		else if (p.PropertyType == typeof(PostedFile))
+			//		{
+			//			if (files.Any())
+			//				p.SetValue(result, files[0], null);
+			//		}
+			//		else if (p.PropertyType == typeof(List<PostedFile>))
+			//			p.SetValue(result, files, null);
+			//	}
+
+			//	var model1 = result as Model;
+			//	if (model1 != null) model1.Validate(payload);
+			//}
+
+			//return result;
+			throw new NotImplementedException();
+		}
+
+		private static List<string> GetControllerActionNames(string controllerName)
+		{
+			//controllerName.ThrowIfArgumentNull();
+
+			//var result = new List<string>();
+
+			//var controller = GetTypeList(typeof(Controller)).FirstOrDefault(x =>
+			//	x.Name == controllerName);
+
+			//if (controller != null)
+			//{
+			//	result = controller.GetMethods()
+			//										 .Where(x =>
+			//											 x.GetCustomAttributes(typeof(HttpAttribute), false)
+			//											 .Any() && x.IsPublic)
+			//										 .Select(x => x.Name)
+			//										 .ToList();
+			//}
+
+			//return result;
+			throw new NotImplementedException();
+		}
+
+		private Controller GetControllerInstances(string controllerName)
+		{
+			//var ctrlInstance = EngineSessionState.Controllers.FirstOrDefault(x => x.GetType().Name == controllerName);
+
+			//if (ctrlInstance == null)
+			//{
+			//	ctrlInstance = Controller.CreateInstance(GetTypeList(typeof(Controller))
+			//													 .FirstOrDefault(x => x.Name == controllerName), this);
+			//	EngineSessionState.Controllers.Add(ctrlInstance);
+			//	ctrlInstance.RaiseEvent(EventType.OnInit);
+			//}
+			//else
+			//	ctrlInstance.Engine = this;
+
+			//return ctrlInstance;
+			throw new NotImplementedException();
+		}
+
+		private FrontController GetFrontControllerInstance()
 		{
 			//FrontController result = null;
-			//var fcType = ReflectionHelpers.GetTypeList(typeof(FrontController)).FirstOrDefault();
+			//var fcType = GetTypeList(typeof(FrontController)).FirstOrDefault();
 
 			//if (fcType != null)
 			//	result = FrontController.CreateInstance(fcType, this);
 
 			//return result;
-
 			throw new NotImplementedException();
 		}
+
+		private ActionParameterInfo GetActionParameterTransforms(ParameterInfo[] actionParams, List<object> bindings)
+		{
+			//var cachedActionParamTransformInstances = new Dictionary<string, object>();
+
+			//// Eventually I want to change this algorithm to not require the attribute and instead figure
+			//// it out based on the type parameter and if there are any action parameter transform classes
+			//// that implement the IActionParamTransform<T, V> with the type parameter. This may make it slower
+			//// since it would have to check more action parameters in it's parameter list.
+
+			//// The int in this is for the index of the parameter in the action parameter list.
+			//var actionParameterTransforms = actionParams
+			//		.Select((x, i) => new Tuple<ActionParameterTransformAttribute, int>
+			//			((ActionParameterTransformAttribute)x.GetCustomAttributes(typeof(ActionParameterTransformAttribute), false).FirstOrDefault(), i))
+			//		.Where(x => x.Item1 != null)
+			//		.ToList();
+
+			//if (actionParameterTransforms.Count > 0)
+			//{
+			//	foreach (var apt in actionParameterTransforms)
+			//	{
+			//		var actionTransformClassType = Utility.GetAssemblies()
+			//												.SelectMany(x => x.GetLoadableTypes().Where(y => y.GetInterface(typeof(IActionParamTransform<,>).Name) != null && y.Name == apt.Item1.TransformName))
+			//												.FirstOrDefault();
+
+			//		if (actionTransformClassType != null)
+			//		{
+			//			try
+			//			{
+			//				var instance = Activator.CreateInstance(actionTransformClassType, (bindings != null) ? bindings.ToArray() : null);
+			//				var transformMethod = actionTransformClassType.GetMethod("Transform");
+
+			//				cachedActionParamTransformInstances[apt.Item1.TransformName] = new Tuple<MethodInfo, object>(transformMethod, instance);
+			//			}
+			//			catch
+			//			{
+			//				cachedActionParamTransformInstances[apt.Item1.TransformName] = null;
+			//			}
+			//		}
+			//	}
+			//}
+
+			//return new ActionParameterInfo()
+			//{
+			//	ActionParamTransforms = actionParameterTransforms.Any() ? actionParameterTransforms : null,
+			//	ActionParamTransformInstances = cachedActionParamTransformInstances.Any() ? cachedActionParamTransformInstances : null
+			//};
+			throw new NotImplementedException();
+		}
+
+		private IActionFilterResult[] ProcessAnyActionFilters(RouteInfo routeInfo)
+		{
+			//var results = new List<IActionFilterResult>();
+			//var actionFilterAttributes =
+			//		routeInfo.Action.GetCustomAttributes(typeof(ActionFilterAttribute), false).Cast<ActionFilterAttribute>().ToList();
+
+			//foreach (var afa in actionFilterAttributes)
+			//{
+			//	afa.Init(this);
+			//	afa.Controller = routeInfo.Controller;
+			//	afa.OnFilter(routeInfo);
+
+			//	if (afa.DivertRoute != null)
+			//		routeInfo = afa.DivertRoute;
+
+			//	if (afa.FilterResult != null)
+			//		results.Add(afa.FilterResult);
+			//}
+
+			//return results.ToArray();
+			throw new NotImplementedException();
+		}
+
+		private RouteInfo RaiseEventOnFrontController(RouteHandlerEventType eventType, string path, RouteInfo routeInfo, object data)
+		{
+			//if (EngineSessionState.FrontController != null)
+			//	return EngineSessionState.FrontController.RaiseEvent(eventType, path, routeInfo, data);
+
+			//return routeInfo;
+			throw new NotImplementedException();
+		}
+
+		private static string CreateToken()
+		{
+			//return Guid.NewGuid().ToString().Replace("-", string.Empty);
+			throw new NotImplementedException();
+		}
+		#endregion
+
+		#region INTERNAL METHODS
+		// Allows a file to be protected from download by users that are not logged in
+		internal void ProtectFile(string path, string roles)
+		{
+			//path.ThrowIfArgumentNull();
+			//roles.ThrowIfArgumentNull();
+
+			//EngineAppState.ProtectedFiles[string.Format(@"{0}\{1}", AppRoot, path)] = roles;
+			throw new NotImplementedException();
+		}
+
+		internal bool CanAccessFile(string path)
+		{
+			//path.ThrowIfArgumentNull();
+
+			//if (EngineAppState.ProtectedFiles.ContainsKey(path))
+			//	return (CurrentUser != null && CurrentUser.Roles.Intersect(EngineAppState.ProtectedFiles[path].Split('|')).Any()) ? true : false;
+
+			//return true;
+			throw new NotImplementedException();
+		}
+
+		internal void AddBundles(Dictionary<string, string[]> bundles)
+		{
+			//foreach (var bundle in bundles)
+			//	AddBundle(bundle.Key, bundle.Value);
+			throw new NotImplementedException();
+		}
+
+		internal void AddBundle(string name, string[] paths)
+		{
+			//name.ThrowIfArgumentNull();
+			//paths.ThrowIfArgumentNull();
+
+			//if (paths.Length == 0) return;
+
+			//var extension = System.IO.Path.GetExtension(name);
+			//string fileContentResult = null;
+			//var combinedFiles = new StringBuilder();
+
+			//foreach (var p in paths)
+			//{
+			//	var resourcePath = AppRoot + p.Replace('/', '\\');
+
+			//	if (File.Exists(resourcePath) &&
+			//			(System.IO.Path.GetExtension(p) == ".css" ||
+			//			 System.IO.Path.GetExtension(p) == ".js"))
+			//	{
+			//		combinedFiles.AppendLine(File.ReadAllText(resourcePath));
+			//	}
+			//}
+
+			//if (!debugMode)
+			//{
+			//	switch (extension)
+			//	{
+			//		case ".js":
+			//			fileContentResult = new JavaScriptCompressor().Compress(combinedFiles.ToString());
+			//			break;
+			//		case ".css":
+			//			fileContentResult = new CssCompressor().Compress(combinedFiles.ToString());
+			//			break;
+			//	}
+			//}
+			//else
+			//	fileContentResult = combinedFiles.ToString();
+
+			//EngineAppState.Bundles[name] = new Tuple<List<string>, string>(paths.ToList(), fileContentResult);
+			throw new NotImplementedException();
+		}
+
+		// Helper bundles are a special mechanism that will allow HtmlHelpers to inject CSS or JS when
+		// they are used. This also provides a nice way to package up controls that can be used over
+		// and over.
+		internal void AddHelperBundle(string name, string code)
+		{
+			//EngineSessionState.HelperBundles[name] = new StringBuilder(code);
+
+			//if (!debugMode)
+			//{
+			//	var match = EngineAppState.CssorJsExtPattern.Match(name);
+
+			//	if (match.Value.EndsWith(".js"))
+			//	{
+			//		if (!EngineSessionState.HelperBundles[name].ToString().Contains(code))
+			//			EngineSessionState.HelperBundles[name].AppendLine(new JavaScriptCompressor().Compress(code));
+			//	}
+			//	else if (match.Value.EndsWith(".css"))
+			//	{
+			//		if (!EngineSessionState.HelperBundles[name].ToString().Contains(code))
+			//			EngineSessionState.HelperBundles[name].AppendLine(new CssCompressor().Compress(code));
+			//	}
+			//}
+			//else
+			//{
+			//	if (!EngineSessionState.HelperBundles[name].ToString().Contains(code))
+			//		EngineSessionState.HelperBundles[name].AppendLine(code);
+			//}
+			throw new NotImplementedException();
+		}
+
+		// This is used to provide a way to get the file path so if we are in debug mode
+		// we can ignore the bundles and instead place all of the real file includes in the
+		// HTML head.
+		internal string[] GetBundleFiles(string name)
+		{
+			//return (EngineAppState.Bundles.ContainsKey(name)) ? EngineAppState.Bundles[name].Item1.ToArray() : null;
+			throw new NotImplementedException();
+		}
+
+		internal Dictionary<string, StringBuilder> GetHelperBundle()
+		{
+			//return EngineSessionState.HelperBundles;
+			throw new NotImplementedException();
+		}
+
+		// Bindings are a poor mans IoC and even then not really. They just provide a mechanism
+		// to predefine what parameters get used to invoke an action.
+		internal void AddBinding(string controllerName, string actionName, object bindInstance)
+		{
+			//controllerName.ThrowIfArgumentNull();
+			//actionName.ThrowIfArgumentNull();
+			//bindInstance.ThrowIfArgumentNull();
+
+			//if (!EngineSessionState.ActionBindings.ContainsKey(controllerName))
+			//	EngineSessionState.ActionBindings[controllerName] = new Dictionary<string, List<object>>();
+
+			//if (!EngineSessionState.ActionBindings[controllerName].ContainsKey(actionName))
+			//	EngineSessionState.ActionBindings[controllerName][actionName] = new List<object>();
+
+			//if (!EngineSessionState.ActionBindings[controllerName][actionName].Contains(bindInstance))
+			//	EngineSessionState.ActionBindings[controllerName][actionName].Add(bindInstance);
+			throw new NotImplementedException();
+		}
+
+		#region BINDINGS
+		// Bindings can be a source of confusion. These methods tell the famework that you want
+		// to pass certain objects in the parameter list of the action. If you forget to add these
+		// bound parameters to your actions parameter list then upon navigating you'll receive an
+		// HTTP 404.
+		// 
+		// The framework is not forgiving, the framework should probably spit out a message if
+		// in debug mode that says "Hey, you reqested this action but we didn't find that and instead we found
+		// this action that is similiar but your parameters are not correct."
+		internal void AddBinding(string controllerName, string[] actionNames, object bindInstance)
+		{
+			//foreach (var actionName in actionNames)
+			//	AddBinding(controllerName, actionName, bindInstance);
+			throw new NotImplementedException();
+		}
+
+		internal void AddBinding(string controllerName, string[] actionNames, object[] bindInstances)
+		{
+			//foreach (var actionName in actionNames)
+			//	foreach (var bindInstance in bindInstances)
+			//		AddBinding(controllerName, actionName, bindInstance);
+			throw new NotImplementedException();
+		}
+
+		internal void AddBindingForAllActions(string controllerName, object bindInstance)
+		{
+			//foreach (var actionName in GetControllerActionNames(controllerName))
+			//	AddBinding(controllerName, actionName, bindInstance);
+			throw new NotImplementedException();
+		}
+
+		internal void AddBindingsForAllActions(string controllerName, object[] bindInstances)
+		{
+			//foreach (var actionName in GetControllerActionNames(controllerName))
+			//	foreach (var bindInstance in bindInstances)
+			//		AddBinding(controllerName, actionName, bindInstance);
+			throw new NotImplementedException();
+		}
+
+		internal List<object> GetBindings(string controllerName, string actionName, string alias, Type[] initializeTypes)
+		{
+			//var bindings = (EngineSessionState.ActionBindings.ContainsKey(controllerName) && EngineSessionState.ActionBindings[controllerName].ContainsKey(actionName)) ?
+			//	EngineSessionState.ActionBindings[controllerName][actionName] : null;
+
+			//if (bindings != null)
+			//{
+			//	var routeInfo = FindRoute(string.Format("/{0}", actionName), pathSegments);
+
+			//	if (routeInfo != null && routeInfo.BoundToActionParams != null)
+			//	{
+			//		var boundActionParams = routeInfo.BoundToActionParams.Where(x => initializeTypes.Any(y => x.GetType() == y));
+
+			//		foreach (var b in boundActionParams)
+			//			b.Initialize(routeInfo);
+			//	}
+			//}
+
+			//return bindings;
+			throw new NotImplementedException();
+		}
+		#endregion
+
+		internal RouteInfo FindRoute(string path)
+		{
+			//return FindRoute(path, pathSegments);
+			throw new NotImplementedException();
+		}
+
+		internal RouteInfo FindRoute(string path, string[] urlParameters)
+		{
+			//path.ThrowIfArgumentNull();
+
+			//RouteInfo result = null;
+
+			//var routeSlice = GetRouteInfos(path).SelectMany(routeInfo => routeInfo.Aliases, (routeInfo, alias) =>
+			//														new { routeInfo, alias }).Where(x => path == x.alias)
+			//													 .OrderBy(x => x.routeInfo.Action.GetParameters().Length)
+			//													 .ToList();
+
+			//if (routeSlice.Any())
+			//{
+			//	var allParams = new List<object>()
+			//		.Concat(routeSlice[0].routeInfo.BoundParams)
+			//		.Concat(urlParameters.Skip(1))
+			//		.Concat(routeSlice[0].routeInfo.DefaultParams)
+			//		.ToList();
+
+			//	Func<Dictionary<string, string>, object[]> getModelOrParams =
+			//		pl =>
+			//		{
+			//			var model = PayloadToModel(pl);
+			//			var payloadParams = (model != null) ? new object[] { model } : pl.Values.Where(x => !EngineAppState.AntiForgeryTokens.Contains(x)).ToArray();
+			//			return payloadParams;
+			//		};
+
+			//	switch (RequestType)
+			//	{
+			//		case "post":
+			//			allParams.AddRange(getModelOrParams(form));
+			//			break;
+			//		case "delete":
+			//		case "put":
+			//			allParams.AddRange(getModelOrParams(payload));
+			//			break;
+			//	}
+
+			//	var finalParams = allParams.ToArray();
+
+			//	// This loop is pretty horrible and needs to be revised!
+			//	foreach (var routeInfo in routeSlice
+			//		.Where(x => x.routeInfo.Action.GetParameters().Count() >= finalParams.Count()).Select(x => x.routeInfo))
+			//	{
+			//		var finalParamTypes = finalParams.Select(x => x.GetType()).ToArray();
+			//		var actionParamTypes = routeInfo.Action.GetParameters()
+			//																							.Where(x => x.ParameterType.GetInterface("IActionFilterResult") == null)
+			//																							.Select(x => x.ParameterType).ToArray();
+
+			//		if (routeInfo.ActionParamTransforms != null && finalParamTypes.Count() == actionParamTypes.Count())
+			//			foreach (var apt in routeInfo.ActionParamTransforms)
+			//				finalParamTypes[apt.Item2] = actionParamTypes[apt.Item2];
+
+			//		for (var i = 0; i < routeInfo.BoundParams.Count(); i++)
+			//			if (actionParamTypes[i].IsInterface && finalParamTypes[i].GetInterface(actionParamTypes[i].Name) != null)
+			//				finalParamTypes[i] = actionParamTypes[i];
+
+			//		if (finalParamTypes.Intersect(actionParamTypes).Count() < finalParamTypes.Count())
+			//		{
+			//			for (var i = 0; i < finalParamTypes.Count(); i++)
+			//			{
+			//				if (finalParamTypes[i] == actionParamTypes[i]) continue;
+
+			//				finalParams[i] = Convert.ChangeType(finalParams[i], actionParamTypes[i]);
+			//				finalParamTypes[i] = actionParamTypes[i];
+			//			}
+			//		}
+
+			//		var intersection = finalParamTypes.Except(actionParamTypes);
+
+			//		if (actionParamTypes.Except(finalParamTypes).Any())
+			//		{
+			//			finalParamTypes = actionParamTypes;
+			//			Array.Resize(ref finalParams, finalParamTypes.Length);
+			//		}
+
+			//		if (!finalParamTypes.SequenceEqual(actionParamTypes)) continue;
+
+			//		routeInfo.ActionUrlParams = finalParams;
+			//		result = routeInfo;
+			//		_currentRoute = routeInfo;
+			//		break;
+			//	}
+			//}
+
+			//return result;
+			throw new NotImplementedException();
+		}
+
+		internal void RemoveRoute(string alias)
+		{
+			//var routeInfo = EngineAppState.RouteInfos.FirstOrDefault(x => x.Aliases.FirstOrDefault(a => a == alias) != null && x.Dynamic);
+
+			//if (routeInfo != null)
+			//	EngineAppState.RouteInfos.Remove(routeInfo);
+			throw new NotImplementedException();
+		}
+
+		internal void AddRoute(List<RouteInfo> routeInfos, Controller c, MethodInfo action, List<string> aliases, string defaultParams, bool dynamic)
+		{
+			//if (EngineAppState.RouteInfos.FirstOrDefault(x => x.Action.GetParameters().Count() == action.GetParameters().Count() && x.Aliases.Except(aliases).Count() == 0) != null)
+			//	return;
+
+			//if (action != null)
+			//{
+			//	List<object> bindings = null;
+			//	var rta = (HttpAttribute)action.GetCustomAttributes(typeof(HttpAttribute), false).FirstOrDefault();
+
+			//	if (EngineSessionState.ActionBindings.ContainsKey(c.GetType().Name))
+			//		if (EngineSessionState.ActionBindings[c.GetType().Name].ContainsKey(action.Name))
+			//			bindings = EngineSessionState.ActionBindings[c.GetType().Name][action.Name];
+
+			//	var actionParameterInfo = GetActionParameterTransforms(action.GetParameters(), bindings);
+
+			//	routeInfos.Add(new RouteInfo()
+			//	{
+			//		Aliases = aliases,
+			//		Action = action,
+			//		Controller = c,
+			//		RequestTypeAttribute = rta,
+			//		BoundParams = (bindings != null) ? bindings.ToArray() : new object[] { },
+			//		BoundToActionParams = (bindings != null) ? bindings.Where(x => x.GetType().GetInterface("IBoundToAction") != null).Cast<IBoundToAction>().ToArray() : null,
+			//		DefaultParams = (!string.IsNullOrEmpty(defaultParams)) ? defaultParams.Split('/').ConvertToObjectTypeArray() : new object[] { },
+			//		ActionParamTransforms = actionParameterInfo.ActionParamTransforms,
+			//		CachedActionParamTransformInstances = actionParameterInfo.ActionParamTransformInstances,
+			//		Dynamic = dynamic
+			//	});
+			//}
+			throw new NotImplementedException();
+		}
+
+		internal void AddRoute(List<RouteInfo> routeInfos, string alias, string controllerName, string actionName, string defaultParams, bool dynamic)
+		{
+			//alias.ThrowIfArgumentNull();
+			//controllerName.ThrowIfArgumentNull();
+			//actionName.ThrowIfArgumentNull();
+
+			//var c = EngineSessionState.Controllers.FirstOrDefault(x => x.GetType().Name == controllerName);
+
+			//if (c != null)
+			//{
+			//	var action = c.GetType().GetMethods().FirstOrDefault(x => x.GetCustomAttributes(typeof(HttpAttribute), false).Any() && x.Name == actionName);
+
+			//	if (action != null)
+			//		AddRoute(routeInfos, c, action, new List<string> { alias }, defaultParams, dynamic);
+			//}
+			throw new NotImplementedException();
+		}
+
+		// If you are creating dynamic routes it may be useful to obtain a list of all of the
+		// routes the framework knows about, especially for debugging purposes.
+		internal List<string> GetAllRouteAliases()
+		{
+			//return EngineAppState.RouteInfos.SelectMany(x => x.Aliases).ToList();
+			throw new NotImplementedException();
+		}
+
+		internal string CreateAntiForgeryToken()
+		{
+			//var token = CreateToken();
+			//EngineAppState.AntiForgeryTokens.Add(token);
+
+			//return token;
+			throw new NotImplementedException();
+		}
+
+		// The framework per se doesn't really care how you determine who is able to login
+		// the framework only cares about who *you* think should be logged in for the purposes
+		// of keeping track of the users between requests.
+		internal void LogOn(string id, string[] roles, object archeType = null)
+		{
+			//id.ThrowIfArgumentNull();
+			//roles.ThrowIfArgumentNull();
+
+			//if (CurrentUser != null && CurrentUser.SessionId == SessionId)
+			//	return;
+
+			//var alreadyLoggedInWithDiffSession = EngineAppState.Users.FirstOrDefault(x => x.Name == id);
+
+			//if (alreadyLoggedInWithDiffSession != null)
+			//	EngineAppState.Users.Remove(alreadyLoggedInWithDiffSession);
+
+			//var authCookie = new AuthCookie()
+			//{
+			//	Id = id,
+			//	AuthToken = CreateToken(),
+			//	Expiration = DateTime.Now.Add(TimeSpan.FromHours(8))
+			//};
+
+			//var u = new User()
+			//{
+			//	AuthenticationCookie = authCookie,
+			//	SessionId = SessionId,
+			//	ClientCertificate = ClientCertificate,
+			//	IpAddress = IpAddress,
+			//	LogOnDate = DateTime.Now,
+			//	Name = id,
+			//	ArcheType = archeType,
+			//	Roles = roles.ToList()
+			//};
+
+			//EngineAppState.Users.Add(u);
+			//CurrentUser = u;
+			throw new NotImplementedException();
+		}
+
+		internal bool LogOff()
+		{
+			//if (CurrentUser == null || !EngineAppState.Users.Remove(CurrentUser)) return false;
+
+			//CurrentUser = null;
+
+			//return true;
+			throw new NotImplementedException();
+		}
+
+		// Sessions within the controller are sandboxed.
+		internal void AddControllerSession(string key, object value)
+		{
+			//if (!string.IsNullOrEmpty(key))
+			//	EngineSessionState.ControllersSession[key] = value;
+			throw new NotImplementedException();
+		}
+
+		internal object GetControllerSession(string key)
+		{
+			//return (EngineSessionState.ControllersSession.ContainsKey(key)) ? EngineSessionState.ControllersSession[key] : null;
+			throw new NotImplementedException();
+		}
+
+		internal void AbandonControllerSession()
+		{
+			//EngineSessionState.ControllersSession = null;
+			throw new NotImplementedException();
+		}
+
+		internal string MapPath(string path)
+		{
+			//return AppRoot + path.Replace('/', '\\');
+			throw new NotImplementedException();
+		}
+		#endregion
 	}
 	#endregion
 
