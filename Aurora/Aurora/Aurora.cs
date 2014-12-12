@@ -2184,7 +2184,7 @@ namespace Aurora
 
 	#endregion CONTROLLERS
 
-	#region VIEW ENGINE -> TO BE REWRITTEN
+	#region VIEW ENGINE
 
 	#region VIEW RESULTS
 
@@ -3219,5 +3219,5 @@ namespace Aurora
 
 	#endregion VIEW ENGINE
 
-	#endregion VIEW ENGINE -> TO BE REWRITTEN
+	#endregion VIEW ENGINE
 }

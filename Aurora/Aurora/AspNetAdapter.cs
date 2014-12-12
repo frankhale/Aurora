@@ -2,7 +2,7 @@
 // AspNetAdapter - A thin wrapper around the ASP.NET request and response
 //								 objects.
 //
-// Updated On: 5 December 2014
+// Updated On: 11 December 2014
 //
 // Description:
 //
@@ -367,7 +367,7 @@ namespace AspNetAdapter
 		public static readonly string SessionId = "SessionID";
 		public static readonly string DebugModeAssembly = "DebugModeAssembly";
 		public static readonly string DebugModeASPNET = "DebugModeASPNET";
-		public static readonly string RequestAndAppHelperClass = "RequestAndAppHelperClass";
+		//public static readonly string RequestAndAppHelperClass = "RequestAndAppHelperClass";
 
 		#endregion MISCELLANEOUS
 
@@ -706,8 +706,11 @@ namespace AspNetAdapter
 			var appDictionary = InitializeApplicationDictionary();
 			var requestDictionary = InitializeRequestDictionary();
 			
+			//TODO: I have mixed feelings about adding this to the request. For now
+			//      I'm going to leave this commented out.
+			// 
 			// Add the request and app dictionary helper class to the app dictionary.
-			appDictionary[HttpAdapterConstants.RequestAndAppHelperClass] = new RequestAndAppHelper(requestDictionary, appDictionary);
+			//appDictionary[HttpAdapterConstants.RequestAndAppHelperClass] = new RequestAndAppHelper(requestDictionary, appDictionary);
 			
 			var appInstance = (IAspNetAdapterApplication)Activator.CreateInstance(adapterApp);
 
@@ -1235,6 +1238,168 @@ namespace AspNetAdapter
 	}
 
 	#endregion ASP.NET ADAPTER
+
+	#region ASPNETADAPTER CALLBACK HELPERS
+
+	internal class AspNetAdapterCallbacks
+	{
+		private Dictionary<string, object> app;
+		private Dictionary<string, object> request;
+
+		public AspNetAdapterCallbacks(Dictionary<string, object> app,
+			Dictionary<string, object> request)
+		{
+			this.app = app;
+			this.request = request;
+		}
+
+		public object GetApplication(string key)
+		{
+			if (app.ContainsKey(HttpAdapterConstants.ApplicationSessionStoreGetCallback) &&
+					app[HttpAdapterConstants.ApplicationSessionStoreGetCallback] is Func<string, object>)
+				return (app[HttpAdapterConstants.ApplicationSessionStoreGetCallback] as Func<string, object>)(key);
+
+			return null;
+		}
+
+		public void AddApplication(string key, object value)
+		{
+			if (app.ContainsKey(HttpAdapterConstants.ApplicationSessionStoreAddCallback) &&
+					app[HttpAdapterConstants.ApplicationSessionStoreAddCallback] is Action<string, object>)
+				(app[HttpAdapterConstants.ApplicationSessionStoreAddCallback] as Action<string, object>)(key, value);
+		}
+
+		public object GetSession(string key)
+		{
+			if (app.ContainsKey(HttpAdapterConstants.UserSessionStoreGetCallback) &&
+					app[HttpAdapterConstants.UserSessionStoreGetCallback] is Func<string, object>)
+				return (app[HttpAdapterConstants.UserSessionStoreGetCallback] as Func<string, object>)(key);
+
+			return null;
+		}
+
+		public void AddSession(string key, object value)
+		{
+			if (app.ContainsKey(HttpAdapterConstants.UserSessionStoreAddCallback) &&
+					app[HttpAdapterConstants.UserSessionStoreAddCallback] is Action<string, object>)
+				(app[HttpAdapterConstants.UserSessionStoreAddCallback] as Action<string, object>)(key, value);
+		}
+
+		public void RemoveSession(string key)
+		{
+			if (app.ContainsKey(HttpAdapterConstants.UserSessionStoreRemoveCallback) &&
+					app[HttpAdapterConstants.UserSessionStoreRemoveCallback] is Action<string>)
+				(app[HttpAdapterConstants.UserSessionStoreRemoveCallback] as Action<string>)(key);
+		}
+
+		public void ResponseRedirect(string path, bool fromRedirectOnly)
+		{
+			if (app.ContainsKey(HttpAdapterConstants.ResponseRedirectCallback) &&
+					app[HttpAdapterConstants.ResponseRedirectCallback] is Action<string, Dictionary<string, string>>)
+			{
+				//FIXME: This needs to happen at the engine level, not here!
+				//if (fromRedirectOnly)
+				//	AddSession(EngineAppState.FromRedirectOnlySessionName, true);
+
+				(app[HttpAdapterConstants.ResponseRedirectCallback] as Action<string, Dictionary<string, string>>)(path, null);
+			}
+		}
+
+		public string GetValidatedFormValue(string key)
+		{
+			if (request.ContainsKey(HttpAdapterConstants.RequestFormCallback) &&
+					request[HttpAdapterConstants.RequestFormCallback] is Func<string, bool, string>)
+				return (request[HttpAdapterConstants.RequestFormCallback] as Func<string, bool, string>)(key, true);
+
+			return null;
+		}
+
+		public string GetQueryString(string key, bool validated)
+		{
+			string result = null;
+
+			if (!validated)
+			{
+				if (request.ContainsKey(HttpAdapterConstants.RequestQueryString) &&
+						request[HttpAdapterConstants.RequestQueryString] is Dictionary<string, string>)
+					(request[HttpAdapterConstants.RequestQueryString] as Dictionary<string, string>).TryGetValue(key, out result);
+			}
+			else
+			{
+				if (request.ContainsKey(HttpAdapterConstants.RequestQueryStringCallback) &&
+					request[HttpAdapterConstants.RequestQueryStringCallback] is Func<string, bool, string>)
+					result = (request[HttpAdapterConstants.RequestQueryStringCallback] as Func<string, bool, string>)(key, true);
+			}
+
+			return result;
+		}
+
+		public void AddCache(string key, object value, DateTime expiresOn)
+		{
+			if (app.ContainsKey(HttpAdapterConstants.CacheAddCallback) &&
+					app[HttpAdapterConstants.CacheAddCallback] is Action<string, object, DateTime>)
+				(app[HttpAdapterConstants.CacheAddCallback] as Action<string, object, DateTime>)(key, value, expiresOn);
+		}
+
+		public object GetCache(string key)
+		{
+			if (app.ContainsKey(HttpAdapterConstants.CacheGetCallback) &&
+				app[HttpAdapterConstants.CacheGetCallback] is Func<string, object>)
+				return (app[HttpAdapterConstants.CacheGetCallback] as Func<string, object>)(key);
+
+			return null;
+		}
+
+		public void RemoveCache(string key)
+		{
+			if (app.ContainsKey(HttpAdapterConstants.CacheRemoveCallback) &&
+			app[HttpAdapterConstants.CacheRemoveCallback] is Action<string>)
+				(app[HttpAdapterConstants.CacheRemoveCallback] as Action<string>)(key);
+		}
+
+		public void AddCookie(HttpCookie cookie)
+		{
+			if (app.ContainsKey(HttpAdapterConstants.CookieAddCallback) &&
+				app[HttpAdapterConstants.CookieAddCallback] is Action<HttpCookie>)
+				(app[HttpAdapterConstants.CookieAddCallback] as Action<HttpCookie>)(cookie);
+		}
+
+		public HttpCookie GetCookie(string name)
+		{
+			if (app.ContainsKey(HttpAdapterConstants.CookieGetCallback) &&
+				app[HttpAdapterConstants.CookieGetCallback] is Func<string, HttpCookie>)
+				return (app[HttpAdapterConstants.CookieGetCallback] as Func<string, HttpCookie>)(name);
+
+			return null;
+		}
+
+		public void RemoveCookie(string name)
+		{
+			if (app.ContainsKey(HttpAdapterConstants.CookieRemoveCallback) &&
+				app[HttpAdapterConstants.CookieRemoveCallback] is Action<string>)
+				(app[HttpAdapterConstants.CookieRemoveCallback] as Action<string>)(name);
+		}
+
+		public string QueryString(string key, bool validated)
+		{
+			if (request.ContainsKey(HttpAdapterConstants.RequestQueryStringCallback) &&
+					request[HttpAdapterConstants.RequestQueryStringCallback] is Func<string, bool, string>)
+				return (request[HttpAdapterConstants.RequestQueryStringCallback] as Func<string, bool, string>)(key, validated);
+
+			return null;
+		}
+
+		public string Form(string key, bool validated)
+		{
+			if (request.ContainsKey(HttpAdapterConstants.RequestFormCallback) &&
+					request[HttpAdapterConstants.RequestFormCallback] is Func<string, bool, string>)
+				return (request[HttpAdapterConstants.RequestFormCallback] as Func<string, bool, string>)(key, validated);
+
+			return null;
+		}
+	}
+
+	#endregion ASPNETADAPTER CALLBACK HELPERS
 
 	#region EXTENSION METHODS
 
