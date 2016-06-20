@@ -1,3 +1,6 @@
+# ALL NEW WORK ON AURORA IS BEING DONE IN THE AURORA-NEXT REPOSITORY
+
+
 ##Aurora - An MVC web framework for .NET
 
 NOTE: I've created a new branch where I'm rewriting Aurora. That is where
