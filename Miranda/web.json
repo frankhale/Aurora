@@ -1,0 +1,22 @@
+{
+	"AllowedFilePattern": "^.*\\.(js|css|png|jpg|gif|ico|pptx|xlsx|csv|txt)$",
+	"ApplicationTypeInfo": { "Name": "Engine", "Type": "Aurora.Engine" },
+	"MimeTypes": {
+		".js": "application/x-javascript",
+		".css": "text/css",
+		".png": "image/png",
+		".jpg": "image/jpg",
+		".gif": "image/gif",
+		".ico": "image/x-icon",
+		".csv": "text/plain",
+		".txt": "text/plain",
+		".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+		".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+	},
+  "AppSettings": {    
+    "title": "Miranda - An Tiny Wiki",
+    "appName": "Miranda",
+    "author": "Frank Hale",
+    "modifiedDate": "17 September 2018"
+  }
+}

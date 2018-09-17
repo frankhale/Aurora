@@ -1,0 +1,256 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProductVersion>
+    </ProductVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{6DC85836-D402-459F-B0B1-5C38DFB9635D}</ProjectGuid>
+    <ProjectTypeGuids>{349c5851-65df-11da-9384-00065b846f21};{fae04ec0-301f-11d3-bf4b-00c04f79efbc}</ProjectTypeGuids>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>Miranda</RootNamespace>
+    <AssemblyName>Miranda</AssemblyName>
+    <TargetFrameworkVersion>v4.6.2</TargetFrameworkVersion>
+    <UseIISExpress>false</UseIISExpress>
+    <FileUpgradeFlags>
+    </FileUpgradeFlags>
+    <UpgradeBackupLocation>
+    </UpgradeBackupLocation>
+    <OldToolsVersion>4.0</OldToolsVersion>
+    <IISExpressSSLPort />
+    <IISExpressAnonymousAuthentication />
+    <IISExpressWindowsAuthentication />
+    <IISExpressUseClassicPipelineMode />
+    <TargetFrameworkProfile />
+    <Use64BitIISExpress />
+    <UseGlobalApplicationHostFile />
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\</OutputPath>
+    <DefineConstants>TRACE;DEBUG;MASSIVE USERPASS</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\</OutputPath>
+    <DefineConstants>TRACE;USERPASS MASSIVE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="AntiXssLibrary">
+      <HintPath>..\Aurora\Libs\AntiXssLibrary.dll</HintPath>
+    </Reference>
+    <Reference Include="MarkdownSharp, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\Aurora\Libs\MarkdownSharp.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\Aurora\Libs\Newtonsoft.Json.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Configuration" />
+    <Reference Include="System" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Net.Http.WebRequest" />
+    <Reference Include="System.Web" />
+    <Reference Include="System.Web.ApplicationServices" />
+    <Reference Include="System.Web.DynamicData" />
+    <Reference Include="System.Web.Entity" />
+    <Reference Include="System.Web.Extensions" />
+    <Reference Include="System.Xml.Linq" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Resources\Images\openid.png" />
+    <Content Include="Resources\Scripts\additional-methods.js" />
+    <Content Include="Resources\Scripts\jquery-1.9.1.js" />
+    <Content Include="Resources\Scripts\jquery.validate.js" />
+    <Content Include="Resources\Scripts\json2.js" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\index.html" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\scripts\shAutoloader.js" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\scripts\shBrushAppleScript.js" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\scripts\shBrushAS3.js" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\scripts\shBrushBash.js" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\scripts\shBrushColdFusion.js" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\scripts\shBrushCpp.js" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\scripts\shBrushCSharp.js" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\scripts\shBrushCss.js" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\scripts\shBrushDelphi.js" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\scripts\shBrushDiff.js" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\scripts\shBrushErlang.js" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\scripts\shBrushGroovy.js" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\scripts\shBrushJava.js" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\scripts\shBrushJavaFX.js" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\scripts\shBrushJScript.js" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\scripts\shBrushPerl.js" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\scripts\shBrushPhp.js" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\scripts\shBrushPlain.js" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\scripts\shBrushPowerShell.js" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\scripts\shBrushPython.js" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\scripts\shBrushRuby.js" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\scripts\shBrushSass.js" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\scripts\shBrushScala.js" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\scripts\shBrushSql.js" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\scripts\shBrushVb.js" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\scripts\shBrushXml.js" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\scripts\shCore.js" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\scripts\shLegacy.js" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\shAutoloader.js" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\shCore.js" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\shLegacy.js" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\styles\shCore.css" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\styles\shCoreDefault.css" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\styles\shCoreDjango.css" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\styles\shCoreEclipse.css" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\styles\shCoreEmacs.css" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\styles\shCoreFadeToGrey.css" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\styles\shCoreMDUltra.css" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\styles\shCoreMidnight.css" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\styles\shCoreRDark.css" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\styles\shThemeDefault.css" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\styles\shThemeDjango.css" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\styles\shThemeEclipse.css" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\styles\shThemeEmacs.css" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\styles\shThemeFadeToGrey.css" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\styles\shThemeMDUltra.css" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\styles\shThemeMidnight.css" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\styles\shThemeRDark.css" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\tests\brushes\sass.html" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\tests\brushes_tests.html" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\tests\cases\001_basic.html" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\tests\cases\002_brushes.html" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\tests\cases\003_script_tag.html" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\tests\cases\004_url_parsing.html" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\tests\cases\005_no_gutter.html" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\tests\cases\006_pad_line_numbers.html" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\tests\cases\007_collapse.html" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\tests\cases\007_collapse_interaction.html" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\tests\cases\008_first_line.html" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\tests\cases\009_class_name.html" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\tests\cases\010_highlight.html" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\tests\cases\011_smart_tabs.html" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\tests\cases\012_server_side.html" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\tests\cases\013_html_script.html" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\tests\cases\014_legacy.html" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\tests\commonjs_tests.js" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\tests\js\jquery-1.4.2.js" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\tests\js\qunit.css" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\tests\js\qunit.js" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\tests\syntaxhighlighter_tests.html" />
+    <Content Include="Resources\Scripts\syntaxhighlighter_3.0.83\tests\theme_tests.html" />
+    <Content Include="Resources\Scripts\tagit.js" />
+    <Content Include="Resources\Styles\reset.css" />
+    <Content Include="Resources\Styles\style.css" />
+    <Content Include="Resources\Styles\tagit.css" />
+    <Content Include="Views\Shared\Error.html" />
+    <Content Include="Views\Wiki\About.html" />
+    <Content Include="Views\Wiki\Add.html" />
+    <Content Include="Views\Wiki\Fragments\TagGroup.html" />
+    <Content Include="Views\Wiki\Fragments\UserNameAndPasswordForm.html" />
+    <Content Include="Views\Wiki\Fragments\FiledUnder.html" />
+    <Content Include="Views\Wiki\Fragments\TagitJS.html" />
+    <Content Include="Views\Wiki\Fragments\WikiPageForm.html" />
+    <Content Include="Views\Wiki\Fragments\OpenAuthForm.html" />
+    <Content Include="Views\Wiki\Logon.html" />
+    <Content Include="Views\Wiki\Edit.html" />
+    <Content Include="Views\Wiki\Fragments\AboutInfo.html" />
+    <Content Include="Views\Wiki\Fragments\CSharpCodeBlock.html" />
+    <Content Include="Views\Wiki\Fragments\EditDeleteMenuItems.html" />
+    <Content Include="Views\Wiki\Fragments\WikiTitle.html" />
+    <Content Include="Views\Wiki\Index.html" />
+    <Content Include="Views\Wiki\Shared\Wiki.html" />
+    <Content Include="Views\Wiki\Show.html" />
+    <Content Include="Views\Wiki\Upload.html" />
+    <Content Include="Web.config">
+      <SubType>Designer</SubType>
+    </Content>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Controllers\Wiki.cs" />
+    <Compile Include="Infrastructure\Wiki.Core.cs" />
+    <Compile Include="Models\Models.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\Scripts\syntaxhighlighter_3.0.83\compass\config.rb" />
+    <None Include="Resources\Scripts\syntaxhighlighter_3.0.83\compass\shCore.scss" />
+    <None Include="Resources\Scripts\syntaxhighlighter_3.0.83\compass\shCoreDefault.scss" />
+    <None Include="Resources\Scripts\syntaxhighlighter_3.0.83\compass\shCoreDjango.scss" />
+    <None Include="Resources\Scripts\syntaxhighlighter_3.0.83\compass\shCoreEclipse.scss" />
+    <None Include="Resources\Scripts\syntaxhighlighter_3.0.83\compass\shCoreEmacs.scss" />
+    <None Include="Resources\Scripts\syntaxhighlighter_3.0.83\compass\shCoreFadeToGrey.scss" />
+    <None Include="Resources\Scripts\syntaxhighlighter_3.0.83\compass\shCoreMDUltra.scss" />
+    <None Include="Resources\Scripts\syntaxhighlighter_3.0.83\compass\shCoreMidnight.scss" />
+    <None Include="Resources\Scripts\syntaxhighlighter_3.0.83\compass\shCoreRDark.scss" />
+    <None Include="Resources\Scripts\syntaxhighlighter_3.0.83\compass\shThemeDefault.scss" />
+    <None Include="Resources\Scripts\syntaxhighlighter_3.0.83\compass\shThemeDjango.scss" />
+    <None Include="Resources\Scripts\syntaxhighlighter_3.0.83\compass\shThemeEclipse.scss" />
+    <None Include="Resources\Scripts\syntaxhighlighter_3.0.83\compass\shThemeEmacs.scss" />
+    <None Include="Resources\Scripts\syntaxhighlighter_3.0.83\compass\shThemeFadeToGrey.scss" />
+    <None Include="Resources\Scripts\syntaxhighlighter_3.0.83\compass\shThemeMDUltra.scss" />
+    <None Include="Resources\Scripts\syntaxhighlighter_3.0.83\compass\shThemeMidnight.scss" />
+    <None Include="Resources\Scripts\syntaxhighlighter_3.0.83\compass\shThemeRDark.scss" />
+    <None Include="Resources\Scripts\syntaxhighlighter_3.0.83\compass\_theme_template.scss" />
+    <None Include="Resources\Scripts\syntaxhighlighter_3.0.83\LGPL-LICENSE" />
+    <None Include="Resources\Scripts\syntaxhighlighter_3.0.83\MIT-LICENSE" />
+    <None Include="Resources\Scripts\syntaxhighlighter_3.0.83\tests\.rvmrc" />
+    <None Include="Resources\Scripts\syntaxhighlighter_3.0.83\tests\webrick.rb" />
+    <None Include="Resources\Scripts\syntaxhighlighter_3.0.83\tests\webrick.sh" />
+    <Content Include="web.json" />
+  </ItemGroup>
+  <ItemGroup>
+    <Service Include="{3259AA49-8AA1-44D3-9025-A0B520596A8C}" />
+  </ItemGroup>
+  <ItemGroup />
+  <ItemGroup>
+    <ProjectReference Include="..\Aurora\Aurora.csproj">
+      <Project>{39618d65-2d7c-480a-9b61-ea7a8d4c9c68}</Project>
+      <Name>Aurora</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <PropertyGroup>
+    <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>
+    <VSToolsPath Condition="'$(VSToolsPath)' == ''">$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)</VSToolsPath>
+  </PropertyGroup>
+  <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
+  <Import Project="$(VSToolsPath)\WebApplications\Microsoft.WebApplication.targets" Condition="'$(VSToolsPath)' != ''" />
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v10.0\WebApplications\Microsoft.WebApplication.targets" Condition="false" />
+  <ProjectExtensions>
+    <VisualStudio>
+      <FlavorProperties GUID="{349c5851-65df-11da-9384-00065b846f21}">
+        <WebProjectProperties>
+          <UseIIS>False</UseIIS>
+          <AutoAssignPort>True</AutoAssignPort>
+          <DevelopmentServerPort>51432</DevelopmentServerPort>
+          <DevelopmentServerVPath>/</DevelopmentServerVPath>
+          <IISUrl>
+          </IISUrl>
+          <NTLMAuthentication>False</NTLMAuthentication>
+          <UseCustomServer>False</UseCustomServer>
+          <CustomServerUrl>
+          </CustomServerUrl>
+          <SaveServerSettingsInUserFile>False</SaveServerSettingsInUserFile>
+        </WebProjectProperties>
+      </FlavorProperties>
+    </VisualStudio>
+  </ProjectExtensions>
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>

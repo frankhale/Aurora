@@ -1,12 +1,8 @@
-# ALL NEW WORK ON AURORA IS BEING DONE IN THE AURORA-NEXT REPOSITORY
+## Aurora - An MVC web framework for .NET
 
+A tiny MVC framework for .NET
 
-##Aurora - An MVC web framework for .NET
-
-NOTE: I've created a new branch where I'm rewriting Aurora. That is where
-all new major work will happen for a while... =)
-
-###Features
+### Features
 
 - Model View Controller based
 - Apps can have a Front controller to intercept various events and perform 
@@ -28,19 +24,26 @@ all new major work will happen for a while... =)
 - Html Helpers
 - Plugin support (can be used by apps but is not integrated at all into the 
 	framework pipeline.)
+
+
+## Features That Used To Work But Have Not Been Tested In More Than 4 Years
+
+NOTE: The DotNetOpenAuth library has split into multiple sub modules and I have
+not tested with the updated DLL's. I have no idea if the code still works but 
+plan to test sometime soon.
+
 - OpenID authentication which is as easy as calling two methods. One to initiate 
 	the login with the provider and then one to finalize authentication.
 - Active Directory querying so you can authenticate your user against an Active 
 	Directory user. Typically for use in client certificate authentication.
 
-###Example Showing How To Use Aurora to Build an Application
+### Example Showing How To Use Aurora to Build an Application
 
-For a comprehensive example of what Aurora can do and how to use it see the 
-source code to Miranda my wiki application.
+Miranda is a very simple, crude and old application which demonstrates a very 
+rudimentary wiki. The main purpose is to exercise Aurora's routing, models,
+login and view features. It's purpose is to test features of Aurora.
 
-https://github.com/frankhale/Miranda
-
-###Web.config configuration
+### Web.config configuration
 
 Aurora uses a custom IHttpHandler and IHttpModule so your web.config will need 
 to contain the following:
@@ -56,7 +59,7 @@ to contain the following:
 </system.webServer>
 ```
 
-###Note
+### Note
 
 Things are regressing a bit in relation to the Nuget packages and dependencies. 
 I'm temporarily removing the Nuget package for Aurora and it's dependecies. 
@@ -65,7 +68,7 @@ my time to work on the code base. What's more is that it's not that bad to just
 include the few dependencies that Aurora has within it's code repository for 
 now.
 
-###Future
+### Future
 
 Here is a list of code considerations that I want to focus on:
 
@@ -74,13 +77,9 @@ Here is a list of code considerations that I want to focus on:
 - The route handling code is still a bit brittle. I'd like to make this rock 
 	solid and that is going to take some reengineering that will likely cause other
 	code to have to be changed.
-- The various framework assumptions and the way routes are processed I think 
-	needs some work to make the code more sane and to eliminate huge code blocks
-	in some of the functions.
 - The model layer needs some love because it is not as robust as it needs to be.
-- The view engine could stand a good looking over.
 
-###License
+### License
 
 GNU GPL version 3 <http://www.gnu.org/licenses/gpl-3.0.html>
 ```
@@ -99,4 +98,4 @@ GNU GPL version 3 <http://www.gnu.org/licenses/gpl-3.0.html>
 ```
 
 Frank Hale &lt;frankhale@gmail.com&gt;  
-Date: 21 November 2014
+Date: 17 September 2018

@@ -1,0 +1,19 @@
+<form id="WikiForm" action="/Save" method="post">
+<input type="hidden" name="ID" id="id" value="{|id|}" />
+<input type="hidden" name="AntiForgeryToken" value="%%AntiForgeryToken%%" />
+Title: <br />
+<input type="text" class="titleTextBox" name="Title" id="title" size="140" value="{|title|}" />
+<br />
+Content: <br />
+<div class="textwrapper">
+	<textarea rows="30" name="Data" id="data">{|data|}</textarea>
+Tags:
+<ul class="tagit" id="mytags">
+	<li class="tagit-new">
+		<input aria-haspopup="true" aria-autocomplete="list" role="textbox" autocomplete="off" class="tagit-input ui-autocomplete-input" type="text">
+	</li>
+</ul>
+
+</div>
+<input type="submit" value="Submit" />
+</form>
