@@ -79,6 +79,18 @@ namespace Aurora
   // None isn't really used other than to provide a default when used within the HttpAttribute
   public enum ActionSecurity { Secure, None }
 
+  class BundleFileInfo
+  {
+    public string Name { get; set; }
+    public string FullPath { get; set; }
+    public string DirectoryName { get; set; }
+    public string Ext { get; set; }
+    public bool MinifiedExists { get; set; }
+    public string MinifiedName { get; set; }
+    public string MinifiedPath { get; set; }    
+    public string FileContents { get; set; }
+  }
+
   #region HTTP REQUEST
   // FromRedirectOnly is a special action type that denotes that the action cannot
   // normally be navigated to. Instead, another action has to redirect to it.	
@@ -266,7 +278,7 @@ namespace Aurora
     public string[] ViewRoots { get; set; }
     public List<IViewCompilerDirectiveHandler> ViewEngineDirectiveHandlers { get; set; }
     public List<IViewCompilerSubstitutionHandler> ViewEngineSubstitutionHandlers { get; set; }
-    public Dictionary<string, Tuple<List<string>, string>> Bundles { get; set; }    
+    public Dictionary<string, Tuple<List<string>, string>> Bundles { get; set; }
   }
 
   // EngineSessionState maps to state that is stored in the ASP.NET Session store.
@@ -353,9 +365,9 @@ namespace Aurora
       #endregion
 
       #region INITIALIZE WEBJSONINFO
-      if(WebJsonInfo == null)
+      if (WebJsonInfo == null)
       {
-        WebJsonInfo = _app[HttpAdapterConstants.WebJsonAppSettings] as WebJsonInfo; 
+        WebJsonInfo = _app[HttpAdapterConstants.WebJsonAppSettings] as WebJsonInfo;
       }
       #endregion
 
@@ -1243,42 +1255,73 @@ namespace Aurora
       if (paths.Length == 0)
       {
         return;
-      }
+      }      
 
-      var extension = System.IO.Path.GetExtension(name);
-      string fileContentResult = null;
+      var bundleNameExtension = System.IO.Path.GetExtension(name);
       var combinedFiles = new StringBuilder();
+      List<BundleFileInfo> bundleFileInfos = new List<BundleFileInfo>();
 
       foreach (var p in paths)
       {
-        var resourcePath = AppRoot + p.Replace('/', '\\');
+        var resourcePath = AppRoot + System.IO.Path.GetDirectoryName(p) + System.IO.Path.DirectorySeparatorChar + System.IO.Path.GetFileName(p);
 
-        if (File.Exists(resourcePath) &&
-            (System.IO.Path.GetExtension(p) == ".css" ||
-             System.IO.Path.GetExtension(p) == ".js"))
+        if (File.Exists(resourcePath))
         {
-          combinedFiles.AppendLine(File.ReadAllText(resourcePath));
+          var fileExtension = System.IO.Path.GetExtension(p);
+          var fileName = System.IO.Path.GetFileNameWithoutExtension(resourcePath);
+          var filePath = System.IO.Path.GetDirectoryName(p);
+          var minifiedFileName = fileName + ".min" + fileExtension;
+          var minifiedFilePath = AppRoot + filePath + System.IO.Path.DirectorySeparatorChar + minifiedFileName;
+          var minifiedFileExists = File.Exists(minifiedFilePath);
+
+          bundleFileInfos.Add(new BundleFileInfo()
+          {
+            Name = fileName,
+            FullPath = resourcePath,
+            DirectoryName = filePath,
+            Ext = fileExtension,
+            MinifiedExists = minifiedFileExists,
+            MinifiedName = minifiedFileName,
+            MinifiedPath = minifiedFilePath
+          });
         }
       }
 
-      if (!_debugMode)
+      bundleFileInfos.ForEach(x =>
       {
-        switch (extension)
-        {
-          case ".js":
-            fileContentResult = new JavaScriptCompressor().Compress(combinedFiles.ToString());
-            break;
-          case ".css":
-            fileContentResult = new CssCompressor().Compress(combinedFiles.ToString());
-            break;
-        }
-      }
-      else
-      {
-        fileContentResult = combinedFiles.ToString();
-      }
+        string fileContents = "";
 
-      EngineAppState.Bundles[name] = new Tuple<List<string>, string>(paths.ToList(), fileContentResult);
+        if (!_debugMode)
+        {
+          // When a user provided minified file exists on disk we will use that
+          // instead of minifying the code ourselves.
+
+          if (!x.MinifiedExists)
+          {
+            switch (bundleNameExtension)
+            {
+              case ".js":
+                fileContents = new JavaScriptCompressor().Compress(File.ReadAllText(x.FullPath));
+                break;
+              case ".css":
+                fileContents = new CssCompressor().Compress(File.ReadAllText(x.FullPath));
+                break;
+            }
+          } else
+          {
+            fileContents = File.ReadAllText(x.MinifiedPath);
+          }
+        } else
+        {
+          // If it's debug mode we bypass all minification and just use the
+          // files as is.
+          fileContents = File.ReadAllText(x.FullPath);
+        }
+
+        combinedFiles.AppendLine(fileContents);
+      });
+
+      EngineAppState.Bundles[name] = new Tuple<List<string>, string>(paths.ToList(), combinedFiles.ToString());
     }
 
     // Helper bundles are a special mechanism that will allow HtmlHelpers to inject CSS or JS when

@@ -3,7 +3,7 @@
     {
       "Name": "Error",
       "FullName": "Views/Shared/Error",
-      "Path": "D:\\DEV\\Aurora\\Miranda\\Views\\Shared\\Error.html",
+      "Path": "C:\\Users\\frank\\Desktop\\DEV\\Aurora\\Miranda\\Views\\Shared\\Error.html",
       "Template": "<!DOCTYPE html>\r\n<html xmlns=\"http://www.w3.org/1999/xhtml\">\r\n<head>\r\n    <title>Error</title>\r\n</head>\r\n<body>\r\n  {{error}}\r\n  {{stacktrace}}\r\n</body>\r\n</html>\r\n",
       "TemplateMd5Sum": "TS/r628uwM6Cdw/ZEhIrsg==",
       "Result": null
@@ -11,7 +11,7 @@
     {
       "Name": "About",
       "FullName": "Views/Wiki/About",
-      "Path": "D:\\DEV\\Aurora\\Miranda\\Views\\Wiki\\About.html",
+      "Path": "C:\\Users\\frank\\Desktop\\DEV\\Aurora\\Miranda\\Views\\Wiki\\About.html",
       "Template": "%%Master=Wiki%%\r\n\r\n{{content}}",
       "TemplateMd5Sum": "qCFx3FN8liOpxSmKV4IRYA==",
       "Result": null
@@ -19,7 +19,7 @@
     {
       "Name": "Add",
       "FullName": "Views/Wiki/Add",
-      "Path": "D:\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Add.html",
+      "Path": "C:\\Users\\frank\\Desktop\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Add.html",
       "Template": "%%Master=Wiki%%\r\n\r\n[[\r\n\t%%Bundle=tagit.css%%\r\n\t%%Bundle=tagit.js%%\r\n\r\n\t{{tagitJS}}\r\n]]\r\n\r\n{{wikiPageForm}}",
       "TemplateMd5Sum": "TFsQYzV4NAGv8uRxg0BA+Q==",
       "Result": null
@@ -27,7 +27,7 @@
     {
       "Name": "Edit",
       "FullName": "Views/Wiki/Edit",
-      "Path": "D:\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Edit.html",
+      "Path": "C:\\Users\\frank\\Desktop\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Edit.html",
       "Template": "%%Master=Wiki%%\r\n\r\n[[\r\n\t%%Bundle=tagit.css%%\r\n\t%%Bundle=tagit.js%%\r\n\r\n\t{{tagitJS}}\r\n]]\r\n\r\n{{wikiPageForm}}\r\n",
       "TemplateMd5Sum": "37kugf1KF/afuDbNzl6Sag==",
       "Result": null
@@ -35,7 +35,7 @@
     {
       "Name": "Index",
       "FullName": "Views/Wiki/Index",
-      "Path": "D:\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Index.html",
+      "Path": "C:\\Users\\frank\\Desktop\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Index.html",
       "Template": "%%Master=Wiki%%\r\n\r\n{{error}}\r\n{{message}}\r\n{{content}}",
       "TemplateMd5Sum": "GqQh/RvAlUMJ55i3iDRcVQ==",
       "Result": null
@@ -43,7 +43,7 @@
     {
       "Name": "Logon",
       "FullName": "Views/Wiki/Logon",
-      "Path": "D:\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Logon.html",
+      "Path": "C:\\Users\\frank\\Desktop\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Logon.html",
       "Template": "<!DOCTYPE html>\r\n<html xmlns=\"http://www.w3.org/1999/xhtml\">\r\n<head>\r\n\t<title>{{appTitle}}</title>\r\n\t<link rel=\"shortcut icon\" href=\"/aurora.ico\" />\r\n\t<link href='http://fonts.googleapis.com/css?family=Merriweather' rel='stylesheet' type='text/css' />\r\n\r\n\t%%Bundle=wiki.css%%\r\n\t%%Bundle=wiki.js%%\r\n\r\n\t%%HelperBundles%%\r\n\r\n\t%%Head%%\r\n</head>\r\n<body>\r\n\t<div class=\"logonContainer\">\r\n\t{{logonForm}}\r\n    <span class=\"logonMessage\">{{message}}</span>\r\n\t</div>\r\n</body>\r\n</html>",
       "TemplateMd5Sum": "APL1rxFYaVpztxBo/MwTtw==",
       "Result": null
@@ -51,7 +51,7 @@
     {
       "Name": "Show",
       "FullName": "Views/Wiki/Show",
-      "Path": "D:\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Show.html",
+      "Path": "C:\\Users\\frank\\Desktop\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Show.html",
       "Template": "%%Master=Wiki%% \r\n\r\n[[\r\n  %%Bundle=sh.css%%\r\n  %%Bundle=sh.js%%\r\n  \r\n  <script type=\"text/javascript\">\r\n    SyntaxHighlighter.defaults['tab-size'] = 2;\r\n    SyntaxHighlighter.config.stripBrs = true;\r\n    SyntaxHighlighter.all()\r\n  </script>\r\n]]\r\n\r\n<b>{{title}}</b>\r\n{{filedUnder}}\r\n<br />\r\n{{data}}",
       "TemplateMd5Sum": "k8m7V+Sj3gE5IVjU+2cBQA==",
       "Result": null
@@ -59,7 +59,7 @@
     {
       "Name": "Upload",
       "FullName": "Views/Wiki/Upload",
-      "Path": "D:\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Upload.html",
+      "Path": "C:\\Users\\frank\\Desktop\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Upload.html",
       "Template": "%%Master=Wiki%%\r\n\r\n{{content}}",
       "TemplateMd5Sum": "qCFx3FN8liOpxSmKV4IRYA==",
       "Result": null
@@ -67,7 +67,7 @@
     {
       "Name": "AboutInfo",
       "FullName": "Views/Wiki/Fragments/AboutInfo",
-      "Path": "D:\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Fragments\\AboutInfo.html",
+      "Path": "C:\\Users\\frank\\Desktop\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Fragments\\AboutInfo.html",
       "Template": "<b>Application Name:</b> {{appName}} <br />\r\n<b>Author:</b> {{author}} <br />\r\n<b>Last Update:</b> {{lastUpdate}}",
       "TemplateMd5Sum": "MH/N8wce/mxXSazWVu/RTQ==",
       "Result": null
@@ -75,7 +75,7 @@
     {
       "Name": "CSharpCodeBlock",
       "FullName": "Views/Wiki/Fragments/CSharpCodeBlock",
-      "Path": "D:\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Fragments\\CSharpCodeBlock.html",
+      "Path": "C:\\Users\\frank\\Desktop\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Fragments\\CSharpCodeBlock.html",
       "Template": "<pre class=\"brush: csharp;\">{|code|}</pre>",
       "TemplateMd5Sum": "q6ck3V8oDZbvppBORP6h8w==",
       "Result": null
@@ -83,7 +83,7 @@
     {
       "Name": "EditDeleteMenuItems",
       "FullName": "Views/Wiki/Fragments/EditDeleteMenuItems",
-      "Path": "D:\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Fragments\\EditDeleteMenuItems.html",
+      "Path": "C:\\Users\\frank\\Desktop\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Fragments\\EditDeleteMenuItems.html",
       "Template": " | <a href=\"/Edit/{|edit|}\">Edit</a> | <a href=\"/Delete/{|delete|}\">Delete</a>",
       "TemplateMd5Sum": "STyDhgdJoZyOYS8vJrfB6A==",
       "Result": null
@@ -91,7 +91,7 @@
     {
       "Name": "FiledUnder",
       "FullName": "Views/Wiki/Fragments/FiledUnder",
-      "Path": "D:\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Fragments\\FiledUnder.html",
+      "Path": "C:\\Users\\frank\\Desktop\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Fragments\\FiledUnder.html",
       "Template": "<br /><small>Filed Under: <b>{{tags}}</b></small><br />",
       "TemplateMd5Sum": "L+oGrBI1pwjKXWSG4ANd5g==",
       "Result": null
@@ -99,7 +99,7 @@
     {
       "Name": "OpenAuthForm",
       "FullName": "Views/Wiki/Fragments/OpenAuthForm",
-      "Path": "D:\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Fragments\\OpenAuthForm.html",
+      "Path": "C:\\Users\\frank\\Desktop\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Fragments\\OpenAuthForm.html",
       "Template": "<form action=\"/Logon\" method=\"post\">\r\n  <input type=\"hidden\" name=\"AntiForgeryToken\" value=\"%%AntiForgeryToken%%\" />\r\n  <!-- \r\n      OpenID Identifiers:\r\n      \r\n        http://myopenid.com\r\n        https://www.google.com/accounts/o8/id\r\n  -->\r\n  <input type=\"text\" class=\"openid\" style=\"height: 34px;\" name=\"Identifier\" id=\"Identifier\" value=\"https://www.google.com/accounts/o8/id\" />\r\n  <input type=\"submit\" value=\"Login\" class=\"openAuthlogonButton\" />\r\n</form>",
       "TemplateMd5Sum": "hxnQyk8iWkPQiYgrWj/jMg==",
       "Result": null
@@ -107,7 +107,7 @@
     {
       "Name": "TagGroup",
       "FullName": "Views/Wiki/Fragments/TagGroup",
-      "Path": "D:\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Fragments\\TagGroup.html",
+      "Path": "C:\\Users\\frank\\Desktop\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Fragments\\TagGroup.html",
       "Template": "<div class=\"tagGroup\">\r\n\t<div style=\"text-align:center;border-bottom:1px solid #bbb;font-size:14pt;background-color: #eee;\">{{tag}}</div>\r\n\t<p>\r\n\t<div style=\"padding:5px;\">\r\n\t{{pages}}\r\n\t</div>\r\n\t</p>\r\n</div>",
       "TemplateMd5Sum": "WeDY73hFzzI8uwvugch6Kw==",
       "Result": null
@@ -115,7 +115,7 @@
     {
       "Name": "TagitJS",
       "FullName": "Views/Wiki/Fragments/TagitJS",
-      "Path": "D:\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Fragments\\TagitJS.html",
+      "Path": "C:\\Users\\frank\\Desktop\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Fragments\\TagitJS.html",
       "Template": "<script type=\"text/javascript\">\r\n\t$(document).ready(function () {\r\n\t\t$(\"#mytags\").tagit({\r\n\t\t\tpreselectedTags: {{preselectedTags}},\r\n\t\t\tavailableTags: {{availableTags}}\r\n\t\t});\r\n\t});\r\n</script>",
       "TemplateMd5Sum": "OcUTdtjaRkzvUHxMBOZ+vw==",
       "Result": null
@@ -123,7 +123,7 @@
     {
       "Name": "UserNameAndPasswordForm",
       "FullName": "Views/Wiki/Fragments/UserNameAndPasswordForm",
-      "Path": "D:\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Fragments\\UserNameAndPasswordForm.html",
+      "Path": "C:\\Users\\frank\\Desktop\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Fragments\\UserNameAndPasswordForm.html",
       "Template": "<div class=\"userNameAndPassword\">\r\n  <h1>Miranda</h1>\r\n  <form action=\"/Logon\" method=\"post\">\r\n    <input type=\"hidden\" name=\"AntiForgeryToken\" value=\"%%AntiForgeryToken%%\" />\r\n    <table>\r\n      <tr><td>UserName:<br /><input type=\"text\" name=\"UserName\" id=\"UserName\" /></td></tr>\r\n      <tr><td>Password:<br /><input type=\"password\" name=\"Password\" id=\"Password\" /></td></tr>\r\n      <tr><td><input type=\"submit\" value=\"Login\" /></td></tr>\r\n    </table>\r\n  </form>\r\n</div>",
       "TemplateMd5Sum": "FeQFpMHSYKpgW/30PILRQg==",
       "Result": null
@@ -131,7 +131,7 @@
     {
       "Name": "WikiPageForm",
       "FullName": "Views/Wiki/Fragments/WikiPageForm",
-      "Path": "D:\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Fragments\\WikiPageForm.html",
+      "Path": "C:\\Users\\frank\\Desktop\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Fragments\\WikiPageForm.html",
       "Template": "<form id=\"WikiForm\" action=\"/Save\" method=\"post\">\r\n<input type=\"hidden\" name=\"ID\" id=\"id\" value=\"{|id|}\" />\r\n<input type=\"hidden\" name=\"AntiForgeryToken\" value=\"%%AntiForgeryToken%%\" />\r\nTitle: <br />\r\n<input type=\"text\" class=\"titleTextBox\" name=\"Title\" id=\"title\" size=\"140\" value=\"{|title|}\" />\r\n<br />\r\nContent: <br />\r\n<div class=\"textwrapper\">\r\n\t<textarea rows=\"30\" name=\"Data\" id=\"data\">{|data|}</textarea>\r\nTags:\r\n<ul class=\"tagit\" id=\"mytags\">\r\n\t<li class=\"tagit-new\">\r\n\t\t<input aria-haspopup=\"true\" aria-autocomplete=\"list\" role=\"textbox\" autocomplete=\"off\" class=\"tagit-input ui-autocomplete-input\" type=\"text\">\r\n\t</li>\r\n</ul>\r\n\r\n</div>\r\n<input type=\"submit\" value=\"Submit\" />\r\n</form>",
       "TemplateMd5Sum": "smRGCKJHaKRcklPHC8C9Aw==",
       "Result": null
@@ -139,7 +139,7 @@
     {
       "Name": "WikiTitle",
       "FullName": "Views/Wiki/Fragments/WikiTitle",
-      "Path": "D:\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Fragments\\WikiTitle.html",
+      "Path": "C:\\Users\\frank\\Desktop\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Fragments\\WikiTitle.html",
       "Template": "<span class=\"wikiTitle\">{|title|}</span>",
       "TemplateMd5Sum": "7fL00znIZ7zEQPeZ+t4vIQ==",
       "Result": null
@@ -147,7 +147,7 @@
     {
       "Name": "Wiki",
       "FullName": "Views/Wiki/Shared/Wiki",
-      "Path": "D:\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Shared\\Wiki.html",
+      "Path": "C:\\Users\\frank\\Desktop\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Shared\\Wiki.html",
       "Template": "<!DOCTYPE html>\r\n<html xmlns=\"http://www.w3.org/1999/xhtml\">\r\n<head>\r\n\t<title>{{appTitle}}</title>\r\n\t<link rel=\"shortcut icon\" href=\"/aurora.ico\" />\r\n\t<!--<link href='http://fonts.googleapis.com/css?family=Merriweather' rel='stylesheet' type='text/css'>-->\r\n\r\n\t%%Bundle=wiki.css%%\r\n\t%%Bundle=wiki.js%%\r\n\r\n\t%%Head%%\r\n</head>\r\n<body>\r\n\t<div class=\"menuitems\">\r\n\t\t<span class=\"logOnOff\">Welcome, {{currentUser}} {{logOff}}</span>\r\n\t\t<a href=\"/Index\">Home</a> | <a href=\"/Add\">New Page</a> {{menu}} | <a href=\"/About\">About</a>\r\n\t</div>\r\n\t<hr />\r\n\t<div class=\"content\">\r\n\t%%View%%\r\n\t</div>\r\n</body>\r\n</html>",
       "TemplateMd5Sum": "JT0i7cQZH2xjWrnDsAXMjA==",
       "Result": null
@@ -221,7 +221,7 @@
     {
       "Name": "AboutInfo",
       "FullName": "Views/Wiki/Fragments/AboutInfo",
-      "Path": "D:\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Fragments\\AboutInfo.html",
+      "Path": "C:\\Users\\frank\\Desktop\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Fragments\\AboutInfo.html",
       "Template": "<b>Application Name:</b> {{appName}} <br />\r\n<b>Author:</b> {{author}} <br />\r\n<b>Last Update:</b> {{lastUpdate}}",
       "TemplateMd5Sum": "MH/N8wce/mxXSazWVu/RTQ==",
       "Result": ""
@@ -229,7 +229,7 @@
     {
       "Name": "CSharpCodeBlock",
       "FullName": "Views/Wiki/Fragments/CSharpCodeBlock",
-      "Path": "D:\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Fragments\\CSharpCodeBlock.html",
+      "Path": "C:\\Users\\frank\\Desktop\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Fragments\\CSharpCodeBlock.html",
       "Template": "<pre class=\"brush: csharp;\">{|code|}</pre>",
       "TemplateMd5Sum": "q6ck3V8oDZbvppBORP6h8w==",
       "Result": ""
@@ -237,7 +237,7 @@
     {
       "Name": "EditDeleteMenuItems",
       "FullName": "Views/Wiki/Fragments/EditDeleteMenuItems",
-      "Path": "D:\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Fragments\\EditDeleteMenuItems.html",
+      "Path": "C:\\Users\\frank\\Desktop\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Fragments\\EditDeleteMenuItems.html",
       "Template": " | <a href=\"/Edit/{|edit|}\">Edit</a> | <a href=\"/Delete/{|delete|}\">Delete</a>",
       "TemplateMd5Sum": "STyDhgdJoZyOYS8vJrfB6A==",
       "Result": ""
@@ -245,7 +245,7 @@
     {
       "Name": "FiledUnder",
       "FullName": "Views/Wiki/Fragments/FiledUnder",
-      "Path": "D:\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Fragments\\FiledUnder.html",
+      "Path": "C:\\Users\\frank\\Desktop\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Fragments\\FiledUnder.html",
       "Template": "<br /><small>Filed Under: <b>{{tags}}</b></small><br />",
       "TemplateMd5Sum": "L+oGrBI1pwjKXWSG4ANd5g==",
       "Result": ""
@@ -253,7 +253,7 @@
     {
       "Name": "OpenAuthForm",
       "FullName": "Views/Wiki/Fragments/OpenAuthForm",
-      "Path": "D:\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Fragments\\OpenAuthForm.html",
+      "Path": "C:\\Users\\frank\\Desktop\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Fragments\\OpenAuthForm.html",
       "Template": "<form action=\"/Logon\" method=\"post\">\r\n  <input type=\"hidden\" name=\"AntiForgeryToken\" value=\"%%AntiForgeryToken%%\" />\r\n  <!-- \r\n      OpenID Identifiers:\r\n      \r\n        http://myopenid.com\r\n        https://www.google.com/accounts/o8/id\r\n  -->\r\n  <input type=\"text\" class=\"openid\" style=\"height: 34px;\" name=\"Identifier\" id=\"Identifier\" value=\"https://www.google.com/accounts/o8/id\" />\r\n  <input type=\"submit\" value=\"Login\" class=\"openAuthlogonButton\" />\r\n</form>",
       "TemplateMd5Sum": "hxnQyk8iWkPQiYgrWj/jMg==",
       "Result": ""
@@ -261,7 +261,7 @@
     {
       "Name": "TagGroup",
       "FullName": "Views/Wiki/Fragments/TagGroup",
-      "Path": "D:\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Fragments\\TagGroup.html",
+      "Path": "C:\\Users\\frank\\Desktop\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Fragments\\TagGroup.html",
       "Template": "<div class=\"tagGroup\">\r\n\t<div style=\"text-align:center;border-bottom:1px solid #bbb;font-size:14pt;background-color: #eee;\">{{tag}}</div>\r\n\t<p>\r\n\t<div style=\"padding:5px;\">\r\n\t{{pages}}\r\n\t</div>\r\n\t</p>\r\n</div>",
       "TemplateMd5Sum": "WeDY73hFzzI8uwvugch6Kw==",
       "Result": ""
@@ -269,7 +269,7 @@
     {
       "Name": "TagitJS",
       "FullName": "Views/Wiki/Fragments/TagitJS",
-      "Path": "D:\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Fragments\\TagitJS.html",
+      "Path": "C:\\Users\\frank\\Desktop\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Fragments\\TagitJS.html",
       "Template": "<script type=\"text/javascript\">\r\n\t$(document).ready(function () {\r\n\t\t$(\"#mytags\").tagit({\r\n\t\t\tpreselectedTags: {{preselectedTags}},\r\n\t\t\tavailableTags: {{availableTags}}\r\n\t\t});\r\n\t});\r\n</script>",
       "TemplateMd5Sum": "OcUTdtjaRkzvUHxMBOZ+vw==",
       "Result": ""
@@ -277,7 +277,7 @@
     {
       "Name": "UserNameAndPasswordForm",
       "FullName": "Views/Wiki/Fragments/UserNameAndPasswordForm",
-      "Path": "D:\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Fragments\\UserNameAndPasswordForm.html",
+      "Path": "C:\\Users\\frank\\Desktop\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Fragments\\UserNameAndPasswordForm.html",
       "Template": "<div class=\"userNameAndPassword\">\r\n  <h1>Miranda</h1>\r\n  <form action=\"/Logon\" method=\"post\">\r\n    <input type=\"hidden\" name=\"AntiForgeryToken\" value=\"%%AntiForgeryToken%%\" />\r\n    <table>\r\n      <tr><td>UserName:<br /><input type=\"text\" name=\"UserName\" id=\"UserName\" /></td></tr>\r\n      <tr><td>Password:<br /><input type=\"password\" name=\"Password\" id=\"Password\" /></td></tr>\r\n      <tr><td><input type=\"submit\" value=\"Login\" /></td></tr>\r\n    </table>\r\n  </form>\r\n</div>",
       "TemplateMd5Sum": "FeQFpMHSYKpgW/30PILRQg==",
       "Result": ""
@@ -285,7 +285,7 @@
     {
       "Name": "WikiPageForm",
       "FullName": "Views/Wiki/Fragments/WikiPageForm",
-      "Path": "D:\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Fragments\\WikiPageForm.html",
+      "Path": "C:\\Users\\frank\\Desktop\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Fragments\\WikiPageForm.html",
       "Template": "<form id=\"WikiForm\" action=\"/Save\" method=\"post\">\r\n<input type=\"hidden\" name=\"ID\" id=\"id\" value=\"{|id|}\" />\r\n<input type=\"hidden\" name=\"AntiForgeryToken\" value=\"%%AntiForgeryToken%%\" />\r\nTitle: <br />\r\n<input type=\"text\" class=\"titleTextBox\" name=\"Title\" id=\"title\" size=\"140\" value=\"{|title|}\" />\r\n<br />\r\nContent: <br />\r\n<div class=\"textwrapper\">\r\n\t<textarea rows=\"30\" name=\"Data\" id=\"data\">{|data|}</textarea>\r\nTags:\r\n<ul class=\"tagit\" id=\"mytags\">\r\n\t<li class=\"tagit-new\">\r\n\t\t<input aria-haspopup=\"true\" aria-autocomplete=\"list\" role=\"textbox\" autocomplete=\"off\" class=\"tagit-input ui-autocomplete-input\" type=\"text\">\r\n\t</li>\r\n</ul>\r\n\r\n</div>\r\n<input type=\"submit\" value=\"Submit\" />\r\n</form>",
       "TemplateMd5Sum": "smRGCKJHaKRcklPHC8C9Aw==",
       "Result": ""
@@ -293,7 +293,7 @@
     {
       "Name": "WikiTitle",
       "FullName": "Views/Wiki/Fragments/WikiTitle",
-      "Path": "D:\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Fragments\\WikiTitle.html",
+      "Path": "C:\\Users\\frank\\Desktop\\DEV\\Aurora\\Miranda\\Views\\Wiki\\Fragments\\WikiTitle.html",
       "Template": "<span class=\"wikiTitle\">{|title|}</span>",
       "TemplateMd5Sum": "7fL00znIZ7zEQPeZ+t4vIQ==",
       "Result": ""

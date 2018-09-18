@@ -280,7 +280,7 @@ namespace Wiki.Infrastructure.Core
 
       string[] wikiJS =
       {
-        "/Resources/Scripts/jquery-1.9.1.js"
+        "/Resources/Scripts/jquery-3.3.1.js"
       };
 
       string[] syntaxHighlighterCSS =
@@ -296,14 +296,12 @@ namespace Wiki.Infrastructure.Core
       };
 
       string[] jqueryUIAndTagItCSS =
-      {
-				//"/Resources/Scripts/jquery-ui-1.9.0.custom/css/smoothness/jquery-ui-1.9.0.custom.css",
+      {				
 				"/Resources/Styles/tagit.css"
       };
 
       string[] jqueryUIAndTagItJS =
-      {
-				//"/Resources/Scripts/jquery-ui-1.9.0.custom/js/jquery-ui-1.9.0.custom.js",
+      {				
 				"/Resources/Scripts/tagit.js"
       };
 
