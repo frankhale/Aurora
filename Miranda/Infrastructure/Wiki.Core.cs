@@ -149,10 +149,8 @@ namespace Wiki.Infrastructure.Core
         {
           WikiUser u = dc.GetUserByUserName(upw.UserName);
 
-          var foo = upw.Password.CalculateSHA1Sum();
-
           // The password checking is better than it was. We'll use SHA1 hashes of the 
-          // password for now.
+          // password for now but this needs to change to something a bit more secure
           if (u != null && u.Identifier == upw.Password.CalculateSHA1Sum() &&
                   u.UserName == upw.UserName)
           {

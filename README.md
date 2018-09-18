@@ -2,6 +2,20 @@
 
 A tiny MVC framework for .NET
 
+From now on I'm shipping Miranda with Aurora for convenience. There are some 
+things I need to make better and those will come in time. As far as the 'rewrite'
+branch I'm just gonna start merging that stuff back in here and not try to do some
+massive rewrite in it's own branch because there is not really time for it and
+this is mostly a toy framework for fun. I'll just explore any ideas from now on
+here in the master branch.
+
+Just a FYI, today (17 September 2018) is the first time I've messed with this in
+over 4 years. Hopefully now that I haven't had my eyes on this code I can come
+back and find areas that need changing. 
+
+Things I like about this framework is that there are a lot of cool features
+and it's not too hard to add new ones because the framework is not that large.
+
 ### Features
 
 - Model View Controller based
@@ -12,7 +26,7 @@ A tiny MVC framework for .NET
 - URL parameters bind to action method parameters automatically, no fiddling 
 	with routes declarations.
 - Posted forms binds to post models or action parameters automatically.
-- Actions can have bound parameters that are bound to actions 
+- Actions can have bound parameters that bind when an action is called
 	(dependency injection)
 - Actions can be segregated based on Get, Post, GetOrPost, Put and Delete action 
 	type and you can secure them with the ActionSecurity named parameter.
